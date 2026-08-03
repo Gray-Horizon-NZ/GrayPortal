@@ -1,0 +1,41 @@
+# Firebase App Hosting build/runtime config. Env vars marked BUILD are
+# available during `next build` (needed because Next.js inlines
+# NEXT_PUBLIC_* values at build time); RUNTIME vars are available to the
+# running server. Secret-backed values are pulled from Secret Manager, set
+# via: firebase apphosting:secrets:set <NAME>
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+
+env:
+  - variable: DATABASE_URL
+    secret: DATABASE_URL
+    availability: [RUNTIME]
+
+  - variable: FIREBASE_ADMIN_PROJECT_ID
+    secret: FIREBASE_ADMIN_PROJECT_ID
+    availability: [RUNTIME]
+
+  - variable: FIREBASE_ADMIN_CLIENT_EMAIL
+    secret: FIREBASE_ADMIN_CLIENT_EMAIL
+    availability: [RUNTIME]
+
+  - variable: FIREBASE_ADMIN_PRIVATE_KEY
+    secret: FIREBASE_ADMIN_PRIVATE_KEY
+    availability: [RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAdZgbWQ4lZpXln_-v_FILGu9Tok80QbyU
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: grayhorizon-grayportal.firebaseapp.com
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: grayhorizon-grayportal
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:569513179566:web:1979b790fb01e42013b03f"
+    availability: [BUILD, RUNTIME]

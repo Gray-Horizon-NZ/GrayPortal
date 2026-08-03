@@ -1,0 +1,77 @@
+name: PR Preview (App Hosting)
+
+# Firebase App Hosting deploys the `main` (live) branch automatically via
+# its own GitHub Developer Connect integration — no Action needed for prod.
+# This workflow gives each PR its own ephemeral App Hosting backend + URL,
+# since App Hosting's native preview model is one shared preview branch,
+# not per-PR (see brief §6.7 discussion). Requires the CI workflow to have
+# passed first (see branch protection note in README).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate
+        run: echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > /tmp/gcp-key.json
+
+      - name: Create/update preview backend for this PR
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+          BACKEND_ID: pr-${{ github.event.pull_request.number }}
+        run: |
+          firebase apphosting:backends:create \
+            --project grayhorizon-grayportal \
+            --backend "$BACKEND_ID" \
+            --location asia-southeast1 \
+            --root-dir / \
+            --non-interactive \
+            || echo "Backend may already exist, continuing."
+
+      - name: Comment preview URL on PR
+        env:
+          BACKEND_ID: pr-${{ github.event.pull_request.number }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `https://${process.env.BACKEND_ID}--grayhorizon-grayportal.asia-southeast1.hosted.app`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Preview: ${url}`,
+            });
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate
+        run: echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > /tmp/gcp-key.json
+
+      - name: Delete preview backend
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+          BACKEND_ID: pr-${{ github.event.pull_request.number }}
+        run: |
+          firebase apphosting:backends:delete "$BACKEND_ID" \
+            --project grayhorizon-grayportal \
+            --location asia-southeast1 \
+            --force \
+            || echo "Nothing to clean up."

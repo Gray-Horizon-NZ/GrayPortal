@@ -1,0 +1,157 @@
+@import "./tokens.css";
+
+html {
+  height: 100%;
+  color-scheme: dark;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100%;
+  background: var(--gh-bg);
+  color: var(--gh-text-primary);
+  font-family: var(--gh-font-body);
+  font-weight: 400;
+  font-size: var(--gh-text-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gh-focus-ring);
+  outline-offset: 2px;
+}
+
+.gh-eyebrow {
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wider);
+  color: var(--gh-text-muted);
+}
+
+.gh-title {
+  font-family: var(--gh-font-display);
+  font-weight: 600;
+  color: var(--gh-text-emphasis);
+}
+
+.gh-title em {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.gh-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gh-accent);
+  color: var(--gh-accent-contrast);
+  border: none;
+  border-radius: var(--gh-radius);
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  padding: var(--gh-space-3) var(--gh-space-4);
+  cursor: pointer;
+  transition: opacity var(--gh-transition);
+}
+
+.gh-btn-primary:hover {
+  opacity: 0.85;
+}
+
+.gh-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--gh-text-primary);
+  border: 1px solid var(--gh-border-strong);
+  border-radius: var(--gh-radius);
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  padding: var(--gh-space-3) var(--gh-space-4);
+  cursor: pointer;
+  transition: background var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-btn-secondary:hover {
+  background: var(--gh-surface-raised);
+  border-color: var(--gh-text-muted);
+}
+
+.gh-card {
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  padding: var(--gh-space-6);
+}
+
+.gh-input {
+  background: var(--gh-black);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  color: var(--gh-text-primary);
+  padding: var(--gh-space-2) var(--gh-space-3);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-input:focus {
+  border-color: var(--gh-text-muted);
+}
+
+.gh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gh-space-1);
+  font-size: var(--gh-text-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  padding: 2px var(--gh-space-2);
+  border-radius: var(--gh-radius);
+  border: 1px solid var(--gh-border-strong);
+}
+
+.gh-badge[data-status="success"] {
+  color: var(--gh-success);
+  border-color: var(--gh-success);
+}
+
+.gh-badge[data-status="warning"] {
+  color: var(--gh-warning);
+  border-color: var(--gh-warning);
+}
+
+.gh-badge[data-status="danger"] {
+  color: var(--gh-danger);
+  border-color: var(--gh-danger);
+}

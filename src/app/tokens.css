@@ -1,0 +1,80 @@
+/* Design tokens — the ONLY place colour, type, spacing, and radius values
+ * are defined (brief §4). Every component references these custom
+ * properties. No hard-coded hex values or font names anywhere else. */
+
+:root {
+  /* Site anchors, copied exactly from grayhorizon.nz */
+  --gh-black: #1c1c1c;
+  --gh-dark: #3f3f3f;
+  --gh-mid: #6b6b6b;
+  --gh-light: #f4f4f4;
+  --gh-white: #ffffff;
+
+  /* Derived neutral ramp */
+  --gh-900: #242424;
+  --gh-800: #2e2e2e;
+  --gh-600: #545454;
+  --gh-400: #9a9a9a;
+
+  /* Semantic tokens */
+  --gh-bg: var(--gh-black);
+  --gh-surface: var(--gh-900);
+  --gh-surface-raised: var(--gh-800);
+  --gh-border: var(--gh-dark);
+  --gh-border-strong: var(--gh-600);
+
+  --gh-text-primary: var(--gh-light);
+  --gh-text-emphasis: var(--gh-white);
+  --gh-text-muted: var(--gh-400);
+  --gh-text-disabled: var(--gh-mid);
+
+  /* No brand accent hue — white is the accent, exactly as on the site. */
+  --gh-accent: var(--gh-white);
+  --gh-accent-contrast: var(--gh-black);
+  --gh-focus-ring: var(--gh-white);
+
+  /* Status colours — the one departure from monochrome. State signalling
+   * only, never decorative. Always paired with a text label or icon. */
+  --gh-success: #4a7c59;
+  --gh-warning: #b08843;
+  --gh-danger: #a34a42;
+
+  /* Typography — font files are self-hosted via next/font/google, which
+   * exposes them through these CSS variables (see app/layout.tsx). */
+  --gh-font-display: var(--font-cormorant), Georgia, serif;
+  --gh-font-body: var(--font-dm-sans), system-ui, sans-serif;
+  --gh-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --gh-tracking-wide: 0.14em;
+  --gh-tracking-wider: 0.22em;
+
+  --gh-text-micro: 0.5625rem; /* 9px */
+  --gh-text-xs: 0.6875rem; /* 11px */
+  --gh-text-sm: 0.8125rem; /* 13px */
+  --gh-text-base: 0.9375rem; /* 15px */
+  --gh-text-lg: 1.25rem; /* 20px */
+  --gh-text-xl: 1.75rem; /* 28px */
+  --gh-text-2xl: 2.25rem; /* 36px */
+
+  /* Spacing */
+  --gh-space-1: 4px;
+  --gh-space-2: 8px;
+  --gh-space-3: 12px;
+  --gh-space-4: 16px;
+  --gh-space-6: 24px;
+  --gh-space-8: 32px;
+  --gh-space-12: 48px;
+
+  /* Geometry — radius is 0, everywhere except circular elements. */
+  --gh-radius: 0;
+  --gh-radius-full: 50%;
+
+  /* Motion */
+  --gh-transition: 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --gh-transition: 0s;
+  }
+}
