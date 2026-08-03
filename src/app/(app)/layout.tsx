@@ -61,8 +61,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <NavLink href="/pipeline">Pipeline</NavLink>
+          <NavLink href="/deals">Deals</NavLink>
           <NavLink href="/companies">Companies</NavLink>
+          <NavLink href="/clients">Clients</NavLink>
           <NavLink href="/tasks">Tasks</NavLink>
+          <NavLink href="/search">Search</NavLink>
         </div>
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
