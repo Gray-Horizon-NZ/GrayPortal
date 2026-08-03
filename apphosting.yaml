@@ -10,19 +10,16 @@ runConfig:
 env:
   - variable: DATABASE_URL
     secret: DATABASE_URL
-    availability: [RUNTIME]
+    # BUILD is required too: Next's build step imports every route module
+    # (including ones that touch the DB client) to collect page data, and
+    # src/lib/db/client.ts throws at import time if this is unset. The
+    # Pool() constructor itself doesn't connect eagerly, so this is safe.
+    availability: [BUILD, RUNTIME]
 
-  - variable: FIREBASE_ADMIN_PROJECT_ID
-    secret: FIREBASE_ADMIN_PROJECT_ID
-    availability: [RUNTIME]
-
-  - variable: FIREBASE_ADMIN_CLIENT_EMAIL
-    secret: FIREBASE_ADMIN_CLIENT_EMAIL
-    availability: [RUNTIME]
-
-  - variable: FIREBASE_ADMIN_PRIVATE_KEY
-    secret: FIREBASE_ADMIN_PRIVATE_KEY
-    availability: [RUNTIME]
+  # No FIREBASE_ADMIN_* here on purpose: on App Hosting, the Admin SDK picks
+  # up the attached Cloud Run service account automatically via
+  # applicationDefault() (see src/lib/firebase/admin.ts) — no key needed in
+  # production. The explicit env vars only matter for local dev.
 
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyAdZgbWQ4lZpXln_-v_FILGu9Tok80QbyU

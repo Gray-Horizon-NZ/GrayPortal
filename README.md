@@ -61,4 +61,13 @@ Internal operations dashboard for Gray Horizon (Phase 0 + Phase 1, per `gh-dashb
 
 This build folds in the CRM core from the original brief (Phase 0 + Phase 1) plus the client-portal groundwork Max asked for mid-build: a `clients` table distinct from `companies`, client-visible `tasks`/`documents`/`referrals`, and a `client_features` toggle table for the planned dynamic portal builder. None of the client-facing UI (portal screens, referral dashboard, Grayscale gating, dynamic feature toggling) is built yet — the schema exists so it doesn't require a migration later, per the same "design for, don't build" principle the original brief used for Phase 2+.
 
-**Known gaps in the current CRM screens** (functional but not exhaustive): no standalone deal list view (pipeline board covers this for now), no dedicated contact detail page, no global search, CSV export exists for companies/contacts/deals/activities but not yet client-scoped entities.
+**Known gaps in the current CRM screens** (functional but not exhaustive): CSV export exists for companies/contacts/deals/activities but not yet client-scoped entities.
+
+## Deployed
+
+Live (manual CLI deploy, no GitHub trigger yet) at:
+https://grayportal--grayhorizon-grayportal.asia-southeast1.hosted.app
+
+Verified: `/` redirects unauthenticated requests to `/login` (deny-by-default proxy working in production).
+
+To redeploy manually: `firebase deploy --only apphosting` (requires `firebase use grayhorizon-grayportal` and being logged in). Once the backend is connected to the GitHub repo (still pending — see "Still needs a human"), pushes to `main` will trigger this automatically instead.
