@@ -15,6 +15,14 @@ import { isRateLimited } from "@/lib/rateLimit";
 // Both layers are required; this is the network-boundary half.
 const PUBLIC_PATHS = ["/login"];
 
+// Routes that enforce their own auth (a bearer-token check against
+// CRON_SECRET) instead of the session-cookie model, because the caller is
+// Cloud Scheduler, not a logged-in user. Still deny-by-default in the
+// sense that the route itself 401s without the right token — this list
+// only opts them out of the cookie redirect, not out of authentication
+// entirely.
+const BEARER_AUTH_PATHS = ["/api/cron"];
+
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -41,7 +49,11 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
-  if (pathname.startsWith("/api/auth/session") || isPublic(pathname)) {
+  if (
+    pathname.startsWith("/api/auth/session") ||
+    isPublic(pathname) ||
+    BEARER_AUTH_PATHS.some((p) => pathname.startsWith(p))
+  ) {
     return NextResponse.next();
   }
 

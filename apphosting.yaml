@@ -16,6 +16,10 @@ env:
     # Pool() constructor itself doesn't connect eagerly, so this is safe.
     availability: [BUILD, RUNTIME]
 
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability: [RUNTIME]
+
   # No FIREBASE_ADMIN_* here on purpose: on App Hosting, the Admin SDK picks
   # up the attached Cloud Run service account automatically via
   # applicationDefault() (see src/lib/firebase/admin.ts) — no key needed in
