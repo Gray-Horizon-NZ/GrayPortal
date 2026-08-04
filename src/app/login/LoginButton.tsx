@@ -23,7 +23,11 @@ export default function LoginButton() {
       });
 
       if (!res.ok) {
-        setError("This Google account isn't authorised for Gray Portal.");
+        setError(
+          res.status === 401
+            ? "This Google account isn't authorised for Gray Portal."
+            : "Sign-in hit a server error. Try again, or tell Max if it keeps happening."
+        );
         setLoading(false);
         return;
       }
