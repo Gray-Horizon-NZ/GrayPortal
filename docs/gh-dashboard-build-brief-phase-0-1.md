@@ -335,17 +335,3 @@ Later phases. **Do not implement any of this.** It is here only to prevent decis
 3. Database choice sign-off after the proposal (§3).
 4. Exact subdomain (§3).
 5. Confirmation that Phase 1 stops where §7.5 says it stops.
-
----
-
-## Decisions made and deviations from this brief (added during the build — see `README.md` and chat history for full detail)
-
-This section was not part of the original brief. It's added here so this document stays a useful single reference, rather than requiring a cross-read against chat history for what actually shipped.
-
-- **Database:** Postgres via Neon (Sydney region), not Firestore — per §3's own instruction to justify this choice. Drizzle ORM + drizzle-kit migrations.
-- **Tenant isolation:** implemented via Postgres Row-Level Security as the actual enforcement mechanism, with the data access layer (`src/lib/dal`) as the ergonomic wrapper on top — stronger than the DAL-only enforcement §5.3 originally specified.
-- **Tenant model corrected mid-build:** `clients` is a separate table from `companies`, not the same thing — see `README.md` "Architecture notes" for why the original single-table approach would have been a data leak.
-- **Framework:** Next.js 16 (App Router), which replaced `middleware.ts` with `proxy.ts` (Node runtime by default) after this brief was written — the deny-by-default requirement in §5.2 is implemented there.
-- **Hosting:** Firebase App Hosting (Cloud Run–backed), the current product for Next.js — the older "Hosting frameworks" integration referenced implicitly by §3 is closed to new projects as of this build.
-- **Scope expansion:** mid-build, the owner asked to fold in client-portal groundwork (referrals, dynamic per-client feature toggles, task lists visible in a future client portal, payment-date tracking) alongside Phase 1, ahead of §9's original phasing. Schema exists for these; no client-facing UI has been built yet, consistent with §9's own "design for, do not build" principle.
-- **Open items from §10:** status colours and weight/contrast deviations were approved as specified. Database choice was Postgres/Neon (approved). Subdomain is `app.grayhorizon.nz`.
