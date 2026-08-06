@@ -8,9 +8,17 @@ import { google } from "googleapis";
 // Calendar/Tasks APIs requires this dedicated consent flow
 // (access_type=offline, prompt=consent), done once by the admin from the
 // settings page, independent of how long their GrayPortal session lasts.
+// Phase 10 extends this list with Gmail scopes rather than opening a second
+// consent flow — an admin who already connected Calendar/Tasks needs to
+// reconnect once (Settings → Connect Google) to pick up the new grant,
+// same as any other scope change. gmail.send + gmail.readonly cover
+// compose/send and reading inbound mail; neither is gmail.modify, so
+// GrayPortal can never alter labels/delete mail in the connected inbox.
 export const GOOGLE_SYNC_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/tasks",
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.readonly",
 ];
 
 function oauthClient() {

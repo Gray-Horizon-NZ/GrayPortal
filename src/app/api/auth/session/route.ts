@@ -3,6 +3,11 @@ import { adminAuth } from "@/lib/firebase/admin";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS } from "@/lib/dal/constants";
 import { claimOrVerifyAllowlist } from "@/lib/dal/allowlist";
 import { NotOnAllowlistError } from "@/lib/dal/session";
+import { recordLoginEvent } from "@/lib/dal/security";
+
+function requestIp(request: NextRequest): string | null {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+}
 
 // Step 2 of sign-in: exchanges a Firebase ID token for a long-lived session
 // cookie. The ID token itself is short-lived and only used once, here.
@@ -44,9 +49,26 @@ export async function POST(request: NextRequest) {
       maxAge: SESSION_MAX_AGE_MS / 1000,
       path: "/",
     });
+
+    // Phase 19 anomaly monitoring — fire-and-forget-ish, but awaited so a
+    // failure here logs rather than silently vanishing; never blocks the
+    // actual sign-in on a monitoring hiccup.
+    recordLoginEvent({
+      firebaseUid: decoded.uid,
+      ipAddress: requestIp(request),
+      userAgent: request.headers.get("user-agent"),
+      success: true,
+    }).catch((e) => console.error("recordLoginEvent (success) failed", e));
+
     return response;
   } catch (err) {
     if (err instanceof NotOnAllowlistError) {
+      recordLoginEvent({
+        firebaseUid: null,
+        ipAddress: requestIp(request),
+        userAgent: request.headers.get("user-agent"),
+        success: false,
+      }).catch((e) => console.error("recordLoginEvent (failure) failed", e));
       return NextResponse.json({ error: "Not on allowlist" }, { status: 401 });
     }
     // Anything else (token verification, session cookie signing, DB

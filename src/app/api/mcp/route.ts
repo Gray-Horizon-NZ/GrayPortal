@@ -10,6 +10,9 @@ import { listMyTasks, setTaskStatus, TaskStatus } from "@/lib/dal/tasks";
 import { searchAll } from "@/lib/dal/search";
 import { logActivity } from "@/lib/dal/activities";
 import { onboardClient, OnboardClientInput } from "@/lib/dal/onboarding";
+import { listCredentials } from "@/lib/dal/credentials";
+import { listServiceItems } from "@/lib/dal/pricing";
+import { prioritizeTasks } from "@/lib/dal/taskPlanner";
 
 // The MCP server exposing GrayPortal's existing application layer to
 // Claude (Phase 4 brief). Every tool below is a thin wrapper around a DAL
@@ -71,7 +74,7 @@ function buildServer() {
   server.registerTool(
     "search",
     {
-      description: "Search companies, contacts, and deals by a text query.",
+      description: "Search companies, contacts, deals, tasks, and emails by a text query.",
       inputSchema: { query: z.string().min(1) },
       annotations: { readOnlyHint: true },
     },
@@ -118,6 +121,49 @@ function buildServer() {
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
     async (args) => jsonResult(await onboardClient(args))
+  );
+
+  // Metadata only — label/username/url/lastRotatedAt, never the decrypted
+  // secret. Deliberately no reveal/create/rotate credential tools: the
+  // brief's fresh-MFA requirement for viewing a secret has no meaningful
+  // equivalent for a stateless Bearer-token MCP call, and the vault is
+  // "admin-only, full stop" (brief §2) — adding a write/reveal path here
+  // would be a real security regression, not a convenience.
+  server.registerTool(
+    "list_credentials",
+    {
+      description:
+        "List stored credential labels/usernames/URLs (never the decrypted secret) for a client, " +
+        "or business-wide credentials if no clientId is given.",
+      inputSchema: { clientId: z.string().uuid().optional() },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ clientId }) => jsonResult(await listCredentials(clientId))
+  );
+
+  server.registerTool(
+    "list_service_items",
+    {
+      description:
+        "List Gray Horizon's structured pricing catalogue (from gh_pricing_framework_v5.md), optionally " +
+        "filtered by module code (GS/GA/AO/SS/RA/GX/P2). Current pricing is the default rate to quote " +
+        "unless explicitly told to use Suggested.",
+      inputSchema: { moduleCode: z.string().optional() },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ moduleCode }) => jsonResult(await listServiceItems(moduleCode))
+  );
+
+  server.registerTool(
+    "prioritize_tasks",
+    {
+      description:
+        "Propose an ordered priority list across all open tasks, weighing overdue status, whether the " +
+        "linked client's health score is declining, and whether the linked deal has stalled. Read-only — " +
+        "proposes an order, never reassigns or reorders anything in the database itself.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => jsonResult(await prioritizeTasks())
   );
 
   return server;

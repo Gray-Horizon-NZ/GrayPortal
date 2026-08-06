@@ -9,13 +9,26 @@ export const ClientInput = z.object({
   name: z.string().min(1),
   companyId: z.string().uuid().optional(),
   nextPaymentDate: z.string().optional(),
+  driveFolderUrl: z.string().optional(),
+  lookerStudioUrl: z.string().optional(),
 });
 export type ClientInputT = z.infer<typeof ClientInput>;
 
 // Registry of known portal feature keys — validated here at the app layer
 // (brief-style "one place," not a DB enum) so new features don't need a
 // migration, per the dynamic-portal-builder scope agreed mid-build.
-export const PORTAL_FEATURE_KEYS = ["tasks", "documents", "referrals", "grayscale_page"] as const;
+export const PORTAL_FEATURE_KEYS = [
+  "tasks",
+  "documents",
+  "referrals",
+  "grayscale_page",
+  "ideation",
+  "roadmap",
+  "meeting_summaries",
+  "tool_stack",
+  "drive",
+  "reporting",
+] as const;
 export type PortalFeatureKey = (typeof PORTAL_FEATURE_KEYS)[number];
 
 export async function listClients() {

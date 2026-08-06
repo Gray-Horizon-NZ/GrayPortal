@@ -47,6 +47,38 @@ export default async function SearchPage({
             ))}
             {results.dealRows.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No matches.</p>}
           </section>
+
+          <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+            <p className="gh-eyebrow">Tasks</p>
+            {results.taskRows.map((t) => (
+              <Link key={t.id} href="/tasks" className="gh-card">{t.title}</Link>
+            ))}
+            {results.taskRows.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No matches.</p>}
+          </section>
+
+          <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+            <p className="gh-eyebrow">Ideation / Roadmap / Meeting Summaries</p>
+            {[...results.ideationRows, ...results.roadmapRows, ...results.meetingRows].map((r) => (
+              <Link key={r.id} href={`/clients/${r.clientId}`} className="gh-card">{"title" in r ? r.title : ""}</Link>
+            ))}
+            {results.ideationRows.length === 0 && results.roadmapRows.length === 0 && results.meetingRows.length === 0 && (
+              <p style={{ color: "var(--gh-text-muted)" }}>No matches.</p>
+            )}
+          </section>
+
+          <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+            <p className="gh-eyebrow">Emails</p>
+            {results.emailRows.map((e) => (
+              <Link
+                key={e.id}
+                href={e.contactId ? `/contacts/${e.contactId}` : e.dealId ? `/deals/${e.dealId}` : "/inbox"}
+                className="gh-card"
+              >
+                {e.subject || "(no subject)"}
+              </Link>
+            ))}
+            {results.emailRows.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No matches.</p>}
+          </section>
         </>
       )}
     </div>

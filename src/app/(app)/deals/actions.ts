@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createDeal, changeDealStage, type DealInputT } from "@/lib/dal/deals";
 import { logActivity } from "@/lib/dal/activities";
+import { sendEmail } from "@/lib/dal/emails";
 import type { Stage } from "@/config/pipeline";
 
 export async function createDealAction(companyId: string, formData: FormData) {
@@ -36,4 +37,17 @@ export async function logDealActivityAction(dealId: string, formData: FormData) 
     outcome: String(formData.get("outcome") ?? "") || undefined,
   });
   revalidatePath(`/deals/${dealId}`);
+}
+
+export async function sendDealEmailAction(dealId: string, formData: FormData) {
+  const subject = String(formData.get("subject") ?? "");
+  const body = String(formData.get("body") ?? "");
+  try {
+    await sendEmail({ dealId, subject, body });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Send failed";
+    redirect(`/deals/${dealId}?emailError=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/deals/${dealId}`);
+  redirect(`/deals/${dealId}?emailSent=1`);
 }

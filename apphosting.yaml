@@ -49,6 +49,45 @@ env:
     secret: GOOGLE_TOKEN_ENCRYPTION_KEY
     availability: [RUNTIME]
 
+  # Phase 9: Xero OAuth (standard interactive flow, Max's explicit choice
+  # over the $10/mo Custom Connection alternative — see
+  # src/lib/xero/oauth.ts). Separate client from Firebase Auth and from
+  # Phase 3's Google OAuth client, same reasoning as Phase 3's own comment.
+  - variable: XERO_OAUTH_CLIENT_ID
+    secret: XERO_OAUTH_CLIENT_ID
+    availability: [RUNTIME]
+
+  - variable: XERO_OAUTH_CLIENT_SECRET
+    secret: XERO_OAUTH_CLIENT_SECRET
+    availability: [RUNTIME]
+
+  - variable: XERO_OAUTH_REDIRECT_URI
+    secret: XERO_OAUTH_REDIRECT_URI
+    availability: [RUNTIME]
+
+  # Phase 9: pgcrypto symmetric key for the stored Xero refresh token
+  # (db/sql/011_phase9_xero.sql), separate from GOOGLE_TOKEN_ENCRYPTION_KEY
+  # and CREDENTIAL_VAULT_ENCRYPTION_KEY so rotating one never touches
+  # another's data.
+  - variable: XERO_TOKEN_ENCRYPTION_KEY
+    secret: XERO_TOKEN_ENCRYPTION_KEY
+    availability: [RUNTIME]
+
+  # Phase 6: pgcrypto symmetric key for stored vault credential secrets
+  # (db/sql/006_credentials.sql), separate from GOOGLE_TOKEN_ENCRYPTION_KEY
+  # above so rotating one key never touches the other's data. Runtime only.
+  - variable: CREDENTIAL_VAULT_ENCRYPTION_KEY
+    secret: CREDENTIAL_VAULT_ENCRYPTION_KEY
+    availability: [RUNTIME]
+
+  # Phase 11: optional shared-secret header the website's inquiry form
+  # script sends on submission — a soft spam deterrent for the public
+  # /api/leads intake, not real authentication. If unset, the route skips
+  # this check rather than hard-failing before it's configured.
+  - variable: LEAD_CAPTURE_SECRET
+    secret: LEAD_CAPTURE_SECRET
+    availability: [RUNTIME]
+
   # No FIREBASE_ADMIN_* here on purpose: on App Hosting, the Admin SDK picks
   # up the attached Cloud Run service account automatically via
   # applicationDefault() (see src/lib/firebase/admin.ts) — no key needed in

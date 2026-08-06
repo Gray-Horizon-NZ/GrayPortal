@@ -13,6 +13,10 @@ export type Caller = {
   clientId: string | null;
   email: string;
   displayName: string | null;
+  // Firebase UID (users.google_uid), not the internal users.id above. Phase
+  // 6 needs this to match the caller against the vault re-auth cookie's
+  // decoded uid — see src/lib/dal/vaultAuth.ts.
+  firebaseUid: string;
 };
 
 export class NotOnAllowlistError extends Error {
@@ -66,6 +70,7 @@ export async function withSession<T>(
         clientId: row.clientId,
         email: row.email,
         displayName: row.displayName,
+        firebaseUid,
       };
 
       result = await fn(tx, caller);

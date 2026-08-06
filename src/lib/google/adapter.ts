@@ -15,7 +15,7 @@ export type SyncResult =
   | { status: "failed" }
   | { status: "skipped" }; // no admin has connected Google — not an error
 
-async function authedClient() {
+export async function authedClient() {
   const connection = await getGoogleConnectionForSync();
   if (!connection) return null;
   return clientFromRefreshToken(connection.refreshToken);

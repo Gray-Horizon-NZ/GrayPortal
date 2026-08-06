@@ -30,7 +30,7 @@ async function writeAudit(
   tx: any,
   ctx: MutationCtx,
   entityId: string,
-  action: "create" | "update" | "delete",
+  action: "create" | "update" | "delete" | "reveal",
   fieldChanges: Record<string, { old: unknown; new: unknown }>
 ) {
   await tx.insert(auditLog).values({
@@ -84,6 +84,22 @@ export async function auditedUpdate<Row extends Record<string, unknown>>(
     .returning();
   await writeAudit(tx, ctx, id, "update", diffFields(before ?? null, after));
   return after as Row;
+}
+
+/**
+ * Records that a sensitive value was read, not written — Phase 6's
+ * credential reveal is the first case in the app where a read needs an
+ * audit trail. No before/after diff (there's nothing to diff on a read);
+ * the row's existence is the record. Call inside the same transaction as
+ * the decrypt itself, after it succeeds.
+ */
+export async function auditReveal(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  entityId: string,
+  ctx: MutationCtx
+): Promise<void> {
+  await writeAudit(tx, ctx, entityId, "reveal", {});
 }
 
 /** Soft delete only — never a real SQL DELETE (brief §5.4, and the runtime

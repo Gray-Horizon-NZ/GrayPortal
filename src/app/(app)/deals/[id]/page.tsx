@@ -1,13 +1,23 @@
 import { notFound } from "next/navigation";
 import { getDeal } from "@/lib/dal/deals";
+import { listEmailTemplates } from "@/lib/dal/emails";
 import { STAGES, isClosedStage } from "@/config/pipeline";
-import { changeStageAction, logDealActivityAction } from "../actions";
+import { changeStageAction, logDealActivityAction, sendDealEmailAction } from "../actions";
+import EmailComposeFields from "@/components/EmailComposeFields";
 
-export default async function DealDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DealDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ emailSent?: string; emailError?: string }>;
+}) {
   const { id } = await params;
+  const { emailSent, emailError } = await searchParams;
   const data = await getDeal(id);
   if (!data) notFound();
   const { deal, activities, tasks } = data;
+  const templates = await listEmailTemplates();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 800 }}>
@@ -20,6 +30,9 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           {deal.stage}
         </span>
       </div>
+
+      {emailSent && <p style={{ color: "var(--gh-success)" }}>Email sent and logged.</p>}
+      {emailError && <p style={{ color: "var(--gh-danger)" }}>Couldn&apos;t send: {emailError}</p>}
 
       <section className="gh-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -68,6 +81,13 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
               <p>{a.body}</p>
             </div>
           ))}
+        <details className="gh-card">
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Send email</summary>
+          <form action={sendDealEmailAction.bind(null, deal.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+            <EmailComposeFields templates={templates} />
+            <button className="gh-btn-primary" type="submit">Send to primary contact</button>
+          </form>
+        </details>
         <details className="gh-card">
           <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Log activity</summary>
           <form action={logDealActivityAction.bind(null, deal.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>

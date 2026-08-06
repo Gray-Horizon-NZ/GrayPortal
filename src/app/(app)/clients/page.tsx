@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { listClients } from "@/lib/dal/clients";
 import { paymentStatus } from "@/lib/paymentStatus";
+import { listLatestHealthScores } from "@/lib/dal/health";
 import { createClientAction } from "./actions";
 
+const TREND_ARROW: Record<string, string> = { up: "↑", down: "↓", flat: "→" };
+
 export default async function ClientsPage() {
-  const clients = await listClients();
+  const [clients, healthScores] = await Promise.all([listClients(), listLatestHealthScores()]);
+  const healthByClient = new Map(healthScores.map((h) => [h.clientId, h]));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)" }}>
@@ -19,6 +23,7 @@ export default async function ClientsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
         {clients.map((c) => {
           const status = paymentStatus(c.nextPaymentDate);
+          const health = healthByClient.get(c.id);
           return (
             <Link
               key={c.id}
@@ -27,7 +32,17 @@ export default async function ClientsPage() {
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
               <span style={{ fontWeight: 500 }}>{c.name}</span>
-              {status && <span className="gh-badge" data-status={status.tone}>{status.label}</span>}
+              <div style={{ display: "flex", gap: "var(--gh-space-3)", alignItems: "center" }}>
+                {health && (
+                  <span
+                    className="gh-badge"
+                    data-status={Number(health.score) >= 70 ? "success" : Number(health.score) >= 40 ? "warning" : "danger"}
+                  >
+                    {Math.round(Number(health.score))} {TREND_ARROW[health.trend]}
+                  </span>
+                )}
+                {status && <span className="gh-badge" data-status={status.tone}>{status.label}</span>}
+              </div>
             </Link>
           );
         })}

@@ -47,12 +47,12 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Contacts</p>
         {contacts.map((c) => (
-          <div key={c.id} className="gh-card">
+          <Link key={c.id} href={`/contacts/${c.id}`} className="gh-card" style={{ display: "block" }}>
             <p style={{ fontWeight: 500 }}>{c.firstName} {c.lastName}</p>
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
               {c.roleTitle ?? "—"} · {c.email ?? "—"} · {c.phone ?? "—"}
             </p>
-          </div>
+          </Link>
         ))}
         {contacts.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No contacts yet.</p>}
         <details className="gh-card">

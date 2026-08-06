@@ -1,6 +1,17 @@
 import "server-only";
-import { clients, tasks, referrals, clientFeatures, documents } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import {
+  clients,
+  tasks,
+  referrals,
+  referralDiscounts,
+  clientFeatures,
+  documents,
+  ideationItems,
+  roadmapItems,
+  meetingSummaries,
+  toolStackItems,
+} from "@/lib/db/schema";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { requireClientScope } from "./session";
 import { auditedInsert } from "./mutate";
@@ -107,18 +118,77 @@ export async function getReferralStats() {
   return withCaller(async (caller, tx) => {
     requireClientScope(caller);
     const rows = await tx
-      .select({ status: referrals.status, creditAmountNzd: referrals.creditAmountNzd })
+      .select({ status: referrals.status })
       .from(referrals)
       .where(and(eq(referrals.clientId, caller.clientId), isNull(referrals.deletedAt)));
 
-    // "Saved" counts only what's actually been credited, not what's still
-    // pending/confirmed but not yet paid out — a portal showing money the
-    // client hasn't actually received yet would be misleading.
-    const totalSavedNzd = rows
-      .filter((r) => r.status === "credited")
-      .reduce((sum, r) => sum + Number(r.creditAmountNzd ?? 0), 0);
+    // Active discount % — "with stacking" (Phase 8 brief §4): sum whatever
+    // referral_discounts windows are currently live for this client, not
+    // just the most recent one. A $ figure isn't computable here since
+    // retainer value doesn't live on the client record.
+    const today = new Date().toISOString().slice(0, 10);
+    const discountRows = await tx
+      .select()
+      .from(referralDiscounts)
+      .where(and(eq(referralDiscounts.clientId, caller.clientId), isNull(referralDiscounts.deletedAt)));
+    const activeDiscounts = discountRows.filter((d) => d.startsOn <= today && d.endsOn >= today);
+    const activeDiscountPercent = activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0);
 
-    return { totalReferrals: rows.length, totalSavedNzd };
+    return { totalReferrals: rows.length, activeDiscountPercent };
+  });
+}
+
+export async function listPortalIdeation() {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    return tx
+      .select()
+      .from(ideationItems)
+      .where(and(eq(ideationItems.clientId, caller.clientId), isNull(ideationItems.deletedAt)));
+  });
+}
+
+export async function listPortalRoadmap() {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    return tx
+      .select()
+      .from(roadmapItems)
+      .where(and(eq(roadmapItems.clientId, caller.clientId), isNull(roadmapItems.deletedAt)))
+      .orderBy(roadmapItems.sortOrder);
+  });
+}
+
+export async function listPortalMeetingSummaries() {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    return tx
+      .select()
+      .from(meetingSummaries)
+      .where(and(eq(meetingSummaries.clientId, caller.clientId), isNull(meetingSummaries.deletedAt)))
+      .orderBy(desc(meetingSummaries.occurredAt));
+  });
+}
+
+export async function listPortalToolStack() {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    return tx
+      .select()
+      .from(toolStackItems)
+      .where(and(eq(toolStackItems.clientId, caller.clientId), isNull(toolStackItems.deletedAt)));
+  });
+}
+
+export async function getPortalEmbeds() {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    const [client] = await tx
+      .select({ driveFolderUrl: clients.driveFolderUrl, lookerStudioUrl: clients.lookerStudioUrl })
+      .from(clients)
+      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .limit(1);
+    return client ?? { driveFolderUrl: null, lookerStudioUrl: null };
   });
 }
 

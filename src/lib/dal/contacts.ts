@@ -1,6 +1,6 @@
 import "server-only";
-import { contacts } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { contacts, activities } from "@/lib/db/schema";
+import { and, eq, ilike, isNull, or } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 import { z } from "zod";
@@ -23,7 +23,14 @@ export async function getContact(id: string) {
       .from(contacts)
       .where(and(eq(contacts.id, id), isNull(contacts.deletedAt)))
       .limit(1);
-    return contact ?? null;
+    if (!contact) return null;
+    // Phase 10 — activities include inbound/outbound email, matching the
+    // deal detail page's timeline (src/lib/dal/deals.ts's getDeal).
+    const contactActivities = await tx
+      .select()
+      .from(activities)
+      .where(and(eq(activities.contactId, id), isNull(activities.deletedAt)));
+    return { contact, activities: contactActivities };
   });
 }
 
@@ -50,6 +57,23 @@ export async function updateContact(id: string, input: Partial<ContactInputT>) {
       { ...data, updatedBy: caller.userId },
       { caller, entityType: "contact" }
     );
+  });
+}
+
+/** Phase 10 — inbox triage's manual match picker (mirrors XeroLink's search-and-pick, no fuzzy auto-match). */
+export async function searchContacts(term: string) {
+  return withCaller(async (_caller, tx) => {
+    const like = `%${term}%`;
+    return tx
+      .select()
+      .from(contacts)
+      .where(
+        and(
+          isNull(contacts.deletedAt),
+          or(ilike(contacts.firstName, like), ilike(contacts.lastName, like), ilike(contacts.email, like))
+        )
+      )
+      .limit(10);
   });
 }
 

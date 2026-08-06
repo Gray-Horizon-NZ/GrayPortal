@@ -4,3 +4,9 @@ export const SESSION_COOKIE_NAME = "__session";
 // is the cookie lifetime only; reaching 30 days needs a silent-refresh flow
 // (re-mint the cookie before it expires) that doesn't exist yet.
 export const SESSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days (Firebase max)
+
+// Phase 6 (Credential Vault) — a second, short-lived cookie proving a fresh
+// MFA re-auth happened, separate from the 14-day main session cookie above.
+// 5 minutes is Firebase Admin SDK's createSessionCookie minimum.
+export const VAULT_SESSION_COOKIE_NAME = "__vault_session";
+export const VAULT_SESSION_MAX_AGE_MS = 5 * 60 * 1000;

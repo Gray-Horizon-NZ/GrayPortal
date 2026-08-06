@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
+import { unreadNotificationCount } from "@/lib/dal/notifications";
 import NavLink from "@/components/NavLink";
 import LogoutButton from "./LogoutButton";
 
@@ -8,9 +9,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!uid) redirect("/login");
 
   let callerLabel: string;
+  let callerRole: string = "contractor";
   try {
     const caller = await withCaller(async (c) => c);
     callerLabel = caller.displayName ?? caller.email;
+    callerRole = caller.role;
   } catch (err) {
     if (err instanceof NotOnAllowlistError) {
       return (
@@ -40,6 +43,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     throw err;
   }
 
+  const unreadCount = await unreadNotificationCount();
+
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <nav
@@ -60,13 +65,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
-          <NavLink href="/pipeline">Pipeline</NavLink>
-          <NavLink href="/deals">Deals</NavLink>
+          {/* Phase 14: pipeline/deals/vault/settings are admin-only in
+              practice (deals_admin_only RLS, credentials_admin_only RLS,
+              settings' MFA/Google/MCP config) — hidden from contractor nav
+              entirely rather than shown-then-empty. */}
+          {callerRole === "admin" && <NavLink href="/pipeline">Pipeline</NavLink>}
+          {callerRole === "admin" && <NavLink href="/deals">Deals</NavLink>}
           <NavLink href="/companies">Companies</NavLink>
           <NavLink href="/clients">Clients</NavLink>
           <NavLink href="/tasks">Tasks</NavLink>
+          <NavLink href="/my-tasks">My Tasks</NavLink>
+          <NavLink href="/notifications">Notifications{unreadCount > 0 ? ` (${unreadCount})` : ""}</NavLink>
           <NavLink href="/search">Search</NavLink>
-          <NavLink href="/settings">Settings</NavLink>
+          <NavLink href="/pricing">Pricing</NavLink>
+          {callerRole === "admin" && <NavLink href="/inbox">Inbox</NavLink>}
+          {callerRole === "admin" && <NavLink href="/email-templates">Email Templates</NavLink>}
+          {callerRole === "admin" && <NavLink href="/finance">Finance</NavLink>}
+          {callerRole === "admin" && <NavLink href="/reminders">Reminders</NavLink>}
+          {callerRole === "admin" && <NavLink href="/vault">Vault</NavLink>}
+          {callerRole === "admin" && <NavLink href="/settings">Settings</NavLink>}
         </div>
         <div
           style={{

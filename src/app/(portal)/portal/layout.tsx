@@ -80,6 +80,24 @@ export default async function PortalLayout({ children }: { children: React.React
           {enabledFeatureKeys.includes("referrals") && (
             <NavLink href="/portal/referrals">Referrals</NavLink>
           )}
+          {enabledFeatureKeys.includes("ideation") && (
+            <NavLink href="/portal/ideation">Ideation</NavLink>
+          )}
+          {enabledFeatureKeys.includes("roadmap") && (
+            <NavLink href="/portal/roadmap">Roadmap</NavLink>
+          )}
+          {enabledFeatureKeys.includes("meeting_summaries") && (
+            <NavLink href="/portal/meetings">Meeting Summaries</NavLink>
+          )}
+          {enabledFeatureKeys.includes("tool_stack") && (
+            <NavLink href="/portal/tools">Tool Stack</NavLink>
+          )}
+          {enabledFeatureKeys.includes("drive") && (
+            <NavLink href="/portal/drive">Files</NavLink>
+          )}
+          {enabledFeatureKeys.includes("reporting") && (
+            <NavLink href="/portal/reporting">Reporting</NavLink>
+          )}
         </div>
         <div
           style={{

@@ -15,6 +15,62 @@
       "when": 1785898567021,
       "tag": "0001_phase3_google_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785979294447,
+      "tag": "0002_phase6_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785983278134,
+      "tag": "0003_phase7_pricing_catalogue",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785983474380,
+      "tag": "0004_phase7_audit_entity_id_text",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785984035540,
+      "tag": "0005_phase8_client_portal_expansion",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785984857389,
+      "tag": "0006_phase12_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785986131182,
+      "tag": "0007_phases_13_14_17_18_19",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785990815901,
+      "tag": "0008_phase9_xero",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785993982281,
+      "tag": "0009_phase10_email_system",
+      "breakpoints": true
     }
   ]
 }

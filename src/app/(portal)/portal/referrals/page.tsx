@@ -21,9 +21,9 @@ export default async function PortalReferralsPage() {
           <p className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>{stats.totalReferrals}</p>
         </div>
         <div className="gh-card" style={{ flex: 1 }}>
-          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Saved through referrals</p>
+          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Active discount</p>
           <p className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-            ${stats.totalSavedNzd.toLocaleString("en-NZ")}
+            {stats.activeDiscountPercent}%
           </p>
         </div>
       </div>

@@ -44,6 +44,13 @@ function isPortalPath(pathname: string) {
 const BEARER_AUTH_EXACT_PATHS = ["/api/mcp"];
 const BEARER_AUTH_PREFIX_PATHS = ["/api/cron"];
 
+// Genuinely public — no Firebase session, no bearer token, callable by
+// anyone on the internet (Phase 11's website inquiry form intake). The
+// route itself applies its own soft protections (honeypot, optional
+// shared-secret header); this list only opts it out of the cookie
+// redirect, same caveat as BEARER_AUTH_EXACT_PATHS above.
+const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads"];
+
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -64,6 +71,13 @@ export default async function proxy(request: NextRequest) {
     if (isRateLimited(`auth:${clientKey(request)}`, 5, 60_000)) {
       return NextResponse.json({ error: "Too many attempts, slow down." }, { status: 429 });
     }
+  } else if (pathname.startsWith("/api/leads")) {
+    // Tighter than the generic mutate bucket below — this is the one
+    // endpoint reachable by anyone on the internet, not just an
+    // authenticated caller, so it's the most exposed to spam/abuse.
+    if (isRateLimited(`leads:${clientKey(request)}`, 5, 10 * 60_000)) {
+      return NextResponse.json({ error: "Too many submissions, try again later." }, { status: 429 });
+    }
   } else if (request.method === "POST") {
     if (isRateLimited(`mutate:${clientKey(request)}`, 30, 60_000)) {
       return NextResponse.json({ error: "Too many requests, slow down." }, { status: 429 });
@@ -75,7 +89,8 @@ export default async function proxy(request: NextRequest) {
     pathname.startsWith("/api/auth/claim") ||
     isPublic(pathname) ||
     BEARER_AUTH_EXACT_PATHS.includes(pathname) ||
-    BEARER_AUTH_PREFIX_PATHS.some((p) => pathname.startsWith(p))
+    BEARER_AUTH_PREFIX_PATHS.some((p) => pathname.startsWith(p)) ||
+    TRULY_PUBLIC_EXACT_PATHS.includes(pathname)
   ) {
     return NextResponse.next();
   }

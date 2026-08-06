@@ -1,8 +1,8 @@
 import "server-only";
-import { tasks } from "@/lib/db/schema";
+import { tasks, deals, companies } from "@/lib/db/schema";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
-import { withAdminScope } from "./session";
+import { withAdminScope, assertRole } from "./session";
 import { auditedUpdate } from "./mutate";
 import { syncTaskToGoogle } from "@/lib/google/adapter";
 import { z } from "zod";
@@ -12,6 +12,69 @@ export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing
 export async function listMyTasks() {
   return withCaller(async (_caller, tx) => {
     return tx.select().from(tasks).where(isNull(tasks.deletedAt));
+  });
+}
+
+/**
+ * Phase 14 (Contractor Role) — tasks assigned to the calling user,
+ * regardless of role, so this doubles as an admin's own "my tasks" view.
+ * Ordinary tasks_scoped RLS already covers this fine for admin/contractor
+ * (both have full table access); the assignedTo filter is what actually
+ * narrows it to "mine," which RLS itself doesn't do.
+ */
+export async function listMyAssignedTasks() {
+  return withCaller(async (caller, tx) => {
+    return tx
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.assignedTo, caller.userId), isNull(tasks.deletedAt)));
+  });
+}
+
+export async function assignTask(taskId: string, assigneeUserId: string | null) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return auditedUpdate(
+      tx,
+      tasks,
+      eq(tasks.id, taskId),
+      taskId,
+      { assignedTo: assigneeUserId, updatedBy: caller.userId },
+      { caller, entityType: "task" }
+    );
+  });
+}
+
+/**
+ * Deliberately narrow, non-commercial deal context for a task's linked
+ * deal — company name, stage, next action — never valueNzd,
+ * closeProbability, packageTier, or closeReason (brief §10: "commercial
+ * fields like deal value withheld," the exact thing Dashboard-Brief §5.8's
+ * security test already checks for deals_admin_only). Deals are
+ * admin-only under RLS, so a contractor-role caller's own transaction
+ * would get zero rows querying deals directly — this runs under the
+ * admin-scope escape hatch instead. That means the protection here is
+ * enforced by the DAL only selecting these five columns, not by RLS row
+ * access — worth remembering if this function is ever touched again.
+ */
+export async function getTaskDealContext(dealId: string) {
+  return withCaller(async (caller) => {
+    assertRole(caller, "admin", "contractor");
+    return withAdminScope("Contractor task deal-context read (non-commercial fields only)", async (tx) => {
+      const [row] = await tx
+        .select({
+          dealId: deals.id,
+          stage: deals.stage,
+          nextAction: deals.nextAction,
+          nextActionDate: deals.nextActionDate,
+          companyName: companies.name,
+        })
+        .from(deals)
+        .innerJoin(companies, eq(deals.companyId, companies.id))
+        .where(and(eq(deals.id, dealId), isNull(deals.deletedAt)))
+        .limit(1);
+      return row ?? null;
+    });
   });
 }
 

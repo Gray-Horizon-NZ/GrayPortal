@@ -52,6 +52,17 @@ export async function inviteClientUser(input: InviteClientInputT) {
   });
 }
 
+/** Phase 14 — populates the admin-side task assignment dropdown. */
+export async function listContractors() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin", "contractor");
+    return tx
+      .select({ id: users.id, displayName: users.displayName, email: users.email })
+      .from(users)
+      .where(and(eq(users.role, "contractor"), isNull(users.deletedAt)));
+  });
+}
+
 /**
  * Revokes every Firebase refresh token for the calling user — the way to
  * kill a leaked MCP token (Phase 4 brief §2) or a stolen browser session,

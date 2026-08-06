@@ -1,19 +1,22 @@
 import { redirect } from "next/navigation";
 import { withCaller } from "@/lib/dal/auth";
 import { getGoogleConnection } from "@/lib/dal/googleConnection";
-import { disconnectGoogleAction, revokeSessionsAction } from "./actions";
+import { disconnectGoogleAction, disconnectXeroAction, revokeSessionsAction } from "./actions";
 import McpTokenButton from "./McpTokenButton";
+import TotpEnrollment from "./TotpEnrollment";
+import { getXeroConnection } from "@/lib/dal/xeroConnection";
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ google?: string }>;
+  searchParams: Promise<{ google?: string; xero?: string }>;
 }) {
-  const { google } = await searchParams;
+  const { google, xero } = await searchParams;
   const caller = await withCaller(async (c) => c);
   if (caller.role !== "admin") redirect("/");
 
   const connection = await getGoogleConnection();
+  const xeroConnection = await getXeroConnection();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 560 }}>
@@ -32,14 +35,45 @@ export default async function SettingsPage({
         </p>
       )}
 
+      {xero === "connected" && (
+        <p style={{ color: "var(--gh-success)" }}>Xero connected.</p>
+      )}
+      {xero === "error" && (
+        <p style={{ color: "var(--gh-danger)" }}>Couldn&apos;t connect Xero. Try again.</p>
+      )}
+
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Google Calendar & Tasks</p>
+        <p className="gh-eyebrow">Xero (financial snapshot, read-only)</p>
+        {xeroConnection ? (
+          <>
+            <span className="gh-badge" data-status="success">Connected — {xeroConnection.tenantName ?? xeroConnection.tenantId}</span>
+            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+              Invoice status/amounts/due dates sync one-way, on a schedule. GrayPortal never writes to Xero.
+            </p>
+            <form action={disconnectXeroAction}>
+              <button className="gh-btn-secondary" type="submit">Disconnect</button>
+            </form>
+          </>
+        ) : (
+          <>
+            <span className="gh-badge">Not connected</span>
+            <a className="gh-btn-primary" href="/api/xero/oauth/start" style={{ alignSelf: "flex-start" }}>
+              Connect Xero
+            </a>
+          </>
+        )}
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Google Calendar, Tasks & Gmail</p>
         {connection ? (
           <>
             <span className="gh-badge" data-status="success">Connected</span>
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-              Deals&apos; next actions sync one-way to your Google Calendar; tasks sync one-way to
-              Google Tasks.
+              Deals&apos; next actions sync one-way to Calendar; tasks sync one-way to Google Tasks.
+              Email sends/receives from a Deal or Contact record go through this same connected
+              account (Phase 10). If you connected before Gmail was added, disconnect and reconnect
+              once to grant the new scope.
             </p>
             <form action={disconnectGoogleAction}>
               <button className="gh-btn-secondary" type="submit">Disconnect</button>
@@ -49,10 +83,19 @@ export default async function SettingsPage({
           <>
             <span className="gh-badge">Not connected</span>
             <a className="gh-btn-primary" href="/api/google/oauth/start" style={{ alignSelf: "flex-start" }}>
-              Connect Google Calendar
+              Connect Google
             </a>
           </>
         )}
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Two-factor authentication</p>
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+          Required to reveal a stored credential in the vault — a fresh code from your authenticator app,
+          not just an active session.
+        </p>
+        <TotpEnrollment />
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
