@@ -22,7 +22,11 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       <section className="gh-card">
-        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Next action</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Next action</p>
+          {deal.syncState === "failed" && <span className="gh-badge" data-status="danger">Calendar sync failed</span>}
+          {deal.syncState === "synced" && <span className="gh-badge" data-status="success">Synced to Calendar</span>}
+        </div>
         <p style={{ fontWeight: 500 }}>{deal.nextAction}</p>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>Due {deal.nextActionDate}</p>
       </section>

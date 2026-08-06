@@ -6,6 +6,7 @@ type Task = {
   title: string;
   status: "not_started" | "in_progress" | "done" | "ongoing";
   dueDate: string | null;
+  syncState: "synced" | "pending" | "failed" | null;
 };
 
 export default function TaskRow({ task }: { task: Task }) {
@@ -13,9 +14,14 @@ export default function TaskRow({ task }: { task: Task }) {
     <div className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
         <p style={{ fontWeight: 500 }}>{task.title}</p>
-        {task.dueDate && (
-          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Due {task.dueDate}</p>
-        )}
+        <div style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
+          {task.dueDate && (
+            <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Due {task.dueDate}</p>
+          )}
+          {task.syncState === "failed" && (
+            <span className="gh-badge" data-status="danger">Sync failed</span>
+          )}
+        </div>
       </div>
       <select
         className="gh-input"

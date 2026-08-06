@@ -4,6 +4,7 @@ import { and, eq, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope } from "./session";
 import { auditedUpdate } from "./mutate";
+import { syncTaskToGoogle } from "@/lib/google/adapter";
 import { z } from "zod";
 
 export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing"]);
@@ -17,7 +18,7 @@ export async function listMyTasks() {
 export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatus>) {
   const parsed = TaskStatus.parse(status);
   return withCaller(async (caller, tx) => {
-    return auditedUpdate(
+    const task = await auditedUpdate(
       tx,
       tasks,
       eq(tasks.id, id),
@@ -29,6 +30,22 @@ export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatu
       },
       { caller, entityType: "task" }
     );
+
+    // Phase 3: push status (and thus completion) to Google Tasks. Same
+    // rationale as deals.ts's applyDealSync — never blocks the underlying
+    // mutation, and the googleTaskId/syncState write is bookkeeping, not a
+    // second audited change.
+    const result = await syncTaskToGoogle(task as typeof tasks.$inferSelect);
+    if (result.status === "skipped") return task;
+    const [updated] = await tx
+      .update(tasks)
+      .set({
+        googleTaskId: result.status === "synced" ? result.googleId : (task as typeof tasks.$inferSelect).googleTaskId,
+        syncState: result.status,
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    return updated;
   });
 }
 

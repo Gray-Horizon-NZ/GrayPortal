@@ -2,6 +2,7 @@ import { STAGES } from "@/config/pipeline";
 import {
   boolean,
   check,
+  customType,
   date,
   jsonb,
   numeric,
@@ -12,6 +13,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+// pgcrypto's pgp_sym_encrypt returns bytea — Drizzle has no first-class
+// bytea helper, so this is a thin passthrough type used only for the
+// encrypted refresh token column below (never read/written except via the
+// pgp_sym_encrypt/pgp_sym_decrypt raw SQL in src/lib/dal/googleConnection.ts).
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -35,6 +42,11 @@ export const referralStatusEnum = pgEnum("referral_status", [
 ]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "agent", "system"]);
 export const auditActionEnum = pgEnum("audit_action", ["create", "update", "delete"]);
+// Phase 3 (Google Calendar/Tasks sync) — fixed set, not freeform text, so a
+// failed sync can only ever be one of these three states in the UI badge
+// (brief §4.4: colour is never the only signal, but the state itself still
+// has to be a closed set to render consistently).
+export const syncStateEnum = pgEnum("sync_state", ["synced", "pending", "failed"]);
 
 // ---------------------------------------------------------------------------
 // Soft-delete + audit column helpers
@@ -121,6 +133,12 @@ export const deals = pgTable("deals", {
   nextActionDate: date("next_action_date").notNull(),
   source: text("source"),
   closeReason: text("close_reason"),
+  // Phase 3: one-way sync of a deal's next action to Google Calendar.
+  // syncState defaults null (never synced / not applicable, e.g. no
+  // nextActionDate) rather than "pending", so existing rows don't all read
+  // as mid-sync the moment this column exists.
+  googleEventId: text("google_event_id"),
+  syncState: syncStateEnum("sync_state"),
   ...softDelete,
   ...actorColumns,
 });
@@ -159,7 +177,7 @@ export const tasks = pgTable("tasks", {
   dueDate: date("due_date"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   googleTaskId: text("google_task_id"),
-  syncState: text("sync_state"),
+  syncState: syncStateEnum("sync_state"),
   ...softDelete,
   ...actorColumns,
 });
@@ -212,6 +230,22 @@ export const clientFeatures = pgTable("client_features", {
   featureKey: text("feature_key").notNull(),
   enabled: boolean("enabled").notNull().default(false),
   config: jsonb("config"),
+  ...softDelete,
+});
+
+// Phase 3 — one row per admin who has connected Google Calendar/Tasks.
+// The refresh token is pgcrypto-encrypted at the SQL layer (never passes
+// through the app as plaintext except transiently in memory during a sync
+// call) — see src/lib/dal/googleConnection.ts. Admin-only table: no client
+// or contractor ever has a reason to read this.
+export const googleConnections = pgTable("google_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  encryptedRefreshToken: bytea("encrypted_refresh_token").notNull(),
+  scopes: text("scopes").array().notNull(),
   ...softDelete,
 });
 

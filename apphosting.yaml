@@ -20,6 +20,35 @@ env:
     secret: CRON_SECRET
     availability: [RUNTIME]
 
+  # Phase 2: Storage-backed document downloads (short-lived signed URLs
+  # only — see src/lib/firebase/admin.ts). Runtime only; nothing at build
+  # time touches Storage.
+  - variable: FIREBASE_STORAGE_BUCKET
+    secret: FIREBASE_STORAGE_BUCKET
+    availability: [RUNTIME]
+
+  # Phase 3: a separate Google OAuth 2.0 client for Calendar/Tasks sync,
+  # NOT the Firebase Auth provider config (src/lib/google/oauth.ts). All
+  # runtime-only — the sync adapter is only ever called from a mutation
+  # handler, never at build time.
+  - variable: GOOGLE_OAUTH_CLIENT_ID
+    secret: GOOGLE_OAUTH_CLIENT_ID
+    availability: [RUNTIME]
+
+  - variable: GOOGLE_OAUTH_CLIENT_SECRET
+    secret: GOOGLE_OAUTH_CLIENT_SECRET
+    availability: [RUNTIME]
+
+  - variable: GOOGLE_OAUTH_REDIRECT_URI
+    secret: GOOGLE_OAUTH_REDIRECT_URI
+    availability: [RUNTIME]
+
+  # Phase 3: pgcrypto symmetric key for the stored Google refresh token
+  # (db/sql/005_google_connections.sql). Runtime only.
+  - variable: GOOGLE_TOKEN_ENCRYPTION_KEY
+    secret: GOOGLE_TOKEN_ENCRYPTION_KEY
+    availability: [RUNTIME]
+
   # No FIREBASE_ADMIN_* here on purpose: on App Hosting, the Admin SDK picks
   # up the attached Cloud Run service account automatically via
   # applicationDefault() (see src/lib/firebase/admin.ts) — no key needed in
