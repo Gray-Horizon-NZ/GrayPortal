@@ -1,5 +1,5 @@
 import "server-only";
-import { clients, referrals, clientFeatures } from "@/lib/db/schema";
+import { clients, referrals, clientFeatures, users, documents } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { auditedInsert, auditedUpdate } from "./mutate";
@@ -43,7 +43,17 @@ export async function getClient(id: string) {
       .from(clientFeatures)
       .where(and(eq(clientFeatures.clientId, id), isNull(clientFeatures.deletedAt)));
 
-    return { client, referrals: clientReferrals, features };
+    const portalUsers = await tx
+      .select()
+      .from(users)
+      .where(and(eq(users.clientId, id), isNull(users.deletedAt)));
+
+    const clientDocuments = await tx
+      .select()
+      .from(documents)
+      .where(and(eq(documents.clientId, id), isNull(documents.deletedAt)));
+
+    return { client, referrals: clientReferrals, features, portalUsers, documents: clientDocuments };
   });
 }
 
@@ -61,7 +71,12 @@ export async function createClient(input: ClientInputT) {
     // rows exist from creation means "is this feature on" is always a
     // simple lookup, never a missing-row special case.
     for (const key of PORTAL_FEATURE_KEYS) {
-      await tx.insert(clientFeatures).values({ clientId: (client as { id: string }).id, featureKey: key, enabled: false });
+      await auditedInsert(
+        tx,
+        clientFeatures,
+        { clientId: (client as { id: string }).id, featureKey: key, enabled: false },
+        { caller, entityType: "client_feature" }
+      );
     }
     return client;
   });
@@ -92,7 +107,12 @@ export async function setClientFeature(clientId: string, featureKey: PortalFeatu
       .where(and(eq(clientFeatures.clientId, clientId), eq(clientFeatures.featureKey, featureKey)))
       .limit(1);
     if (!row) {
-      return tx.insert(clientFeatures).values({ clientId, featureKey, enabled }).returning();
+      return auditedInsert(
+        tx,
+        clientFeatures,
+        { clientId, featureKey, enabled },
+        { caller, entityType: "client_feature" }
+      );
     }
     return auditedUpdate(
       tx,

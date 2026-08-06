@@ -4,8 +4,14 @@ import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS } from "@/lib/dal/constants";
 import { claimOrVerifyAllowlist } from "@/lib/dal/allowlist";
 import { NotOnAllowlistError } from "@/lib/dal/session";
 
-// Exchanges a freshly-signed-in Firebase ID token for a long-lived session
+// Step 2 of sign-in: exchanges a Firebase ID token for a long-lived session
 // cookie. The ID token itself is short-lived and only used once, here.
+// Expects the token passed here to be the one obtained *after* the client
+// called /api/auth/claim and force-refreshed (getIdToken(true)), so it
+// already carries the role/clientId custom claims set during claiming — the
+// session cookie mirrors whatever claims are on the token it's minted from.
+// claimOrVerifyAllowlist runs again here (idempotent, cheap) rather than
+// trusting that step 1 succeeded — every step re-checks server-side.
 export async function POST(request: NextRequest) {
   const { idToken } = await request.json();
   if (!idToken || typeof idToken !== "string") {

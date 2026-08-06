@@ -2,6 +2,7 @@ import "server-only";
 import { users } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withAdminScope, NotOnAllowlistError } from "./session";
+import { adminAuth } from "@/lib/firebase/admin";
 
 /**
  * Runs on every sign-in, before a session cookie is issued (brief §5.1:
@@ -12,7 +13,7 @@ import { withAdminScope, NotOnAllowlistError } from "./session";
  * different UID, sign-in is rejected.
  */
 export async function claimOrVerifyAllowlist(email: string, uid: string): Promise<void> {
-  await withAdminScope(`allowlist check for sign-in: ${email}`, async (tx) => {
+  const { role, clientId } = await withAdminScope(`allowlist check for sign-in: ${email}`, async (tx) => {
     const [row] = await tx
       .select()
       .from(users)
@@ -30,5 +31,15 @@ export async function claimOrVerifyAllowlist(email: string, uid: string): Promis
     if (!row.googleUid) {
       await tx.update(users).set({ googleUid: uid, updatedAt: new Date() }).where(eq(users.id, row.id));
     }
+
+    return { role: row.role, clientId: row.clientId };
   });
+
+  // Custom claims are a routing hint only (proxy.ts uses them to send a
+  // client-role session to /portal and keep everyone else out of it) — they
+  // are never the authorization decision itself, which stays Postgres RLS
+  // via withSession on every request (brief §5.2). Stamped on every sign-in,
+  // not just the first, so a role/clientId change on the users row self-heals
+  // on next login instead of needing a manual claims reset.
+  await adminAuth.setCustomUserClaims(uid, { role, clientId: clientId ?? null });
 }

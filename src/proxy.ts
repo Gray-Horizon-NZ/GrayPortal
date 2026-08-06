@@ -15,13 +15,34 @@ import { isRateLimited } from "@/lib/rateLimit";
 // Both layers are required; this is the network-boundary half.
 const PUBLIC_PATHS = ["/login"];
 
-// Routes that enforce their own auth (a bearer-token check against
-// CRON_SECRET) instead of the session-cookie model, because the caller is
-// Cloud Scheduler, not a logged-in user. Still deny-by-default in the
-// sense that the route itself 401s without the right token — this list
-// only opts them out of the cookie redirect, not out of authentication
-// entirely.
-const BEARER_AUTH_PATHS = ["/api/cron"];
+// Client-facing routes live under a distinct prefix so route separation
+// from the internal (app) group doesn't need PUBLIC_PATHS-style special
+// casing per route (Phase 2 brief §3). The role check below is a routing
+// hint only, sourced from the Firebase custom claims stamped at claim time
+// (see src/lib/dal/allowlist.ts) — it decides which shell a session lands
+// on, never whether a query is allowed to return data. That's still RLS,
+// re-evaluated per request, independent of anything proxy.ts believes.
+const PORTAL_PREFIX = "/portal";
+
+function isPortalPath(pathname: string) {
+  return pathname === PORTAL_PREFIX || pathname.startsWith(`${PORTAL_PREFIX}/`);
+}
+
+// Routes that enforce their own auth (a bearer-token check) instead of the
+// cookie-redirect model, because the caller isn't a browser and can't
+// follow a redirect to /login. Still deny-by-default in the sense that the
+// route itself 401s without the right token — this list only opts them out
+// of the cookie redirect, not out of authentication entirely.
+//
+// /api/mcp (exact path only — NOT /api/mcp/token, which is called from an
+// already-authenticated browser session and stays behind the normal cookie
+// gate below) is here for that reason (Phase 4 brief §2), even though its
+// bearer token is verified exactly like the session cookie, not a separate
+// secret like /api/cron's CRON_SECRET — an MCP client still can't follow an
+// HTML redirect, so the route itself (via getVerifiedUid's Bearer fallback,
+// src/lib/dal/auth.ts) has to be the enforcement point either way.
+const BEARER_AUTH_EXACT_PATHS = ["/api/mcp"];
+const BEARER_AUTH_PREFIX_PATHS = ["/api/cron"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -39,7 +60,7 @@ export default async function proxy(request: NextRequest) {
   // Rate limiting (brief §5.6: auth endpoints + all mutations). Server
   // Actions are POSTs to ordinary page routes, so "any POST" is the one
   // place that sees every mutation without needing per-route wiring.
-  if (pathname.startsWith("/api/auth/session")) {
+  if (pathname.startsWith("/api/auth/session") || pathname.startsWith("/api/auth/claim")) {
     if (isRateLimited(`auth:${clientKey(request)}`, 5, 60_000)) {
       return NextResponse.json({ error: "Too many attempts, slow down." }, { status: 429 });
     }
@@ -51,8 +72,10 @@ export default async function proxy(request: NextRequest) {
 
   if (
     pathname.startsWith("/api/auth/session") ||
+    pathname.startsWith("/api/auth/claim") ||
     isPublic(pathname) ||
-    BEARER_AUTH_PATHS.some((p) => pathname.startsWith(p))
+    BEARER_AUTH_EXACT_PATHS.includes(pathname) ||
+    BEARER_AUTH_PREFIX_PATHS.some((p) => pathname.startsWith(p))
   ) {
     return NextResponse.next();
   }
@@ -63,7 +86,20 @@ export default async function proxy(request: NextRequest) {
   }
 
   try {
-    await adminAuth.verifySessionCookie(cookie, true);
+    const decoded = await adminAuth.verifySessionCookie(cookie, true);
+    // Sessions minted before this claims-stamping existed (or any edge case
+    // where the claim didn't propagate) carry no role claim — fail open on
+    // routing only, not on data: RLS still fully governs what the session
+    // can read once it lands somewhere. Only redirect when the claim is
+    // present and clearly mismatched, so we never lock out an existing
+    // admin session over a missing claim.
+    const claimedRole = typeof decoded.role === "string" ? decoded.role : undefined;
+    if (claimedRole === "client" && !isPortalPath(pathname)) {
+      return NextResponse.redirect(new URL(PORTAL_PREFIX, request.url));
+    }
+    if (claimedRole && claimedRole !== "client" && isPortalPath(pathname)) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
     return NextResponse.next();
   } catch {
     const response = NextResponse.redirect(new URL("/login", request.url));

@@ -119,3 +119,20 @@ export function assertRole(caller: Caller, ...allowed: Role[]) {
     throw new Error(`Forbidden: role ${caller.role} not in [${allowed.join(", ")}]`);
   }
 }
+
+/**
+ * The client-scoped analogue of withAdminScope's audited escape hatch
+ * (brief §5.3 / Phase 2 §5): a client-role caller with no client_id is a
+ * broken invariant (the users row should never allow it — role "client"
+ * always implies a set clientId), not something a portal query should
+ * quietly tolerate. Every portal DAL function calls this before querying so
+ * a caller in that state fails loudly instead of RLS's nullif(...)::uuid
+ * cast silently returning zero rows, which reads indistinguishable from
+ * "this client genuinely has no tasks."
+ */
+export function requireClientScope(caller: Caller): asserts caller is Caller & { clientId: string } {
+  assertRole(caller, "client");
+  if (!caller.clientId) {
+    throw new Error(`Forbidden: client-role caller ${caller.userId} has no clientId`);
+  }
+}

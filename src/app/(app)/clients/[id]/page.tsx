@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getClient } from "@/lib/dal/clients";
 import { PORTAL_FEATURE_KEYS } from "@/lib/dal/clients";
 import { paymentStatus } from "@/lib/paymentStatus";
-import { createReferralAction } from "../actions";
+import { createReferralAction, inviteClientAction, uploadDocumentAction } from "../actions";
 import FeatureToggle from "./FeatureToggle";
 import ReferralStatusSelect from "./ReferralStatusSelect";
 
@@ -10,7 +10,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const data = await getClient(id);
   if (!data) notFound();
-  const { client, referrals, features } = data;
+  const { client, referrals, features, portalUsers, documents } = data;
   const status = paymentStatus(client.nextPaymentDate);
 
   return (
@@ -36,6 +36,50 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             );
           })}
         </div>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Portal access</p>
+        {portalUsers.map((u) => (
+          <div key={u.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
+            <span>{u.email}</span>
+            <span style={{ color: "var(--gh-text-muted)" }}>{u.googleUid ? "Active" : "Invited — awaiting first sign-in"}</span>
+          </div>
+        ))}
+        {portalUsers.length === 0 && (
+          <p style={{ color: "var(--gh-text-muted)" }}>No portal login invited yet.</p>
+        )}
+        <form action={inviteClientAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <input className="gh-input" name="email" type="email" placeholder="Client email" required />
+          <input className="gh-input" name="displayName" placeholder="Display name (optional)" />
+          <button className="gh-btn-primary" type="submit">Invite to portal</button>
+        </form>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Documents</p>
+        {documents.map((d) => (
+          <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
+            <span>{d.docType}</span>
+            <a href={`/api/documents/${d.id}/download`}>Download</a>
+          </div>
+        ))}
+        {documents.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No documents yet.</p>}
+        <form
+          action={uploadDocumentAction.bind(null, client.id)}
+          encType="multipart/form-data"
+          style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}
+        >
+          <input type="hidden" name="companyId" value={client.companyId ?? ""} />
+          <select className="gh-input" name="docType" defaultValue="other">
+            <option value="proposal">Proposal</option>
+            <option value="contract">Contract</option>
+            <option value="deck">Deck</option>
+            <option value="other">Other</option>
+          </select>
+          <input className="gh-input" name="file" type="file" required />
+          <button className="gh-btn-primary" type="submit">Upload document</button>
+        </form>
       </section>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
