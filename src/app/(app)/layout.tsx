@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
+import NavLink from "@/components/NavLink";
 import LogoutButton from "./LogoutButton";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -47,27 +47,36 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           width: 220,
           flexShrink: 0,
           borderRight: "1px solid var(--gh-border)",
-          padding: "var(--gh-space-6) var(--gh-space-4)",
+          padding: "var(--gh-space-6) 0",
           display: "flex",
           flexDirection: "column",
           gap: "var(--gh-space-6)",
         }}
       >
-        <div>
+        <div style={{ padding: "0 var(--gh-space-4)" }}>
           <p className="gh-eyebrow">Gray Horizon</p>
           <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>
             Portal
           </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
           <NavLink href="/pipeline">Pipeline</NavLink>
           <NavLink href="/deals">Deals</NavLink>
           <NavLink href="/companies">Companies</NavLink>
           <NavLink href="/clients">Clients</NavLink>
           <NavLink href="/tasks">Tasks</NavLink>
           <NavLink href="/search">Search</NavLink>
+          <NavLink href="/settings">Settings</NavLink>
         </div>
-        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+        <div
+          style={{
+            marginTop: "auto",
+            padding: "0 var(--gh-space-4)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--gh-space-2)",
+          }}
+        >
           <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
             {callerLabel}
           </p>
@@ -76,20 +85,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </nav>
       <main style={{ flex: 1, padding: "var(--gh-space-8)" }}>{children}</main>
     </div>
-  );
-}
-
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      style={{
-        fontSize: "var(--gh-text-sm)",
-        fontWeight: 500,
-        padding: "var(--gh-space-2) 0",
-      }}
-    >
-      {children}
-    </Link>
   );
 }

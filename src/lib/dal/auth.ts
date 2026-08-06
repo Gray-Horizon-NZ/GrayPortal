@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { adminAuth } from "@/lib/firebase/admin";
 import { SESSION_COOKIE_NAME } from "./constants";
 import { withSession, NotOnAllowlistError, type Caller, type Tx } from "./session";
@@ -14,13 +14,30 @@ export type { Caller };
  * role claim sent from the client"). Cached per-request via React `cache`
  * so repeated calls in one render pass don't re-verify the JWT signature
  * every time, but each new request always re-verifies from scratch.
+ *
+ * Falls back to an `Authorization: Bearer <token>` header when no cookie is
+ * present — this is what makes every existing DAL function usable unchanged
+ * from the MCP server (Phase 4 brief §2), since they all resolve their
+ * caller through this function. It is NOT a separate, lower-privilege
+ * credential: the token is the exact same kind of Firebase session cookie,
+ * just handed to a non-browser client that can't hold an httpOnly cookie.
+ * Same privileges, same 14-day life, same verification path.
  */
 export const getVerifiedUid = cache(async (): Promise<string | null> => {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!sessionCookie) return null;
+  let token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!token) {
+    const headerStore = await headers();
+    const authHeader = headerStore.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.slice("Bearer ".length);
+    }
+  }
+
+  if (!token) return null;
   try {
-    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+    const decoded = await adminAuth.verifySessionCookie(token, true);
     return decoded.uid;
   } catch {
     return null;

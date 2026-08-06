@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { withCaller } from "@/lib/dal/auth";
-import { companies, contacts, deals } from "@/lib/db/schema";
-import { and, isNull, or, ilike } from "drizzle-orm";
+import { searchAll } from "@/lib/dal/search";
 
 export default async function SearchPage({
   searchParams,
@@ -10,29 +8,7 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
 
-  const results = q
-    ? await withCaller(async (_caller, tx) => {
-        const term = `%${q}%`;
-        const companyRows = await tx
-          .select()
-          .from(companies)
-          .where(and(isNull(companies.deletedAt), ilike(companies.name, term)));
-        const contactRows = await tx
-          .select()
-          .from(contacts)
-          .where(
-            and(
-              isNull(contacts.deletedAt),
-              or(ilike(contacts.firstName, term), ilike(contacts.lastName, term), ilike(contacts.email, term))
-            )
-          );
-        const dealRows = await tx
-          .select()
-          .from(deals)
-          .where(and(isNull(deals.deletedAt), ilike(deals.nextAction, term)));
-        return { companyRows, contactRows, dealRows };
-      })
-    : null;
+  const results = q ? await searchAll(q) : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
