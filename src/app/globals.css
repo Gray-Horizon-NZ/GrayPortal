@@ -87,6 +87,16 @@ textarea {
   opacity: 0.85;
 }
 
+.gh-btn-primary:active {
+  opacity: 0.7;
+}
+
+.gh-btn-primary:disabled,
+.gh-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .gh-btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -154,4 +164,26 @@ textarea {
 .gh-badge[data-status="danger"] {
   color: var(--gh-danger);
   border-color: var(--gh-danger);
+}
+
+.gh-nav-link {
+  display: flex;
+  align-items: center;
+  font-size: var(--gh-text-sm);
+  font-weight: 500;
+  color: var(--gh-text-muted);
+  padding: var(--gh-space-2) var(--gh-space-4);
+  border-left: 2px solid transparent;
+  transition: color var(--gh-transition), background var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-nav-link:hover {
+  color: var(--gh-text-primary);
+  background: var(--gh-surface-raised);
+}
+
+.gh-nav-link[data-active] {
+  color: var(--gh-text-emphasis);
+  background: var(--gh-surface-raised);
+  border-left-color: var(--gh-accent);
 }

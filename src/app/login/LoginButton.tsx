@@ -14,12 +14,35 @@ export default function LoginButton() {
     setLoading(true);
     try {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
-      const idToken = await result.user.getIdToken();
 
+      // Step 1: claim the allowlist row and stamp role/clientId custom
+      // claims server-side. The ID token we already hold predates this —
+      // Firebase only propagates new custom claims into a token after it's
+      // refreshed — so this step issues no cookie yet.
+      const firstIdToken = await result.user.getIdToken();
+      const claimRes = await fetch("/api/auth/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: firstIdToken }),
+      });
+
+      if (!claimRes.ok) {
+        setError(
+          claimRes.status === 401
+            ? "This Google account isn't authorised for Gray Portal."
+            : "Sign-in hit a server error. Try again, or tell Max if it keeps happening."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: force-refresh to pick up the claims just stamped, then
+      // exchange that token for the actual session cookie.
+      const refreshedIdToken = await result.user.getIdToken(true);
       const res = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken: refreshedIdToken }),
       });
 
       if (!res.ok) {
@@ -41,12 +64,19 @@ export default function LoginButton() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
-      <button className="gh-btn-primary" onClick={handleSignIn} disabled={loading}>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
+      <button
+        className="gh-btn-primary"
+        onClick={handleSignIn}
+        disabled={loading}
+        style={{ width: "100%", padding: "var(--gh-space-4)" }}
+      >
         {loading ? "Signing in…" : "Sign in with Google"}
       </button>
       {error && (
-        <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>{error}</p>
+        <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)", textAlign: "center" }}>
+          {error}
+        </p>
       )}
     </div>
   );
