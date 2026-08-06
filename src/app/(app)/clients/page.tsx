@@ -8,9 +8,12 @@ export default async function ClientsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)" }}>
-      <div>
-        <p className="gh-eyebrow">Gray Horizon</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>Clients</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <p className="gh-eyebrow">Gray Horizon</p>
+          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>Clients</h1>
+        </div>
+        <Link href="/clients/onboard" className="gh-btn-primary">Onboard client</Link>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
