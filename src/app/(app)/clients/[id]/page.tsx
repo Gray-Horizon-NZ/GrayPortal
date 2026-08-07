@@ -21,6 +21,7 @@ import {
   deleteMeetingSummaryAction,
   createToolStackItemAction,
   deleteToolStackItemAction,
+  deleteClientAction,
 } from "../actions";
 import FeatureToggle from "./FeatureToggle";
 import ReferralStatusSelect from "./ReferralStatusSelect";
@@ -59,6 +60,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             </span>
           )}
         </div>
+        <form action={deleteClientAction.bind(null, client.id)} style={{ marginTop: "var(--gh-space-3)" }}>
+          <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+            Remove client
+          </button>
+        </form>
       </div>
 
       <section className="gh-card">

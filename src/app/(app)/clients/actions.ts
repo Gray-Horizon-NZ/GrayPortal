@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, updateClient, setClientFeature, type PortalFeatureKey } from "@/lib/dal/clients";
+import { createClient, updateClient, softDeleteClient, setClientFeature, type PortalFeatureKey } from "@/lib/dal/clients";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
 import { uploadDocument, DocType } from "@/lib/dal/documents";
@@ -11,14 +11,21 @@ import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
 import { createRoadmapItem, softDeleteRoadmapItem } from "@/lib/dal/roadmap";
 import { createMeetingSummary, softDeleteMeetingSummary } from "@/lib/dal/meetingSummaries";
 import { createToolStackItem, softDeleteToolStackItem } from "@/lib/dal/toolStack";
+import { monthInputToDate } from "@/lib/date";
 
 export async function createClientAction(formData: FormData) {
   const client = await createClient({
     name: String(formData.get("name") ?? ""),
-    nextPaymentDate: String(formData.get("nextPaymentDate") ?? "") || undefined,
+    nextPaymentDate: monthInputToDate(String(formData.get("nextPaymentDate") ?? "")),
   });
   revalidatePath("/clients");
   redirect(`/clients/${client.id}`);
+}
+
+export async function deleteClientAction(id: string) {
+  await softDeleteClient(id);
+  revalidatePath("/clients");
+  redirect("/clients");
 }
 
 export async function toggleFeatureAction(clientId: string, key: PortalFeatureKey, enabled: boolean) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCompany } from "@/lib/dal/companies";
-import { createContactAction } from "../actions";
+import { createContactAction, deleteCompanyAction } from "../actions";
 import { createDealAction } from "../../deals/actions";
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +20,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
         <p style={{ color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
           {company.industry ?? "—"} · {company.region ?? "—"} · {company.status}
         </p>
+        <form action={deleteCompanyAction.bind(null, company.id)} style={{ marginTop: "var(--gh-space-3)" }}>
+          <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+            Remove company
+          </button>
+        </form>
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>

@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { onboardClient } from "@/lib/dal/onboarding";
 import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "@/lib/dal/clients";
+import { monthInputToDate } from "@/lib/date";
 
 export async function onboardClientAction(formData: FormData) {
   const enabledFeatures = PORTAL_FEATURE_KEYS.filter((key) => formData.get(`feature:${key}`) === "on") as PortalFeatureKey[];
@@ -15,7 +16,7 @@ export async function onboardClientAction(formData: FormData) {
       source: String(formData.get("source") ?? ""),
     },
     client: {
-      nextPaymentDate: String(formData.get("nextPaymentDate") ?? "") || undefined,
+      nextPaymentDate: monthInputToDate(String(formData.get("nextPaymentDate") ?? "")),
     },
     portalInvite: {
       email: String(formData.get("email") ?? ""),

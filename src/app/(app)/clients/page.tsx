@@ -53,7 +53,7 @@ export default async function ClientsPage() {
         <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add client</summary>
         <form action={createClientAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
           <input className="gh-input" name="name" placeholder="Client name" required />
-          <input className="gh-input" name="nextPaymentDate" type="date" placeholder="Next payment date" />
+          <input className="gh-input" name="nextPaymentDate" type="month" placeholder="Next payment month" />
           <button className="gh-btn-primary" type="submit">Add client</button>
         </form>
       </details>

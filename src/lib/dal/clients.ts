@@ -2,7 +2,7 @@ import "server-only";
 import { clients, referrals, clientFeatures, users, documents } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
-import { auditedInsert, auditedUpdate } from "./mutate";
+import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { z } from "zod";
 
 export const ClientInput = z.object({
@@ -106,6 +106,12 @@ export async function updateClient(id: string, input: Partial<ClientInputT>) {
       { ...data, updatedBy: caller.userId },
       { caller, entityType: "client" }
     );
+  });
+}
+
+export async function softDeleteClient(id: string) {
+  return withCaller(async (caller, tx) => {
+    return auditedSoftDelete(tx, clients, id, { caller, entityType: "client" });
   });
 }
 

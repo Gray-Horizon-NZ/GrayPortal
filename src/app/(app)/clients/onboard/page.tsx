@@ -30,7 +30,7 @@ export default function OnboardClientPage() {
 
         <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <p className="gh-eyebrow">Billing</p>
-          <input className="gh-input" name="nextPaymentDate" type="date" placeholder="Next payment date" />
+          <input className="gh-input" name="nextPaymentDate" type="month" placeholder="Next payment month" />
         </section>
 
         <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
