@@ -122,12 +122,18 @@ export async function deleteToolStackItemAction(id: string, clientId: string) {
 }
 
 export async function inviteClientAction(clientId: string, formData: FormData) {
-  await inviteClientUser({
-    clientId,
-    email: String(formData.get("email") ?? ""),
-    displayName: String(formData.get("displayName") ?? "") || undefined,
-  });
+  try {
+    await inviteClientUser({
+      clientId,
+      email: String(formData.get("email") ?? ""),
+      displayName: String(formData.get("displayName") ?? "") || undefined,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invite failed";
+    redirect(`/clients/${clientId}?inviteError=${encodeURIComponent(message)}`);
+  }
   revalidatePath(`/clients/${clientId}`);
+  redirect(`/clients/${clientId}?invited=1`);
 }
 
 export async function uploadDocumentAction(clientId: string, formData: FormData) {

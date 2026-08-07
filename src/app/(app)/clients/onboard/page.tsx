@@ -4,7 +4,12 @@ import { onboardClientAction } from "./actions";
 
 const DEFAULT_ENABLED = new Set(["tasks", "documents", "referrals"]);
 
-export default function OnboardClientPage() {
+export default async function OnboardClientPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onboardError?: string }>;
+}) {
+  const { onboardError } = await searchParams;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 560 }}>
       <div>
@@ -16,6 +21,11 @@ export default function OnboardClientPage() {
           Creates the company, client record, portal login invite, selected features, and a starter
           task list in one step.
         </p>
+        {onboardError && (
+          <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-3)" }}>
+            Couldn&apos;t onboard: {onboardError}
+          </p>
+        )}
       </div>
 
       <form action={onboardClientAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>

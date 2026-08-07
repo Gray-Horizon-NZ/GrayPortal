@@ -27,8 +27,15 @@ import FeatureToggle from "./FeatureToggle";
 import ReferralStatusSelect from "./ReferralStatusSelect";
 import CredentialsList from "../../vault/CredentialsList";
 
-export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClientDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ inviteError?: string; invited?: string }>;
+}) {
   const { id } = await params;
+  const { inviteError, invited } = await searchParams;
   const data = await getClient(id);
   if (!data) notFound();
   const { client, referrals, features, portalUsers, documents } = data;
@@ -94,6 +101,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         ))}
         {portalUsers.length === 0 && (
           <p style={{ color: "var(--gh-text-muted)" }}>No portal login invited yet.</p>
+        )}
+        {invited && <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Invite sent.</p>}
+        {inviteError && (
+          <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t invite: {inviteError}</p>
         )}
         <form action={inviteClientAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <input className="gh-input" name="email" type="email" placeholder="Client email" required />
