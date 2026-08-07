@@ -188,11 +188,13 @@ textarea {
 
 .gh-card--interactive {
   cursor: pointer;
+  border-top: 2px solid transparent;
 }
 
 .gh-card--interactive:hover {
   background: var(--gh-surface-hover);
   border-color: var(--gh-border-strong);
+  border-top-color: var(--gh-accent);
   transform: translateY(-1px);
 }
 
@@ -238,6 +240,11 @@ textarea {
 .gh-badge[data-status="danger"] {
   color: var(--gh-danger);
   border-color: var(--gh-danger);
+}
+
+.gh-badge[data-status="accent"] {
+  color: var(--gh-accent);
+  border-color: var(--gh-accent-dim);
 }
 
 .gh-nav-link {
@@ -799,20 +806,21 @@ textarea {
   height: 32px;
   flex-shrink: 0;
   border-radius: var(--gh-radius-full);
-  background: var(--gh-surface-raised);
+  background: var(--gh-accent-dim);
   border: 1px solid var(--gh-border-strong);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--gh-text-xs);
-  font-weight: 500;
-  color: var(--gh-text-primary);
+  font-family: var(--gh-font-display);
+  font-style: italic;
+  font-size: var(--gh-text-base);
+  color: var(--gh-accent);
   cursor: pointer;
   transition: border-color var(--gh-transition);
 }
 
 .gh-avatar:hover {
-  border-color: var(--gh-text-muted);
+  border-color: var(--gh-accent);
 }
 
 .gh-bell-count {

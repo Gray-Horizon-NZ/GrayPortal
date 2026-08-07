@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-export type BadgeStatus = "success" | "warning" | "danger" | "neutral";
+export type BadgeStatus = "success" | "warning" | "danger" | "accent" | "neutral";
 
 export default function Badge({
   status = "neutral",

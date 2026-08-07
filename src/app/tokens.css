@@ -3,20 +3,20 @@
  * properties. No hard-coded hex values or font names anywhere else. */
 
 :root {
-  /* Site anchors, copied exactly from grayhorizon.nz */
-  --gh-black: #1c1c1c;
-  --gh-dark: #3f3f3f;
+  /* Editorial ledger palette (pricing/ledger reference mocks) */
+  --gh-black: #141414;
+  --gh-dark: #333333;
   --gh-mid: #6b6b6b;
   --gh-light: #f4f4f4;
   --gh-white: #ffffff;
 
   /* Derived neutral ramp */
-  --gh-900: #242424;
-  --gh-850: #292929;
-  --gh-800: #2e2e2e;
-  --gh-750: #343434;
-  --gh-600: #545454;
-  --gh-400: #9a9a9a;
+  --gh-900: #1c1c1c;
+  --gh-850: #202020;
+  --gh-800: #212121;
+  --gh-750: #262626;
+  --gh-600: #4a4a4a;
+  --gh-400: #8f8f8f;
 
   /* Semantic tokens */
   --gh-bg: var(--gh-black);
@@ -36,16 +36,21 @@
   --gh-text-muted: var(--gh-400);
   --gh-text-disabled: var(--gh-mid);
 
-  /* No brand accent hue — white is the accent, exactly as on the site. */
-  --gh-accent: var(--gh-white);
+  /* Gold is the one accent hue — reserved for highlights and callouts
+     (active nav, primary actions, hover accents, "suggested"/featured
+     values). Everything else stays monochrome. */
+  --gh-accent: #b8a369;
+  --gh-accent-dim: #3a3626;
   --gh-accent-contrast: var(--gh-black);
-  --gh-focus-ring: var(--gh-white);
+  --gh-focus-ring: #b8a369;
 
-  /* Status colours — the one departure from monochrome. State signalling
-   * only, never decorative. Always paired with a text label or icon. */
+  /* Status colours — the one other departure from monochrome. State
+   * signalling only, never decorative. Always paired with a text label or
+   * icon. Kept clear of the gold accent hue so "warning" never reads as
+   * "featured". */
   --gh-success: #4a7c59;
-  --gh-warning: #b08843;
-  --gh-danger: #a34a42;
+  --gh-warning: #c98a3f;
+  --gh-danger: #c1613f;
 
   /* Typography — font files are self-hosted via next/font/google, which
    * exposes them through these CSS variables (see app/layout.tsx). */
