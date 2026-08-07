@@ -4,7 +4,10 @@
 # running server. Secret-backed values are pulled from Secret Manager, set
 # via: firebase apphosting:secrets:set <NAME>
 runConfig:
-  minInstances: 0
+  # 1 instead of 0: keeps one instance warm at all times so requests never
+  # pay a cold-start (multi-second Next.js server boot). Trade-off is
+  # constant low-level cost instead of scale-to-zero.
+  minInstances: 1
   maxInstances: 2
 
 env:
