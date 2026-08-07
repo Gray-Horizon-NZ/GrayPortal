@@ -6,7 +6,7 @@ import { getVerifiedUid, withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
 import { listDeals, getDeal } from "@/lib/dal/deals";
 import { listCompanies, getCompany } from "@/lib/dal/companies";
-import { listMyTasks, setTaskStatus, TaskStatus } from "@/lib/dal/tasks";
+import { listAllTasks, setTaskStatus, TaskStatus } from "@/lib/dal/tasks";
 import { searchAll } from "@/lib/dal/search";
 import { logActivity } from "@/lib/dal/activities";
 import { onboardClient, OnboardClientInput } from "@/lib/dal/onboarding";
@@ -68,7 +68,7 @@ function buildServer() {
   server.registerTool(
     "list_tasks",
     { description: "List all tasks (across deals and clients).", annotations: { readOnlyHint: true } },
-    async () => jsonResult(await listMyTasks())
+    async () => jsonResult(await listAllTasks())
   );
 
   server.registerTool(

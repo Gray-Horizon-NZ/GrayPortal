@@ -1,10 +1,12 @@
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import LoginButton from "./LoginButton";
 
 export default function LoginPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -12,8 +14,28 @@ export default function LoginPage() {
         padding: "var(--gh-space-6)",
       }}
     >
+      <Link
+        href="https://grayhorizon.nz"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "var(--gh-space-1)",
+          fontSize: "var(--gh-text-xs)",
+          fontWeight: 500,
+          textTransform: "uppercase",
+          letterSpacing: "var(--gh-tracking-wide)",
+          color: "var(--gh-text-muted)",
+          marginBottom: "var(--gh-space-8)",
+          transition: "color var(--gh-transition)",
+        }}
+        className="gh-back-link"
+      >
+        <ChevronLeft size={14} strokeWidth={1.75} />
+        Return to grayhorizon.nz
+      </Link>
+
       <div
-        className="gh-card"
+        className="gh-card gh-animate-fade-up"
         style={{
           width: "100%",
           maxWidth: 400,
@@ -30,7 +52,7 @@ export default function LoginPage() {
             Gray <em>Portal</em>
           </h1>
           <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-            Sign in with your Gray Horizon Google account.
+            For Gray Horizon clients and team. Access is by invitation.
           </p>
         </div>
 
@@ -46,9 +68,10 @@ export default function LoginPage() {
           textTransform: "uppercase",
           letterSpacing: "var(--gh-tracking-wide)",
           color: "var(--gh-text-disabled)",
+          textAlign: "center",
         }}
       >
-        Access is limited to invited accounts
+        Not a client yet? Get in touch at grayhorizon.nz
       </p>
     </main>
   );

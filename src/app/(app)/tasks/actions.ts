@@ -12,5 +12,4 @@ export async function setTaskStatusAction(id: string, status: z.infer<typeof Tas
 export async function assignTaskAction(id: string, assigneeUserId: string | null) {
   await assignTask(id, assigneeUserId);
   revalidatePath("/tasks");
-  revalidatePath("/my-tasks");
 }

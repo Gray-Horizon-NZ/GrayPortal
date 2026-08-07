@@ -18,6 +18,7 @@ body {
   font-family: var(--gh-font-body);
   font-weight: 400;
   font-size: var(--gh-text-base);
+  letter-spacing: var(--gh-tracking-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -89,6 +90,7 @@ textarea {
 
 .gh-btn-primary:active {
   opacity: 0.7;
+  transform: scale(0.97);
 }
 
 .gh-btn-primary:disabled,
@@ -119,11 +121,83 @@ textarea {
   border-color: var(--gh-text-muted);
 }
 
+.gh-btn-secondary:active {
+  transform: scale(0.97);
+}
+
+.gh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  color: var(--gh-text-primary);
+  cursor: pointer;
+  transition: background var(--gh-transition), border-color var(--gh-transition),
+    transform var(--gh-transition);
+}
+
+.gh-icon-btn:hover {
+  background: var(--gh-surface-raised);
+  border-color: var(--gh-border-strong);
+}
+
+.gh-icon-btn:active {
+  transform: scale(0.93);
+}
+
+.gh-back-link:hover {
+  color: var(--gh-text-primary);
+}
+
+/* Deal detail — three-column on desktop, stacks on tablet/mobile */
+.gh-deal-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(320px, 1.4fr) minmax(220px, 0.9fr);
+}
+
+@media (max-width: 1024px) {
+  .gh-deal-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gh-deal-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-deal-grid {
+    grid-template-columns: 1fr;
+  }
+  .gh-deal-grid > :last-child {
+    grid-column: auto;
+  }
+}
+
 .gh-card {
   background: var(--gh-surface);
   border: 1px solid var(--gh-border);
   border-radius: var(--gh-radius);
   padding: var(--gh-space-6);
+  transition: background var(--gh-transition), border-color var(--gh-transition),
+    transform var(--gh-transition);
+}
+
+.gh-card--interactive {
+  cursor: pointer;
+}
+
+.gh-card--interactive:hover {
+  background: var(--gh-surface-hover);
+  border-color: var(--gh-border-strong);
+  transform: translateY(-1px);
+}
+
+.gh-card--interactive:active {
+  transform: translateY(0);
 }
 
 .gh-input {
@@ -167,14 +241,30 @@ textarea {
 }
 
 .gh-nav-link {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: var(--gh-space-3);
   font-size: var(--gh-text-sm);
   font-weight: 500;
   color: var(--gh-text-muted);
-  padding: var(--gh-space-2) var(--gh-space-4);
+  padding: var(--gh-space-3) var(--gh-space-4);
+  min-height: 44px;
   border-left: 2px solid transparent;
-  transition: color var(--gh-transition), background var(--gh-transition), border-color var(--gh-transition);
+  transition: color var(--gh-transition), background var(--gh-transition);
+}
+
+.gh-nav-link::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--gh-accent);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform var(--gh-duration) var(--gh-ease);
 }
 
 .gh-nav-link:hover {
@@ -185,5 +275,699 @@ textarea {
 .gh-nav-link[data-active] {
   color: var(--gh-text-emphasis);
   background: var(--gh-surface-raised);
-  border-left-color: var(--gh-accent);
+}
+
+.gh-nav-link[data-active]::before {
+  transform: scaleY(1);
+}
+
+.gh-nav-link .gh-nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.gh-nav-link .gh-nav-count {
+  margin-left: auto;
+  font-size: var(--gh-text-micro);
+  font-weight: 500;
+  color: var(--gh-text-muted);
+  background: var(--gh-surface-raised);
+  border: 1px solid var(--gh-border-strong);
+  border-radius: var(--gh-radius-full);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gh-nav-link[data-active] .gh-nav-count {
+  color: var(--gh-text-emphasis);
+  border-color: var(--gh-text-muted);
+}
+
+/* ---------------------------------------------------------------------
+   Motion — keyframes
+   --------------------------------------------------------------------- */
+
+@keyframes gh-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gh-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gh-slide-in-right {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes gh-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gh-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes gh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gh-ring {
+  from {
+    stroke-dashoffset: var(--gh-ring-start, 283);
+  }
+}
+
+.gh-animate-fade-up {
+  animation: gh-fade-up var(--gh-duration-slow) var(--gh-ease) both;
+}
+
+.gh-animate-scale-in {
+  animation: gh-scale-in var(--gh-duration) var(--gh-ease) both;
+}
+
+.gh-animate-fade-in {
+  animation: gh-fade-in var(--gh-duration) var(--gh-ease) both;
+}
+
+.gh-stagger > * {
+  animation: gh-fade-up var(--gh-duration-slow) var(--gh-ease) both;
+}
+
+.gh-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.gh-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.gh-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.gh-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.gh-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.gh-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.gh-stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+/* ---------------------------------------------------------------------
+   Skeleton loading state
+   --------------------------------------------------------------------- */
+
+.gh-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--gh-surface-raised);
+  border-radius: var(--gh-radius);
+}
+
+.gh-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gh-border-strong) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: gh-shimmer 1.6s linear infinite;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-skeleton::after {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Table
+   --------------------------------------------------------------------- */
+
+.gh-table-wrap {
+  container-type: inline-size;
+  border: 1px solid var(--gh-border);
+}
+
+.gh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--gh-text-sm);
+}
+
+.gh-table th {
+  text-align: left;
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  color: var(--gh-text-muted);
+  padding: var(--gh-space-3) var(--gh-space-4);
+  border-bottom: 1px solid var(--gh-border);
+  background: var(--gh-surface);
+}
+
+.gh-table td {
+  padding: var(--gh-space-3) var(--gh-space-4);
+  border-bottom: 1px solid var(--gh-border);
+  vertical-align: middle;
+}
+
+.gh-table tbody tr {
+  transition: background var(--gh-transition);
+}
+
+.gh-table tbody tr:hover {
+  background: var(--gh-surface-hover);
+}
+
+.gh-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.gh-table-num {
+  font-family: var(--gh-font-mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reflow to stacked cards under 640px, scoped to .gh-table-wrap so it
+   only affects tables using the shared Table component. */
+@container (max-width: 640px) {
+  .gh-table thead {
+    display: none;
+  }
+
+  .gh-table,
+  .gh-table tbody,
+  .gh-table tr,
+  .gh-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .gh-table tr {
+    padding: var(--gh-space-3) var(--gh-space-4);
+    border-bottom: 1px solid var(--gh-border);
+  }
+
+  .gh-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--gh-space-4);
+    padding: var(--gh-space-1) 0;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .gh-table td::before {
+    content: attr(data-label);
+    font-size: var(--gh-text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--gh-tracking-wide);
+    color: var(--gh-text-muted);
+    text-align: left;
+  }
+
+  .gh-table-num {
+    text-align: right;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Mobile drawer / backdrop
+   --------------------------------------------------------------------- */
+
+.gh-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 40;
+  animation: gh-fade-in var(--gh-duration) var(--gh-ease) both;
+}
+
+.gh-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  animation: gh-slide-in-right var(--gh-duration-slow) var(--gh-ease) both;
+}
+
+/* ---------------------------------------------------------------------
+   App shell — shared sidebar + content frame (AppShell / MobileNav)
+   --------------------------------------------------------------------- */
+
+:root {
+  --gh-header-height: 56px;
+}
+
+.gh-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.gh-shell-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.gh-shell-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--gh-border);
+  padding: var(--gh-space-6) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-2);
+  position: sticky;
+  top: var(--gh-header-height);
+  height: calc(100vh - var(--gh-header-height));
+  height: calc(100dvh - var(--gh-header-height));
+  overflow-y: auto;
+}
+
+.gh-shell-brand {
+  padding: 0 var(--gh-space-4);
+}
+
+.gh-shell-title {
+  font-size: var(--gh-text-lg);
+}
+
+.gh-shell-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-1);
+  padding: 0 var(--gh-space-2);
+}
+
+.gh-shell-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--gh-space-8);
+}
+
+.gh-shell-drawer {
+  width: min(280px, 84vw);
+  height: 100%;
+  background: var(--gh-bg);
+  border-right: 1px solid var(--gh-border);
+  padding: var(--gh-space-6) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-2);
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------------
+   Nav groups — static uppercase category labels with indented items
+   beneath (not accordions). Pinned/ungrouped items (Home, Search) render
+   above the first group, unindented.
+   --------------------------------------------------------------------- */
+
+.gh-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-1);
+  margin-top: var(--gh-space-4);
+}
+
+.gh-nav-group-label {
+  padding: 0 var(--gh-space-4);
+  margin-bottom: var(--gh-space-1);
+  font-size: var(--gh-text-micro);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  color: var(--gh-text-muted);
+}
+
+.gh-nav-group .gh-nav-link {
+  padding-left: calc(var(--gh-space-4) + 4px);
+}
+
+/* Tablet — collapse sidebar to an icon-only rail. Scoped to
+   .gh-shell-sidebar specifically (not the shared .gh-shell-nav/-brand/
+   -footer class names alone) because MobileNav's drawer reuses those same
+   class names and must always show full labels, never collapse to
+   icons-only — at <640px .gh-shell-sidebar is display:none anyway, so
+   this block never touches the drawer. */
+@media (max-width: 1024px) {
+  .gh-shell-sidebar {
+    width: 72px;
+  }
+
+  .gh-shell-sidebar .gh-shell-brand,
+  .gh-shell-sidebar .gh-nav-group-label {
+    display: none;
+  }
+
+  .gh-shell-sidebar .gh-shell-nav {
+    padding: 0 var(--gh-space-2);
+    align-items: center;
+  }
+
+  .gh-shell-sidebar .gh-nav-link,
+  .gh-shell-sidebar .gh-nav-group .gh-nav-link {
+    justify-content: center;
+    padding: var(--gh-space-3);
+  }
+
+  .gh-shell-sidebar .gh-nav-link span:not(.gh-nav-icon):not(.gh-nav-count) {
+    display: none;
+  }
+
+  .gh-shell-sidebar .gh-nav-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    margin-left: 0;
+  }
+}
+
+/* Mobile — hide the sidebar entirely, show the drawer (header stays visible
+   at all breakpoints, see .gh-shell-header below) */
+@media (max-width: 640px) {
+  .gh-shell-sidebar {
+    display: none;
+  }
+
+  .gh-shell-main {
+    padding: var(--gh-space-4);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Persistent top bar — search + notification bell + account menu, shown
+   at every breakpoint (unlike v1's mobile-only topbar). Hamburger + page
+   title only render on mobile via CSS below; search collapses away on
+   mobile (Search stays reachable as a pinned sidebar/drawer nav item
+   instead of crowding a 375px-wide header).
+   --------------------------------------------------------------------- */
+
+.gh-shell-header {
+  height: var(--gh-header-height);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-4);
+  padding: 0 var(--gh-space-4);
+  border-bottom: 1px solid var(--gh-border);
+  position: sticky;
+  top: 0;
+  background: var(--gh-bg);
+  z-index: 35;
+}
+
+.gh-shell-header-hamburger,
+.gh-shell-header-title {
+  display: none;
+}
+
+.gh-shell-header-search {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  flex: 1;
+  max-width: 360px;
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  padding: 0 var(--gh-space-3);
+  height: 36px;
+  color: var(--gh-text-muted);
+  transition: border-color var(--gh-transition);
+}
+
+.gh-shell-header-search:focus-within {
+  border-color: var(--gh-border-strong);
+}
+
+.gh-shell-header-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--gh-text-primary);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-shell-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .gh-shell-header-hamburger {
+    display: inline-flex;
+  }
+
+  .gh-shell-header-title {
+    display: block;
+    font-size: var(--gh-text-base);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gh-shell-header-search {
+    display: none;
+  }
+
+  .gh-shell-header-actions {
+    margin-left: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Popovers — notification bell dropdown, account menu. Tonal layering
+   (--gh-surface-popover) instead of a drop shadow, per brand rule.
+   --------------------------------------------------------------------- */
+
+.gh-popover-anchor {
+  position: relative;
+}
+
+.gh-popover {
+  position: absolute;
+  top: calc(100% + var(--gh-space-2));
+  right: 0;
+  z-index: 45;
+  background: var(--gh-surface-popover);
+  border: 1px solid var(--gh-border-strong);
+  min-width: 240px;
+  transform-origin: top right;
+  animation: gh-scale-in var(--gh-duration) var(--gh-ease) both;
+}
+
+.gh-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--gh-radius-full);
+  background: var(--gh-surface-raised);
+  border: 1px solid var(--gh-border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  color: var(--gh-text-primary);
+  cursor: pointer;
+  transition: border-color var(--gh-transition);
+}
+
+.gh-avatar:hover {
+  border-color: var(--gh-text-muted);
+}
+
+.gh-bell-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--gh-radius-full);
+  background: var(--gh-danger);
+  color: var(--gh-white);
+  font-size: 9px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------------
+   Empty states — memorable, not a lone <p>
+   --------------------------------------------------------------------- */
+
+.gh-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--gh-space-3);
+  padding: var(--gh-space-8) var(--gh-space-4);
+  color: var(--gh-text-muted);
+}
+
+.gh-empty-state-icon {
+  color: var(--gh-text-disabled);
+}
+
+.gh-empty-state-title {
+  color: var(--gh-text-primary);
+  font-size: var(--gh-text-sm);
+  font-weight: 500;
+}
+
+.gh-empty-state-description {
+  font-size: var(--gh-text-sm);
+  max-width: 320px;
+}
+
+/* ---------------------------------------------------------------------
+   Breadcrumb + record header
+   --------------------------------------------------------------------- */
+
+.gh-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  color: var(--gh-text-muted);
+}
+
+.gh-breadcrumb a:hover {
+  color: var(--gh-text-primary);
+}
+
+.gh-breadcrumb-current {
+  color: var(--gh-text-primary);
+}
+
+.gh-record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gh-space-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--gh-space-4);
+  border-bottom: 1px solid var(--gh-border);
+}
+
+.gh-record-header-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-3);
+  min-width: 0;
+}
+
+.gh-record-header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  flex-wrap: wrap;
+  margin-top: var(--gh-space-1);
+}
+
+.gh-record-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------
+   List toolbar — search/filter row above a Table
+   --------------------------------------------------------------------- */
+
+.gh-list-toolbar {
+  display: flex;
+  gap: var(--gh-space-3);
+  align-items: center;
+  margin-bottom: var(--gh-space-4);
+  flex-wrap: wrap;
+}
+
+.gh-list-toolbar-search {
+  flex: 1;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+/* ---------------------------------------------------------------------
+   Bento grid — homepage panels sized by importance, not uniform tiles
+   --------------------------------------------------------------------- */
+
+.gh-bento {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gh-space-4);
+}
+
+.gh-bento-span-2 {
+  grid-column: span 2;
+}
+
+.gh-bento-span-4 {
+  grid-column: span 4;
+}
+
+@media (max-width: 1024px) {
+  .gh-bento {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .gh-bento-span-4 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-bento {
+    grid-template-columns: 1fr;
+  }
+  .gh-bento-span-2,
+  .gh-bento-span-4 {
+    grid-column: span 1;
+  }
 }

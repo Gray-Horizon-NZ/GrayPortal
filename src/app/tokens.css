@@ -12,14 +12,22 @@
 
   /* Derived neutral ramp */
   --gh-900: #242424;
+  --gh-850: #292929;
   --gh-800: #2e2e2e;
+  --gh-750: #343434;
   --gh-600: #545454;
   --gh-400: #9a9a9a;
 
   /* Semantic tokens */
   --gh-bg: var(--gh-black);
   --gh-surface: var(--gh-900);
+  --gh-surface-hover: var(--gh-850);
   --gh-surface-raised: var(--gh-800);
+  /* One tone lighter than --gh-surface-raised — for elements that need to
+     read as "above" a raised card (dropdown panels, popovers) without a
+     drop shadow, which the brand rules out on near-black. Tonal layering,
+     not elevation-via-shadow (Raycast's "barely-lighter charcoal strata"). */
+  --gh-surface-popover: var(--gh-750);
   --gh-border: var(--gh-dark);
   --gh-border-strong: var(--gh-600);
 
@@ -47,6 +55,10 @@
 
   --gh-tracking-wide: 0.14em;
   --gh-tracking-wider: 0.22em;
+  /* Subtle positive tracking on dark-surface body copy for airiness/
+     legibility (Raycast's +0.2-0.4px finding) — not applied to the
+     already-tracked uppercase labels above. */
+  --gh-tracking-body: 0.01em;
 
   --gh-text-micro: 0.5625rem; /* 9px */
   --gh-text-xs: 0.6875rem; /* 11px */
@@ -70,11 +82,32 @@
   --gh-radius-full: 50%;
 
   /* Motion */
-  --gh-transition: 0.2s ease;
+  --gh-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --gh-duration-fast: 0.15s;
+  --gh-duration: 0.25s;
+  --gh-duration-slow: 0.4s;
+  --gh-transition: var(--gh-duration) var(--gh-ease); /* alias, back-compat */
+
+  /* Breakpoints (documented values — mirrored in src/lib/ui/breakpoints.ts
+     for client components; CSS custom properties can't gate @media queries) */
+  --gh-bp-mobile: 640px;
+  --gh-bp-tablet: 1024px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --gh-transition: 0s;
+    --gh-duration-fast: 0s;
+    --gh-duration: 0s;
+    --gh-duration-slow: 0s;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

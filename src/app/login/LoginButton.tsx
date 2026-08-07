@@ -3,11 +3,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithPopup } from "firebase/auth";
 import { firebaseAuth, googleProvider } from "@/lib/firebase/client";
+import WelcomeTransition from "@/components/ui/WelcomeTransition";
 
 export default function LoginButton() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [welcomeName, setWelcomeName] = useState<string | null>(null);
 
   async function handleSignIn() {
     setError(null);
@@ -55,12 +57,24 @@ export default function LoginButton() {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      const firstName = (result.user.displayName ?? result.user.email ?? "back").split(" ")[0];
+      setWelcomeName(firstName);
     } catch {
       setError("Sign-in failed. Try again.");
       setLoading(false);
     }
+  }
+
+  if (welcomeName) {
+    return (
+      <WelcomeTransition
+        name={welcomeName}
+        onDone={() => {
+          router.push("/");
+          router.refresh();
+        }}
+      />
+    );
   }
 
   return (

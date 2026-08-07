@@ -19,8 +19,14 @@ export default async function CompaniesPage({
         </h1>
       </div>
 
-      <form style={{ display: "flex", gap: "var(--gh-space-2)" }}>
-        <input className="gh-input" type="text" name="q" defaultValue={q} placeholder="Search companies…" />
+      <form className="gh-list-toolbar">
+        <input
+          className="gh-input gh-list-toolbar-search"
+          type="text"
+          name="q"
+          defaultValue={q}
+          placeholder="Search companies…"
+        />
         <button className="gh-btn-secondary" type="submit">Search</button>
       </form>
 

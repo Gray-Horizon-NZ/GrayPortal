@@ -1,3 +1,4 @@
+import { KeyRound, ExternalLink } from "lucide-react";
 import { listCredentials } from "@/lib/dal/credentials";
 import { createCredentialAction, rotateCredentialAction, softDeleteCredentialAction } from "./actions";
 import RevealButton from "./RevealButton";
@@ -10,24 +11,41 @@ export default async function CredentialsList({ clientId }: { clientId: string |
   const items = await listCredentials(clientId);
 
   return (
-    <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-      <p className="gh-eyebrow">{clientId ? "Credentials" : "Business-wide credentials"}</p>
+    <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+      <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>
+        {clientId ? "Credentials" : "Business-wide credentials"}
+      </p>
 
       {items.map((cred) => (
-        <div key={cred.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-3)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
-            <span>
+        <div
+          key={cred.id}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--gh-space-3)",
+            borderBottom: "1px solid var(--gh-border)",
+            padding: "var(--gh-space-3) 0",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--gh-space-3)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)", fontSize: "var(--gh-text-sm)" }}>
+              <KeyRound size={14} strokeWidth={1.75} color="var(--gh-text-muted)" />
               {cred.label}
               {cred.username ? ` — ${cred.username}` : ""}
             </span>
             {cred.url && (
-              <a href={cred.url} target="_blank" rel="noreferrer" style={{ color: "var(--gh-text-muted)" }}>
-                Link
+              <a
+                href={cred.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-1)", color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}
+              >
+                Link <ExternalLink size={12} strokeWidth={1.75} />
               </a>
             )}
           </div>
           {cred.lastRotatedAt && (
-            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
               Rotated {new Date(cred.lastRotatedAt).toLocaleDateString("en-NZ")}
             </p>
           )}
@@ -40,7 +58,7 @@ export default async function CredentialsList({ clientId }: { clientId: string |
               action={rotateCredentialAction.bind(null, cred.id, clientId)}
               style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
             >
-              <input className="gh-input" name="secret" type="password" placeholder="New secret" required />
+              <input className="gh-input" name="secret" type="password" placeholder="New secret" required style={{ flex: 1 }} />
               <button className="gh-btn-secondary" type="submit">Rotate</button>
             </form>
           </details>
@@ -51,9 +69,11 @@ export default async function CredentialsList({ clientId }: { clientId: string |
           </form>
         </div>
       ))}
-      {items.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No credentials stored yet.</p>}
+      {items.length === 0 && (
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No credentials stored yet.</p>
+      )}
 
-      <details className="gh-card">
+      <details className="gh-card" style={{ marginTop: "var(--gh-space-3)" }}>
         <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add credential</summary>
         <form
           action={createCredentialAction.bind(null, clientId)}

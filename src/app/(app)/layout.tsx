@@ -1,8 +1,33 @@
 import { redirect } from "next/navigation";
+import {
+  Home,
+  Workflow,
+  Handshake,
+  Building2,
+  Users,
+  ListChecks,
+  Inbox as InboxIcon,
+  Mail,
+  Wallet,
+  Tag,
+  Clock,
+  ShieldCheck,
+  Settings as SettingsIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
-import { unreadNotificationCount } from "@/lib/dal/notifications";
-import NavLink from "@/components/NavLink";
+import { listMyNotifications } from "@/lib/dal/notifications";
+import { markNotificationReadAction, markAllNotificationsReadAction } from "./notifications/actions";
+import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
 import LogoutButton from "./LogoutButton";
+
+// Renders the icon element server-side. NavLink/AppShell's icon prop is a
+// pre-rendered ReactNode, not a component reference — a bare component
+// reference is a function value and can't cross the server→client boundary
+// once it reaches the "use client" NavLink/ShellHeader components below.
+function navIcon(Icon: LucideIcon) {
+  return <Icon size={16} strokeWidth={1.75} />;
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const uid = await getVerifiedUid();
@@ -43,64 +68,56 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     throw err;
   }
 
-  const unreadCount = await unreadNotificationCount();
+  // Single query drives both the bell dropdown's list and its unread count
+  // (count = filter of this same result) — one round trip instead of two.
+  const notifications = await listMyNotifications();
+
+  // Phase 14: pipeline/deals/vault/settings are admin-only in practice
+  // (deals_admin_only RLS, credentials_admin_only RLS, settings' MFA/Google/
+  // MCP config) — resolved into a single list server-side per caller role,
+  // never branched on inside the shared AppShell component. Search and
+  // Notifications are no longer nav items — search lives in the top bar,
+  // notifications in the bell dropdown (both in AppShell/ShellHeader).
+  const navItems: ShellNavItem[] = [
+    { href: "/", label: "Home", icon: navIcon(Home) },
+    ...(callerRole === "admin"
+      ? [
+          { href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow), group: "Sales" },
+          { href: "/deals", label: "Deals", icon: navIcon(Handshake), group: "Sales" },
+        ]
+      : []),
+    { href: "/companies", label: "Companies", icon: navIcon(Building2), group: "Records" },
+    { href: "/clients", label: "Clients", icon: navIcon(Users), group: "Records" },
+    { href: "/tasks", label: "Tasks", icon: navIcon(ListChecks), group: "Work" },
+    ...(callerRole === "admin"
+      ? [
+          { href: "/inbox", label: "Inbox", icon: navIcon(InboxIcon), group: "Comms" },
+          { href: "/email-templates", label: "Email Templates", icon: navIcon(Mail), group: "Comms" },
+        ]
+      : []),
+    ...(callerRole === "admin" ? [{ href: "/finance", label: "Finance", icon: navIcon(Wallet), group: "Finance" }] : []),
+    { href: "/pricing", label: "Pricing", icon: navIcon(Tag), group: "Finance" },
+    ...(callerRole === "admin"
+      ? [
+          { href: "/reminders", label: "Reminders", icon: navIcon(Clock), group: "System" },
+          { href: "/vault", label: "Vault", icon: navIcon(ShieldCheck), group: "System" },
+          { href: "/settings", label: "Settings", icon: navIcon(SettingsIcon), group: "System" },
+        ]
+      : []),
+  ];
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <nav
-        style={{
-          width: 220,
-          flexShrink: 0,
-          borderRight: "1px solid var(--gh-border)",
-          padding: "var(--gh-space-6) 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--gh-space-6)",
-        }}
-      >
-        <div style={{ padding: "0 var(--gh-space-4)" }}>
-          <p className="gh-eyebrow">Gray Horizon</p>
-          <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>
-            Portal
-          </p>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
-          {/* Phase 14: pipeline/deals/vault/settings are admin-only in
-              practice (deals_admin_only RLS, credentials_admin_only RLS,
-              settings' MFA/Google/MCP config) — hidden from contractor nav
-              entirely rather than shown-then-empty. */}
-          {callerRole === "admin" && <NavLink href="/pipeline">Pipeline</NavLink>}
-          {callerRole === "admin" && <NavLink href="/deals">Deals</NavLink>}
-          <NavLink href="/companies">Companies</NavLink>
-          <NavLink href="/clients">Clients</NavLink>
-          <NavLink href="/tasks">Tasks</NavLink>
-          <NavLink href="/my-tasks">My Tasks</NavLink>
-          <NavLink href="/notifications">Notifications{unreadCount > 0 ? ` (${unreadCount})` : ""}</NavLink>
-          <NavLink href="/search">Search</NavLink>
-          <NavLink href="/pricing">Pricing</NavLink>
-          {callerRole === "admin" && <NavLink href="/inbox">Inbox</NavLink>}
-          {callerRole === "admin" && <NavLink href="/email-templates">Email Templates</NavLink>}
-          {callerRole === "admin" && <NavLink href="/finance">Finance</NavLink>}
-          {callerRole === "admin" && <NavLink href="/reminders">Reminders</NavLink>}
-          {callerRole === "admin" && <NavLink href="/vault">Vault</NavLink>}
-          {callerRole === "admin" && <NavLink href="/settings">Settings</NavLink>}
-        </div>
-        <div
-          style={{
-            marginTop: "auto",
-            padding: "0 var(--gh-space-4)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--gh-space-2)",
-          }}
-        >
-          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-            {callerLabel}
-          </p>
-          <LogoutButton />
-        </div>
-      </nav>
-      <main style={{ flex: 1, padding: "var(--gh-space-8)" }}>{children}</main>
-    </div>
+    <AppShell
+      eyebrow="Gray Horizon"
+      title="Portal"
+      navItems={navItems}
+      callerLabel={callerLabel}
+      logoutSlot={<LogoutButton />}
+      notifications={notifications}
+      markNotificationReadAction={markNotificationReadAction}
+      markAllNotificationsReadAction={markAllNotificationsReadAction}
+    >
+      {children}
+    </AppShell>
   );
 }

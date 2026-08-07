@@ -1,38 +1,33 @@
+import { Bell } from "lucide-react";
 import { listMyNotifications } from "@/lib/dal/notifications";
-import { markNotificationReadAction } from "./actions";
-
-const TYPE_LABELS: Record<string, string> = {
-  deal_stalled: "Deal has no upcoming next action",
-  task_overdue: "Task overdue",
-  payment_due_soon: "Payment due soon",
-  security_alert: "Security alert",
-  reminder_due: "Reminder due",
-};
-
-function entityHref(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const p = payload as { entityType?: string; entityId?: string };
-  if (p.entityType === "deal" && p.entityId) return `/deals/${p.entityId}`;
-  if (p.entityType === "task") return "/tasks";
-  return null;
-}
+import { NOTIFICATION_TYPE_LABELS, notificationEntityHref } from "@/lib/notificationDisplay";
+import EmptyState from "@/components/ui/EmptyState";
+import { markNotificationReadAction, markAllNotificationsReadAction } from "./actions";
 
 export default async function NotificationsPage() {
   const items = await listMyNotifications();
+  const hasUnread = items.some((n) => !n.read);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
-      <div>
-        <p className="gh-eyebrow">Notifications</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Alerts</h1>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          In-app only for now — email delivery depends on Phase 10 (Email System), not yet built.
-        </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "var(--gh-space-3)" }}>
+        <div>
+          <p className="gh-eyebrow">Notifications</p>
+          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Alerts</h1>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+            In-app only for now — email delivery depends on Phase 10 (Email System), not yet built.
+          </p>
+        </div>
+        {hasUnread && (
+          <form action={markAllNotificationsReadAction}>
+            <button className="gh-btn-secondary" type="submit">Mark all read</button>
+          </form>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         {items.map((n) => {
-          const href = entityHref(n.payload);
+          const href = notificationEntityHref(n.payload);
           return (
             <div
               key={n.id}
@@ -41,7 +36,7 @@ export default async function NotificationsPage() {
             >
               <div>
                 <span className="gh-badge" data-status={n.read ? undefined : "warning"}>
-                  {TYPE_LABELS[n.type] ?? n.type}
+                  {NOTIFICATION_TYPE_LABELS[n.type] ?? n.type}
                 </span>
                 <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
                   {new Date(n.createdAt).toLocaleString("en-NZ")}
@@ -61,7 +56,9 @@ export default async function NotificationsPage() {
             </div>
           );
         })}
-        {items.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No notifications.</p>}
+        {items.length === 0 && (
+          <EmptyState icon={Bell} title="All caught up" description="Nothing needs your attention right now." />
+        )}
       </div>
     </div>
   );

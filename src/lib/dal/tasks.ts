@@ -9,7 +9,8 @@ import { z } from "zod";
 
 export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing"]);
 
-export async function listMyTasks() {
+/** Every task, org-wide — the "All" half of the merged /tasks page's toggle. */
+export async function listAllTasks() {
   return withCaller(async (_caller, tx) => {
     return tx.select().from(tasks).where(isNull(tasks.deletedAt));
   });

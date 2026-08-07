@@ -40,6 +40,21 @@ export async function markNotificationRead(id: string) {
   });
 }
 
+export async function markAllNotificationsRead() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin", "contractor");
+    await tx
+      .update(notifications)
+      .set({ read: true })
+      .where(
+        and(
+          or(isNull(notifications.recipientUserId), eq(notifications.recipientUserId, caller.userId)),
+          eq(notifications.read, false)
+        )
+      );
+  });
+}
+
 /**
  * Scheduled generation (brief §8, "Triggers to wire up first") — same
  * admin-scope pattern as purgeOldDoneTasks (src/lib/dal/tasks.ts), since
