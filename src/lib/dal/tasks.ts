@@ -32,6 +32,16 @@ export async function listMyAssignedTasks() {
   });
 }
 
+/** Admin-side, clientId-parameterized — powers the client portal preview page. */
+export async function listTasksForClient(clientId: string) {
+  return withCaller(async (_caller, tx) => {
+    return tx
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)));
+  });
+}
+
 export async function assignTask(taskId: string, assigneeUserId: string | null) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");

@@ -45,7 +45,7 @@ export default function WelcomeTransition({
         transition: "opacity var(--gh-duration-slow) var(--gh-ease)",
       }}
     >
-      <div style={{ textAlign: "center" }} className="gh-animate-fade-up">
+      <div className="gh-glow-panel gh-animate-fade-up" style={{ textAlign: "center" }}>
         <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
           Gray Horizon
         </p>

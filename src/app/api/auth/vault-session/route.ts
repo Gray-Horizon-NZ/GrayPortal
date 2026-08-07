@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { adminAuth } from "@/lib/firebase/admin";
 import { VAULT_SESSION_COOKIE_NAME, VAULT_SESSION_MAX_AGE_MS } from "@/lib/dal/constants";
 import { getVerifiedUid } from "@/lib/dal/auth";
@@ -56,4 +57,22 @@ export async function POST(request: NextRequest) {
     console.error("auth/vault-session failed", err);
     return NextResponse.json({ error: "Vault re-authentication failed" }, { status: 401 });
   }
+}
+
+// Lets the client check for an already-valid vault session before popping
+// the re-auth dialog again — the cookie's 5-minute TTL (Firebase's minimum
+// for createSessionCookie) meant every reveal re-triggered the popup even
+// seconds after a prior one succeeded. Same validity check as
+// dal/vaultAuth.ts's assertVaultVerified, just reported as a boolean
+// instead of thrown, since this is a pre-flight check, not a gate.
+export async function GET() {
+  const mainSessionUid = await getVerifiedUid();
+  if (!mainSessionUid) return NextResponse.json({ valid: false });
+
+  const token = (await cookies()).get(VAULT_SESSION_COOKIE_NAME)?.value;
+  if (!token) return NextResponse.json({ valid: false });
+
+  const decoded = await adminAuth.verifySessionCookie(token, true).catch(() => null);
+  const valid = !!decoded && decoded.uid === mainSessionUid && !!decoded.firebase?.sign_in_second_factor;
+  return NextResponse.json({ valid });
 }

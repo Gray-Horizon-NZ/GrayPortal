@@ -14,6 +14,7 @@ import {
 import { getPortalHome } from "@/lib/dal/portal";
 import { paymentStatus } from "@/lib/paymentStatus";
 import StatCard from "@/components/ui/StatCard";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 
 const SECTION_META: Record<string, { href: string; label: string; description: string; icon: LucideIcon }> = {
   tasks: { href: "/portal/tasks", label: "Tasks", description: "What's in motion right now.", icon: CheckSquare },
@@ -57,8 +58,9 @@ export default async function PortalHomePage() {
       >
         <div>
           <p className="gh-eyebrow">Welcome</p>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
+          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
             <em>{firstName}</em>
+            <HelpTooltip text="Your account at a glance — tasks, documents, and everything else Gray Horizon has enabled for you." />
           </h1>
         </div>
         {status && (
@@ -67,6 +69,12 @@ export default async function PortalHomePage() {
           </span>
         )}
       </div>
+
+      {client?.portalWelcomeMessage && (
+        <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)", lineHeight: 1.6, maxWidth: 640 }}>
+          {client.portalWelcomeMessage}
+        </p>
+      )}
 
       <div
         className="gh-stagger"

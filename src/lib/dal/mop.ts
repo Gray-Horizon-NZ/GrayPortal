@@ -102,6 +102,43 @@ export async function generateMop() {
   });
 }
 
+const MAX_MOP_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — a hand-prepared ops-package zip, not a small doc upload
+
+/**
+ * Simpler alternative to generateMop() for when Max just wants to store
+ * and later re-download his own already-prepared ZIP (e.g. a portable
+ * install of his local agents) rather than have the app assemble one from
+ * vault credentials. Shares the same single-latest-archive slot — whichever
+ * of generate/upload ran most recently is what's downloadable — same
+ * admin-only + fresh-MFA gate as the rest of this file, since it's stored
+ * in the same private bucket location. Not re-encrypted server-side (per
+ * Max: "just a zip file upload and download option... personally secured
+ * download file essentially") — private Storage object + signed URL +
+ * vault MFA gate is the protection, same trust model as dal/documents.ts.
+ */
+export async function uploadMop(file: File): Promise<void> {
+  if (file.size > MAX_MOP_UPLOAD_BYTES) {
+    throw new Error(`File too large — max ${MAX_MOP_UPLOAD_BYTES / (1024 * 1024)}MB`);
+  }
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    await assertVaultVerified(caller);
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const storagePath = `mop/mop-${Date.now()}-${file.name}`;
+    await adminBucket().file(storagePath).save(bytes, { contentType: "application/zip", resumable: false });
+
+    const [previous] = await tx.select().from(mopArchives).orderBy(desc(mopArchives.generatedAt)).limit(1);
+    if (previous) {
+      await adminBucket().file(previous.storagePath).delete({ ignoreNotFound: true });
+      await tx.delete(mopArchives).where(eq(mopArchives.id, previous.id));
+    }
+
+    const [archive] = await tx.insert(mopArchives).values({ storagePath, generatedBy: caller.userId }).returning();
+    await auditReveal(tx, archive.id, { caller, entityType: "mop" });
+  });
+}
+
 export async function downloadMop(): Promise<{ url: string } | null> {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");

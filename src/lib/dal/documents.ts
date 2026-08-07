@@ -55,6 +55,33 @@ export async function uploadDocument(input: DocumentInputT, file: File) {
   });
 }
 
+/**
+ * Alternative to uploadDocument() for a document GrayPortal never stores a
+ * copy of — a Drive link or an already-hosted PDF. Same "exactly one
+ * parent" validation as the upload path; the DB's documents_exactly_one_source
+ * check is the actual enforcement of fileRef xor externalUrl, this just
+ * fails with a readable message before hitting that constraint.
+ */
+export async function linkDocument(input: DocumentInputT, externalUrl: string) {
+  const data = DocumentInput.parse(input);
+  const parents = [data.companyId, data.contactId, data.dealId].filter(Boolean);
+  if (parents.length !== 1) {
+    throw new Error("Document must link to exactly one of company, contact, or deal");
+  }
+  if (!externalUrl.trim()) {
+    throw new Error("A URL is required");
+  }
+
+  return withCaller(async (caller, tx) => {
+    return auditedInsert(
+      tx,
+      documents,
+      { ...data, externalUrl, uploadedBy: caller.userId },
+      { caller, entityType: "document" }
+    );
+  });
+}
+
 export async function listDocumentsForClient(clientId: string) {
   return withCaller(async (_caller, tx) => {
     return tx
@@ -81,9 +108,10 @@ export async function getDocumentDownloadUrl(documentId: string): Promise<string
       .where(and(eq(documents.id, documentId), isNull(documents.deletedAt)))
       .limit(1);
     if (!doc) return null;
+    if (doc.externalUrl) return doc.externalUrl;
 
     const [url] = await adminBucket()
-      .file(doc.fileRef)
+      .file(doc.fileRef!)
       .getSignedUrl({ action: "read", expires: Date.now() + 5 * 60 * 1000 });
     return url;
   });

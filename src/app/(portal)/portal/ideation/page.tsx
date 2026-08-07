@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEnabledFeatureKeys, listPortalIdeation } from "@/lib/dal/portal";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 
 export default async function PortalIdeationPage() {
   const enabled = await getEnabledFeatureKeys();
@@ -11,7 +12,10 @@ export default async function PortalIdeationPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 640 }}>
       <div>
         <p className="gh-eyebrow">Portal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Ideation</h1>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+          Ideation
+          <HelpTooltip text="Growth and strategy ideas Gray Horizon has logged for your account." />
+        </h1>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         {items.map((it) => (

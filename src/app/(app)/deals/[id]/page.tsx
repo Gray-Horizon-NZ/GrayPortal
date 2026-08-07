@@ -13,6 +13,7 @@ import Badge from "@/components/ui/Badge";
 import StageStepper from "@/components/ui/StageStepper";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import RecordHeader from "@/components/ui/RecordHeader";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function DealDetailPage({
   params,
@@ -49,9 +50,9 @@ export default async function DealDetailPage({
         }
         actions={
           <form action={deleteDealAction.bind(null, deal.id, deal.companyId ?? undefined)}>
-            <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+            <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
               Remove deal
-            </button>
+            </SubmitButton>
           </form>
         }
       />
@@ -132,7 +133,7 @@ export default async function DealDetailPage({
             <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Send email</summary>
             <form action={sendDealEmailAction.bind(null, deal.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
               <EmailComposeFields templates={templates} />
-              <button className="gh-btn-primary" type="submit">Send to primary contact</button>
+              <SubmitButton>Send to primary contact</SubmitButton>
             </form>
           </details>
           <details className="gh-card">
@@ -146,7 +147,7 @@ export default async function DealDetailPage({
               </select>
               <textarea className="gh-input" name="body" placeholder="What happened" rows={3} />
               <input className="gh-input" name="outcome" placeholder="Outcome" />
-              <button className="gh-btn-primary" type="submit">Log activity</button>
+              <SubmitButton>Log activity</SubmitButton>
             </form>
           </details>
         </div>
@@ -173,7 +174,7 @@ export default async function DealDetailPage({
                 ))}
               </select>
               <input className="gh-input" name="closeReason" placeholder="Close reason (required if moving to Lost)" />
-              <button className="gh-btn-secondary" type="submit">Update stage</button>
+              <SubmitButton className="gh-btn-secondary">Update stage</SubmitButton>
             </form>
           </Card>
         </div>

@@ -52,6 +52,48 @@ export async function inviteClientUser(input: InviteClientInputT) {
   });
 }
 
+export const InviteContractorInput = z.object({
+  email: z.string().email(),
+  contractorId: z.string().uuid(),
+  displayName: z.string().optional(),
+});
+export type InviteContractorInputT = z.infer<typeof InviteContractorInput>;
+
+/**
+ * Mirrors inviteClientUser exactly, one row inserted at role="contractor"
+ * with contractorId instead of clientId. No dedicated contractor portal
+ * exists yet — an invited contractor reaches the existing (app) admin
+ * shell at whatever nav their role already exposes (e.g. Tasks "Mine").
+ */
+export async function inviteContractorUser(input: InviteContractorInputT) {
+  const data = InviteContractorInput.parse(input);
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+
+    const [existing] = await tx
+      .select()
+      .from(users)
+      .where(and(eq(users.email, data.email), isNull(users.deletedAt)))
+      .limit(1);
+    if (existing) {
+      throw new Error(`${data.email} is already on the allowlist`);
+    }
+
+    return auditedInsert(
+      tx,
+      users,
+      {
+        email: data.email,
+        role: "contractor" as const,
+        contractorId: data.contractorId,
+        displayName: data.displayName ?? null,
+        googleUid: null,
+      },
+      { caller, entityType: "user" }
+    );
+  });
+}
+
 /** Phase 14 — populates the admin-side task assignment dropdown. */
 export async function listContractors() {
   return withCaller(async (caller, tx) => {

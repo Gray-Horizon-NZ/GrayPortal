@@ -435,6 +435,41 @@ textarea {
   .gh-skeleton::after {
     animation: none;
   }
+  .gh-glow-panel::before {
+    animation: none;
+  }
+}
+
+/* Sign-in welcome panel — a rotating conic-gradient glow behind an inset
+   solid background, standing in for the SVG-stroke .gh-ring keyframe
+   above (that one's shaped for a circular progress ring, not a div). */
+@keyframes gh-glow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gh-glow-panel {
+  position: relative;
+  padding: var(--gh-space-8) var(--gh-space-10);
+  isolation: isolate;
+}
+
+.gh-glow-panel::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  background: conic-gradient(from 0deg, transparent, var(--gh-accent) 15%, transparent 35%);
+  animation: gh-glow-spin 2.4s linear infinite;
+}
+
+.gh-glow-panel::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: var(--gh-bg);
 }
 
 /* ---------------------------------------------------------------------
@@ -605,6 +640,17 @@ textarea {
   flex: 1;
   min-width: 0;
   padding: var(--gh-space-8);
+}
+
+/* No breakpoint anywhere else addresses large screens (only 640/1024px
+   narrow ones) — content stretched edge-to-edge on wide desktop monitors
+   with nothing to stop it. Centers with gutters past 1600px; unchanged
+   (unbounded) below it. */
+@media (min-width: 1600px) {
+  .gh-shell-main {
+    max-width: 1600px;
+    margin-inline: auto;
+  }
 }
 
 .gh-shell-drawer {
@@ -974,6 +1020,15 @@ textarea {
   grid-template-columns: 1.3fr 1fr;
 }
 
+/* Pricing page only — the shared 1px hairline gap is deliberate everywhere
+   else (dashboard/StatCard rows), but reads as too dense for a catalogue
+   people browse rather than scan as a ledger. */
+.gh-grid-joined--pricing {
+  gap: var(--gh-space-3);
+  border: none;
+  background: none;
+}
+
 .gh-grid-joined + .gh-grid-joined {
   border-top: none;
 }
@@ -1137,6 +1192,41 @@ textarea {
 }
 
 /* Filter pill row */
+.gh-help-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.gh-help-tooltip > summary {
+  list-style: none;
+  cursor: help;
+  color: var(--gh-text-muted);
+  display: inline-flex;
+  align-items: center;
+}
+
+.gh-help-tooltip > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gh-help-tooltip > summary:hover {
+  color: var(--gh-text-primary);
+}
+
+.gh-help-tooltip[open] > p {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + var(--gh-space-2));
+  left: 0;
+  width: 240px;
+  background: var(--gh-surface-popover);
+  border: 1px solid var(--gh-border);
+  padding: var(--gh-space-3);
+  font-size: var(--gh-text-xs);
+  color: var(--gh-text-muted);
+  line-height: 1.5;
+}
+
 .gh-filter-row {
   display: flex;
   gap: var(--gh-space-2);

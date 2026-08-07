@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
-import { getEnabledFeatureKeys } from "@/lib/dal/portal";
+import { getEnabledFeatureKeys, getPortalClientLogo } from "@/lib/dal/portal";
 import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
 import LogoutButton from "@/app/(app)/LogoutButton";
 
@@ -74,7 +74,7 @@ export default async function PortalLayout({ children }: { children: React.React
     throw err;
   }
 
-  const enabledFeatureKeys = await getEnabledFeatureKeys();
+  const [enabledFeatureKeys, logoUrl] = await Promise.all([getEnabledFeatureKeys(), getPortalClientLogo()]);
 
   const navItems: ShellNavItem[] = [
     { href: "/portal", label: "Home", icon: navIcon(Home) },
@@ -110,7 +110,17 @@ export default async function PortalLayout({ children }: { children: React.React
   return (
     <AppShell
       eyebrow="Gray Horizon"
-      title="Client portal"
+      title={
+        logoUrl ? (
+          <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- external signed Storage URL, not a local asset */}
+            <img src={logoUrl} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />
+            Client portal
+          </span>
+        ) : (
+          "Client portal"
+        )
+      }
       navItems={navItems}
       callerLabel={callerLabel}
       logoutSlot={<LogoutButton />}

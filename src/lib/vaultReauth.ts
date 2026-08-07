@@ -17,6 +17,14 @@ import { firebaseAuth, googleProvider } from "@/lib/firebase/client";
  * Throws with a message suitable for direct display on failure.
  */
 export async function establishVaultSession(): Promise<void> {
+  // Skip the popup entirely if a still-valid vault session already exists
+  // (the cookie's 5-minute TTL otherwise re-triggers a fresh MFA challenge
+  // on every single reveal, even seconds after a prior one succeeded).
+  const status = await fetch("/api/auth/vault-session", { method: "GET" })
+    .then((r) => r.json())
+    .catch(() => ({ valid: false }));
+  if (status.valid) return;
+
   const currentUser = firebaseAuth.currentUser;
   if (!currentUser) throw new Error("Not signed in");
 
@@ -41,5 +49,8 @@ export async function establishVaultSession(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken }),
   });
-  if (!res.ok) throw new Error("Vault re-authentication failed");
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "Vault re-authentication failed");
+  }
 }

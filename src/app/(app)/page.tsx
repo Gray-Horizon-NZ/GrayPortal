@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TrendingUp, Wallet, Activity, Bell, AlertTriangle, Clock3, CreditCard, ListChecks, CalendarDays } from "lucide-react";
 import { listDeals } from "@/lib/dal/deals";
-import { listAllTasks } from "@/lib/dal/tasks";
+import { listAllTasks, listMyAssignedTasks } from "@/lib/dal/tasks";
 import { listRecentActivities } from "@/lib/dal/activities";
 import { listLatestHealthScores } from "@/lib/dal/health";
 import { listMyNotifications } from "@/lib/dal/notifications";
@@ -10,12 +10,13 @@ import { withCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
 import { getBusinessFinancialRollup } from "@/lib/dal/xero";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
-import { listUpcomingCalendarEvents } from "@/lib/google/adapter";
+import { listWeekCalendarEvents } from "@/lib/google/adapter";
 import { isClosedStage } from "@/config/pipeline";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import ScoreGauge from "@/components/ui/ScoreGauge";
 import EmptyState from "@/components/ui/EmptyState";
+import TaskRow from "./tasks/TaskRow";
 
 // Phase 16 — the "front door" (brief §12): composes data from nearly every
 // other phase, so it's built last among the read surfaces. Laid out as
@@ -23,13 +24,20 @@ import EmptyState from "@/components/ui/EmptyState";
 // gapped bento tiles — pipeline snapshot and "Due" lead as the wider pair
 // since research on how CRM dashboards are actually used (Pipedrive/HubSpot)
 // shows they lead with attention-needed items, not vanity metrics.
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ taskList?: string }>;
+}) {
+  const { taskList } = await searchParams;
+  const taskListView = taskList === "all" ? "all" : "mine";
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
-  const [deals, tasks, recentActivities, healthScores, notifications, clients, financials, recurringTemplates, googleConnection, upcomingEvents] =
+  const [deals, tasks, myTasks, recentActivities, healthScores, notifications, clients, financials, recurringTemplates, googleConnection, weekEvents] =
     await Promise.all([
       listDeals(),
       listAllTasks(),
+      listMyAssignedTasks(),
       listRecentActivities(10),
       listLatestHealthScores(),
       listMyNotifications(),
@@ -37,8 +45,21 @@ export default async function HomePage() {
       getBusinessFinancialRollup(),
       isAdmin ? listRecurringTemplates() : Promise.resolve([]),
       isAdmin ? getGoogleConnectionForSync() : Promise.resolve(null),
-      isAdmin ? listUpcomingCalendarEvents(5) : Promise.resolve([]),
+      isAdmin ? listWeekCalendarEvents() : Promise.resolve([]),
     ]);
+
+  const widgetTasks = (taskListView === "all" ? tasks : myTasks).filter((t) => t.status !== "done").slice(0, 5);
+
+  const eventsByDay = new Map<string, typeof weekEvents>();
+  for (const e of weekEvents) {
+    const day = e.allDay ? e.start : e.start.slice(0, 10);
+    eventsByDay.set(day, [...(eventsByDay.get(day) ?? []), e]);
+  }
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
 
   const openDeals = deals.filter((d) => !isClosedStage(d.stage));
   const valueByStage = new Map<string, number>();
@@ -176,7 +197,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <div className="gh-grid-joined gh-grid-joined--3">
+      <div className={`gh-grid-joined ${isAdmin ? "gh-grid-joined--4" : "gh-grid-joined--3"}`}>
         <div className="gh-grid-cell">
           <div className="gh-panel-head">
             <p className="gh-panel-title">Timeline</p>
@@ -212,7 +233,7 @@ export default async function HomePage() {
         {isAdmin && (
           <div className="gh-grid-cell">
             <div className="gh-panel-head">
-              <p className="gh-panel-title">Today</p>
+              <p className="gh-panel-title">This week</p>
               <p className="gh-eyebrow">Calendar</p>
             </div>
             {!googleConnection ? (
@@ -224,34 +245,76 @@ export default async function HomePage() {
                   Connect Google →
                 </Link>
               </>
-            ) : upcomingEvents.length === 0 ? (
-              <EmptyState icon={CalendarDays} title="Nothing on the calendar" />
+            ) : weekEvents.length === 0 ? (
+              <EmptyState icon={CalendarDays} title="Nothing on the calendar this week" />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {upcomingEvents.map((e, i) => (
-                  <div
-                    key={e.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: "var(--gh-space-3)",
-                      padding: "var(--gh-space-2) 0",
-                      borderTop: i === 0 ? "none" : "1px solid var(--gh-border)",
-                      fontSize: "var(--gh-text-sm)",
-                    }}
-                  >
-                    <span>{e.summary}</span>
-                    <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
-                      {e.allDay
-                        ? new Date(`${e.start}T00:00:00`).toLocaleDateString("en-NZ")
-                        : new Date(e.start).toLocaleString("en-NZ", { weekday: "short", hour: "numeric", minute: "2-digit" })}
-                    </span>
-                  </div>
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+                {weekDays.map((day, i) => {
+                  const dayEvents = eventsByDay.get(day) ?? [];
+                  const label =
+                    i === 0
+                      ? "Today"
+                      : new Date(`${day}T00:00:00`).toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" });
+                  return (
+                    <div key={day} style={{ paddingTop: i === 0 ? 0 : "var(--gh-space-2)", borderTop: i === 0 ? "none" : "1px solid var(--gh-border)" }}>
+                      <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-1)" }}>{label}</p>
+                      {dayEvents.length === 0 ? (
+                        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-disabled)" }}>Nothing scheduled</p>
+                      ) : (
+                        dayEvents.map((e) => (
+                          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: "var(--gh-space-3)", fontSize: "var(--gh-text-sm)" }}>
+                            <span>{e.summary}</span>
+                            {!e.allDay && (
+                              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
+                                {new Date(e.start).toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit" })}
+                              </span>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         )}
+
+        <div className="gh-grid-cell">
+          <div className="gh-panel-head">
+            <p className="gh-panel-title">Tasks</p>
+            <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+              <Link
+                href="/?taskList=mine"
+                className="gh-btn-secondary"
+                data-active={taskListView === "mine" || undefined}
+                style={{ padding: "2px var(--gh-space-2)", fontSize: "var(--gh-text-micro)" }}
+              >
+                Mine
+              </Link>
+              <Link
+                href="/?taskList=all"
+                className="gh-btn-secondary"
+                data-active={taskListView === "all" || undefined}
+                style={{ padding: "2px var(--gh-space-2)", fontSize: "var(--gh-text-micro)" }}
+              >
+                All
+              </Link>
+            </div>
+          </div>
+          {widgetTasks.length === 0 ? (
+            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>Nothing outstanding.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+              {widgetTasks.map((t) => (
+                <TaskRow key={t.id} task={t} />
+              ))}
+            </div>
+          )}
+          <Link href="/tasks" style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-4)", display: "inline-block" }}>
+            View all →
+          </Link>
+        </div>
 
         <div className="gh-grid-cell">
           <div className="gh-panel-head">

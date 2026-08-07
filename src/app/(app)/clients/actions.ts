@@ -1,10 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, updateClient, softDeleteClient, setClientFeature, type PortalFeatureKey } from "@/lib/dal/clients";
+import { createClient, updateClient, softDeleteClient, setClientFeature, uploadClientLogo, type PortalFeatureKey } from "@/lib/dal/clients";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
-import { uploadDocument, DocType } from "@/lib/dal/documents";
+import { uploadDocument, linkDocument, DocType } from "@/lib/dal/documents";
 import type { z } from "zod";
 import { ReferralStatus } from "@/lib/dal/referrals";
 import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
@@ -58,6 +58,24 @@ export async function updateClientEmbedsAction(clientId: string, formData: FormD
     lookerStudioUrl: String(formData.get("lookerStudioUrl") ?? "") || undefined,
   });
   revalidatePath(`/clients/${clientId}`);
+}
+
+export async function updatePortalWelcomeAction(clientId: string, formData: FormData) {
+  await updateClient(clientId, {
+    portalWelcomeMessage: String(formData.get("portalWelcomeMessage") ?? "") || undefined,
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/portal");
+}
+
+export async function uploadClientLogoAction(clientId: string, formData: FormData) {
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("A logo image is required");
+  }
+  await uploadClientLogo(clientId, file);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/portal");
 }
 
 export async function createIdeationItemAction(clientId: string, formData: FormData) {
@@ -137,12 +155,17 @@ export async function inviteClientAction(clientId: string, formData: FormData) {
 }
 
 export async function uploadDocumentAction(clientId: string, formData: FormData) {
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    throw new Error("A file is required");
-  }
   const docType = DocType.parse(String(formData.get("docType") ?? "other"));
   const companyId = String(formData.get("companyId") ?? "") || undefined;
-  await uploadDocument({ clientId, companyId, docType }, file);
+  const externalUrl = String(formData.get("externalUrl") ?? "").trim();
+  const file = formData.get("file");
+
+  if (externalUrl) {
+    await linkDocument({ clientId, companyId, docType }, externalUrl);
+  } else if (file instanceof File && file.size > 0) {
+    await uploadDocument({ clientId, companyId, docType }, file);
+  } else {
+    throw new Error("A file or a URL is required");
+  }
   revalidatePath(`/clients/${clientId}`);
 }

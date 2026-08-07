@@ -139,6 +139,35 @@ export async function listUpcomingCalendarEvents(maxResults = 5): Promise<Upcomi
   }
 }
 
+/** Week-bounded variant for the dashboard's weekly calendar panel — today through +7 days, uncapped by count. */
+export async function listWeekCalendarEvents(): Promise<UpcomingEvent[]> {
+  try {
+    const auth = await authedClient();
+    if (!auth) return [];
+    const calendar = google.calendar({ version: "v3", auth });
+    const timeMin = new Date();
+    timeMin.setHours(0, 0, 0, 0);
+    const timeMax = new Date(timeMin);
+    timeMax.setDate(timeMax.getDate() + 7);
+    const { data } = await calendar.events.list({
+      calendarId: "primary",
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+    });
+    return (data.items ?? []).map((e) => ({
+      id: e.id!,
+      summary: e.summary ?? "(no title)",
+      start: e.start?.dateTime ?? e.start?.date ?? "",
+      allDay: !e.start?.dateTime,
+    }));
+  } catch (err) {
+    console.error("listWeekCalendarEvents failed", err);
+    return [];
+  }
+}
+
 export async function removeTaskFromGoogle(googleTaskId: string | null): Promise<void> {
   if (!googleTaskId) return;
   try {

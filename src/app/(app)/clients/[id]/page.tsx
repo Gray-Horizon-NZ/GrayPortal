@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClient } from "@/lib/dal/clients";
 import { PORTAL_FEATURE_KEYS } from "@/lib/dal/clients";
@@ -13,6 +14,8 @@ import {
   inviteClientAction,
   uploadDocumentAction,
   updateClientEmbedsAction,
+  updatePortalWelcomeAction,
+  uploadClientLogoAction,
   createIdeationItemAction,
   deleteIdeationItemAction,
   createRoadmapItemAction,
@@ -23,6 +26,7 @@ import {
   deleteToolStackItemAction,
   deleteClientAction,
 } from "../actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
 import ReferralStatusSelect from "./ReferralStatusSelect";
 import CredentialsList from "../../vault/CredentialsList";
@@ -67,11 +71,16 @@ export default async function ClientDetailPage({
             </span>
           )}
         </div>
-        <form action={deleteClientAction.bind(null, client.id)} style={{ marginTop: "var(--gh-space-3)" }}>
-          <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
-            Remove client
-          </button>
-        </form>
+        <div style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-3)" }}>
+          <Link href={`/clients/${client.id}/portal-preview`} className="gh-btn-secondary">
+            View client portal
+          </Link>
+          <form action={deleteClientAction.bind(null, client.id)}>
+            <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
+              Remove client
+            </SubmitButton>
+          </form>
+        </div>
       </div>
 
       <section className="gh-card">
@@ -109,7 +118,7 @@ export default async function ClientDetailPage({
         <form action={inviteClientAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <input className="gh-input" name="email" type="email" placeholder="Client email" required />
           <input className="gh-input" name="displayName" placeholder="Display name (optional)" />
-          <button className="gh-btn-primary" type="submit">Invite to portal</button>
+          <SubmitButton>Invite to portal</SubmitButton>
         </form>
       </section>
 
@@ -120,7 +129,11 @@ export default async function ClientDetailPage({
         {documents.map((d) => (
           <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
             <span>{d.docType}</span>
-            <a href={`/api/documents/${d.id}/download`}>Download</a>
+            {d.externalUrl ? (
+              <a href={`/api/documents/${d.id}/download`} target="_blank" rel="noreferrer">Open link ↗</a>
+            ) : (
+              <a href={`/api/documents/${d.id}/download`}>Download</a>
+            )}
           </div>
         ))}
         {documents.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No documents yet.</p>}
@@ -136,8 +149,10 @@ export default async function ClientDetailPage({
             <option value="deck">Deck</option>
             <option value="other">Other</option>
           </select>
-          <input className="gh-input" name="file" type="file" required />
-          <button className="gh-btn-primary" type="submit">Upload document</button>
+          <input className="gh-input" name="file" type="file" />
+          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textAlign: "center" }}>— or —</p>
+          <input className="gh-input" name="externalUrl" type="url" placeholder="Link a Drive/hosted PDF URL instead" />
+          <SubmitButton>Add document</SubmitButton>
         </form>
       </section>
 
@@ -161,7 +176,7 @@ export default async function ClientDetailPage({
           <form action={createReferralAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
             <input className="gh-input" name="referredName" placeholder="Who they referred" required />
             <textarea className="gh-input" name="notes" placeholder="Notes" rows={2} />
-            <button className="gh-btn-primary" type="submit">Log referral</button>
+            <SubmitButton>Log referral</SubmitButton>
           </form>
         </details>
       </section>
@@ -175,7 +190,31 @@ export default async function ClientDetailPage({
         <form action={updateClientEmbedsAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <input className="gh-input" name="driveFolderUrl" defaultValue={client.driveFolderUrl ?? ""} placeholder="Drive folder embed URL" />
           <input className="gh-input" name="lookerStudioUrl" defaultValue={client.lookerStudioUrl ?? ""} placeholder="Looker Studio embed URL" />
-          <button className="gh-btn-primary" type="submit" style={{ alignSelf: "flex-start" }}>Save</button>
+          <SubmitButton style={{ alignSelf: "flex-start" }}>Save</SubmitButton>
+        </form>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Portal appearance</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-4)" }}>
+          {client.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- external signed Storage URL, not a local asset
+            <img src={client.logoUrl} alt={`${client.name} logo`} style={{ width: 48, height: 48, objectFit: "contain" }} />
+          )}
+          <form action={uploadClientLogoAction.bind(null, client.id)} encType="multipart/form-data" style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
+            <input className="gh-input" name="logo" type="file" accept="image/*" required />
+            <SubmitButton className="gh-btn-secondary">Upload logo</SubmitButton>
+          </form>
+        </div>
+        <form action={updatePortalWelcomeAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <textarea
+            className="gh-input"
+            name="portalWelcomeMessage"
+            defaultValue={client.portalWelcomeMessage ?? ""}
+            placeholder="Welcome message shown at the top of this client's portal home page (optional)"
+            rows={3}
+          />
+          <SubmitButton style={{ alignSelf: "flex-start" }}>Save</SubmitButton>
         </form>
       </section>
 
@@ -185,7 +224,7 @@ export default async function ClientDetailPage({
           <div key={it.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
             <span>{it.title} <span className="gh-badge">{it.status}</span></span>
             <form action={deleteIdeationItemAction.bind(null, it.id, client.id)}>
-              <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Remove</button>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
             </form>
           </div>
         ))}
@@ -195,7 +234,7 @@ export default async function ClientDetailPage({
           <form action={createIdeationItemAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
             <input className="gh-input" name="title" placeholder="Idea title" required />
             <textarea className="gh-input" name="description" placeholder="Description" rows={2} />
-            <button className="gh-btn-primary" type="submit">Add idea</button>
+            <SubmitButton>Add idea</SubmitButton>
           </form>
         </details>
       </section>
@@ -206,7 +245,7 @@ export default async function ClientDetailPage({
           <div key={it.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
             <span>{it.title} <span className="gh-badge">{it.status}</span> {it.targetDate && <span style={{ color: "var(--gh-text-muted)" }}>({it.targetDate})</span>}</span>
             <form action={deleteRoadmapItemAction.bind(null, it.id, client.id)}>
-              <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Remove</button>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
             </form>
           </div>
         ))}
@@ -217,7 +256,7 @@ export default async function ClientDetailPage({
             <input className="gh-input" name="title" placeholder="Title" required />
             <textarea className="gh-input" name="description" placeholder="Description" rows={2} />
             <input className="gh-input" name="targetDate" type="date" />
-            <button className="gh-btn-primary" type="submit">Add item</button>
+            <SubmitButton>Add item</SubmitButton>
           </form>
         </details>
       </section>
@@ -229,7 +268,7 @@ export default async function ClientDetailPage({
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>{m.title} — {new Date(m.occurredAt).toLocaleDateString("en-NZ")}</span>
               <form action={deleteMeetingSummaryAction.bind(null, m.id, client.id)}>
-                <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Remove</button>
+                <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
               </form>
             </div>
             <p style={{ color: "var(--gh-text-muted)" }}>{m.summary}</p>
@@ -241,7 +280,7 @@ export default async function ClientDetailPage({
           <form action={createMeetingSummaryAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
             <input className="gh-input" name="title" placeholder="Meeting title" required />
             <textarea className="gh-input" name="summary" placeholder="Summary" rows={3} required />
-            <button className="gh-btn-primary" type="submit">Log summary</button>
+            <SubmitButton>Log summary</SubmitButton>
           </form>
         </details>
       </section>
@@ -252,7 +291,7 @@ export default async function ClientDetailPage({
           <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
             <span>{t.toolName} {t.category && <span style={{ color: "var(--gh-text-muted)" }}>({t.category})</span>} <span className="gh-badge">{t.status}</span></span>
             <form action={deleteToolStackItemAction.bind(null, t.id, client.id)}>
-              <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Remove</button>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
             </form>
           </div>
         ))}
@@ -266,7 +305,7 @@ export default async function ClientDetailPage({
               <option value="current">Current</option>
               <option value="planned">Planned</option>
             </select>
-            <button className="gh-btn-primary" type="submit">Add tool</button>
+            <SubmitButton>Add tool</SubmitButton>
           </form>
         </details>
       </section>

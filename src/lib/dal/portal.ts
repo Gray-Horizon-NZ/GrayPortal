@@ -133,6 +133,19 @@ export async function getPortalHome() {
   });
 }
 
+/** Sidebar brand logo — separate from getPortalHome() so the shell (which wraps every portal page) doesn't duplicate that page's full query. */
+export async function getPortalClientLogo(): Promise<string | null> {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    const [row] = await tx
+      .select({ logoUrl: clients.logoUrl })
+      .from(clients)
+      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .limit(1);
+    return row?.logoUrl ?? null;
+  });
+}
+
 export async function getEnabledFeatureKeys(): Promise<PortalFeatureKey[]> {
   return withCaller(async (caller, tx) => {
     requireClientScope(caller);

@@ -27,6 +27,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Default Server Action body limit is 1MB — the Vault MOP upload accepts
+  // hand-prepared ZIPs well beyond that (see dal/mop.ts's 200MB cap).
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "200mb",
+    },
+  },
   async headers() {
     return [
       {

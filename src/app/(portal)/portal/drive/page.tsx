@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEnabledFeatureKeys, getPortalEmbeds } from "@/lib/dal/portal";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 
 export default async function PortalDrivePage() {
   const enabled = await getEnabledFeatureKeys();
@@ -11,7 +12,10 @@ export default async function PortalDrivePage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)" }}>
       <div>
         <p className="gh-eyebrow">Portal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Files</h1>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+          Files
+          <HelpTooltip text="Your shared Drive folder, embedded directly here." />
+        </h1>
       </div>
       {driveFolderUrl ? (
         <iframe

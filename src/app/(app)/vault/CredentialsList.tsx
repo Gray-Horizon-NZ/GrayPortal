@@ -2,6 +2,7 @@ import { KeyRound, ExternalLink } from "lucide-react";
 import { listCredentials } from "@/lib/dal/credentials";
 import { createCredentialAction, rotateCredentialAction, softDeleteCredentialAction } from "./actions";
 import RevealButton from "./RevealButton";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 // Shared between /vault (clientId={null}, business-wide) and a client
 // detail page's Credentials section (clientId={client.id}) — same masked
@@ -59,13 +60,13 @@ export default async function CredentialsList({ clientId }: { clientId: string |
               style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
             >
               <input className="gh-input" name="secret" type="password" placeholder="New secret" required style={{ flex: 1 }} />
-              <button className="gh-btn-secondary" type="submit">Rotate</button>
+              <SubmitButton className="gh-btn-secondary">Rotate</SubmitButton>
             </form>
           </details>
           <form action={softDeleteCredentialAction.bind(null, cred.id, clientId)}>
-            <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+            <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
               Remove
-            </button>
+            </SubmitButton>
           </form>
         </div>
       ))}
@@ -84,7 +85,7 @@ export default async function CredentialsList({ clientId }: { clientId: string |
           <input className="gh-input" name="secret" type="password" placeholder="Password / secret" required />
           <input className="gh-input" name="url" placeholder="URL (optional)" />
           <textarea className="gh-input" name="notes" placeholder="Notes" rows={2} />
-          <button className="gh-btn-primary" type="submit">Add credential</button>
+          <SubmitButton>Add credential</SubmitButton>
         </form>
       </details>
     </section>

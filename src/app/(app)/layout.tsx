@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import {
   Home,
   Workflow,
-  Building2,
   Users,
+  HardHat,
   ListChecks,
   Inbox as InboxIcon,
   Mail,
@@ -82,8 +82,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(callerRole === "admin"
       ? [{ href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow), group: "Sales" }]
       : []),
-    { href: "/companies", label: "Companies", icon: navIcon(Building2), group: "Records" },
-    { href: "/clients", label: "Clients", icon: navIcon(Users), group: "Records" },
+    { href: "/clients", label: "Clients", icon: navIcon(Users), group: "Accounts" },
+    ...(callerRole === "admin"
+      ? [{ href: "/contractors", label: "Contractors", icon: navIcon(HardHat), group: "Accounts" }]
+      : []),
     { href: "/tasks", label: "Tasks", icon: navIcon(ListChecks), group: "Work" },
     ...(callerRole === "admin"
       ? [

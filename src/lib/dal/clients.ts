@@ -3,6 +3,7 @@ import { clients, referrals, clientFeatures, users, documents } from "@/lib/db/s
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
+import { adminBucket } from "@/lib/firebase/admin";
 import { z } from "zod";
 
 export const ClientInput = z.object({
@@ -11,6 +12,7 @@ export const ClientInput = z.object({
   nextPaymentDate: z.string().optional(),
   driveFolderUrl: z.string().optional(),
   lookerStudioUrl: z.string().optional(),
+  portalWelcomeMessage: z.string().optional(),
 });
 export type ClientInputT = z.infer<typeof ClientInput>;
 
@@ -92,6 +94,41 @@ export async function createClient(input: ClientInputT) {
       );
     }
     return client;
+  });
+}
+
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Logos aren't sensitive like documents, but this project's Storage bucket
+ * has Uniform Bucket-Level Access (no per-object ACLs), so `makePublic()`
+ * isn't available — same signed-URL mechanism as documents, just with a
+ * far-future expiry instead of documents' 5-minute one, since a logo is
+ * meant to be embedded/rendered repeatedly, not gated per-view.
+ */
+export async function uploadClientLogo(clientId: string, file: File) {
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error(`Logo exceeds ${MAX_LOGO_BYTES / (1024 * 1024)}MB limit`);
+  }
+  return withCaller(async (caller, tx) => {
+    const objectPath = `logos/${clientId}/${file.name}`;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    await adminBucket().file(objectPath).save(bytes, {
+      contentType: file.type || "image/png",
+      resumable: false,
+    });
+    const [url] = await adminBucket()
+      .file(objectPath)
+      .getSignedUrl({ action: "read", expires: "01-01-2100" });
+
+    return auditedUpdate(
+      tx,
+      clients,
+      eq(clients.id, clientId),
+      clientId,
+      { logoUrl: url, updatedBy: caller.userId },
+      { caller, entityType: "client" }
+    );
   });
 }
 

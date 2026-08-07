@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEnabledFeatureKeys, listPortalReferrals, getReferralStats } from "@/lib/dal/portal";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { submitPortalReferralAction } from "./actions";
 
 export default async function PortalReferralsPage() {
@@ -12,7 +13,10 @@ export default async function PortalReferralsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 640 }}>
       <div>
         <p className="gh-eyebrow">Portal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Referrals</h1>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+          Referrals
+          <HelpTooltip text="Refer another business to Gray Horizon and earn a discount on your own account." />
+        </h1>
       </div>
 
       <div style={{ display: "flex", gap: "var(--gh-space-6)" }}>

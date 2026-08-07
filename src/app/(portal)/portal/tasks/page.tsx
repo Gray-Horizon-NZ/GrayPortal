@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEnabledFeatureKeys, listPortalTasks } from "@/lib/dal/portal";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 
 type PortalTask = Awaited<ReturnType<typeof listPortalTasks>>[number];
 
@@ -37,7 +38,10 @@ export default async function PortalTasksPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 640 }}>
       <div>
         <p className="gh-eyebrow">Portal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Tasks</h1>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+          Tasks
+          <HelpTooltip text="What Gray Horizon is actively working on for you, and what's coming up next." />
+        </h1>
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>

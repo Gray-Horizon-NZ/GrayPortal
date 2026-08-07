@@ -152,6 +152,25 @@ export const clients = pgTable("clients", {
   // someone else's financial data, so linking is a one-time explicit
   // choice (client detail page), not a fuzzy-match heuristic.
   xeroContactId: text("xero_contact_id"),
+  // Public-read Storage URL (not sensitive, unlike documents — no signed
+  // URL needed) and an admin-authored blurb shown at the top of this
+  // client's portal home page. Both null = no logo / no default copy
+  // forced, not an error state.
+  logoUrl: text("logo_url"),
+  portalWelcomeMessage: text("portal_welcome_message"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Business record for a contractor — name/specialty — independent of
+// whether they have login access yet, same relationship clients has to
+// portalUsers. Distinct from dal/users.ts's listContractors(), which reads
+// login rows (role="contractor") for the task-assignee dropdown; this
+// table is the roster those login rows optionally attach to.
+export const contractors = pgTable("contractors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  specialty: text("specialty"),
   ...softDelete,
   ...actorColumns,
 });
@@ -161,6 +180,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   role: roleEnum("role").notNull(),
   clientId: uuid("client_id").references(() => clients.id),
+  contractorId: uuid("contractor_id").references(() => contractors.id),
   displayName: text("display_name"),
   googleUid: text("google_uid").unique(),
   ...softDelete,
@@ -256,7 +276,12 @@ export const documents = pgTable(
     contactId: uuid("contact_id").references(() => contacts.id),
     dealId: uuid("deal_id").references(() => deals.id),
     clientId: uuid("client_id").references(() => clients.id),
-    fileRef: text("file_ref").notNull(),
+    // Exactly one of these two is set — fileRef for an internal Storage
+    // upload (never a public URL, see getDocumentDownloadUrl), externalUrl
+    // for a linked Drive/hosted-PDF document GrayPortal never stores a
+    // copy of.
+    fileRef: text("file_ref"),
+    externalUrl: text("external_url"),
     docType: docTypeEnum("doc_type").notNull(),
     uploadedBy: uuid("uploaded_by").references(() => users.id),
     ...softDelete,
@@ -265,6 +290,10 @@ export const documents = pgTable(
     check(
       "documents_exactly_one_entity",
       sql`(${table.companyId} IS NOT NULL)::int + (${table.contactId} IS NOT NULL)::int + (${table.dealId} IS NOT NULL)::int = 1`
+    ),
+    check(
+      "documents_exactly_one_source",
+      sql`(${table.fileRef} IS NOT NULL)::int + (${table.externalUrl} IS NOT NULL)::int = 1`
     ),
   ]
 );

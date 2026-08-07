@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEnabledFeatureKeys, listPortalRoadmap } from "@/lib/dal/portal";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 
 export default async function PortalRoadmapPage() {
   const enabled = await getEnabledFeatureKeys();
@@ -11,7 +12,10 @@ export default async function PortalRoadmapPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 640 }}>
       <div>
         <p className="gh-eyebrow">Portal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Roadmap</h1>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+          Roadmap
+          <HelpTooltip text="Where things are headed — upcoming milestones for your account." />
+        </h1>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         {items.map((it) => (

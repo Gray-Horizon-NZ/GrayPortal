@@ -15,14 +15,14 @@ export async function createCompanyAction(formData: FormData) {
     notes: String(formData.get("notes") ?? "") || undefined,
   };
   const company = await createCompany(input);
-  revalidatePath("/companies");
+  revalidatePath("/clients");
   redirect(`/companies/${company.id}`);
 }
 
 export async function deleteCompanyAction(id: string) {
   await softDeleteCompany(id);
-  revalidatePath("/companies");
-  redirect("/companies");
+  revalidatePath("/clients");
+  redirect("/clients");
 }
 
 export async function createContactAction(companyId: string, formData: FormData) {

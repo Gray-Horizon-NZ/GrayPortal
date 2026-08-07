@@ -7,7 +7,7 @@ import {
   softDeleteCredential,
   revealCredential,
 } from "@/lib/dal/credentials";
-import { generateMop, downloadMop } from "@/lib/dal/mop";
+import { generateMop, downloadMop, uploadMop } from "@/lib/dal/mop";
 
 function revalidateFor(clientId: string | null) {
   revalidatePath(clientId ? `/clients/${clientId}` : "/vault");
@@ -60,4 +60,9 @@ export async function generateMopAction() {
 
 export async function downloadMopAction() {
   return downloadMop();
+}
+
+export async function uploadMopAction(file: File) {
+  await uploadMop(file);
+  revalidatePath("/vault");
 }
