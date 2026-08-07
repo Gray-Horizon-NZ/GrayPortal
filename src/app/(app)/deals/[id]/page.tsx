@@ -6,7 +6,7 @@ import { getCompany } from "@/lib/dal/companies";
 import { getContact } from "@/lib/dal/contacts";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { STAGES } from "@/config/pipeline";
-import { changeStageAction, logDealActivityAction, sendDealEmailAction } from "../actions";
+import { changeStageAction, deleteDealAction, logDealActivityAction, sendDealEmailAction } from "../actions";
 import EmailComposeFields from "@/components/EmailComposeFields";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -46,6 +46,13 @@ export default async function DealDetailPage({
             {deal.syncState === "failed" && <Badge status="danger" icon={CalendarX}>Calendar sync failed</Badge>}
             {deal.syncState === "synced" && <Badge status="success" icon={CalendarCheck}>Synced to Calendar</Badge>}
           </>
+        }
+        actions={
+          <form action={deleteDealAction.bind(null, deal.id, deal.companyId ?? undefined)}>
+            <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+              Remove deal
+            </button>
+          </form>
         }
       />
 

@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createDeal, changeDealStage, type DealInputT } from "@/lib/dal/deals";
+import { createDeal, changeDealStage, softDeleteDeal, type DealInputT } from "@/lib/dal/deals";
 import { logActivity } from "@/lib/dal/activities";
 import { sendEmail } from "@/lib/dal/emails";
 import type { Stage } from "@/config/pipeline";
@@ -19,6 +19,13 @@ export async function createDealAction(companyId: string, formData: FormData) {
   revalidatePath(`/companies/${companyId}`);
   revalidatePath("/pipeline");
   redirect(`/deals/${deal.id}`);
+}
+
+export async function deleteDealAction(dealId: string, companyId?: string) {
+  await softDeleteDeal(dealId);
+  if (companyId) revalidatePath(`/companies/${companyId}`);
+  revalidatePath("/pipeline");
+  redirect("/pipeline");
 }
 
 export async function changeStageAction(dealId: string, formData: FormData) {
