@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrendingUp, Wallet, Activity, Bell, AlertTriangle, Clock3, CreditCard, ListChecks } from "lucide-react";
+import { TrendingUp, Wallet, Activity, Bell, AlertTriangle, Clock3, CreditCard, ListChecks, CalendarDays } from "lucide-react";
 import { listDeals } from "@/lib/dal/deals";
 import { listAllTasks } from "@/lib/dal/tasks";
 import { listRecentActivities } from "@/lib/dal/activities";
@@ -9,6 +9,8 @@ import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { withCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
 import { getBusinessFinancialRollup } from "@/lib/dal/xero";
+import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
+import { listUpcomingCalendarEvents } from "@/lib/google/adapter";
 import { isClosedStage } from "@/config/pipeline";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
@@ -24,7 +26,7 @@ import EmptyState from "@/components/ui/EmptyState";
 export default async function HomePage() {
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
-  const [deals, tasks, recentActivities, healthScores, notifications, clients, financials, recurringTemplates] =
+  const [deals, tasks, recentActivities, healthScores, notifications, clients, financials, recurringTemplates, googleConnection, upcomingEvents] =
     await Promise.all([
       listDeals(),
       listAllTasks(),
@@ -34,6 +36,8 @@ export default async function HomePage() {
       listClients(),
       getBusinessFinancialRollup(),
       isAdmin ? listRecurringTemplates() : Promise.resolve([]),
+      isAdmin ? getGoogleConnectionForSync() : Promise.resolve(null),
+      isAdmin ? listUpcomingCalendarEvents(5) : Promise.resolve([]),
     ]);
 
   const openDeals = deals.filter((d) => !isClosedStage(d.stage));
@@ -172,7 +176,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <div className="gh-grid-joined gh-grid-joined--2">
+      <div className="gh-grid-joined gh-grid-joined--3">
         <div className="gh-grid-cell">
           <div className="gh-panel-head">
             <p className="gh-panel-title">Timeline</p>
@@ -204,6 +208,50 @@ export default async function HomePage() {
             {recentActivities.length === 0 && <EmptyState icon={Activity} title="No recent activity" />}
           </div>
         </div>
+
+        {isAdmin && (
+          <div className="gh-grid-cell">
+            <div className="gh-panel-head">
+              <p className="gh-panel-title">Today</p>
+              <p className="gh-eyebrow">Calendar</p>
+            </div>
+            {!googleConnection ? (
+              <>
+                <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+                  No Google account connected.
+                </p>
+                <Link href="/settings" style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-3)", display: "inline-block" }}>
+                  Connect Google →
+                </Link>
+              </>
+            ) : upcomingEvents.length === 0 ? (
+              <EmptyState icon={CalendarDays} title="Nothing on the calendar" />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {upcomingEvents.map((e, i) => (
+                  <div
+                    key={e.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "var(--gh-space-3)",
+                      padding: "var(--gh-space-2) 0",
+                      borderTop: i === 0 ? "none" : "1px solid var(--gh-border)",
+                      fontSize: "var(--gh-text-sm)",
+                    }}
+                  >
+                    <span>{e.summary}</span>
+                    <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
+                      {e.allDay
+                        ? new Date(`${e.start}T00:00:00`).toLocaleDateString("en-NZ")
+                        : new Date(e.start).toLocaleString("en-NZ", { weekday: "short", hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="gh-grid-cell">
           <div className="gh-panel-head">

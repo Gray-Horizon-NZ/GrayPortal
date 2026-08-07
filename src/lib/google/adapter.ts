@@ -112,6 +112,33 @@ export async function syncTaskToGoogle(task: {
   }
 }
 
+export type UpcomingEvent = { id: string; summary: string; start: string; allDay: boolean };
+
+/** Read side of the same admin Google connection used for deal/task sync — dashboard "what's on" widget. */
+export async function listUpcomingCalendarEvents(maxResults = 5): Promise<UpcomingEvent[]> {
+  try {
+    const auth = await authedClient();
+    if (!auth) return [];
+    const calendar = google.calendar({ version: "v3", auth });
+    const { data } = await calendar.events.list({
+      calendarId: "primary",
+      timeMin: new Date().toISOString(),
+      maxResults,
+      singleEvents: true,
+      orderBy: "startTime",
+    });
+    return (data.items ?? []).map((e) => ({
+      id: e.id!,
+      summary: e.summary ?? "(no title)",
+      start: e.start?.dateTime ?? e.start?.date ?? "",
+      allDay: !e.start?.dateTime,
+    }));
+  } catch (err) {
+    console.error("listUpcomingCalendarEvents failed", err);
+    return [];
+  }
+}
+
 export async function removeTaskFromGoogle(googleTaskId: string | null): Promise<void> {
   if (!googleTaskId) return;
   try {

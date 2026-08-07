@@ -36,7 +36,7 @@ export default async function DealDetailPage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }} className="gh-animate-fade-up">
-      <Breadcrumb items={[{ label: "Deals", href: "/deals" }, { label: deal.valueNzd ? `$${deal.valueNzd} NZD` : "Value TBC" }]} />
+      <Breadcrumb items={[{ label: "Deals", href: "/pipeline?view=list" }, { label: deal.valueNzd ? `$${deal.valueNzd} NZD` : "Value TBC" }]} />
 
       <RecordHeader
         icon={Handshake}

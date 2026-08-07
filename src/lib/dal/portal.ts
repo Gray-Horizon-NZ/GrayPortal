@@ -14,6 +14,7 @@ import {
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { requireClientScope } from "./session";
+import type { Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "./clients";
 import { z } from "zod";
@@ -26,6 +27,67 @@ import { z } from "zod";
  * every query here filters by it explicitly in addition to whatever RLS
  * does, so a bug in one layer doesn't silently become a bug in both.
  */
+
+/**
+ * Home-page widget previews — deliberately capped to a few rows each and
+ * only fetched for a feature key the client actually has enabled, so a
+ * client with 2 features enabled doesn't trigger queries for all 9.
+ */
+async function getHomeWidgetPreviews(
+  tx: Tx,
+  clientId: string,
+  enabledFeatureKeys: PortalFeatureKey[]
+) {
+  const has = (key: PortalFeatureKey) => enabledFeatureKeys.includes(key);
+
+  const [taskRows, documentRows, roadmapRows, referralRows, discountRows] = await Promise.all([
+    has("tasks")
+      ? tx
+          .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate })
+          .from(tasks)
+          .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)))
+      : Promise.resolve([]),
+    has("documents")
+      ? tx
+          .select({ id: documents.id, docType: documents.docType })
+          .from(documents)
+          .where(and(eq(documents.clientId, clientId), isNull(documents.deletedAt)))
+      : Promise.resolve([]),
+    has("roadmap")
+      ? tx
+          .select({ id: roadmapItems.id, title: roadmapItems.title, targetDate: roadmapItems.targetDate })
+          .from(roadmapItems)
+          .where(and(eq(roadmapItems.clientId, clientId), isNull(roadmapItems.deletedAt)))
+          .orderBy(roadmapItems.sortOrder)
+      : Promise.resolve([]),
+    has("referrals")
+      ? tx
+          .select({ status: referrals.status })
+          .from(referrals)
+          .where(and(eq(referrals.clientId, clientId), isNull(referrals.deletedAt)))
+      : Promise.resolve([]),
+    has("referrals")
+      ? tx
+          .select()
+          .from(referralDiscounts)
+          .where(and(eq(referralDiscounts.clientId, clientId), isNull(referralDiscounts.deletedAt)))
+      : Promise.resolve([]),
+  ]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const activeDiscountPercent = discountRows
+    .filter((d) => d.startsOn <= today && d.endsOn >= today)
+    .reduce((sum, d) => sum + Number(d.discountPercent), 0);
+
+  return {
+    tasksPreview: taskRows.filter((t) => t.status !== "done").slice(0, 3),
+    documentsPreview: documentRows.slice(0, 3),
+    roadmapPreview: roadmapRows.slice(0, 2),
+    referralStats: has("referrals")
+      ? { totalReferrals: referralRows.length, activeDiscountPercent }
+      : null,
+  };
+}
 
 export async function getPortalHome() {
   return withCaller(async (caller, tx) => {
@@ -59,10 +121,14 @@ export async function getPortalHome() {
         )
       );
 
+    const enabledFeatureKeys = enabledFeatures.map((f) => f.featureKey as PortalFeatureKey);
+    const previews = await getHomeWidgetPreviews(tx, caller.clientId, enabledFeatureKeys);
+
     return {
       client,
       openTaskCount: openTasks.length,
-      enabledFeatureKeys: enabledFeatures.map((f) => f.featureKey as PortalFeatureKey),
+      enabledFeatureKeys,
+      ...previews,
     };
   });
 }

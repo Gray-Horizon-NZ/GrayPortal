@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import {
   Home,
   Workflow,
-  Handshake,
   Building2,
   Users,
   ListChecks,
@@ -81,10 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const navItems: ShellNavItem[] = [
     { href: "/", label: "Home", icon: navIcon(Home) },
     ...(callerRole === "admin"
-      ? [
-          { href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow), group: "Sales" },
-          { href: "/deals", label: "Deals", icon: navIcon(Handshake), group: "Sales" },
-        ]
+      ? [{ href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow), group: "Sales" }]
       : []),
     { href: "/companies", label: "Companies", icon: navIcon(Building2), group: "Records" },
     { href: "/clients", label: "Clients", icon: navIcon(Users), group: "Records" },

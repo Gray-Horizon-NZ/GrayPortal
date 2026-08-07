@@ -1,5 +1,5 @@
 import "server-only";
-import { deals, activities, tasks } from "@/lib/db/schema";
+import { deals, activities, tasks, companies } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import type { Tx } from "./session";
@@ -49,6 +49,28 @@ export type DealInputT = z.infer<typeof DealInput>;
 export async function listDeals() {
   return withCaller(async (_caller, tx) => {
     return tx.select().from(deals).where(isNull(deals.deletedAt));
+  });
+}
+
+/**
+ * Used by both List and Board views on the merged /pipeline page — the
+ * join that used to live only in the (now-removed) /deals table page,
+ * lifted here so the board can show company names too.
+ */
+export async function listDealsWithCompany() {
+  return withCaller(async (_caller, tx) => {
+    return tx
+      .select({
+        id: deals.id,
+        stage: deals.stage,
+        valueNzd: deals.valueNzd,
+        nextAction: deals.nextAction,
+        nextActionDate: deals.nextActionDate,
+        companyName: companies.name,
+      })
+      .from(deals)
+      .innerJoin(companies, eq(deals.companyId, companies.id))
+      .where(isNull(deals.deletedAt));
   });
 }
 
