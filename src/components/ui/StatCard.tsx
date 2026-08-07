@@ -9,6 +9,7 @@ export default function StatCard({
   trend,
   trendLabel,
   icon: Icon,
+  joined,
 }: {
   eyebrow: string;
   value: React.ReactNode;
@@ -16,13 +17,16 @@ export default function StatCard({
   trend?: StatTrend;
   trendLabel?: string;
   icon?: LucideIcon;
+  /** Render as a bare cell (no own border/background) for use inside a
+   * .gh-grid-joined row, which supplies the hairline dividers itself. */
+  joined?: boolean;
 }) {
   const trendColor =
     trend === "up" ? "var(--gh-success)" : trend === "down" ? "var(--gh-danger)" : "var(--gh-text-muted)";
   const trendGlyph = trend === "up" ? "↑" : trend === "down" ? "↓" : "→";
 
   return (
-    <div className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+    <div className={joined ? "gh-grid-cell" : "gh-card"} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <p className="gh-eyebrow">{eyebrow}</p>
         {Icon && (

@@ -2,6 +2,13 @@
   "apphosting": {
     "backendId": "grayportal",
     "rootDir": "/",
-    "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", ".next"]
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      ".next"
+    ],
+    "alwaysDeployFromSource": true
   }
 }

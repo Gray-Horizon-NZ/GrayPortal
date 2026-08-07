@@ -944,6 +944,255 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------
+   Joined grid — cells share a single hairline divider (the parent's
+   background shows through a 1px gap) instead of each cell carrying its
+   own border and whitespace gap. This is the editorial-ledger/pricing-card
+   reference's signature layout device — used for KPI rows, category card
+   grids, and stacked two-up panels.
+   --------------------------------------------------------------------- */
+
+.gh-grid-joined {
+  display: grid;
+  gap: 1px;
+  background: var(--gh-border);
+  border: 1px solid var(--gh-border);
+}
+
+.gh-grid-joined--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.gh-grid-joined--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.gh-grid-joined--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.gh-grid-joined--lead {
+  grid-template-columns: 1.3fr 1fr;
+}
+
+.gh-grid-joined + .gh-grid-joined {
+  border-top: none;
+}
+
+@media (max-width: 1024px) {
+  .gh-grid-joined--3,
+  .gh-grid-joined--4,
+  .gh-grid-joined--lead {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-grid-joined--2,
+  .gh-grid-joined--3,
+  .gh-grid-joined--4,
+  .gh-grid-joined--lead {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gh-grid-cell {
+  background: var(--gh-surface);
+  padding: var(--gh-space-6);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gh-grid-cell--compact {
+  padding: var(--gh-space-4);
+}
+
+.gh-grid-cell--interactive {
+  cursor: pointer;
+  border-top: 2px solid transparent;
+  margin-top: -1px;
+  padding-top: calc(var(--gh-space-6) - 1px);
+  transition: background var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-grid-cell--interactive:hover {
+  background: var(--gh-surface-hover);
+  border-top-color: var(--gh-accent);
+}
+
+.gh-add-cell {
+  border: 1px dashed var(--gh-border);
+  background: var(--gh-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gh-text-muted);
+  font-size: var(--gh-text-xs);
+  letter-spacing: var(--gh-tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 100%;
+  transition: color var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-add-cell:hover {
+  color: var(--gh-text-primary);
+  border-color: var(--gh-border-strong);
+}
+
+.gh-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gh-space-3);
+  margin-bottom: var(--gh-space-4);
+}
+
+.gh-panel-title {
+  font-family: var(--gh-font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--gh-text-lg);
+  color: var(--gh-text-emphasis);
+}
+
+/* Category header — code + name + description, used above a card grid */
+.gh-cat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gh-space-3);
+  margin-bottom: var(--gh-space-4);
+  padding-bottom: var(--gh-space-3);
+  border-bottom: 1px solid var(--gh-border);
+}
+
+.gh-cat-code {
+  font-family: var(--gh-font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--gh-text-lg);
+  color: var(--gh-text-emphasis);
+}
+
+.gh-cat-code span {
+  font-family: var(--gh-font-body);
+  font-style: normal;
+  font-size: var(--gh-text-xs);
+  letter-spacing: var(--gh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+  margin-left: var(--gh-space-3);
+}
+
+.gh-cat-desc {
+  font-size: var(--gh-text-xs);
+  color: var(--gh-text-muted);
+}
+
+/* Rate row — "Current" / "Suggested" price pairs on pricing cards */
+.gh-rate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--gh-space-3);
+  margin-top: auto;
+  padding-top: var(--gh-space-3);
+  border-top: 1px solid var(--gh-border);
+}
+
+.gh-rate-label {
+  font-size: var(--gh-text-micro);
+  letter-spacing: var(--gh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+  margin-bottom: 4px;
+}
+
+.gh-rate-val {
+  font-family: var(--gh-font-display);
+  font-size: var(--gh-text-lg);
+  color: var(--gh-text-primary);
+  line-height: 1.1;
+}
+
+.gh-rate-val--accent {
+  color: var(--gh-accent);
+}
+
+.gh-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--gh-space-3);
+  margin-bottom: var(--gh-space-3);
+}
+
+.gh-card-id {
+  font-family: var(--gh-font-mono);
+  font-size: var(--gh-text-micro);
+  color: var(--gh-text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Filter pill row */
+.gh-filter-row {
+  display: flex;
+  gap: var(--gh-space-2);
+  flex-wrap: wrap;
+}
+
+.gh-filter {
+  font-size: var(--gh-text-xs);
+  letter-spacing: var(--gh-tracking-wide);
+  text-transform: uppercase;
+  border: 1px solid var(--gh-border);
+  padding: var(--gh-space-2) var(--gh-space-4);
+  color: var(--gh-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--gh-transition), color var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-filter[data-active="true"] {
+  color: var(--gh-text-primary);
+  background: var(--gh-surface-raised);
+  border-color: var(--gh-border-strong);
+}
+
+.gh-filter:hover {
+  color: var(--gh-text-primary);
+}
+
+/* Source note — muted callout bar with an accent rule down the left edge */
+.gh-source-note {
+  position: relative;
+  border: 1px solid var(--gh-border);
+  background: var(--gh-surface);
+  padding: var(--gh-space-4) var(--gh-space-4) var(--gh-space-4) calc(var(--gh-space-4) + 4px);
+  font-size: var(--gh-text-xs);
+  color: var(--gh-text-muted);
+  line-height: 1.6;
+}
+
+.gh-source-note::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--gh-border-strong);
+}
+
+.gh-source-note code {
+  color: var(--gh-text-primary);
+  font-family: var(--gh-font-mono);
+  font-size: var(--gh-text-xs);
+}
+
+/* ---------------------------------------------------------------------
    Bento grid — homepage panels sized by importance, not uniform tiles
    --------------------------------------------------------------------- */
 
