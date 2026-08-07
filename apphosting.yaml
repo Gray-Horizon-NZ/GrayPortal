@@ -8,6 +8,14 @@ runConfig:
   maxInstances: 2
 
 env:
+  # Raises the build container's V8 heap limit. Without this, `next build`'s
+  # TypeScript type-check step OOMs on the default ~2GB heap once the
+  # project's type-inference graph grows past a certain size (build-time
+  # only — the running server doesn't need this).
+  - variable: NODE_OPTIONS
+    value: --max-old-space-size=8192
+    availability: [BUILD]
+
   - variable: DATABASE_URL
     secret: DATABASE_URL
     # BUILD is required too: Next's build step imports every route module
