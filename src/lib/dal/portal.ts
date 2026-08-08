@@ -10,8 +10,14 @@ import {
   roadmapItems,
   meetingSummaries,
   toolStackItems,
+  clientMetricsSnapshots,
+  clientTeamMembers,
+  clientHealthChannels,
+  clientActivityFeed,
+  clientServices,
+  serviceItems,
 } from "@/lib/db/schema";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, isNotNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { requireClientScope } from "./session";
 import type { Tx } from "./session";
@@ -40,7 +46,19 @@ async function getHomeWidgetPreviews(
 ) {
   const has = (key: PortalFeatureKey) => enabledFeatureKeys.includes(key);
 
-  const [taskRows, documentRows, roadmapRows, referralRows, discountRows] = await Promise.all([
+  const [
+    taskRows,
+    documentRows,
+    roadmapRows,
+    referralRows,
+    discountRows,
+    metricsRows,
+    teamRows,
+    healthRows,
+    deliverableRows,
+    activityRows,
+    serviceRows,
+  ] = await Promise.all([
     has("tasks")
       ? tx
           .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate })
@@ -72,12 +90,67 @@ async function getHomeWidgetPreviews(
           .from(referralDiscounts)
           .where(and(eq(referralDiscounts.clientId, clientId), isNull(referralDiscounts.deletedAt)))
       : Promise.resolve([]),
+    has("performance")
+      ? tx
+          .select()
+          .from(clientMetricsSnapshots)
+          .where(and(eq(clientMetricsSnapshots.clientId, clientId), isNull(clientMetricsSnapshots.deletedAt)))
+          .orderBy(desc(clientMetricsSnapshots.createdAt))
+          .limit(6)
+      : Promise.resolve([]),
+    has("account_team")
+      ? tx
+          .select()
+          .from(clientTeamMembers)
+          .where(and(eq(clientTeamMembers.clientId, clientId), isNull(clientTeamMembers.deletedAt)))
+          .orderBy(asc(clientTeamMembers.sortOrder))
+      : Promise.resolve([]),
+    has("campaign_health")
+      ? tx
+          .select()
+          .from(clientHealthChannels)
+          .where(and(eq(clientHealthChannels.clientId, clientId), isNull(clientHealthChannels.deletedAt)))
+          .orderBy(asc(clientHealthChannels.sortOrder))
+      : Promise.resolve([]),
+    has("deliverables")
+      ? tx
+          .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate })
+          .from(tasks)
+          .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt), isNotNull(tasks.dueDate)))
+      : Promise.resolve([]),
+    has("activity_feed")
+      ? tx
+          .select()
+          .from(clientActivityFeed)
+          .where(and(eq(clientActivityFeed.clientId, clientId), isNull(clientActivityFeed.deletedAt)))
+          .orderBy(desc(clientActivityFeed.occurredAt))
+          .limit(6)
+      : Promise.resolve([]),
+    tx
+      .select({
+        customMonthlyPrice: clientServices.customMonthlyPrice,
+        currentMonthlyPrice: serviceItems.currentMonthlyPrice,
+      })
+      .from(clientServices)
+      .innerJoin(serviceItems, eq(clientServices.serviceItemId, serviceItems.id))
+      .where(
+        and(
+          eq(clientServices.clientId, clientId),
+          eq(clientServices.status, "active"),
+          isNull(clientServices.deletedAt)
+        )
+      ),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
   const activeDiscountPercent = discountRows
     .filter((d) => d.startsOn <= today && d.endsOn >= today)
     .reduce((sum, d) => sum + Number(d.discountPercent), 0);
+
+  const activeMonthlyTotal = serviceRows.reduce(
+    (sum, r) => sum + Number(r.customMonthlyPrice ?? r.currentMonthlyPrice ?? 0),
+    0
+  );
 
   return {
     tasksPreview: taskRows.filter((t) => t.status !== "done").slice(0, 3),
@@ -86,6 +159,15 @@ async function getHomeWidgetPreviews(
     referralStats: has("referrals")
       ? { totalReferrals: referralRows.length, activeDiscountPercent }
       : null,
+    metricsSnapshots: metricsRows,
+    teamMembers: teamRows,
+    healthChannels: healthRows,
+    deliverables: deliverableRows
+      .filter((t) => t.status !== "done")
+      .concat(deliverableRows.filter((t) => t.status === "done"))
+      .slice(0, 6),
+    activityFeed: activityRows,
+    activeMonthlyTotal,
   };
 }
 

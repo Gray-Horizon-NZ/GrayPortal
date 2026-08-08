@@ -30,6 +30,11 @@ export const PORTAL_FEATURE_KEYS = [
   "tool_stack",
   "drive",
   "reporting",
+  "performance",
+  "account_team",
+  "campaign_health",
+  "deliverables",
+  "activity_feed",
 ] as const;
 export type PortalFeatureKey = (typeof PORTAL_FEATURE_KEYS)[number];
 

@@ -4,6 +4,7 @@ import {
   check,
   customType,
   date,
+  integer,
   jsonb,
   numeric,
   pgEnum,
@@ -55,6 +56,8 @@ export const ideationStatusEnum = pgEnum("ideation_status", [
 ]);
 export const roadmapStatusEnum = pgEnum("roadmap_status", ["planned", "in_progress", "done"]);
 export const toolStackStatusEnum = pgEnum("tool_stack_status", ["current", "planned"]);
+export const clientServiceStatusEnum = pgEnum("client_service_status", ["active", "paused", "ended"]);
+export const clientHealthChannelStatusEnum = pgEnum("client_health_channel_status", ["ok", "warn", "off"]);
 // Phase 12 — fixed set of trigger types this app actually generates
 // (deal_stalled, task_overdue today; payment_due_soon/security_alert/
 // reminder_due are reserved for Phases 9/17/19 once those exist), not
@@ -385,6 +388,82 @@ export const toolStackItems = pgTable("tool_stack_items", {
   category: text("category"),
   status: toolStackStatusEnum("status").notNull().default("current"),
   notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Catalogue items (service_items) attached to a specific client — what
+// they're actually being billed for, distinct from the catalogue's
+// suggested pricing. custom*Price overrides that client's effective rate
+// when set (a negotiated deal); null means "use the catalogue's current
+// price." Feeds the portal's Next Payment $ total (sum of active recurring
+// rows) as well as the admin client page.
+export const clientServices = pgTable("client_services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  serviceItemId: text("service_item_id")
+    .notNull()
+    .references(() => serviceItems.id),
+  customSetupPrice: numeric("custom_setup_price", { precision: 12, scale: 2 }),
+  customMonthlyPrice: numeric("custom_monthly_price", { precision: 12, scale: 2 }),
+  status: clientServiceStatusEnum("status").notNull().default("active"),
+  startedOn: date("started_on"),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Monthly-entered performance figures behind the portal's "Performance
+// Snapshot" widget — hand-entered, not pulled from any ad platform API
+// (no integration exists), one row per period.
+export const clientMetricsSnapshots = pgTable("client_metrics_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  periodLabel: text("period_label").notNull(),
+  adSpend: numeric("ad_spend", { precision: 12, scale: 2 }),
+  leadsGenerated: integer("leads_generated"),
+  roas: numeric("roas", { precision: 6, scale: 2 }),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const clientTeamMembers = pgTable("client_team_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  name: text("name").notNull(),
+  role: text("role"),
+  contactEmail: text("contact_email"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const clientHealthChannels = pgTable("client_health_channels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  channelName: text("channel_name").notNull(),
+  status: clientHealthChannelStatusEnum("status").notNull().default("ok"),
+  statusLabel: text("status_label").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const clientActivityFeed = pgTable("client_activity_feed", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  body: text("body").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
   ...softDelete,
   ...actorColumns,
 });

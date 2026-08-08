@@ -34,14 +34,32 @@ const SECTION_META: Record<string, { href: string; label: string; description: s
 // how much there is to show at a glance.
 const PREVIEW_KEYS = new Set(["tasks", "documents", "roadmap", "referrals"]);
 
+// Bento widgets — richer still, no dedicated /portal/<x> page behind them,
+// each independently toggleable per Max's design reference.
+const WIDGET_KEYS = new Set(["performance", "account_team", "campaign_health", "deliverables", "activity_feed"]);
+
 export default async function PortalHomePage() {
-  const { client, openTaskCount, enabledFeatureKeys, tasksPreview, documentsPreview, roadmapPreview, referralStats } =
-    await getPortalHome();
+  const {
+    client,
+    openTaskCount,
+    enabledFeatureKeys,
+    tasksPreview,
+    documentsPreview,
+    roadmapPreview,
+    referralStats,
+    metricsSnapshots,
+    teamMembers,
+    healthChannels,
+    deliverables,
+    activityFeed,
+    activeMonthlyTotal,
+  } = await getPortalHome();
   const status = client ? paymentStatus(client.nextPaymentDate) : null;
   const firstName = client?.name?.split(" ")[0] ?? "there";
 
   const previewKeys = enabledFeatureKeys.filter((k) => PREVIEW_KEYS.has(k));
-  const quicklinkKeys = enabledFeatureKeys.filter((k) => !PREVIEW_KEYS.has(k));
+  const quicklinkKeys = enabledFeatureKeys.filter((k) => !PREVIEW_KEYS.has(k) && !WIDGET_KEYS.has(k));
+  const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)" }} className="gh-animate-fade-up">
@@ -87,7 +105,13 @@ export default async function PortalHomePage() {
         <StatCard
           eyebrow="Next payment"
           value={status ? status.label : "—"}
-          detail={!status ? "No upcoming payment on file" : undefined}
+          detail={
+            activeMonthlyTotal > 0
+              ? `$${activeMonthlyTotal.toLocaleString("en-NZ")} / mo`
+              : !status
+                ? "No upcoming payment on file"
+                : undefined
+          }
         />
         <StatCard eyebrow="Open tasks" value={openTaskCount} />
 
@@ -138,6 +162,98 @@ export default async function PortalHomePage() {
           </PreviewWidget>
         )}
 
+        {has("performance") && (
+          <PerformanceWidget snapshots={metricsSnapshots} />
+        )}
+
+        {has("account_team") && (
+          <PreviewWidget title="Account Team" href="#" span={1} hideLink>
+            {teamMembers.length === 0 ? (
+              <EmptyRow text="No account team assigned yet." />
+            ) : (
+              teamMembers.map((m) => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)" }}>
+                  <span className="gh-avatar-circle">{m.name.trim()[0]?.toUpperCase() ?? "?"}</span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "var(--gh-text-sm)", fontWeight: 500 }}>{m.name}</span>
+                    {m.role && <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>{m.role}</span>}
+                  </div>
+                  {m.contactEmail && (
+                    <a href={`mailto:${m.contactEmail}`} style={{ marginLeft: "auto", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+                      Message
+                    </a>
+                  )}
+                </div>
+              ))
+            )}
+          </PreviewWidget>
+        )}
+
+        {has("campaign_health") && (
+          <PreviewWidget title="Campaign Health" href="#" span={1} hideLink>
+            {healthChannels.length === 0 ? (
+              <EmptyRow text="No channels tracked yet." />
+            ) : (
+              healthChannels.map((c) => (
+                <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+                    <span className="gh-status-dot" data-status={c.status} />
+                    {c.channelName}
+                  </span>
+                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    {c.statusLabel}
+                  </span>
+                </div>
+              ))
+            )}
+          </PreviewWidget>
+        )}
+
+        {has("deliverables") && (
+          <PreviewWidget title="Upcoming Deliverables" href="#" span={1} hideLink>
+            {deliverables.length === 0 ? (
+              <EmptyRow text="Nothing due right now." />
+            ) : (
+              deliverables.map((d) => (
+                <div key={d.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      border: "1px solid var(--gh-text-muted)",
+                      flexShrink: 0,
+                      background: d.status === "done" ? "var(--gh-accent)" : "transparent",
+                      borderColor: d.status === "done" ? "var(--gh-accent)" : "var(--gh-text-muted)",
+                    }}
+                  />
+                  <span style={{ flex: 1 }}>{d.title}</span>
+                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
+                    {d.status === "done" ? "Done" : d.dueDate}
+                  </span>
+                </div>
+              ))
+            )}
+          </PreviewWidget>
+        )}
+
+        {has("activity_feed") && (
+          <PreviewWidget title="Recent Activity" href="#" span={2} hideLink>
+            {activityFeed.length === 0 ? (
+              <EmptyRow text="No recent activity yet." />
+            ) : (
+              activityFeed.map((a) => (
+                <div key={a.id} style={{ display: "flex", alignItems: "baseline", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gh-accent)", flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{a.body}</span>
+                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
+                    {new Date(a.occurredAt).toLocaleDateString("en-NZ", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
+              ))
+            )}
+          </PreviewWidget>
+        )}
+
         {quicklinkKeys.map((key) => {
           const meta = SECTION_META[key];
           if (!meta) return null;
@@ -168,24 +284,107 @@ function PreviewWidget({
   title,
   href,
   span,
+  hideLink,
   children,
 }: {
   title: string;
   href: string;
   span: 1 | 2;
+  hideLink?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="gh-card" style={{ gridColumn: `span ${span}`, display: "flex", flexDirection: "column" }}>
       <div className="gh-panel-head">
         <p className="gh-panel-title">{title}</p>
-        <Link href={href} style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
-          View all →
-        </Link>
+        {!hideLink && (
+          <Link href={href} style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
+            View all →
+          </Link>
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column" }}>{children}</div>
     </div>
   );
+}
+
+function PerformanceWidget({
+  snapshots,
+}: {
+  snapshots: { id: string; periodLabel: string; adSpend: string | null; leadsGenerated: number | null; roas: string | null }[];
+}) {
+  if (snapshots.length === 0) {
+    return (
+      <PreviewWidget title="Performance Snapshot" href="#" span={2} hideLink>
+        <EmptyRow text="No performance data logged yet." />
+      </PreviewWidget>
+    );
+  }
+
+  const ordered = [...snapshots].reverse(); // oldest → newest, for the sparkline
+  const latest = snapshots[0];
+  const previous = snapshots[1];
+
+  const metrics: { label: string; value: string; trend?: string; series: number[] }[] = [
+    {
+      label: "Ad Spend",
+      value: latest.adSpend ? `$${Number(latest.adSpend).toLocaleString("en-NZ")}` : "—",
+      trend: trendLabel(latest.adSpend, previous?.adSpend, "$"),
+      series: ordered.map((s) => Number(s.adSpend ?? 0)),
+    },
+    {
+      label: "Leads Generated",
+      value: latest.leadsGenerated?.toString() ?? "—",
+      trend: trendLabel(latest.leadsGenerated, previous?.leadsGenerated, ""),
+      series: ordered.map((s) => Number(s.leadsGenerated ?? 0)),
+    },
+    {
+      label: "Return on Ad Spend",
+      value: latest.roas ? `${latest.roas}×` : "—",
+      trend: trendLabel(latest.roas, previous?.roas, "", "×"),
+      series: ordered.map((s) => Number(s.roas ?? 0)),
+    },
+  ];
+
+  return (
+    <PreviewWidget title="Performance Snapshot" href="#" span={2} hideLink>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "var(--gh-border)", border: "1px solid var(--gh-border)" }}>
+        {metrics.map((m) => {
+          const max = Math.max(...m.series, 1);
+          return (
+            <div key={m.label} style={{ background: "var(--gh-surface)", padding: "var(--gh-space-3)" }}>
+              <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginBottom: "var(--gh-space-2)" }}>{m.label}</p>
+              <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{m.value}</p>
+              {m.trend && <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>{m.trend}</p>}
+              <div className="gh-sparkline">
+                {m.series.map((v, i) => (
+                  <span
+                    key={i}
+                    className="gh-sparkline-bar"
+                    data-hi={i >= m.series.length - 2}
+                    style={{ height: `${Math.max((v / max) * 100, 6)}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </PreviewWidget>
+  );
+}
+
+function trendLabel(
+  current: string | number | null | undefined,
+  prev: string | number | null | undefined,
+  prefix: string,
+  suffix = ""
+): string | undefined {
+  if (current == null || prev == null) return undefined;
+  const diff = Number(current) - Number(prev);
+  if (diff === 0) return undefined;
+  const arrow = diff > 0 ? "↑" : "↓";
+  return `${arrow} ${prefix}${Math.abs(diff).toLocaleString("en-NZ")}${suffix} vs last period`;
 }
 
 function PreviewRow({ label, detail }: { label: string; detail?: string }) {

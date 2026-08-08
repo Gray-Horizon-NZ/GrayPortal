@@ -95,88 +95,76 @@ function BoardView({
         <SummaryItem label="Stages" value={STAGES.length} />
       </div>
 
-      <div
-        className="gh-stagger"
-        style={{
-          display: "flex",
-          gap: "var(--gh-space-4)",
-          overflowX: "auto",
-          paddingBottom: "var(--gh-space-2)",
-          scrollSnapType: "x proximity",
-        }}
-      >
-        {STAGES.map((stage) => {
-          const stageDeals = deals.filter((d) => d.stage === stage);
-          const total = stageDeals.reduce((sum, d) => sum + Number(d.valueNzd ?? 0), 0);
-          return (
-            <div
-              key={stage}
-              style={{
-                minWidth: 260,
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--gh-space-3)",
-                scrollSnapAlign: "start",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  borderBottom: "1px solid var(--gh-border)",
-                  paddingBottom: "var(--gh-space-2)",
-                }}
-              >
-                <p className="gh-eyebrow">{stage}</p>
-                <span className="gh-badge">{stageDeals.length}</span>
+      <div style={{ overflowX: "auto", paddingBottom: "var(--gh-space-2)" }}>
+        <div className="gh-stagger gh-pipeline-board">
+          {STAGES.map((stage) => {
+            const stageDeals = deals.filter((d) => d.stage === stage);
+            const total = stageDeals.reduce((sum, d) => sum + Number(d.valueNzd ?? 0), 0);
+            return (
+              <div key={stage} className="gh-pipeline-col">
+                <div className="gh-pipeline-col-head">
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)", marginBottom: "var(--gh-space-2)" }}>
+                    <span className="gh-eyebrow" style={{ marginBottom: 0 }}>{stage}</span>
+                    <span className="gh-badge" style={{ marginLeft: "auto" }}>{stageDeals.length}</span>
+                  </div>
+                  <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)", color: total === 0 ? "var(--gh-text-muted)" : undefined }}>
+                    ${total.toLocaleString("en-NZ")}
+                  </p>
+                </div>
+                <div className="gh-pipeline-col-body">
+                  {stageDeals.map((d) => {
+                    const noNextAction = d.nextActionDate < today;
+                    const isToday = d.nextActionDate === today;
+                    const ownerInitial = d.ownerName?.trim()?.[0]?.toUpperCase();
+                    return (
+                      <Link key={d.id} href={`/deals/${d.id}`} className="gh-card gh-card--interactive">
+                        <p style={{ fontWeight: 500 }}>{d.valueNzd ? `$${d.valueNzd}` : "TBC"}</p>
+                        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+                          {d.companyName}
+                        </p>
+                        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+                          {d.nextAction}
+                        </p>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginTop: "var(--gh-space-3)",
+                            paddingTop: "var(--gh-space-2)",
+                            borderTop: "1px solid var(--gh-border)",
+                          }}
+                        >
+                          {ownerInitial ? (
+                            <span className="gh-pipeline-owner">{ownerInitial}</span>
+                          ) : (
+                            <span />
+                          )}
+                          {noNextAction ? (
+                            <span className="gh-badge" data-status="danger">
+                              No next action
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: "var(--gh-text-micro)", color: "var(--gh-text-muted)" }}>
+                              Next: {isToday ? "today" : d.nextActionDate}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  {stageDeals.length === 0 && (
+                    <div className="gh-pipeline-empty">
+                      <span className="gh-pipeline-empty-title">Nothing here yet</span>
+                      New prospects land in this stage first.
+                    </div>
+                  )}
+                  <div className="gh-pipeline-add">+ Add deal</div>
+                </div>
               </div>
-              <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>
-                ${total.toLocaleString("en-NZ")}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-                {stageDeals.map((d) => {
-                  const noNextAction = d.nextActionDate < today;
-                  return (
-                    <Link key={d.id} href={`/deals/${d.id}`} className="gh-card gh-card--interactive">
-                      <p style={{ fontWeight: 500 }}>{d.valueNzd ? `$${d.valueNzd}` : "TBC"}</p>
-                      <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
-                        {d.companyName}
-                      </p>
-                      <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
-                        {d.nextAction}
-                      </p>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginTop: "var(--gh-space-3)",
-                          paddingTop: "var(--gh-space-2)",
-                          borderTop: "1px solid var(--gh-border)",
-                        }}
-                      >
-                        {noNextAction ? (
-                          <span className="gh-badge" data-status="danger">
-                            No next action
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: "var(--gh-text-micro)", color: "var(--gh-text-muted)" }}>
-                            Next: {d.nextActionDate}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                  );
-                })}
-                {stageDeals.length === 0 && (
-                  <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-disabled)" }}>No deals</p>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,10 @@ import { listRoadmapItems } from "@/lib/dal/roadmap";
 import { listMeetingSummaries } from "@/lib/dal/meetingSummaries";
 import { listToolStackItems } from "@/lib/dal/toolStack";
 import { listActiveDiscounts } from "@/lib/dal/referrals";
+import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
+import { listClientTeamMembers } from "@/lib/dal/clientTeam";
+import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
+import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 
 /**
  * Read-only reconstruction of what a client sees in their portal, built
@@ -24,14 +28,20 @@ export default async function ClientPortalPreviewPage({ params }: { params: Prom
   if (!data) notFound();
   const { client, referrals, features, documents } = data;
 
-  const [tasks, ideas, roadmap, meetings, tools, activeDiscounts] = await Promise.all([
-    listTasksForClient(id),
-    listIdeationItems(id),
-    listRoadmapItems(id),
-    listMeetingSummaries(id),
-    listToolStackItems(id),
-    listActiveDiscounts(id),
-  ]);
+  const [tasks, ideas, roadmap, meetings, tools, activeDiscounts, metricsSnapshots, teamMembers, healthChannels, activityFeed] =
+    await Promise.all([
+      listTasksForClient(id),
+      listIdeationItems(id),
+      listRoadmapItems(id),
+      listMeetingSummaries(id),
+      listToolStackItems(id),
+      listActiveDiscounts(id),
+      listClientMetricsSnapshots(id),
+      listClientTeamMembers(id),
+      listClientHealthChannels(id),
+      listClientActivityFeed(id),
+    ]);
+  const deliverables = tasks.filter((t) => t.dueDate);
 
   const enabledKeys = new Set(features.filter((f) => f.enabled).map((f) => f.featureKey));
   const activeDiscountPercent = activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0);
@@ -200,6 +210,80 @@ export default async function ClientPortalPreviewPage({ params }: { params: Prom
           ) : (
             <p style={{ color: "var(--gh-text-muted)" }}>No reporting dashboard configured yet.</p>
           )}
+        </section>
+      )}
+
+      {enabledKeys.has("performance") && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">Performance Snapshot</p>
+          {metricsSnapshots.length === 0 ? (
+            <p style={{ color: "var(--gh-text-muted)" }}>No performance data logged yet.</p>
+          ) : (
+            <div className="gh-card">
+              <p style={{ fontWeight: 500 }}>{metricsSnapshots[0].periodLabel}</p>
+              <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
+                Ad spend ${metricsSnapshots[0].adSpend ?? "—"} · Leads {metricsSnapshots[0].leadsGenerated ?? "—"} · ROAS {metricsSnapshots[0].roas ?? "—"}×
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {enabledKeys.has("account_team") && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">Account Team</p>
+          {teamMembers.map((m) => (
+            <div key={m.id} className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{m.name} {m.role && <span style={{ color: "var(--gh-text-muted)" }}>({m.role})</span>}</span>
+            </div>
+          ))}
+          {teamMembers.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No team members added yet.</p>}
+        </section>
+      )}
+
+      {enabledKeys.has("campaign_health") && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">Campaign Health</p>
+          {healthChannels.map((c) => (
+            <div key={c.id} className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+                <span className="gh-status-dot" data-status={c.status} />
+                {c.channelName}
+              </span>
+              <span className="gh-badge">{c.statusLabel}</span>
+            </div>
+          ))}
+          {healthChannels.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No channels tracked yet.</p>}
+        </section>
+      )}
+
+      {enabledKeys.has("deliverables") && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">Upcoming Deliverables</p>
+          {deliverables.map((d) => (
+            <div key={d.id} className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{d.title}</span>
+              <span className="gh-badge" data-status={d.status === "done" ? "success" : undefined}>
+                {d.status === "done" ? "Done" : d.dueDate}
+              </span>
+            </div>
+          ))}
+          {deliverables.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>Nothing due right now.</p>}
+        </section>
+      )}
+
+      {enabledKeys.has("activity_feed") && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">Recent Activity</p>
+          {activityFeed.map((a) => (
+            <div key={a.id} className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{a.body}</span>
+              <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+                {new Date(a.occurredAt).toLocaleDateString("en-NZ")}
+              </span>
+            </div>
+          ))}
+          {activityFeed.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No recent activity yet.</p>}
         </section>
       )}
     </div>

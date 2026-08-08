@@ -11,6 +11,11 @@ import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
 import { createRoadmapItem, softDeleteRoadmapItem } from "@/lib/dal/roadmap";
 import { createMeetingSummary, softDeleteMeetingSummary } from "@/lib/dal/meetingSummaries";
 import { createToolStackItem, softDeleteToolStackItem } from "@/lib/dal/toolStack";
+import { addClientService, removeClientService } from "@/lib/dal/clientServices";
+import { addClientMetricsSnapshot, softDeleteClientMetricsSnapshot } from "@/lib/dal/clientMetrics";
+import { addClientTeamMember, softDeleteClientTeamMember } from "@/lib/dal/clientTeam";
+import { addClientHealthChannel, softDeleteClientHealthChannel } from "@/lib/dal/clientHealthChannels";
+import { addClientActivityFeedEntry, softDeleteClientActivityFeedEntry } from "@/lib/dal/clientActivityFeed";
 import { monthInputToDate } from "@/lib/date";
 
 export async function createClientAction(formData: FormData) {
@@ -152,6 +157,84 @@ export async function inviteClientAction(clientId: string, formData: FormData) {
   }
   revalidatePath(`/clients/${clientId}`);
   redirect(`/clients/${clientId}?invited=1`);
+}
+
+export async function addClientServiceAction(clientId: string, formData: FormData) {
+  await addClientService({
+    clientId,
+    serviceItemId: String(formData.get("serviceItemId") ?? ""),
+    customSetupPrice: String(formData.get("customSetupPrice") ?? "") || undefined,
+    customMonthlyPrice: String(formData.get("customMonthlyPrice") ?? "") || undefined,
+    status: "active",
+    startedOn: String(formData.get("startedOn") ?? "") || undefined,
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/portal");
+}
+
+export async function removeClientServiceAction(id: string, clientId: string) {
+  await removeClientService(id);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/portal");
+}
+
+export async function addClientMetricsSnapshotAction(clientId: string, formData: FormData) {
+  await addClientMetricsSnapshot({
+    clientId,
+    periodLabel: String(formData.get("periodLabel") ?? ""),
+    adSpend: String(formData.get("adSpend") ?? "") || undefined,
+    leadsGenerated: formData.get("leadsGenerated") ? Number(formData.get("leadsGenerated")) : undefined,
+    roas: String(formData.get("roas") ?? "") || undefined,
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function deleteClientMetricsSnapshotAction(id: string, clientId: string) {
+  await softDeleteClientMetricsSnapshot(id);
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function addClientTeamMemberAction(clientId: string, formData: FormData) {
+  await addClientTeamMember({
+    clientId,
+    name: String(formData.get("name") ?? ""),
+    role: String(formData.get("role") ?? "") || undefined,
+    contactEmail: String(formData.get("contactEmail") ?? "") || undefined,
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function deleteClientTeamMemberAction(id: string, clientId: string) {
+  await softDeleteClientTeamMember(id);
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function addClientHealthChannelAction(clientId: string, formData: FormData) {
+  await addClientHealthChannel({
+    clientId,
+    channelName: String(formData.get("channelName") ?? ""),
+    status: String(formData.get("status") ?? "ok") as "ok" | "warn" | "off",
+    statusLabel: String(formData.get("statusLabel") ?? ""),
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function deleteClientHealthChannelAction(id: string, clientId: string) {
+  await softDeleteClientHealthChannel(id);
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function addClientActivityFeedEntryAction(clientId: string, formData: FormData) {
+  await addClientActivityFeedEntry({
+    clientId,
+    body: String(formData.get("body") ?? ""),
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function deleteClientActivityFeedEntryAction(id: string, clientId: string) {
+  await softDeleteClientActivityFeedEntry(id);
+  revalidatePath(`/clients/${clientId}`);
 }
 
 export async function uploadDocumentAction(clientId: string, formData: FormData) {

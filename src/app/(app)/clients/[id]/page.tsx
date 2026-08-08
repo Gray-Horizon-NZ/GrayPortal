@@ -9,6 +9,12 @@ import { listIdeationItems } from "@/lib/dal/ideation";
 import { listRoadmapItems } from "@/lib/dal/roadmap";
 import { listMeetingSummaries } from "@/lib/dal/meetingSummaries";
 import { listToolStackItems } from "@/lib/dal/toolStack";
+import { listClientServices, getActiveMonthlyTotal } from "@/lib/dal/clientServices";
+import { listServiceItems } from "@/lib/dal/pricing";
+import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
+import { listClientTeamMembers } from "@/lib/dal/clientTeam";
+import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
+import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 import {
   createReferralAction,
   inviteClientAction,
@@ -25,6 +31,16 @@ import {
   createToolStackItemAction,
   deleteToolStackItemAction,
   deleteClientAction,
+  addClientServiceAction,
+  removeClientServiceAction,
+  addClientMetricsSnapshotAction,
+  deleteClientMetricsSnapshotAction,
+  addClientTeamMemberAction,
+  deleteClientTeamMemberAction,
+  addClientHealthChannelAction,
+  deleteClientHealthChannelAction,
+  addClientActivityFeedEntryAction,
+  deleteClientActivityFeedEntryAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
@@ -45,13 +61,34 @@ export default async function ClientDetailPage({
   const { client, referrals, features, portalUsers, documents } = data;
   const status = paymentStatus(client.nextPaymentDate);
 
-  const [activeDiscounts, ideas, roadmap, meetings, tools, health] = await Promise.all([
+  const [
+    activeDiscounts,
+    ideas,
+    roadmap,
+    meetings,
+    tools,
+    health,
+    clientServices,
+    serviceCatalogue,
+    activeMonthlyTotal,
+    metricsSnapshots,
+    teamMembers,
+    healthChannels,
+    activityFeed,
+  ] = await Promise.all([
     listActiveDiscounts(client.id),
     listIdeationItems(client.id),
     listRoadmapItems(client.id),
     listMeetingSummaries(client.id),
     listToolStackItems(client.id),
     getLatestHealthScore(client.id),
+    listClientServices(client.id),
+    listServiceItems(),
+    getActiveMonthlyTotal(client.id),
+    listClientMetricsSnapshots(client.id),
+    listClientTeamMembers(client.id),
+    listClientHealthChannels(client.id),
+    listClientActivityFeed(client.id),
   ]);
 
   return (
@@ -59,8 +96,13 @@ export default async function ClientDetailPage({
       <div>
         <p className="gh-eyebrow">Client</p>
         <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>{client.name}</h1>
-        <div style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}>
+        <div style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)", alignItems: "center" }}>
           {status && <span className="gh-badge" data-status={status.tone}>{status.label}</span>}
+          {activeMonthlyTotal > 0 && (
+            <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+              Est. monthly: ${activeMonthlyTotal.toLocaleString("en-NZ")}
+            </span>
+          )}
           {health && (
             <span
               className="gh-badge"
@@ -154,6 +196,42 @@ export default async function ClientDetailPage({
           <input className="gh-input" name="externalUrl" type="url" placeholder="Link a Drive/hosted PDF URL instead" />
           <SubmitButton>Add document</SubmitButton>
         </form>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Services</p>
+        {clientServices.map((s) => (
+          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+            <span>
+              {s.deliverable}{" "}
+              <span className="gh-badge">{s.status}</span>{" "}
+              <span style={{ color: "var(--gh-text-muted)" }}>
+                ${s.customMonthlyPrice ?? s.currentMonthlyPrice ?? s.customSetupPrice ?? s.currentSetupPrice ?? "—"}
+              </span>
+            </span>
+            <form action={removeClientServiceAction.bind(null, s.id, client.id)}>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
+            </form>
+          </div>
+        ))}
+        {clientServices.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No services attached yet.</p>}
+        <details>
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add service</summary>
+          <form action={addClientServiceAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+            <select className="gh-input" name="serviceItemId" required defaultValue="">
+              <option value="" disabled>Select a catalogue item…</option>
+              {serviceCatalogue.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.moduleCode} — {item.deliverable}
+                </option>
+              ))}
+            </select>
+            <input className="gh-input" name="customMonthlyPrice" placeholder="Custom monthly price (optional)" />
+            <input className="gh-input" name="customSetupPrice" placeholder="Custom setup price (optional)" />
+            <input className="gh-input" name="startedOn" type="date" />
+            <SubmitButton>Add service</SubmitButton>
+          </form>
+        </details>
       </section>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
@@ -306,6 +384,99 @@ export default async function ClientDetailPage({
               <option value="planned">Planned</option>
             </select>
             <SubmitButton>Add tool</SubmitButton>
+          </form>
+        </details>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Performance snapshots</p>
+        {metricsSnapshots.map((m) => (
+          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+            <span>
+              {m.periodLabel} — Ad spend ${m.adSpend ?? "—"} · Leads {m.leadsGenerated ?? "—"} · ROAS {m.roas ?? "—"}×
+            </span>
+            <form action={deleteClientMetricsSnapshotAction.bind(null, m.id, client.id)}>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
+            </form>
+          </div>
+        ))}
+        {metricsSnapshots.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No snapshots logged yet.</p>}
+        <details>
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add snapshot</summary>
+          <form action={addClientMetricsSnapshotAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+            <input className="gh-input" name="periodLabel" placeholder="Period (e.g. Aug 2026)" required />
+            <input className="gh-input" name="adSpend" placeholder="Ad spend" />
+            <input className="gh-input" name="leadsGenerated" placeholder="Leads generated" type="number" />
+            <input className="gh-input" name="roas" placeholder="ROAS (e.g. 6.4)" />
+            <SubmitButton>Add snapshot</SubmitButton>
+          </form>
+        </details>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Account team</p>
+        {teamMembers.map((m) => (
+          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+            <span>{m.name} {m.role && <span style={{ color: "var(--gh-text-muted)" }}>({m.role})</span>}</span>
+            <form action={deleteClientTeamMemberAction.bind(null, m.id, client.id)}>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
+            </form>
+          </div>
+        ))}
+        {teamMembers.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No team members added yet.</p>}
+        <details>
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add team member</summary>
+          <form action={addClientTeamMemberAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+            <input className="gh-input" name="name" placeholder="Name" required />
+            <input className="gh-input" name="role" placeholder="Role (optional)" />
+            <input className="gh-input" name="contactEmail" type="email" placeholder="Contact email (optional)" />
+            <SubmitButton>Add member</SubmitButton>
+          </form>
+        </details>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Campaign health</p>
+        {healthChannels.map((c) => (
+          <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+            <span>{c.channelName} <span className="gh-badge" data-status={c.status === "ok" ? "success" : c.status === "warn" ? "warning" : undefined}>{c.statusLabel}</span></span>
+            <form action={deleteClientHealthChannelAction.bind(null, c.id, client.id)}>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
+            </form>
+          </div>
+        ))}
+        {healthChannels.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No channels logged yet.</p>}
+        <details>
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add channel</summary>
+          <form action={addClientHealthChannelAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+            <input className="gh-input" name="channelName" placeholder="Channel (e.g. Meta Ads)" required />
+            <select className="gh-input" name="status" defaultValue="ok">
+              <option value="ok">OK</option>
+              <option value="warn">Warning</option>
+              <option value="off">Off</option>
+            </select>
+            <input className="gh-input" name="statusLabel" placeholder="Status label (e.g. Active, Paused, Live)" required />
+            <SubmitButton>Add channel</SubmitButton>
+          </form>
+        </details>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Activity feed</p>
+        {activityFeed.map((a) => (
+          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+            <span>{a.body} <span style={{ color: "var(--gh-text-muted)" }}>— {new Date(a.occurredAt).toLocaleDateString("en-NZ")}</span></span>
+            <form action={deleteClientActivityFeedEntryAction.bind(null, a.id, client.id)}>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
+            </form>
+          </div>
+        ))}
+        {activityFeed.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No activity logged yet.</p>}
+        <details>
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Log activity</summary>
+          <form action={addClientActivityFeedEntryAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+            <input className="gh-input" name="body" placeholder="What happened" required />
+            <SubmitButton>Log activity</SubmitButton>
           </form>
         </details>
       </section>

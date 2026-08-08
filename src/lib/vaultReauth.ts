@@ -51,6 +51,11 @@ export async function establishVaultSession(): Promise<void> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
+    if (body?.error === "Second factor not verified") {
+      throw new Error(
+        "Two-factor authentication isn't set up on this account yet — enroll an authenticator app in Settings first."
+      );
+    }
     throw new Error(body?.error ?? "Vault re-authentication failed");
   }
 }

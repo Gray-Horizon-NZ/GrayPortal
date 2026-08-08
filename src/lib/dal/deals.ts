@@ -1,5 +1,5 @@
 import "server-only";
-import { deals, activities, tasks, companies } from "@/lib/db/schema";
+import { deals, activities, tasks, companies, users } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import type { Tx } from "./session";
@@ -67,9 +67,11 @@ export async function listDealsWithCompany() {
         nextAction: deals.nextAction,
         nextActionDate: deals.nextActionDate,
         companyName: companies.name,
+        ownerName: users.displayName,
       })
       .from(deals)
       .innerJoin(companies, eq(deals.companyId, companies.id))
+      .leftJoin(users, eq(deals.createdBy, users.id))
       .where(isNull(deals.deletedAt));
   });
 }
