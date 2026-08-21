@@ -1,3 +1,4 @@
+import Image from "next/image";
 import NavLink from "@/components/NavLink";
 import { groupNavItems } from "@/lib/ui/navGroups";
 import ShellHeader from "./ShellHeader";
@@ -77,8 +78,11 @@ export default function AppShell({
         {/* Desktop / tablet sidebar — hidden on mobile, replaced by ShellHeader's drawer */}
         <nav className="gh-shell-sidebar" aria-label="Primary">
           <div className="gh-shell-brand">
-            <p className="gh-eyebrow">{eyebrow}</p>
-            <p className="gh-title gh-shell-title">{title}</p>
+            <Image src="/brand-icon.png" alt="" width={28} height={28} className="gh-brand-icon" />
+            <div className="gh-shell-brand-text">
+              <p className="gh-eyebrow">{eyebrow}</p>
+              <p className="gh-title gh-shell-title">{title}</p>
+            </div>
           </div>
           <div className="gh-shell-nav">
             {pinned.map((item) => (

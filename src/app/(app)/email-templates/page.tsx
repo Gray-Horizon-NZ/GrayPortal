@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { withCaller } from "@/lib/dal/auth";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { createEmailTemplateAction, updateEmailTemplateAction, softDeleteEmailTemplateAction } from "./actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 // Phase 10 — brief §6: known recurring sends, stored as data (subject/body
 // with {{variable}} placeholders), not hard-coded strings. Rendering
@@ -40,11 +41,11 @@ export default async function EmailTemplatesPage() {
                 <input className="gh-input" name="name" defaultValue={t.name} required />
                 <input className="gh-input" name="subject" defaultValue={t.subject} required />
                 <textarea className="gh-input" name="body" defaultValue={t.body} rows={5} required />
-                <button className="gh-btn-primary" type="submit">Save</button>
+                <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
               </form>
             </details>
             <form action={softDeleteEmailTemplateAction.bind(null, t.id)}>
-              <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Remove</button>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">Remove</SubmitButton>
             </form>
           </div>
         ))}
@@ -57,7 +58,7 @@ export default async function EmailTemplatesPage() {
             <input className="gh-input" name="name" placeholder="Display name" required />
             <input className="gh-input" name="subject" placeholder="Subject — supports {{variables}}" required />
             <textarea className="gh-input" name="body" placeholder="Body — supports {{variables}}" rows={5} required />
-            <button className="gh-btn-primary" type="submit">Create template</button>
+            <SubmitButton pendingLabel="Creating…">Create template</SubmitButton>
           </form>
         </details>
       </section>

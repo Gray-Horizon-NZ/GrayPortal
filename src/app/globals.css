@@ -622,7 +622,15 @@ textarea {
 }
 
 .gh-shell-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-3);
   padding: 0 var(--gh-space-4);
+}
+
+.gh-brand-icon {
+  border-radius: var(--gh-radius-sm, 6px);
+  flex-shrink: 0;
 }
 
 .gh-shell-title {
@@ -703,7 +711,12 @@ textarea {
     width: 72px;
   }
 
-  .gh-shell-sidebar .gh-shell-brand,
+  .gh-shell-sidebar .gh-shell-brand {
+    justify-content: center;
+    padding: var(--gh-space-4) 0;
+  }
+
+  .gh-shell-sidebar .gh-shell-brand-text,
   .gh-shell-sidebar .gh-nav-group-label {
     display: none;
   }

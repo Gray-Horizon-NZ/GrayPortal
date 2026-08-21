@@ -4,6 +4,7 @@ import { paymentStatus } from "@/lib/paymentStatus";
 import { listLatestHealthScores } from "@/lib/dal/health";
 import { createClientAction } from "./actions";
 import { createCompanyAction } from "../companies/actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 const TREND_ARROW: Record<string, string> = { up: "↑", down: "↓", flat: "→" };
 
@@ -96,7 +97,7 @@ export default async function ClientsPage({
         <form action={createClientAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
           <input className="gh-input" name="name" placeholder="Client name" required />
           <input className="gh-input" name="nextPaymentDate" type="month" placeholder="Next payment month" />
-          <button className="gh-btn-primary" type="submit">Add client</button>
+          <SubmitButton pendingLabel="Adding…">Add client</SubmitButton>
         </form>
       </details>
 
@@ -113,7 +114,7 @@ export default async function ClientsPage({
           <input className="gh-input" name="website" placeholder="Website" />
           <input className="gh-input" name="sizeBand" placeholder="Size band" />
           <textarea className="gh-input" name="notes" placeholder="Notes" rows={3} />
-          <button className="gh-btn-primary" type="submit">Add company</button>
+          <SubmitButton pendingLabel="Adding…">Add company</SubmitButton>
         </form>
       </details>
     </div>

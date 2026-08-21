@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCompany } from "@/lib/dal/companies";
 import { createContactAction, deleteCompanyAction } from "../actions";
 import { createDealAction } from "../../deals/actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,9 +22,9 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           {company.industry ?? "—"} · {company.region ?? "—"} · {company.status}
         </p>
         <form action={deleteCompanyAction.bind(null, company.id)} style={{ marginTop: "var(--gh-space-3)" }}>
-          <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+          <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">
             Remove company
-          </button>
+          </SubmitButton>
         </form>
       </div>
 
@@ -44,7 +45,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <input className="gh-input" name="valueNzd" placeholder="Value (NZD)" />
             <input className="gh-input" name="packageTier" placeholder="Package tier" />
             <input className="gh-input" name="source" placeholder="Source" />
-            <button className="gh-btn-primary" type="submit">Create deal</button>
+            <SubmitButton pendingLabel="Creating…">Create deal</SubmitButton>
           </form>
         </details>
       </section>
@@ -68,7 +69,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <input className="gh-input" name="roleTitle" placeholder="Role / title" />
             <input className="gh-input" name="email" placeholder="Email" />
             <input className="gh-input" name="phone" placeholder="Phone" />
-            <button className="gh-btn-primary" type="submit">Add contact</button>
+            <SubmitButton pendingLabel="Adding…">Add contact</SubmitButton>
           </form>
         </details>
       </section>

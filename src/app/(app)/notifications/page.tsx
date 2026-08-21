@@ -3,6 +3,7 @@ import { listMyNotifications } from "@/lib/dal/notifications";
 import { NOTIFICATION_TYPE_LABELS, notificationEntityHref } from "@/lib/notificationDisplay";
 import EmptyState from "@/components/ui/EmptyState";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "./actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function NotificationsPage() {
   const items = await listMyNotifications();
@@ -20,7 +21,7 @@ export default async function NotificationsPage() {
         </div>
         {hasUnread && (
           <form action={markAllNotificationsReadAction}>
-            <button className="gh-btn-secondary" type="submit">Mark all read</button>
+            <SubmitButton className="gh-btn-secondary" pendingLabel="Marking…">Mark all read</SubmitButton>
           </form>
         )}
       </div>
@@ -50,7 +51,7 @@ export default async function NotificationsPage() {
               </div>
               {!n.read && (
                 <form action={markNotificationReadAction.bind(null, n.id)}>
-                  <button className="gh-btn-secondary" type="submit">Mark read</button>
+                  <SubmitButton className="gh-btn-secondary" pendingLabel="Marking…">Mark read</SubmitButton>
                 </form>
               )}
             </div>

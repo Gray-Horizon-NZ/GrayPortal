@@ -1,5 +1,6 @@
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { createRecurringTemplateAction, softDeleteRecurringTemplateAction } from "./actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function RemindersPage() {
   const templates = await listRecurringTemplates();
@@ -21,7 +22,7 @@ export default async function RemindersPage() {
               </p>
             </div>
             <form action={softDeleteRecurringTemplateAction.bind(null, t.id)}>
-              <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Remove</button>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">Remove</SubmitButton>
             </form>
           </div>
         ))}
@@ -40,7 +41,7 @@ export default async function RemindersPage() {
           </select>
           <input className="gh-input" name="intervalDays" type="number" placeholder="Custom interval (days)" />
           <input className="gh-input" name="nextDueDate" type="date" required />
-          <button className="gh-btn-primary" type="submit">Add reminder</button>
+          <SubmitButton pendingLabel="Adding…">Add reminder</SubmitButton>
         </form>
       </details>
     </div>

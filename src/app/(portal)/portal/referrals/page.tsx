@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getEnabledFeatureKeys, listPortalReferrals, getReferralStats } from "@/lib/dal/portal";
 import HelpTooltip from "@/components/ui/HelpTooltip";
 import { submitPortalReferralAction } from "./actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function PortalReferralsPage() {
   const enabled = await getEnabledFeatureKeys();
@@ -56,7 +57,7 @@ export default async function PortalReferralsPage() {
         >
           <input className="gh-input" name="referredName" placeholder="Who you're referring" required />
           <textarea className="gh-input" name="notes" placeholder="Notes (optional)" rows={2} />
-          <button className="gh-btn-primary" type="submit">Submit referral</button>
+          <SubmitButton pendingLabel="Submitting…">Submit referral</SubmitButton>
         </form>
       </section>
     </div>

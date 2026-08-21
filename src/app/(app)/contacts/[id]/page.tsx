@@ -5,6 +5,7 @@ import { getCompany } from "@/lib/dal/companies";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { logContactActivityAction, sendContactEmailAction } from "../actions";
 import EmailComposeFields from "@/components/EmailComposeFields";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function ContactDetailPage({
   params,
@@ -76,9 +77,9 @@ export default async function ContactDetailPage({
           <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Send email</summary>
           <form action={sendContactEmailAction.bind(null, contact.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
             <EmailComposeFields templates={templates} />
-            <button className="gh-btn-primary" type="submit" disabled={!contact.email}>
+            <SubmitButton disabled={!contact.email} pendingLabel="Sending…">
               {contact.email ? "Send" : "No email on file"}
-            </button>
+            </SubmitButton>
           </form>
         </details>
         <details className="gh-card">
@@ -92,7 +93,7 @@ export default async function ContactDetailPage({
             </select>
             <textarea className="gh-input" name="body" placeholder="What happened" rows={3} />
             <input className="gh-input" name="outcome" placeholder="Outcome" />
-            <button className="gh-btn-primary" type="submit">Log activity</button>
+            <SubmitButton pendingLabel="Logging…">Log activity</SubmitButton>
           </form>
         </details>
       </section>

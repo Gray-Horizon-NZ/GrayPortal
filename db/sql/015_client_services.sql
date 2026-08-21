@@ -7,6 +7,13 @@
 -- no client-callable mutation exists for any of these). Run once, by hand,
 -- against the direct connection — NOT via scripts/migrate.mjs (regenerates
 -- the app role's password on every run).
+--
+-- Uses nullif(current_setting(...), '')::uuid rather than a bare ::uuid
+-- cast — see db/sql/004_fix_uuid_cast_null_safety.sql: an admin session
+-- sets app.client_id to '', and Postgres does not reliably short-circuit
+-- past the client_id cast just because the admin/contractor OR branch is
+-- true (plan-dependent), so a bare cast throws "invalid input syntax for
+-- type uuid" on admin queries against these tables.
 
 ALTER TABLE client_services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_metrics_snapshots ENABLE ROW LEVEL SECURITY;
@@ -18,35 +25,35 @@ CREATE POLICY client_services_scoped ON client_services FOR ALL
   USING (
     current_setting('app.role', true) IN ('admin', 'contractor')
     OR (current_setting('app.role', true) = 'client'
-        AND client_id = current_setting('app.client_id', true)::uuid)
+        AND client_id = nullif(current_setting('app.client_id', true), '')::uuid)
   );
 
 CREATE POLICY client_metrics_snapshots_scoped ON client_metrics_snapshots FOR ALL
   USING (
     current_setting('app.role', true) IN ('admin', 'contractor')
     OR (current_setting('app.role', true) = 'client'
-        AND client_id = current_setting('app.client_id', true)::uuid)
+        AND client_id = nullif(current_setting('app.client_id', true), '')::uuid)
   );
 
 CREATE POLICY client_team_members_scoped ON client_team_members FOR ALL
   USING (
     current_setting('app.role', true) IN ('admin', 'contractor')
     OR (current_setting('app.role', true) = 'client'
-        AND client_id = current_setting('app.client_id', true)::uuid)
+        AND client_id = nullif(current_setting('app.client_id', true), '')::uuid)
   );
 
 CREATE POLICY client_health_channels_scoped ON client_health_channels FOR ALL
   USING (
     current_setting('app.role', true) IN ('admin', 'contractor')
     OR (current_setting('app.role', true) = 'client'
-        AND client_id = current_setting('app.client_id', true)::uuid)
+        AND client_id = nullif(current_setting('app.client_id', true), '')::uuid)
   );
 
 CREATE POLICY client_activity_feed_scoped ON client_activity_feed FOR ALL
   USING (
     current_setting('app.role', true) IN ('admin', 'contractor')
     OR (current_setting('app.role', true) = 'client'
-        AND client_id = current_setting('app.client_id', true)::uuid)
+        AND client_id = nullif(current_setting('app.client_id', true), '')::uuid)
   );
 
 GRANT SELECT, INSERT, UPDATE ON

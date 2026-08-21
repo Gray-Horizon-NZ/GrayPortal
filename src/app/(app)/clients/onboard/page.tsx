@@ -1,6 +1,7 @@
 import { PORTAL_FEATURE_KEYS } from "@/lib/dal/clients";
 import { ONBOARDING_TASK_TEMPLATE } from "@/config/onboarding";
 import { onboardClientAction } from "./actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 const DEFAULT_ENABLED = new Set(["tasks", "documents", "referrals"]);
 
@@ -68,7 +69,7 @@ export default async function OnboardClientPage({
           ))}
         </section>
 
-        <button className="gh-btn-primary" type="submit">Create client</button>
+        <SubmitButton pendingLabel="Creating client…">Create client</SubmitButton>
       </form>
     </div>
   );

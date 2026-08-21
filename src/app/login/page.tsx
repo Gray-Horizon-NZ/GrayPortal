@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import LoginButton from "./LoginButton";
@@ -46,7 +47,8 @@ export default function LoginPage() {
           gap: "var(--gh-space-8)",
         }}
       >
-        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--gh-space-3)" }}>
+          <Image src="/brand-icon.png" alt="" width={48} height={48} className="gh-brand-icon" />
           <p className="gh-eyebrow">Gray Horizon</p>
           <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
             Gray <em>Portal</em>

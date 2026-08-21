@@ -5,6 +5,7 @@ import { disconnectGoogleAction, disconnectXeroAction, revokeSessionsAction } fr
 import McpTokenButton from "./McpTokenButton";
 import TotpEnrollment from "./TotpEnrollment";
 import { getXeroConnection } from "@/lib/dal/xeroConnection";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function SettingsPage({
   searchParams,
@@ -51,7 +52,7 @@ export default async function SettingsPage({
               Invoice status/amounts/due dates sync one-way, on a schedule. GrayPortal never writes to Xero.
             </p>
             <form action={disconnectXeroAction}>
-              <button className="gh-btn-secondary" type="submit">Disconnect</button>
+              <SubmitButton className="gh-btn-secondary" pendingLabel="Disconnecting…">Disconnect</SubmitButton>
             </form>
           </>
         ) : (
@@ -76,7 +77,7 @@ export default async function SettingsPage({
               once to grant the new scope.
             </p>
             <form action={disconnectGoogleAction}>
-              <button className="gh-btn-secondary" type="submit">Disconnect</button>
+              <SubmitButton className="gh-btn-secondary" pendingLabel="Disconnecting…">Disconnect</SubmitButton>
             </form>
           </>
         ) : (
@@ -115,9 +116,9 @@ export default async function SettingsPage({
           token leaks — you&apos;ll need to sign in again afterward.
         </p>
         <form action={revokeSessionsAction}>
-          <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+          <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Revoking…">
             Revoke all sessions
-          </button>
+          </SubmitButton>
         </form>
       </section>
     </div>

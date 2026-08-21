@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, Search as SearchIcon } from "lucide-react";
 import NavLink from "@/components/NavLink";
@@ -94,8 +95,11 @@ export default function ShellHeader({
           <div className="gh-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden />
           <nav className="gh-drawer gh-shell-drawer" aria-label="Primary">
             <div className="gh-shell-brand">
-              <p className="gh-eyebrow">{eyebrow}</p>
-              <p className="gh-title gh-shell-title">{title}</p>
+              <Image src="/brand-icon.png" alt="" width={28} height={28} className="gh-brand-icon" />
+              <div className="gh-shell-brand-text">
+                <p className="gh-eyebrow">{eyebrow}</p>
+                <p className="gh-title gh-shell-title">{title}</p>
+              </div>
             </div>
             <div className="gh-shell-nav">
               {pinned.map((item) => (

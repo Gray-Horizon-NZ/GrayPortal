@@ -14,15 +14,17 @@ export default function SubmitButton({
   pendingLabel,
   className = "gh-btn-primary",
   style,
+  disabled,
 }: {
   children: React.ReactNode;
   pendingLabel?: string;
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button className={className} type="submit" disabled={pending} style={style}>
+    <button className={className} type="submit" disabled={disabled || pending} style={style}>
       {pending ? (pendingLabel ?? "Working…") : children}
     </button>
   );

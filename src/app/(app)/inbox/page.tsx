@@ -3,6 +3,7 @@ import { withCaller } from "@/lib/dal/auth";
 import { listUnmatchedInboundEmails } from "@/lib/dal/emails";
 import { dismissUnmatchedEmailAction } from "./actions";
 import MatchContact from "./MatchContact";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 // Phase 10 — brief §6: inbound mail that can't be matched to an existing
 // Contact by sender address is surfaced here rather than silently dropped.
@@ -35,7 +36,7 @@ export default async function InboxPage() {
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>{e.snippet}</p>
             <MatchContact emailId={e.id} />
             <form action={dismissUnmatchedEmailAction.bind(null, e.id)}>
-              <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>Dismiss</button>
+              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Dismissing…">Dismiss</SubmitButton>
             </form>
           </div>
         ))}

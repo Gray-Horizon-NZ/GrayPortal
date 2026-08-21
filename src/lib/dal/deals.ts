@@ -6,6 +6,7 @@ import type { Tx } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 import { syncDealToGoogle, removeDealFromGoogle, syncTaskToGoogle } from "@/lib/google/adapter";
 import { z } from "zod";
+import { numericString } from "./validation";
 import { STAGES, STAGE_TASK_RULES, type Stage } from "@/config/pipeline";
 
 /**
@@ -37,9 +38,9 @@ async function applyDealSync<Row extends { id: string; nextAction: string; nextA
 export const DealInput = z.object({
   companyId: z.string().uuid(),
   primaryContactId: z.string().uuid().optional(),
-  valueNzd: z.string().optional(),
+  valueNzd: numericString,
   packageTier: z.string().optional(),
-  closeProbability: z.string().optional(),
+  closeProbability: numericString,
   nextAction: z.string().min(1, "Next action is required"),
   nextActionDate: z.string().min(1, "Next action date is required"),
   source: z.string().optional(),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listContractorRecords } from "@/lib/dal/contractors";
 import { createContractorAction } from "./actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function ContractorsPage() {
   const contractors = await listContractorRecords();
@@ -34,7 +35,7 @@ export default async function ContractorsPage() {
         <form action={createContractorAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
           <input className="gh-input" name="name" placeholder="Contractor name" required />
           <input className="gh-input" name="specialty" placeholder="Specialty / service category" />
-          <button className="gh-btn-primary" type="submit">Add contractor</button>
+          <SubmitButton pendingLabel="Adding…">Add contractor</SubmitButton>
         </form>
       </details>
     </div>

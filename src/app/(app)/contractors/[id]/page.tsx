@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getContractorRecord } from "@/lib/dal/contractors";
 import { deleteContractorAction, inviteContractorAction } from "../actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function ContractorDetailPage({
   params,
@@ -24,9 +25,9 @@ export default async function ContractorDetailPage({
           <p style={{ color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>{contractor.specialty}</p>
         )}
         <form action={deleteContractorAction.bind(null, contractor.id)} style={{ marginTop: "var(--gh-space-3)" }}>
-          <button className="gh-btn-secondary" type="submit" style={{ color: "var(--gh-danger)" }}>
+          <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">
             Remove contractor
-          </button>
+          </SubmitButton>
         </form>
       </div>
 
@@ -49,7 +50,7 @@ export default async function ContractorDetailPage({
           <form action={inviteContractorAction.bind(null, contractor.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
             <input className="gh-input" name="email" type="email" placeholder="Contractor email" required />
             <input className="gh-input" name="displayName" placeholder="Display name (optional)" />
-            <button className="gh-btn-primary" type="submit">Invite to system</button>
+            <SubmitButton pendingLabel="Inviting…">Invite to system</SubmitButton>
           </form>
         )}
       </section>
