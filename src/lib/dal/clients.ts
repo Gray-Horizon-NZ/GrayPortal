@@ -5,6 +5,7 @@ import { withCaller } from "./auth";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { adminBucket } from "@/lib/firebase/admin";
 import { z } from "zod";
+import { percentString } from "./validation";
 
 export const ClientInput = z.object({
   name: z.string().min(1),
@@ -13,6 +14,11 @@ export const ClientInput = z.object({
   driveFolderUrl: z.string().optional(),
   lookerStudioUrl: z.string().optional(),
   portalWelcomeMessage: z.string().optional(),
+  // Applied on top of the summed active client_services total (see
+  // src/lib/dal/clientServices.ts's getActiveMonthlyTotal) — the "this
+  // client's whole retainer is X% off" knob, independent of any
+  // per-service discountPercent.
+  overallDiscountPercent: percentString,
 });
 export type ClientInputT = z.infer<typeof ClientInput>;
 

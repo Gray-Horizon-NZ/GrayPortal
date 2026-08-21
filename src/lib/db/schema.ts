@@ -161,6 +161,12 @@ export const clients = pgTable("clients", {
   // forced, not an error state.
   logoUrl: text("logo_url"),
   portalWelcomeMessage: text("portal_welcome_message"),
+  // Applied on top of the sum of active client_services (which may already
+  // carry their own per-service discountPercent) — e.g. a $2.4k package
+  // with a 33% overall discount nets $1.608k. Two independent knobs: this
+  // one for "this client's whole retainer is discounted X%" deals, the
+  // per-service one for "this one line item is discounted" deals.
+  overallDiscountPercent: numeric("overall_discount_percent", { precision: 5, scale: 2 }),
   ...softDelete,
   ...actorColumns,
 });
@@ -408,6 +414,10 @@ export const clientServices = pgTable("client_services", {
     .references(() => serviceItems.id),
   customSetupPrice: numeric("custom_setup_price", { precision: 12, scale: 2 }),
   customMonthlyPrice: numeric("custom_monthly_price", { precision: 12, scale: 2 }),
+  // Independent of clients.overallDiscountPercent — this discounts just
+  // this one line item (e.g. "10% off Google Ads mgmt only") before the
+  // client-wide discount is applied on top of the summed total.
+  discountPercent: numeric("discount_percent", { precision: 5, scale: 2 }),
   status: clientServiceStatusEnum("status").notNull().default("active"),
   startedOn: date("started_on"),
   notes: text("notes"),

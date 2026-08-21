@@ -41,6 +41,8 @@ import {
   deleteClientHealthChannelAction,
   addClientActivityFeedEntryAction,
   deleteClientActivityFeedEntryAction,
+  updateClientServicePriceAction,
+  updateClientDiscountAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
@@ -91,6 +93,9 @@ export default async function ClientDetailPage({
     listClientActivityFeed(client.id),
   ]);
 
+  const overallDiscountPercent = Number(client.overallDiscountPercent ?? 0);
+  const finalMonthlyTotal = activeMonthlyTotal * (1 - overallDiscountPercent / 100);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
       <div>
@@ -98,9 +103,9 @@ export default async function ClientDetailPage({
         <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>{client.name}</h1>
         <div style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)", alignItems: "center" }}>
           {status && <span className="gh-badge" data-status={status.tone}>{status.label}</span>}
-          {activeMonthlyTotal > 0 && (
+          {finalMonthlyTotal > 0 && (
             <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-              Est. monthly: ${activeMonthlyTotal.toLocaleString("en-NZ")}
+              Est. monthly: ${finalMonthlyTotal.toLocaleString("en-NZ")}
             </span>
           )}
           {health && (
@@ -199,19 +204,96 @@ export default async function ClientDetailPage({
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Services</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <p className="gh-eyebrow">Services</p>
+          <div style={{ textAlign: "right", fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
+            <div>Subtotal: ${activeMonthlyTotal.toLocaleString("en-NZ")}</div>
+            {overallDiscountPercent > 0 && (
+              <div>
+                {overallDiscountPercent}% off → <strong style={{ color: "var(--gh-text-primary)" }}>${finalMonthlyTotal.toLocaleString("en-NZ")}</strong>/mo
+              </div>
+            )}
+            {overallDiscountPercent === 0 && (
+              <div><strong style={{ color: "var(--gh-text-primary)" }}>${finalMonthlyTotal.toLocaleString("en-NZ")}</strong>/mo</div>
+            )}
+          </div>
+        </div>
+
+        <details>
+          <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+            Overall discount ({overallDiscountPercent}%)
+          </summary>
+          <form
+            action={updateClientDiscountAction.bind(null, client.id)}
+            style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+          >
+            <input
+              className="gh-input"
+              name="overallDiscountPercent"
+              placeholder="Overall discount %"
+              defaultValue={client.overallDiscountPercent ?? ""}
+              style={{ maxWidth: 200 }}
+            />
+            <SubmitButton className="gh-btn-secondary" pendingLabel="Saving…">Save</SubmitButton>
+          </form>
+          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+            Applied on top of the subtotal below — e.g. a $2,400 package at 33% off nets $1,608/mo. Leave blank for no discount.
+          </p>
+        </details>
+
         {clientServices.map((s) => (
-          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
-            <span>
-              {s.deliverable}{" "}
-              <span className="gh-badge">{s.status}</span>{" "}
-              <span style={{ color: "var(--gh-text-muted)" }}>
-                ${s.customMonthlyPrice ?? s.currentMonthlyPrice ?? s.customSetupPrice ?? s.currentSetupPrice ?? "—"}
+          <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", paddingBottom: "var(--gh-space-2)", borderBottom: "1px solid var(--gh-border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+              <span>
+                {s.deliverable}{" "}
+                <span className="gh-badge">{s.status}</span>{" "}
+                <span style={{ color: "var(--gh-text-muted)" }}>
+                  ${s.customMonthlyPrice ?? s.currentMonthlyPrice ?? s.customSetupPrice ?? s.currentSetupPrice ?? "—"}
+                  {s.customMonthlyPrice != null && s.currentMonthlyPrice != null && s.customMonthlyPrice !== s.currentMonthlyPrice && (
+                    <> (catalogue: ${s.currentMonthlyPrice})</>
+                  )}
+                  {s.discountPercent != null && Number(s.discountPercent) > 0 && <> — {s.discountPercent}% off this item</>}
+                </span>
               </span>
-            </span>
-            <form action={removeClientServiceAction.bind(null, s.id, client.id)}>
-              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
-            </form>
+              <form action={removeClientServiceAction.bind(null, s.id, client.id)}>
+                <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>Remove</SubmitButton>
+              </form>
+            </div>
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+                Override rate / discount
+              </summary>
+              <form
+                action={updateClientServicePriceAction.bind(null, s.id, client.id)}
+                style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)", flexWrap: "wrap" }}
+              >
+                <input
+                  className="gh-input"
+                  name="customMonthlyPrice"
+                  placeholder="Custom monthly price"
+                  defaultValue={s.customMonthlyPrice ?? ""}
+                  style={{ maxWidth: 200 }}
+                />
+                <input
+                  className="gh-input"
+                  name="customSetupPrice"
+                  placeholder="Custom setup price"
+                  defaultValue={s.customSetupPrice ?? ""}
+                  style={{ maxWidth: 200 }}
+                />
+                <input
+                  className="gh-input"
+                  name="discountPercent"
+                  placeholder="This item's discount %"
+                  defaultValue={s.discountPercent ?? ""}
+                  style={{ maxWidth: 200 }}
+                />
+                <SubmitButton className="gh-btn-secondary" pendingLabel="Saving…">Save</SubmitButton>
+              </form>
+              <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+                Leave price blank to revert to the catalogue price (${s.currentMonthlyPrice ?? s.currentSetupPrice ?? "—"}). Leave discount blank for none.
+              </p>
+            </details>
           </div>
         ))}
         {clientServices.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No services attached yet.</p>}
@@ -228,6 +310,7 @@ export default async function ClientDetailPage({
             </select>
             <input className="gh-input" name="customMonthlyPrice" placeholder="Custom monthly price (optional)" />
             <input className="gh-input" name="customSetupPrice" placeholder="Custom setup price (optional)" />
+            <input className="gh-input" name="discountPercent" placeholder="Discount % on this item (optional)" />
             <input className="gh-input" name="startedOn" type="date" />
             <SubmitButton>Add service</SubmitButton>
           </form>

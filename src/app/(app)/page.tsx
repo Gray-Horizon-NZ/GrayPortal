@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrendingUp, Wallet, Activity, Bell, AlertTriangle, Clock3, CreditCard, ListChecks, CalendarDays } from "lucide-react";
+import { TrendingUp, Wallet, Activity, Bell, AlertTriangle, Clock3, CreditCard, ListChecks, CalendarDays, Repeat } from "lucide-react";
 import { listDeals } from "@/lib/dal/deals";
 import { listAllTasks, listMyAssignedTasks } from "@/lib/dal/tasks";
 import { listRecentActivities } from "@/lib/dal/activities";
@@ -8,6 +8,7 @@ import { listMyNotifications } from "@/lib/dal/notifications";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { withCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
+import { getTotalActiveMonthlyRevenue } from "@/lib/dal/clientServices";
 import { getBusinessFinancialRollup } from "@/lib/dal/xero";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
 import { listWeekCalendarEvents } from "@/lib/google/adapter";
@@ -33,7 +34,7 @@ export default async function HomePage({
   const taskListView = taskList === "all" ? "all" : "mine";
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
-  const [deals, tasks, myTasks, recentActivities, healthScores, notifications, clients, financials, recurringTemplates, googleConnection, weekEvents] =
+  const [deals, tasks, myTasks, recentActivities, healthScores, notifications, clients, financials, monthlyRecurringRevenue, recurringTemplates, googleConnection, weekEvents] =
     await Promise.all([
       listDeals(),
       listAllTasks(),
@@ -43,6 +44,7 @@ export default async function HomePage({
       listMyNotifications(),
       listClients(),
       getBusinessFinancialRollup(),
+      getTotalActiveMonthlyRevenue(),
       isAdmin ? listRecurringTemplates() : Promise.resolve([]),
       isAdmin ? getGoogleConnectionForSync() : Promise.resolve(null),
       isAdmin ? listWeekCalendarEvents() : Promise.resolve([]),
@@ -104,7 +106,14 @@ export default async function HomePage({
         </h1>
       </div>
 
-      <div className="gh-grid-joined gh-grid-joined--3 gh-stagger">
+      <div className="gh-grid-joined gh-grid-joined--4 gh-stagger">
+        <StatCard
+          joined
+          eyebrow="Monthly recurring revenue"
+          icon={Repeat}
+          value={`$${monthlyRecurringRevenue.toLocaleString("en-NZ", { maximumFractionDigits: 0 })}`}
+          detail={`across ${clients.length} client${clients.length === 1 ? "" : "s"}`}
+        />
         <StatCard
           joined
           eyebrow="Pipeline value"

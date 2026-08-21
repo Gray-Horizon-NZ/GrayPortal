@@ -11,7 +11,7 @@ import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
 import { createRoadmapItem, softDeleteRoadmapItem } from "@/lib/dal/roadmap";
 import { createMeetingSummary, softDeleteMeetingSummary } from "@/lib/dal/meetingSummaries";
 import { createToolStackItem, softDeleteToolStackItem } from "@/lib/dal/toolStack";
-import { addClientService, removeClientService } from "@/lib/dal/clientServices";
+import { addClientService, removeClientService, updateClientServicePrice } from "@/lib/dal/clientServices";
 import { addClientMetricsSnapshot, softDeleteClientMetricsSnapshot } from "@/lib/dal/clientMetrics";
 import { addClientTeamMember, softDeleteClientTeamMember } from "@/lib/dal/clientTeam";
 import { addClientHealthChannel, softDeleteClientHealthChannel } from "@/lib/dal/clientHealthChannels";
@@ -165,6 +165,7 @@ export async function addClientServiceAction(clientId: string, formData: FormDat
     serviceItemId: String(formData.get("serviceItemId") ?? ""),
     customSetupPrice: String(formData.get("customSetupPrice") ?? "") || undefined,
     customMonthlyPrice: String(formData.get("customMonthlyPrice") ?? "") || undefined,
+    discountPercent: String(formData.get("discountPercent") ?? "") || undefined,
     status: "active",
     startedOn: String(formData.get("startedOn") ?? "") || undefined,
   });
@@ -174,6 +175,24 @@ export async function addClientServiceAction(clientId: string, formData: FormDat
 
 export async function removeClientServiceAction(id: string, clientId: string) {
   await removeClientService(id);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/portal");
+}
+
+export async function updateClientServicePriceAction(id: string, clientId: string, formData: FormData) {
+  await updateClientServicePrice(id, {
+    customMonthlyPrice: String(formData.get("customMonthlyPrice") ?? "") || undefined,
+    customSetupPrice: String(formData.get("customSetupPrice") ?? "") || undefined,
+    discountPercent: String(formData.get("discountPercent") ?? "") || undefined,
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/portal");
+}
+
+export async function updateClientDiscountAction(clientId: string, formData: FormData) {
+  await updateClient(clientId, {
+    overallDiscountPercent: String(formData.get("overallDiscountPercent") ?? "") || undefined,
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/portal");
 }
