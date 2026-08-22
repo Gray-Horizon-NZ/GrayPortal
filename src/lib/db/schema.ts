@@ -292,6 +292,11 @@ export const documents = pgTable(
     fileRef: text("file_ref"),
     externalUrl: text("external_url"),
     docType: docTypeEnum("doc_type").notNull(),
+    // Human-readable name, distinct from docType — added because a
+    // linked URL (externalUrl) had nothing to distinguish it from any
+    // other "Other" document; a real filename only ever existed for
+    // uploads (fileRef), and even that was never surfaced in the UI.
+    title: text("title"),
     uploadedBy: uuid("uploaded_by").references(() => users.id),
     ...softDelete,
   },
@@ -736,6 +741,60 @@ export const emailTemplates = pgTable("email_templates", {
   body: text("body").notNull(),
   ...softDelete,
   ...actorColumns,
+});
+
+// ---------------------------------------------------------------------------
+// Personal finance (Phase 23) — Max's own income-split calculator, kept
+// deliberately separate from the client-facing `clients`/Xero tables above:
+// no clientId anywhere here, admin-only per db/sql/017 (same posture as
+// credentials, not the admin+contractor posture pricing uses). One period
+// per income snapshot (e.g. "May 2025", "Est 2026"), with its expense and
+// contractor-payment line items as child rows — mirrors the reference
+// model Max supplied rather than a single flat number, since both change
+// month to month.
+// ---------------------------------------------------------------------------
+
+export const personalFinancePeriods = pgTable("personal_finance_periods", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  label: text("label").notNull(), // e.g. "May 2025", "Est 2026"
+  // Gross income for the period, before the flat tax-reduction step.
+  grossIncomeNzd: numeric("gross_income_nzd", { precision: 12, scale: 2 }).notNull(),
+  // Deliberately flat, not bracket math — Max's own choice (overshoot the
+  // actual liability on purpose for a year-end refund, not a precise
+  // year-end tax bill estimate). Stored per-period, not hardcoded, so a
+  // change in strategy doesn't require a code change.
+  taxReductionPercent: numeric("tax_reduction_percent", { precision: 5, scale: 2 }).notNull().default("17.5"),
+  // Target weekly personal draw used to size the "$600/week"-style buffer
+  // goals — optional because not every period has one set.
+  targetWeeklyDrawNzd: numeric("target_weekly_draw_nzd", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const personalFinanceExpenseItems = pgTable("personal_finance_expense_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  periodId: uuid("period_id")
+    .notNull()
+    .references(() => personalFinancePeriods.id),
+  label: text("label").notNull(),
+  amountNzd: numeric("amount_nzd", { precision: 10, scale: 2 }).notNull(),
+  ...softDelete,
+});
+
+// Ad-hoc contractor payouts for a period (e.g. "$90 to Yuvi from Dugal") —
+// a deduction line item between post-tax cashflow and take-home pay, kept
+// separate from the `contractors`/hourly-rate table since this is a record
+// of an actual payment made, not a rate card.
+export const personalFinanceContractorPayments = pgTable("personal_finance_contractor_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  periodId: uuid("period_id")
+    .notNull()
+    .references(() => personalFinancePeriods.id),
+  payee: text("payee").notNull(),
+  amountNzd: numeric("amount_nzd", { precision: 10, scale: 2 }).notNull(),
+  note: text("note"),
+  ...softDelete,
 });
 
 // ---------------------------------------------------------------------------

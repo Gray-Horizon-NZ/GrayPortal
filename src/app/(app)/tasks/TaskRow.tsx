@@ -8,14 +8,18 @@ type Task = {
   dueDate: string | null;
   syncState: "synced" | "pending" | "failed" | null;
   assignedTo?: string | null;
+  clientName?: string | null;
 };
 
-type Contractor = { id: string; displayName: string | null; email: string };
+type Assignee = { id: string; displayName: string | null; email: string };
 
-export default function TaskRow({ task, contractors = [] }: { task: Task; contractors?: Contractor[] }) {
+export default function TaskRow({ task, assignees = [] }: { task: Task; assignees?: Assignee[] }) {
   return (
     <div className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
+        {task.clientName && (
+          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-1)" }}>{task.clientName}</p>
+        )}
         <p style={{ fontWeight: 500 }}>{task.title}</p>
         <div style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
           {task.dueDate && (
@@ -27,15 +31,15 @@ export default function TaskRow({ task, contractors = [] }: { task: Task; contra
         </div>
       </div>
       <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
-        {contractors.length > 0 && (
+        {assignees.length > 0 && (
           <select
             className="gh-input"
             defaultValue={task.assignedTo ?? ""}
             onChange={(e) => assignTaskAction(task.id, e.target.value || null)}
           >
             <option value="">Unassigned</option>
-            {contractors.map((c) => (
-              <option key={c.id} value={c.id}>{c.displayName ?? c.email}</option>
+            {assignees.map((a) => (
+              <option key={a.id} value={a.id}>{a.displayName ?? a.email}</option>
             ))}
           </select>
         )}

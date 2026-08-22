@@ -10,7 +10,7 @@ import SubmitButton from "@/components/ui/SubmitButton";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ google?: string; xero?: string }>;
+  searchParams: Promise<{ google?: "connected" | "error" | "notconfigured"; xero?: string }>;
 }) {
   const { google, xero } = await searchParams;
   const caller = await withCaller(async (c) => c);
@@ -32,7 +32,18 @@ export default async function SettingsPage({
       {google === "error" && (
         <p style={{ color: "var(--gh-danger)" }}>
           Couldn&apos;t connect Google. If you&apos;ve granted this before, remove Gray Portal&apos;s
-          access at myaccount.google.com/permissions and try again.
+          access at myaccount.google.com/permissions and try again. If Google shows &quot;Error 401:
+          invalid_client&quot; on its own consent screen (before you get back here at all), that&apos;s
+          not something a retry fixes — the OAuth 2.0 client registered in Google Cloud Console for
+          this app has been deleted, recreated under a different ID, or belongs to the wrong project.
+          Verify it in Cloud Console → APIs &amp; Services → Credentials, then update the
+          <code> GOOGLE_OAUTH_CLIENT_ID</code>/<code>GOOGLE_OAUTH_CLIENT_SECRET</code> secrets.
+        </p>
+      )}
+      {google === "notconfigured" && (
+        <p style={{ color: "var(--gh-danger)" }}>
+          Google isn&apos;t configured on this deployment — <code>GOOGLE_OAUTH_CLIENT_ID</code>,
+          <code> GOOGLE_OAUTH_CLIENT_SECRET</code>, or <code>GOOGLE_OAUTH_REDIRECT_URI</code> is unset.
         </p>
       )}
 

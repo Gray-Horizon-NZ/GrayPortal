@@ -1,5 +1,6 @@
 "use client";
 import { useFormStatus } from "react-dom";
+import { Loader2 } from "lucide-react";
 
 /**
  * Drop-in replacement for a plain <button type="submit"> inside a
@@ -25,7 +26,14 @@ export default function SubmitButton({
   const { pending } = useFormStatus();
   return (
     <button className={className} type="submit" disabled={disabled || pending} style={style}>
-      {pending ? (pendingLabel ?? "Working…") : children}
+      {pending ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+          <Loader2 className="gh-spin" size={14} strokeWidth={2} />
+          {pendingLabel ?? "Working…"}
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 }

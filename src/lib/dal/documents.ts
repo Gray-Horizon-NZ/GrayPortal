@@ -15,6 +15,7 @@ export const DocumentInput = z.object({
   contactId: z.string().uuid().optional(),
   dealId: z.string().uuid().optional(),
   docType: DocType,
+  title: z.string().min(1),
 });
 export type DocumentInputT = z.infer<typeof DocumentInput>;
 

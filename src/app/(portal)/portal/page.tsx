@@ -132,7 +132,7 @@ export default async function PortalHomePage() {
             {documentsPreview.length === 0 ? (
               <EmptyRow text="No documents yet." />
             ) : (
-              documentsPreview.map((d) => <PreviewRow key={d.id} label={d.docType} />)
+              documentsPreview.map((d) => <PreviewRow key={d.id} label={d.title ?? d.docType} />)
             )}
           </PreviewWidget>
         )}
@@ -162,95 +162,79 @@ export default async function PortalHomePage() {
           </PreviewWidget>
         )}
 
-        {has("performance") && (
+        {has("performance") && metricsSnapshots.length > 0 && (
           <PerformanceWidget snapshots={metricsSnapshots} />
         )}
 
-        {has("account_team") && (
+        {has("account_team") && teamMembers.length > 0 && (
           <PreviewWidget title="Account Team" href="#" span={1} hideLink>
-            {teamMembers.length === 0 ? (
-              <EmptyRow text="No account team assigned yet." />
-            ) : (
-              teamMembers.map((m) => (
-                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)" }}>
-                  <span className="gh-avatar-circle">{m.name.trim()[0]?.toUpperCase() ?? "?"}</span>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: "var(--gh-text-sm)", fontWeight: 500 }}>{m.name}</span>
-                    {m.role && <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>{m.role}</span>}
-                  </div>
-                  {m.contactEmail && (
-                    <a href={`mailto:${m.contactEmail}`} style={{ marginLeft: "auto", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-                      Message
-                    </a>
-                  )}
+            {teamMembers.map((m) => (
+              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)" }}>
+                <span className="gh-avatar-circle">{m.name.trim()[0]?.toUpperCase() ?? "?"}</span>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontSize: "var(--gh-text-sm)", fontWeight: 500 }}>{m.name}</span>
+                  {m.role && <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>{m.role}</span>}
                 </div>
-              ))
-            )}
+                {m.contactEmail && (
+                  <a href={`mailto:${m.contactEmail}`} style={{ marginLeft: "auto", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+                    Message
+                  </a>
+                )}
+              </div>
+            ))}
           </PreviewWidget>
         )}
 
-        {has("campaign_health") && (
+        {has("campaign_health") && healthChannels.length > 0 && (
           <PreviewWidget title="Campaign Health" href="#" span={1} hideLink>
-            {healthChannels.length === 0 ? (
-              <EmptyRow text="No channels tracked yet." />
-            ) : (
-              healthChannels.map((c) => (
-                <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-                    <span className="gh-status-dot" data-status={c.status} />
-                    {c.channelName}
-                  </span>
-                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                    {c.statusLabel}
-                  </span>
-                </div>
-              ))
-            )}
+            {healthChannels.map((c) => (
+              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+                  <span className="gh-status-dot" data-status={c.status} />
+                  {c.channelName}
+                </span>
+                <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  {c.statusLabel}
+                </span>
+              </div>
+            ))}
           </PreviewWidget>
         )}
 
-        {has("deliverables") && (
+        {has("deliverables") && deliverables.length > 0 && (
           <PreviewWidget title="Upcoming Deliverables" href="#" span={1} hideLink>
-            {deliverables.length === 0 ? (
-              <EmptyRow text="Nothing due right now." />
-            ) : (
-              deliverables.map((d) => (
-                <div key={d.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
-                  <span
-                    style={{
-                      width: 14,
-                      height: 14,
-                      border: "1px solid var(--gh-text-muted)",
-                      flexShrink: 0,
-                      background: d.status === "done" ? "var(--gh-accent)" : "transparent",
-                      borderColor: d.status === "done" ? "var(--gh-accent)" : "var(--gh-text-muted)",
-                    }}
-                  />
-                  <span style={{ flex: 1 }}>{d.title}</span>
-                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
-                    {d.status === "done" ? "Done" : d.dueDate}
-                  </span>
-                </div>
-              ))
-            )}
+            {deliverables.map((d) => (
+              <div key={d.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    border: "1px solid var(--gh-text-muted)",
+                    flexShrink: 0,
+                    background: d.status === "done" ? "var(--gh-accent)" : "transparent",
+                    borderColor: d.status === "done" ? "var(--gh-accent)" : "var(--gh-text-muted)",
+                  }}
+                />
+                <span style={{ flex: 1 }}>{d.title}</span>
+                <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
+                  {d.status === "done" ? "Done" : d.dueDate}
+                </span>
+              </div>
+            ))}
           </PreviewWidget>
         )}
 
-        {has("activity_feed") && (
+        {has("activity_feed") && activityFeed.length > 0 && (
           <PreviewWidget title="Recent Activity" href="#" span={2} hideLink>
-            {activityFeed.length === 0 ? (
-              <EmptyRow text="No recent activity yet." />
-            ) : (
-              activityFeed.map((a) => (
-                <div key={a.id} style={{ display: "flex", alignItems: "baseline", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gh-accent)", flexShrink: 0 }} />
-                  <span style={{ flex: 1 }}>{a.body}</span>
-                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
-                    {new Date(a.occurredAt).toLocaleDateString("en-NZ", { day: "numeric", month: "short" })}
-                  </span>
-                </div>
-              ))
-            )}
+            {activityFeed.map((a) => (
+              <div key={a.id} style={{ display: "flex", alignItems: "baseline", gap: "var(--gh-space-3)", padding: "var(--gh-space-2) 0", borderTop: "1px solid var(--gh-border)", fontSize: "var(--gh-text-sm)" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gh-accent)", flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>{a.body}</span>
+                <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
+                  {new Date(a.occurredAt).toLocaleDateString("en-NZ", { day: "numeric", month: "short" })}
+                </span>
+              </div>
+            ))}
           </PreviewWidget>
         )}
 
@@ -313,14 +297,6 @@ function PerformanceWidget({
 }: {
   snapshots: { id: string; periodLabel: string; adSpend: string | null; leadsGenerated: number | null; roas: string | null }[];
 }) {
-  if (snapshots.length === 0) {
-    return (
-      <PreviewWidget title="Performance Snapshot" href="#" span={2} hideLink>
-        <EmptyRow text="No performance data logged yet." />
-      </PreviewWidget>
-    );
-  }
-
   const ordered = [...snapshots].reverse(); // oldest → newest, for the sparkline
   const latest = snapshots[0];
   const previous = snapshots[1];

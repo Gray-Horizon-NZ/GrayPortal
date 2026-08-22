@@ -1,6 +1,6 @@
 import "server-only";
 import { users } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert } from "./mutate";
@@ -102,6 +102,21 @@ export async function listContractors() {
       .select({ id: users.id, displayName: users.displayName, email: users.email })
       .from(users)
       .where(and(eq(users.role, "contractor"), isNull(users.deletedAt)));
+  });
+}
+
+/**
+ * Admins + contractors, for the task assignee dropdown — listContractors
+ * alone left admins (Max included) unselectable, so "assign to myself" had
+ * no option. Clients are never assignable to a task.
+ */
+export async function listAssignableUsers() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin", "contractor");
+    return tx
+      .select({ id: users.id, displayName: users.displayName, email: users.email, role: users.role })
+      .from(users)
+      .where(and(inArray(users.role, ["admin", "contractor"]), isNull(users.deletedAt)));
   });
 }
 

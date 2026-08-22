@@ -24,7 +24,7 @@ export default async function PortalDocumentsPage() {
             className="gh-card"
             style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
           >
-            <span style={{ textTransform: "capitalize" }}>{d.docType}</span>
+            <span style={{ textTransform: "capitalize" }}>{d.title ?? d.docType}</span>
             <a className="gh-btn-secondary" href={`/api/documents/${d.id}/download`} target={d.externalUrl ? "_blank" : undefined} rel={d.externalUrl ? "noreferrer" : undefined}>
               {d.externalUrl ? "Open link ↗" : "Download"}
             </a>

@@ -261,11 +261,13 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
   const companyId = String(formData.get("companyId") ?? "") || undefined;
   const externalUrl = String(formData.get("externalUrl") ?? "").trim();
   const file = formData.get("file");
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) throw new Error("A document name is required");
 
   if (externalUrl) {
-    await linkDocument({ clientId, companyId, docType }, externalUrl);
+    await linkDocument({ clientId, companyId, docType, title }, externalUrl);
   } else if (file instanceof File && file.size > 0) {
-    await uploadDocument({ clientId, companyId, docType }, file);
+    await uploadDocument({ clientId, companyId, docType, title }, file);
   } else {
     throw new Error("A file or a URL is required");
   }

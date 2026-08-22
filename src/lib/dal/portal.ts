@@ -67,7 +67,7 @@ async function getHomeWidgetPreviews(
       : Promise.resolve([]),
     has("documents")
       ? tx
-          .select({ id: documents.id, docType: documents.docType })
+          .select({ id: documents.id, docType: documents.docType, title: documents.title })
           .from(documents)
           .where(and(eq(documents.clientId, clientId), isNull(documents.deletedAt)))
       : Promise.resolve([]),

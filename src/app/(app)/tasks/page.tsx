@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
 import { listAllTasks, listMyAssignedTasks, getTaskDealContext } from "@/lib/dal/tasks";
-import { listContractors } from "@/lib/dal/users";
+import { listAssignableUsers } from "@/lib/dal/users";
 import { withCaller } from "@/lib/dal/auth";
 import EmptyState from "@/components/ui/EmptyState";
 import TaskRow from "./TaskRow";
+import MasterTaskView from "./MasterTaskView";
+
+const VIEWS = ["mine", "all", "master"] as const;
+type View = (typeof VIEWS)[number];
 
 export default async function TasksPage({
   searchParams,
@@ -14,10 +18,10 @@ export default async function TasksPage({
   const { view: viewParam } = await searchParams;
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
-  const view = viewParam === "all" && isAdmin ? "all" : "mine";
+  const view: View = isAdmin && VIEWS.includes(viewParam as View) ? (viewParam as View) : "mine";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: view === "master" ? undefined : 700 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "var(--gh-space-3)" }}>
         <div>
           <p className="gh-eyebrow">Gray Horizon</p>
@@ -43,20 +47,28 @@ export default async function TasksPage({
             >
               All
             </Link>
+            <Link
+              href="/tasks?view=master"
+              className="gh-btn-secondary"
+              data-active={view === "master" || undefined}
+              style={view === "master" ? { background: "var(--gh-surface-raised)" } : undefined}
+            >
+              Master
+            </Link>
           </div>
         )}
       </div>
 
-      {view === "all" ? <AllTasksView /> : <MyTasksView />}
+      {view === "master" ? <MasterTaskView /> : view === "all" ? <AllTasksView /> : <MyTasksView />}
     </div>
   );
 }
 
 async function AllTasksView() {
   const caller = await withCaller(async (c) => c);
-  const [tasks, contractors] = await Promise.all([
+  const [tasks, assignees] = await Promise.all([
     listAllTasks(),
-    caller.role === "admin" ? listContractors() : Promise.resolve([]),
+    caller.role === "admin" ? listAssignableUsers() : Promise.resolve([]),
   ]);
 
   const ongoing = tasks.filter((t) => t.status === "ongoing");
@@ -68,13 +80,13 @@ async function AllTasksView() {
       {ongoing.length > 0 && (
         <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <p className="gh-eyebrow">Ongoing</p>
-          {ongoing.map((t) => <TaskRow key={t.id} task={t} contractors={contractors} />)}
+          {ongoing.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? "Internal" }} assignees={assignees} />)}
         </section>
       )}
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
         <p className="gh-eyebrow">Active</p>
-        {active.map((t) => <TaskRow key={t.id} task={t} contractors={contractors} />)}
+        {active.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? "Internal" }} assignees={assignees} />)}
         {active.length === 0 && (
           <EmptyState icon={ListChecks} title="Nothing outstanding" description="Every task is done or ongoing." />
         )}
@@ -86,7 +98,7 @@ async function AllTasksView() {
             Done ({done.length})
           </summary>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-3)" }}>
-            {done.map((t) => <TaskRow key={t.id} task={t} contractors={contractors} />)}
+            {done.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? "Internal" }} assignees={assignees} />)}
           </div>
         </details>
       )}

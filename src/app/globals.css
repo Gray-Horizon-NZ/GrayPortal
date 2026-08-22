@@ -375,6 +375,18 @@ textarea {
   }
 }
 
+/* The keyframe above had no class applying it anywhere — pending-state
+   feedback (SubmitButton) was text-only, no actual spin. */
+.gh-spin {
+  animation: gh-spin 0.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-spin {
+    animation: none;
+  }
+}
+
 @keyframes gh-ring {
   from {
     stroke-dashoffset: var(--gh-ring-start, 283);

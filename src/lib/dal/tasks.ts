@@ -1,18 +1,77 @@
 import "server-only";
-import { tasks, deals, companies } from "@/lib/db/schema";
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { tasks, deals, companies, clients } from "@/lib/db/schema";
+import { and, eq, getTableColumns, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
-import { auditedUpdate } from "./mutate";
+import { auditedInsert, auditedUpdate } from "./mutate";
 import { syncTaskToGoogle } from "@/lib/google/adapter";
 import { z } from "zod";
 
 export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing"]);
 
-/** Every task, org-wide — the "All" half of the merged /tasks page's toggle. */
+/**
+ * Every task, org-wide — the "All" half of the merged /tasks page's
+ * toggle, and the source list for the Master Task View (grouped by
+ * clientId client-side). Left-joined to clients so a task's client name
+ * travels with it — deal-linked tasks with no clientId come back with
+ * clientName null, read as "Internal," not an error.
+ */
 export async function listAllTasks() {
   return withCaller(async (_caller, tx) => {
-    return tx.select().from(tasks).where(isNull(tasks.deletedAt));
+    return tx
+      .select({ ...getTableColumns(tasks), clientName: clients.name })
+      .from(tasks)
+      .leftJoin(clients, eq(tasks.clientId, clients.id))
+      .where(isNull(tasks.deletedAt));
+  });
+}
+
+export const CreateTaskInput = z.object({
+  clientId: z.string().uuid().optional(),
+  title: z.string().min(1),
+  dueDate: z.string().optional(),
+  assignedTo: z.string().uuid().optional(),
+});
+export type CreateTaskInputT = z.infer<typeof CreateTaskInput>;
+
+/**
+ * The one generic "add a task" entry point — nothing else in the app could
+ * create an ad-hoc task before this; every existing task came from a deal
+ * stage rule, onboarding, or a recurring template. Admin-only, same as
+ * assignTask. Defaults assignedTo to the calling admin (Max, day to day)
+ * rather than leaving it unassigned, per the Master Task View brief.
+ */
+export async function createTask(input: CreateTaskInputT) {
+  const data = CreateTaskInput.parse(input);
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+
+    const task = await auditedInsert<typeof tasks.$inferSelect>(
+      tx,
+      tasks,
+      {
+        clientId: data.clientId ?? null,
+        title: data.title,
+        dueDate: data.dueDate ?? null,
+        assignedTo: data.assignedTo ?? caller.userId,
+      },
+      { caller, entityType: "task" }
+    );
+
+    // Same "never block the underlying mutation on Google" rule as
+    // setTaskStatus below — sync is best-effort bookkeeping on top of an
+    // already-committed row.
+    const result = await syncTaskToGoogle(task);
+    if (result.status === "skipped") return task;
+    const [updated] = await tx
+      .update(tasks)
+      .set({
+        googleTaskId: result.status === "synced" ? result.googleId : task.googleTaskId,
+        syncState: result.status,
+      })
+      .where(eq(tasks.id, task.id))
+      .returning();
+    return updated;
   });
 }
 

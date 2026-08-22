@@ -175,7 +175,7 @@ export default async function ClientDetailPage({
         <p className="gh-eyebrow">Documents</p>
         {documents.map((d) => (
           <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
-            <span>{d.docType}</span>
+            <span>{d.title ?? d.docType}</span>
             {d.externalUrl ? (
               <a href={`/api/documents/${d.id}/download`} target="_blank" rel="noreferrer">Open link ↗</a>
             ) : (
@@ -190,6 +190,7 @@ export default async function ClientDetailPage({
           style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}
         >
           <input type="hidden" name="companyId" value={client.companyId ?? ""} />
+          <input className="gh-input" name="title" placeholder="Document name" required />
           <select className="gh-input" name="docType" defaultValue="other">
             <option value="proposal">Proposal</option>
             <option value="contract">Contract</option>

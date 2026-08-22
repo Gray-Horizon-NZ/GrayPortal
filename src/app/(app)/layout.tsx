@@ -8,6 +8,7 @@ import {
   Inbox as InboxIcon,
   Mail,
   Wallet,
+  PiggyBank,
   Tag,
   Clock,
   ShieldCheck,
@@ -94,6 +95,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         ]
       : []),
     ...(callerRole === "admin" ? [{ href: "/finance", label: "Finance", icon: navIcon(Wallet), group: "Finance" }] : []),
+    ...(callerRole === "admin" ? [{ href: "/finance/personal", label: "Personal", icon: navIcon(PiggyBank), group: "Finance" }] : []),
     { href: "/pricing", label: "Pricing", icon: navIcon(Tag), group: "Finance" },
     ...(callerRole === "admin"
       ? [

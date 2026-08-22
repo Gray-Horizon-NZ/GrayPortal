@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { withCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
 import { getBusinessFinancialRollup, getClientFinancials } from "@/lib/dal/xero";
@@ -26,6 +27,9 @@ export default async function FinancePage() {
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
           GrayPortal never writes to Xero. Connect/disconnect from Settings.
         </p>
+        <Link href="/finance/personal" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
+          Personal income split →
+        </Link>
       </div>
 
       <div style={{ display: "flex", gap: "var(--gh-space-6)", flexWrap: "wrap" }}>

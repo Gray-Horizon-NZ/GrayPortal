@@ -6,7 +6,7 @@ import { getVerifiedUid, withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
 import { listDeals, getDeal } from "@/lib/dal/deals";
 import { listCompanies, getCompany } from "@/lib/dal/companies";
-import { listAllTasks, setTaskStatus, TaskStatus } from "@/lib/dal/tasks";
+import { listAllTasks, setTaskStatus, createTask, TaskStatus } from "@/lib/dal/tasks";
 import { searchAll } from "@/lib/dal/search";
 import { logActivity } from "@/lib/dal/activities";
 import { onboardClient, OnboardClientInput } from "@/lib/dal/onboarding";
@@ -105,6 +105,24 @@ function buildServer() {
       annotations: { readOnlyHint: false },
     },
     async ({ id, status }) => jsonResult(await setTaskStatus(id, status))
+  );
+
+  server.registerTool(
+    "create_task",
+    {
+      description:
+        "Creates a new ad-hoc task, optionally attached to a client. Defaults to assigned-to-caller " +
+        "if assignedTo isn't given. Creates a real row every time it's called — never call it " +
+        "speculatively or twice for the same task.",
+      inputSchema: {
+        clientId: z.string().uuid().optional(),
+        title: z.string().min(1),
+        dueDate: z.string().optional(),
+        assignedTo: z.string().uuid().optional(),
+      },
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await createTask(args))
   );
 
   server.registerTool(
