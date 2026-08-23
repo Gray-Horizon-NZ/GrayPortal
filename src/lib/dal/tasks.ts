@@ -23,16 +23,20 @@ export const INTERNAL_LIST_LABELS: Record<InternalListKey, string> = {
 /**
  * Every task, org-wide — the "All" half of the merged /tasks page's
  * toggle, and the source list for the Master Task View (grouped by
- * clientId client-side). Left-joined to clients so a task's client name
- * travels with it — deal-linked tasks with no clientId come back with
- * clientName null, read as one of the two internal buckets, not an error.
+ * clientId client-side). Left-joined to clients (for clientName) and to
+ * deals→companies (for dealCompanyName) so a task's client OR prospect
+ * name travels with it — a deal-linked task with no clientId still gets
+ * bucketed into an internal Master View column, but TaskRow can now show
+ * and link to which prospect it's actually for.
  */
 export async function listAllTasks() {
   return withCaller(async (_caller, tx) => {
     return tx
-      .select({ ...getTableColumns(tasks), clientName: clients.name })
+      .select({ ...getTableColumns(tasks), clientName: clients.name, dealCompanyName: companies.name })
       .from(tasks)
       .leftJoin(clients, eq(tasks.clientId, clients.id))
+      .leftJoin(deals, eq(tasks.dealId, deals.id))
+      .leftJoin(companies, eq(deals.companyId, companies.id))
       .where(isNull(tasks.deletedAt));
   });
 }
@@ -41,9 +45,11 @@ export async function listAllTasks() {
 export async function listStarredTasks() {
   return withCaller(async (_caller, tx) => {
     return tx
-      .select({ ...getTableColumns(tasks), clientName: clients.name })
+      .select({ ...getTableColumns(tasks), clientName: clients.name, dealCompanyName: companies.name })
       .from(tasks)
       .leftJoin(clients, eq(tasks.clientId, clients.id))
+      .leftJoin(deals, eq(tasks.dealId, deals.id))
+      .leftJoin(companies, eq(deals.companyId, companies.id))
       .where(and(eq(tasks.starred, true), isNull(tasks.deletedAt)));
   });
 }
@@ -56,6 +62,11 @@ export async function toggleTaskStar(id: string, starred: boolean) {
 
 export const CreateTaskInput = z.object({
   clientId: z.string().uuid().optional(),
+  // A prospect (pipeline deal) task — orthogonal to clientId/internalList.
+  // Previously dealId was only ever set by automated deal-stage rules;
+  // this is the first manual write path for it (the deal detail page's
+  // own "add task" form).
+  dealId: z.string().uuid().optional(),
   internalList: z.enum(INTERNAL_LIST_KEYS).optional(),
   title: z.string().min(1),
   dueDate: z.string().optional(),
@@ -80,6 +91,7 @@ export async function createTask(input: CreateTaskInputT) {
       tasks,
       {
         clientId: data.clientId ?? null,
+        dealId: data.dealId ?? null,
         internalList: data.clientId ? null : (data.internalList ?? null),
         title: data.title,
         dueDate: data.dueDate ?? null,

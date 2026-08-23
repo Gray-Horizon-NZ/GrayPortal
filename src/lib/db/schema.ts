@@ -775,6 +775,27 @@ export const businessExpenses = pgTable("business_expenses", {
   ...actorColumns,
 });
 
+// Recurring monthly dev/contractor cost splits — e.g. Yuvi gets half of the
+// $180/mo DM Rider Training subscription fee ($90/mo), as a standing
+// commitment rather than a one-off. Deliberately separate from
+// businessExpenses above (that's software/tool write-offs with GST
+// tracking; this is a personnel pass-through with neither) and from
+// personalFinanceContractorPayments below (that's an ad-hoc payment logged
+// against one historical period; this is a live, always-current recurring
+// figure the Owner's Cut Calculator subtracts every time it's viewed).
+// clientId is optional context — which client's fee this split comes from —
+// not a scoping/security boundary.
+export const devCosts = pgTable("dev_costs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  payee: text("payee").notNull(), // e.g. "Yuvi"
+  label: text("label").notNull(), // e.g. "DM Rider subscription split"
+  monthlyAmountNzd: numeric("monthly_amount_nzd", { precision: 10, scale: 2 }).notNull(),
+  clientId: uuid("client_id").references(() => clients.id),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
 // ---------------------------------------------------------------------------
 // Personal finance (Phase 23) — Max's own income-split calculator, kept
 // deliberately separate from the client-facing `clients`/Xero tables above:

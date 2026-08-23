@@ -1,64 +1,79 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withCaller } from "@/lib/dal/auth";
-import { listPeriods, getOverallTaxTotal } from "@/lib/dal/personalFinance";
-import { createPeriodAction } from "./actions";
+import { getTotalActiveMonthlyRevenue } from "@/lib/dal/clientServices";
+import { getMonthlyExpenseTotal } from "@/lib/dal/businessExpenses";
+import { listDevCosts, getMonthlyDevCostTotal } from "@/lib/dal/devCosts";
+import { createDevCostAction, deleteDevCostAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import OwnersCutCalculator from "./OwnersCutCalculator";
 
-// Phase 23 — Max's own income-split calculator (tax reduction, expenses,
-// contractor payments, buffer goals, take-home pay). Deliberately separate
-// from /finance, which is client/business Xero data — this has no client
-// in it at all.
-export default async function PersonalFinancePage() {
+function money(n: number) {
+  return `$${n.toLocaleString("en-NZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Replaces the old period-by-period income-split flow as the primary view
+// (that system now lives at /finance/personal/history, data intact) — a
+// live calculator that needs nothing created or re-entered each month:
+// income defaults to your real active client revenue, expenses default to
+// the live Business Expenses + dev-cost totals.
+export default async function OwnersCutCalculatorPage() {
   const caller = await withCaller(async (c) => c);
   if (caller.role !== "admin") redirect("/");
 
-  const [periods, overallTaxTotal] = await Promise.all([listPeriods(), getOverallTaxTotal()]);
+  const [liveIncomeNzd, businessExpensesMonthlyNzd, devCostsMonthlyNzd, devCosts] = await Promise.all([
+    getTotalActiveMonthlyRevenue(),
+    getMonthlyExpenseTotal(),
+    getMonthlyDevCostTotal(),
+    listDevCosts(),
+  ]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
       <div>
         <p className="gh-eyebrow">Internal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Personal Finance</h1>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Owner&apos;s Cut Calculator</h1>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Not connected to Xero or client data — a period-by-period split of your own income into
-          tax, expenses, contractor payments, and take-home pay, plus buffer savings goals.
+          Not connected to Xero or client-visible data — a live split of your income into tax, expenses,
+          and take-home, plus buffer savings goals.{" "}
+          <Link href="/finance/personal/history" style={{ color: "var(--gh-accent)" }}>Past periods →</Link>
         </p>
       </div>
 
-      <div className="gh-card" style={{ maxWidth: 260 }}>
-        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Set aside for tax, overall</p>
-        <p className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-          ${overallTaxTotal.toLocaleString("en-NZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
-      </div>
+      <OwnersCutCalculator
+        liveIncomeNzd={liveIncomeNzd}
+        businessExpensesMonthlyNzd={businessExpensesMonthlyNzd}
+        devCostsMonthlyNzd={devCostsMonthlyNzd}
+      />
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        {periods.map((p) => (
-          <Link
-            key={p.id}
-            href={`/finance/personal/${p.id}`}
-            className="gh-card"
-            style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-          >
-            <span style={{ fontWeight: 500 }}>{p.label}</span>
-            <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-              Gross ${Number(p.grossIncomeNzd).toLocaleString("en-NZ")} · {p.taxReductionPercent}% tax
+        <p className="gh-eyebrow">Recurring dev / contractor costs</p>
+        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+          Standing splits paid out of client revenue — e.g. Yuvi&apos;s cut of a client&apos;s fee — subtracted
+          every month automatically, not re-entered.
+        </p>
+        {devCosts.map((d) => (
+          <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+            <span>
+              {d.payee} — {d.label}
+              {d.clientName && <span style={{ color: "var(--gh-text-muted)" }}> ({d.clientName})</span>}
             </span>
-          </Link>
+            <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)" }}>
+              {money(Number(d.monthlyAmountNzd))}/mo
+              <form action={deleteDevCostAction.bind(null, d.id)}>
+                <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-micro)", padding: "var(--gh-space-1) var(--gh-space-2)" }}>
+                  Remove
+                </SubmitButton>
+              </form>
+            </span>
+          </div>
         ))}
-        {periods.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No periods logged yet.</p>}
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">New period</p>
-        <form action={createPeriodAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-          <input className="gh-input" name="label" placeholder="Period label (e.g. March 2026)" required />
-          <input className="gh-input" name="grossIncomeNzd" placeholder="Gross income (NZD)" required />
-          <input className="gh-input" name="taxReductionPercent" placeholder="Tax reduction % (default 17.5)" />
-          <input className="gh-input" name="targetWeeklyDrawNzd" placeholder="Target weekly draw (NZD, optional)" />
-          <textarea className="gh-input" name="notes" placeholder="Notes (optional)" rows={2} />
-          <SubmitButton>Create period</SubmitButton>
+        {devCosts.length === 0 && <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>None logged yet.</p>}
+        <form action={createDevCostAction} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+          <input className="gh-input" name="payee" placeholder="Paid to (e.g. Yuvi)" required style={{ flex: 1 }} />
+          <input className="gh-input" name="label" placeholder="e.g. DM Rider subscription split" required style={{ flex: 2 }} />
+          <input className="gh-input" name="monthlyAmountNzd" placeholder="$/mo" required style={{ width: 90 }} />
+          <SubmitButton>Add</SubmitButton>
         </form>
       </section>
     </div>

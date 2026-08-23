@@ -13,6 +13,8 @@ type Task = {
   assignedTo?: string | null;
   clientId?: string | null;
   clientName?: string | null;
+  dealId?: string | null;
+  dealCompanyName?: string | null;
   starred?: boolean;
 };
 
@@ -45,7 +47,7 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
           />
         </button>
         <div>
-          {task.clientName && (
+          {task.clientName ? (
             task.clientId ? (
               <Link
                 href={`/clients/${task.clientId}/portal-preview`}
@@ -57,6 +59,16 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
               </Link>
             ) : (
               <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-1)" }}>{task.clientName}</p>
+            )
+          ) : (
+            task.dealCompanyName && task.dealId && (
+              <Link
+                href={`/deals/${task.dealId}`}
+                className="gh-eyebrow"
+                style={{ marginBottom: "var(--gh-space-1)", display: "inline-block", color: "var(--gh-accent)" }}
+              >
+                Prospect: {task.dealCompanyName}
+              </Link>
             )
           )}
           <p style={{ fontWeight: 500 }}>{task.title}</p>

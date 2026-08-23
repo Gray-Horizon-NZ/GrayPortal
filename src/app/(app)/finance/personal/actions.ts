@@ -9,6 +9,7 @@ import {
   addContractorPayment,
   removeContractorPayment,
 } from "@/lib/dal/personalFinance";
+import { createDevCost, deleteDevCost } from "@/lib/dal/devCosts";
 
 export async function createPeriodAction(formData: FormData) {
   const period = await createPeriod({
@@ -18,14 +19,30 @@ export async function createPeriodAction(formData: FormData) {
     targetWeeklyDrawNzd: String(formData.get("targetWeeklyDrawNzd") ?? ""),
     notes: String(formData.get("notes") ?? ""),
   });
-  revalidatePath("/finance/personal");
+  revalidatePath("/finance/personal/history");
   redirect(`/finance/personal/${period.id}`);
 }
 
 export async function deletePeriodAction(id: string) {
   await deletePeriod(id);
+  revalidatePath("/finance/personal/history");
+  redirect("/finance/personal/history");
+}
+
+export async function createDevCostAction(formData: FormData) {
+  await createDevCost({
+    payee: String(formData.get("payee") ?? ""),
+    label: String(formData.get("label") ?? ""),
+    monthlyAmountNzd: String(formData.get("monthlyAmountNzd") ?? ""),
+    clientId: String(formData.get("clientId") ?? "") || undefined,
+    notes: String(formData.get("notes") ?? "") || undefined,
+  });
   revalidatePath("/finance/personal");
-  redirect("/finance/personal");
+}
+
+export async function deleteDevCostAction(id: string) {
+  await deleteDevCost(id);
+  revalidatePath("/finance/personal");
 }
 
 export async function addExpenseItemAction(periodId: string, formData: FormData) {

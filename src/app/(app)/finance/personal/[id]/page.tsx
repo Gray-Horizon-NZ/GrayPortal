@@ -37,7 +37,7 @@ export default async function PersonalFinancePeriodPage({ params }: { params: Pr
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--gh-space-3)" }}>
         <div>
-          <Link href="/finance/personal" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>← All periods</Link>
+          <Link href="/finance/personal/history" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>← All periods</Link>
           <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", marginTop: "var(--gh-space-2)" }}>{period.label}</h1>
           {period.notes && (
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-1)" }}>{period.notes}</p>

@@ -11,9 +11,7 @@ import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
 import { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
-import { createTaskAction, updateTaskAction, deleteTaskAction } from "../../../tasks/actions";
-import TaskCheckRow from "../../../tasks/TaskCheckRow";
-import SubmitButton from "@/components/ui/SubmitButton";
+import TaskListPreview from "./TaskListPreview";
 
 /**
  * Mostly read-only reconstruction of what a client sees in their portal,
@@ -79,36 +77,7 @@ export default async function ClientPortalPreviewPage({ params }: { params: Prom
       {enabledKeys.has("tasks") && (
         <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <p className="gh-eyebrow">Tasks</p>
-          <form action={createTaskAction.bind(null, client.id, null)} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
-            <input className="gh-input" name="title" placeholder="Add a task" required style={{ flex: 1 }} />
-            <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>+</SubmitButton>
-          </form>
-          {tasks.map((t) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-              <div style={{ flex: 1 }}>
-                <TaskCheckRow task={t} />
-              </div>
-              <details>
-                <summary className="gh-btn-secondary" style={{ cursor: "pointer", listStyle: "none", padding: "var(--gh-space-1) var(--gh-space-2)" }}>
-                  Edit
-                </summary>
-                <form
-                  action={updateTaskAction.bind(null, t.id, client.id)}
-                  style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
-                >
-                  <input className="gh-input" name="title" defaultValue={t.title} required style={{ flex: 1 }} />
-                  <input className="gh-input" type="date" name="dueDate" defaultValue={t.dueDate ?? ""} />
-                  <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>Save</SubmitButton>
-                </form>
-              </details>
-              <form action={deleteTaskAction.bind(null, t.id, client.id)}>
-                <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
-                  Remove
-                </SubmitButton>
-              </form>
-            </div>
-          ))}
-          {tasks.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No tasks right now.</p>}
+          <TaskListPreview clientId={client.id} tasks={tasks} />
         </section>
       )}
 

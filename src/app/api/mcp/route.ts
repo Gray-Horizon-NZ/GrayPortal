@@ -111,11 +111,12 @@ function buildServer() {
     "create_task",
     {
       description:
-        "Creates a new ad-hoc task, optionally attached to a client. Defaults to assigned-to-caller " +
-        "if assignedTo isn't given. Creates a real row every time it's called — never call it " +
-        "speculatively or twice for the same task.",
+        "Creates a new ad-hoc task, optionally attached to a client or a pipeline deal (prospect). " +
+        "Defaults to assigned-to-caller if assignedTo isn't given. Creates a real row every time it's " +
+        "called — never call it speculatively or twice for the same task.",
       inputSchema: {
         clientId: z.string().uuid().optional(),
+        dealId: z.string().uuid().optional(),
         internalList: z.enum(INTERNAL_LIST_KEYS).optional(),
         title: z.string().min(1),
         dueDate: z.string().optional(),

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createDeal, changeDealStage, softDeleteDeal, type DealInputT } from "@/lib/dal/deals";
 import { logActivity } from "@/lib/dal/activities";
 import { sendEmail } from "@/lib/dal/emails";
+import { createTask } from "@/lib/dal/tasks";
 import type { Stage } from "@/config/pipeline";
 
 export async function createDealAction(companyId: string, formData: FormData) {
@@ -44,6 +45,15 @@ export async function logDealActivityAction(dealId: string, formData: FormData) 
     outcome: String(formData.get("outcome") ?? "") || undefined,
   });
   revalidatePath(`/deals/${dealId}`);
+}
+
+/** First manual write path for a deal-linked task — every prior one came from an automated deal-stage rule. */
+export async function createDealTaskAction(dealId: string, formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+  await createTask({ dealId, title });
+  revalidatePath(`/deals/${dealId}`);
+  revalidatePath("/tasks");
 }
 
 export async function sendDealEmailAction(dealId: string, formData: FormData) {

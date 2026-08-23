@@ -28,7 +28,7 @@ export default async function FinancePage() {
           GrayPortal never writes to Xero. Connect/disconnect from Settings.
         </p>
         <Link href="/finance/personal" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
-          Personal income split →
+          Owner&apos;s Cut Calculator →
         </Link>
       </div>
 

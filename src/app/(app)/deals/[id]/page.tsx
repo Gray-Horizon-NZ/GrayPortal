@@ -6,7 +6,7 @@ import { getCompany } from "@/lib/dal/companies";
 import { getContact } from "@/lib/dal/contacts";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { STAGES } from "@/config/pipeline";
-import { changeStageAction, deleteDealAction, logDealActivityAction, sendDealEmailAction } from "../actions";
+import { changeStageAction, deleteDealAction, logDealActivityAction, sendDealEmailAction, createDealTaskAction } from "../actions";
 import EmailComposeFields from "@/components/EmailComposeFields";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -14,6 +14,7 @@ import StageStepper from "@/components/ui/StageStepper";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import RecordHeader from "@/components/ui/RecordHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
+import TaskCheckRow from "../../tasks/TaskCheckRow";
 
 export default async function DealDetailPage({
   params,
@@ -156,11 +157,12 @@ export default async function DealDetailPage({
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
           <Card eyebrow="Tasks">
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+              <form action={createDealTaskAction.bind(null, deal.id)} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+                <input className="gh-input" name="title" placeholder="Add a task" required style={{ flex: 1 }} />
+                <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>+</SubmitButton>
+              </form>
               {tasks.map((t) => (
-                <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
-                  <span>{t.title}</span>
-                  <Badge status={t.status === "done" ? "success" : "neutral"}>{t.status}</Badge>
-                </div>
+                <TaskCheckRow key={t.id} task={t} />
               ))}
               {tasks.length === 0 && <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No tasks yet.</p>}
             </div>

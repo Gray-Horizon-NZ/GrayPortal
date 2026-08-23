@@ -14,6 +14,15 @@ function internalLabel(internalList: string | null) {
   return INTERNAL_LIST_LABELS[(internalList as InternalListKey | null) ?? "gray_horizon"] ?? INTERNAL_LIST_LABELS.gray_horizon;
 }
 
+// A deal-linked task (no clientId) should show/link its prospect, not the
+// generic internal-list label — only fall back to the internal label when
+// there's neither a client nor a deal.
+function displayClientName(t: { clientName: string | null; dealCompanyName?: string | null; internalList: string | null }) {
+  if (t.clientName) return t.clientName;
+  if (t.dealCompanyName) return null;
+  return internalLabel(t.internalList);
+}
+
 export default async function TasksPage({
   searchParams,
 }: {
@@ -105,13 +114,13 @@ async function AllTasksView() {
       {ongoing.length > 0 && (
         <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <p className="gh-eyebrow">Ongoing</p>
-          {ongoing.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? internalLabel(t.internalList) }} assignees={assignees} />)}
+          {ongoing.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
         </section>
       )}
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
         <p className="gh-eyebrow">Active</p>
-        {active.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? internalLabel(t.internalList) }} assignees={assignees} />)}
+        {active.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
         {active.length === 0 && (
           <EmptyState icon={ListChecks} title="Nothing outstanding" description="Every task is done or ongoing." />
         )}
@@ -123,7 +132,7 @@ async function AllTasksView() {
             Done ({done.length})
           </summary>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-3)" }}>
-            {done.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? internalLabel(t.internalList) }} assignees={assignees} />)}
+            {done.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
           </div>
         </details>
       )}
@@ -141,7 +150,7 @@ async function StarredTasksView() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
       {tasks.map((t) => (
-        <TaskRow key={t.id} task={{ ...t, clientName: t.clientName ?? internalLabel(t.internalList) }} assignees={assignees} />
+        <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />
       ))}
       {tasks.length === 0 && (
         <EmptyState icon={Star} title="Nothing starred" description="Star a task anywhere to pin it here, with which list it's from." />
@@ -165,7 +174,8 @@ async function MyTasksView() {
             <TaskRow task={t} />
             {context && (
               <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", paddingLeft: "var(--gh-space-3)" }}>
-                {context.companyName} — {context.stage} — next: {context.nextAction} ({context.nextActionDate})
+                <Link href={`/deals/${context.dealId}`} style={{ color: "var(--gh-accent)" }}>{context.companyName}</Link>
+                {" "}— {context.stage} — next: {context.nextAction} ({context.nextActionDate})
               </p>
             )}
           </div>
