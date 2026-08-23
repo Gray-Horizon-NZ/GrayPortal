@@ -7,5 +7,5 @@ export async function submitPortalReferralAction(formData: FormData) {
     referredName: String(formData.get("referredName") ?? ""),
     notes: String(formData.get("notes") ?? "") || undefined,
   });
-  revalidatePath("/portal/referrals");
+  revalidatePath("/portal/account");
 }

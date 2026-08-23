@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient, updateClient, softDeleteClient, setClientFeature, uploadClientLogo, type PortalFeatureKey } from "@/lib/dal/clients";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
-import { uploadDocument, linkDocument, DocType } from "@/lib/dal/documents";
+import { uploadDocument, linkDocument, renameDocument, deleteDocument, DocType } from "@/lib/dal/documents";
 import type { z } from "zod";
 import { ReferralStatus } from "@/lib/dal/referrals";
 import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
@@ -271,5 +271,15 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
   } else {
     throw new Error("A file or a URL is required");
   }
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function renameDocumentAction(id: string, clientId: string, formData: FormData) {
+  await renameDocument(id, String(formData.get("title") ?? ""));
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function deleteDocumentAction(id: string, clientId: string) {
+  await deleteDocument(id);
   revalidatePath(`/clients/${clientId}`);
 }

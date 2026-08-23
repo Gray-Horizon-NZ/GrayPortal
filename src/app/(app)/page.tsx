@@ -8,12 +8,13 @@ import { listMyNotifications } from "@/lib/dal/notifications";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { withCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
-import { getTotalActiveMonthlyRevenue } from "@/lib/dal/clientServices";
+import { getTotalActiveMonthlyRevenue, getMonthlyRevenueByClient } from "@/lib/dal/clientServices";
 import { getBusinessFinancialRollup } from "@/lib/dal/xero";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
 import { listWeekCalendarEvents } from "@/lib/google/adapter";
 import { isClosedStage } from "@/config/pipeline";
 import StatCard from "@/components/ui/StatCard";
+import MrrBreakdownButton from "@/components/ui/MrrBreakdownButton";
 import Card from "@/components/ui/Card";
 import ScoreGauge from "@/components/ui/ScoreGauge";
 import EmptyState from "@/components/ui/EmptyState";
@@ -34,7 +35,7 @@ export default async function HomePage({
   const taskListView = taskList === "all" ? "all" : "mine";
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
-  const [deals, tasks, myTasks, recentActivities, healthScores, notifications, clients, financials, monthlyRecurringRevenue, recurringTemplates, googleConnection, weekEvents] =
+  const [deals, tasks, myTasks, recentActivities, healthScores, notifications, clients, financials, monthlyRecurringRevenue, recurringRevenueByClient, recurringTemplates, googleConnection, weekEvents] =
     await Promise.all([
       listDeals(),
       listAllTasks(),
@@ -45,6 +46,7 @@ export default async function HomePage({
       listClients(),
       getBusinessFinancialRollup(),
       getTotalActiveMonthlyRevenue(),
+      isAdmin ? getMonthlyRevenueByClient() : Promise.resolve([]),
       isAdmin ? listRecurringTemplates() : Promise.resolve([]),
       isAdmin ? getGoogleConnectionForSync() : Promise.resolve(null),
       isAdmin ? listWeekCalendarEvents() : Promise.resolve([]),
@@ -107,13 +109,25 @@ export default async function HomePage({
       </div>
 
       <div className="gh-grid-joined gh-grid-joined--4 gh-stagger">
-        <StatCard
-          joined
-          eyebrow="Monthly recurring revenue"
-          icon={Repeat}
-          value={`$${monthlyRecurringRevenue.toLocaleString("en-NZ", { maximumFractionDigits: 0 })}`}
-          detail={`across ${clients.length} client${clients.length === 1 ? "" : "s"}`}
-        />
+        {isAdmin ? (
+          <MrrBreakdownButton breakdown={recurringRevenueByClient}>
+            <StatCard
+              joined
+              eyebrow="Monthly recurring revenue"
+              icon={Repeat}
+              value={`$${monthlyRecurringRevenue.toLocaleString("en-NZ", { maximumFractionDigits: 0 })}`}
+              detail={`across ${clients.length} client${clients.length === 1 ? "" : "s"} — click for breakdown`}
+            />
+          </MrrBreakdownButton>
+        ) : (
+          <StatCard
+            joined
+            eyebrow="Monthly recurring revenue"
+            icon={Repeat}
+            value={`$${monthlyRecurringRevenue.toLocaleString("en-NZ", { maximumFractionDigits: 0 })}`}
+            detail={`across ${clients.length} client${clients.length === 1 ? "" : "s"}`}
+          />
+        )}
         <StatCard
           joined
           eyebrow="Pipeline value"
@@ -342,7 +356,8 @@ export default async function HomePage({
               {decliningClients.map((h) => (
                 <Link
                   key={h.clientId}
-                  href={`/clients/${h.clientId}`}
+                  href={`/clients/${h.clientId}/portal-preview`}
+                  target="_blank"
                   style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}
                 >
                   <ScoreGauge value={Math.round(Number(h.score))} size={40} />

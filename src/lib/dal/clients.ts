@@ -30,6 +30,7 @@ export const PORTAL_FEATURE_KEYS = [
   "documents",
   "referrals",
   "grayscale_page",
+  "invoices",
   "ideation",
   "roadmap",
   "meeting_summaries",

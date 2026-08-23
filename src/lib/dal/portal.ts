@@ -16,6 +16,7 @@ import {
   clientActivityFeed,
   clientServices,
   serviceItems,
+  xeroInvoices,
 } from "@/lib/db/schema";
 import { and, asc, desc, eq, isNull, isNotNull } from "drizzle-orm";
 import { withCaller } from "./auth";
@@ -215,16 +216,16 @@ export async function getPortalHome() {
   });
 }
 
-/** Sidebar brand logo — separate from getPortalHome() so the shell (which wraps every portal page) doesn't duplicate that page's full query. */
-export async function getPortalClientLogo(): Promise<string | null> {
+/** Sidebar identity (name + "client since" date) — separate from getPortalHome() so the shell (which wraps every portal page) doesn't duplicate that page's full query. */
+export async function getPortalIdentity(): Promise<{ name: string; createdAt: Date } | null> {
   return withCaller(async (caller, tx) => {
     requireClientScope(caller);
     const [row] = await tx
-      .select({ logoUrl: clients.logoUrl })
+      .select({ name: clients.name, createdAt: clients.createdAt })
       .from(clients)
       .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
       .limit(1);
-    return row?.logoUrl ?? null;
+    return row ?? null;
   });
 }
 
@@ -376,6 +377,23 @@ export async function submitPortalReferral(input: PortalReferralInputT) {
       { ...data, clientId: caller.clientId, createdBy: caller.userId, updatedBy: caller.userId },
       { caller, entityType: "referral" }
     );
+  });
+}
+
+/**
+ * Read-only cache of this client's own Xero AR invoices. RLS additionally
+ * enforces this scoping independently of the WHERE clause here — see
+ * db/sql/019_xero_invoices_client_read.sql, added alongside this function
+ * (xero_invoices was admin-only until now).
+ */
+export async function listPortalInvoices() {
+  return withCaller(async (caller, tx) => {
+    requireClientScope(caller);
+    return tx
+      .select()
+      .from(xeroInvoices)
+      .where(eq(xeroInvoices.clientId, caller.clientId))
+      .orderBy(desc(xeroInvoices.invoiceDate));
   });
 }
 

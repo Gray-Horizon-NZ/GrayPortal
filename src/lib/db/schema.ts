@@ -273,6 +273,17 @@ export const tasks = pgTable("tasks", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
   googleTaskId: text("google_task_id"),
   syncState: syncStateEnum("sync_state"),
+  // Cross-client highlight list — independent of status/assignment, so a
+  // starred task keeps showing in its own client's column AND in the
+  // Starred view, not one or the other.
+  starred: boolean("starred").notNull().default(false),
+  // Only meaningful when clientId is null (an internal, non-client task) —
+  // which of the two internal Master Task View columns it belongs to.
+  // Text + app-layer validation (INTERNAL_LIST_KEYS in dal/tasks.ts),
+  // matching the PORTAL_FEATURE_KEYS pattern elsewhere: an internal
+  // registry, not a pgEnum, since the list of internal buckets is a UI
+  // concern that shouldn't need a migration to extend.
+  internalList: text("internal_list"),
   ...softDelete,
   ...actorColumns,
 });
@@ -739,6 +750,27 @@ export const emailTemplates = pgTable("email_templates", {
   name: text("name").notNull(),
   subject: text("subject").notNull(),
   body: text("body").notNull(),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// ---------------------------------------------------------------------------
+// Business expenses — recurring software/tool costs (the Notion "Business
+// Expenses" table Max already keeps), admin-only per db/sql/018. Feeds the
+// personal finance calculator's monthly-expenses figure as a live source
+// rather than manual per-period re-entry, and stands alone as a dedicated
+// cost/write-off tracker in its own right.
+// ---------------------------------------------------------------------------
+
+export const businessExpenses = pgTable("business_expenses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  category: text("category"), // e.g. "Paperwork", "Finance", "CRM" — free text, matches the reference sheet
+  label: text("label").notNull(), // e.g. "Google Workspace", "Xero"
+  yearlyAmountNzd: numeric("yearly_amount_nzd", { precision: 10, scale: 2 }),
+  monthlyAmountNzd: numeric("monthly_amount_nzd", { precision: 10, scale: 2 }),
+  isWriteoff: boolean("is_writeoff").notNull().default(false),
+  gstYearlyNzd: numeric("gst_yearly_nzd", { precision: 10, scale: 2 }),
+  gstMonthlyNzd: numeric("gst_monthly_nzd", { precision: 10, scale: 2 }),
   ...softDelete,
   ...actorColumns,
 });

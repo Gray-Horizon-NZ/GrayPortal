@@ -51,7 +51,9 @@ export default async function FinancePage() {
         <p className="gh-eyebrow">Clients</p>
         {perClient.map(({ client, financials }) => (
           <div key={client.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
-            <span>{client.name}</span>
+            <Link href={`/clients/${client.id}/portal-preview`} target="_blank" style={{ color: "var(--gh-accent)" }}>
+              {client.name}
+            </Link>
             <span style={{ color: "var(--gh-text-muted)" }}>
               {financials.invoices.length} invoice{financials.invoices.length === 1 ? "" : "s"}
               {financials.hasOverdue && <span className="gh-badge" data-status="danger" style={{ marginLeft: "var(--gh-space-2)" }}>Overdue</span>}

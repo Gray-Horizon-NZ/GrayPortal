@@ -151,17 +151,16 @@ export async function removeContractorPayment(id: string) {
   });
 }
 
-// Average weeks per calendar month (52/12) — used only to size the
-// target-weekly-draw buffer goals below. This is the one part of this
-// calculator that's an inferred assumption, not a confirmed formula: Max's
-// own reference figures ($7,544.94 / $30,179.76 for the $600/week buffers)
-// didn't reverse-engineer cleanly from any simple multiplier tried against
-// them. The "Minimum" buffers (3x/12x monthly expenses) ARE confirmed —
-// they match his reference numbers exactly.
-const WEEKS_PER_MONTH = 52 / 12;
+// Flat weeks-per-month Max specified directly ("$600/week income worth" =
+// $2.4k/month, i.e. 600×4): "the $600/week target-draw buffer is monthly
+// expenses + $600/week income worth" — a monthly figure of
+// (totalExpenses + weeklyDraw×4), scaled by 3 or 12 for the two buffer
+// goals. Confirmed by Max directly, not inferred.
+const WEEKS_PER_MONTH = 4;
 
 export type PeriodFigures = {
   postTaxCashflowNzd: number;
+  taxAmountNzd: number;
   totalExpensesNzd: number;
   totalContractorPaymentsNzd: number;
   takeHomePayNzd: number;
@@ -174,20 +173,25 @@ export type PeriodFigures = {
 /**
  * Pure calculation, kept separate from the DAL reads above so it's
  * testable without a database and reusable from both the page and (if it
- * ever needs one) an MCP tool. Every formula here traces back to Max's own
- * reference model — see the WEEKS_PER_MONTH comment above for the one
- * unconfirmed piece.
+ * ever needs one) an MCP tool. `businessExpensesMonthlyNzd` is the live
+ * total from dal/businessExpenses.ts's getMonthlyExpenseTotal() — folded
+ * into totalExpensesNzd alongside this period's own manual line items,
+ * so the software cost tracker feeds this calculator instead of being
+ * re-entered by hand.
  */
 export function computePeriodFigures(
   period: { grossIncomeNzd: string; taxReductionPercent: string; targetWeeklyDrawNzd: string | null },
   expenseItems: { amountNzd: string }[],
-  contractorPayments: { amountNzd: string }[]
+  contractorPayments: { amountNzd: string }[],
+  businessExpensesMonthlyNzd = 0
 ): PeriodFigures {
   const gross = Number(period.grossIncomeNzd);
   const taxReductionFraction = Number(period.taxReductionPercent) / 100;
-  const postTaxCashflowNzd = gross * (1 - taxReductionFraction);
+  const taxAmountNzd = gross * taxReductionFraction;
+  const postTaxCashflowNzd = gross - taxAmountNzd;
 
-  const totalExpensesNzd = expenseItems.reduce((sum, e) => sum + Number(e.amountNzd), 0);
+  const totalExpensesNzd =
+    expenseItems.reduce((sum, e) => sum + Number(e.amountNzd), 0) + businessExpensesMonthlyNzd;
   const totalContractorPaymentsNzd = contractorPayments.reduce((sum, c) => sum + Number(c.amountNzd), 0);
   const takeHomePayNzd = postTaxCashflowNzd - totalExpensesNzd - totalContractorPaymentsNzd;
 
@@ -195,11 +199,13 @@ export function computePeriodFigures(
   const twelveMonthBufferMinimumNzd = totalExpensesNzd * 12;
 
   const weeklyDraw = period.targetWeeklyDrawNzd != null ? Number(period.targetWeeklyDrawNzd) : null;
-  const threeMonthBufferAtTargetDrawNzd = weeklyDraw != null ? weeklyDraw * WEEKS_PER_MONTH * 3 : null;
-  const twelveMonthBufferAtTargetDrawNzd = weeklyDraw != null ? weeklyDraw * WEEKS_PER_MONTH * 12 : null;
+  const monthlyAtTargetDraw = weeklyDraw != null ? totalExpensesNzd + weeklyDraw * WEEKS_PER_MONTH : null;
+  const threeMonthBufferAtTargetDrawNzd = monthlyAtTargetDraw != null ? monthlyAtTargetDraw * 3 : null;
+  const twelveMonthBufferAtTargetDrawNzd = monthlyAtTargetDraw != null ? monthlyAtTargetDraw * 12 : null;
 
   return {
     postTaxCashflowNzd,
+    taxAmountNzd,
     totalExpensesNzd,
     totalContractorPaymentsNzd,
     takeHomePayNzd,
@@ -208,4 +214,10 @@ export function computePeriodFigures(
     threeMonthBufferAtTargetDrawNzd,
     twelveMonthBufferAtTargetDrawNzd,
   };
+}
+
+/** Sum of every period's own tax set-aside (gross × taxReductionPercent) — the "overall" tax figure. */
+export async function getOverallTaxTotal(): Promise<number> {
+  const periods = await listPeriods();
+  return periods.reduce((sum, p) => sum + Number(p.grossIncomeNzd) * (Number(p.taxReductionPercent) / 100), 0);
 }

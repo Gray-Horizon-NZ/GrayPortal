@@ -2,7 +2,7 @@ import "server-only";
 import { documents } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
-import { auditedInsert } from "./mutate";
+import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { adminBucket } from "@/lib/firebase/admin";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -80,6 +80,27 @@ export async function linkDocument(input: DocumentInputT, externalUrl: string) {
       { ...data, externalUrl, uploadedBy: caller.userId },
       { caller, entityType: "document" }
     );
+  });
+}
+
+export async function renameDocument(id: string, title: string) {
+  const trimmed = title.trim();
+  if (!trimmed) throw new Error("A document name is required");
+  return withCaller(async (caller, tx) => {
+    return auditedUpdate(
+      tx,
+      documents,
+      eq(documents.id, id),
+      id,
+      { title: trimmed },
+      { caller, entityType: "document" }
+    );
+  });
+}
+
+export async function deleteDocument(id: string) {
+  return withCaller(async (caller, tx) => {
+    await auditedSoftDelete(tx, documents, id, { caller, entityType: "document" });
   });
 }
 

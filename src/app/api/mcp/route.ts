@@ -6,7 +6,7 @@ import { getVerifiedUid, withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
 import { listDeals, getDeal } from "@/lib/dal/deals";
 import { listCompanies, getCompany } from "@/lib/dal/companies";
-import { listAllTasks, setTaskStatus, createTask, TaskStatus } from "@/lib/dal/tasks";
+import { listAllTasks, setTaskStatus, createTask, updateTask, deleteTask, TaskStatus, INTERNAL_LIST_KEYS } from "@/lib/dal/tasks";
 import { searchAll } from "@/lib/dal/search";
 import { logActivity } from "@/lib/dal/activities";
 import { onboardClient, OnboardClientInput } from "@/lib/dal/onboarding";
@@ -116,6 +116,7 @@ function buildServer() {
         "speculatively or twice for the same task.",
       inputSchema: {
         clientId: z.string().uuid().optional(),
+        internalList: z.enum(INTERNAL_LIST_KEYS).optional(),
         title: z.string().min(1),
         dueDate: z.string().optional(),
         assignedTo: z.string().uuid().optional(),
@@ -123,6 +124,26 @@ function buildServer() {
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
     async (args) => jsonResult(await createTask(args))
+  );
+
+  server.registerTool(
+    "update_task",
+    {
+      description: "Rename and/or reschedule an existing task (title, due date). Admin-only.",
+      inputSchema: { id: z.string().uuid(), title: z.string().min(1), dueDate: z.string().optional() },
+      annotations: { readOnlyHint: false },
+    },
+    async ({ id, title, dueDate }) => jsonResult(await updateTask(id, { title, dueDate }))
+  );
+
+  server.registerTool(
+    "delete_task",
+    {
+      description: "Soft-delete a task. Admin-only, irreversible from the UI (no undo) — confirm with the caller before using.",
+      inputSchema: { id: z.string().uuid() },
+      annotations: { readOnlyHint: false, idempotentHint: true },
+    },
+    async ({ id }) => jsonResult(await deleteTask(id))
   );
 
   server.registerTool(

@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { withCaller } from "@/lib/dal/auth";
-import { getPeriod, computePeriodFigures } from "@/lib/dal/personalFinance";
+import { getPeriod, computePeriodFigures, getOverallTaxTotal } from "@/lib/dal/personalFinance";
+import { getMonthlyExpenseTotal } from "@/lib/dal/businessExpenses";
 import {
   addExpenseItemAction,
   removeExpenseItemAction,
@@ -10,6 +11,7 @@ import {
   deletePeriodAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import HourlyRateHelper from "./HourlyRateHelper";
 
 function money(n: number) {
   return `$${n.toLocaleString("en-NZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -24,7 +26,12 @@ export default async function PersonalFinancePeriodPage({ params }: { params: Pr
   if (!data) notFound();
   const { period, expenseItems, contractorPayments } = data;
 
-  const figures = computePeriodFigures(period, expenseItems, contractorPayments);
+  const [businessExpensesMonthlyNzd, overallTaxTotalNzd] = await Promise.all([
+    getMonthlyExpenseTotal(),
+    getOverallTaxTotal(),
+  ]);
+
+  const figures = computePeriodFigures(period, expenseItems, contractorPayments, businessExpensesMonthlyNzd);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
@@ -47,12 +54,23 @@ export default async function PersonalFinancePeriodPage({ params }: { params: Pr
           <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{money(Number(period.grossIncomeNzd))}</p>
         </div>
         <div className="gh-card">
-          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Post-tax cashflow ({period.taxReductionPercent}% reduction)</p>
+          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Going to tax ({period.taxReductionPercent}%)</p>
+          <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{money(figures.taxAmountNzd)}</p>
+          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+            {money(overallTaxTotalNzd)} set aside overall
+          </p>
+        </div>
+        <div className="gh-card">
+          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Post-tax cashflow</p>
           <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{money(figures.postTaxCashflowNzd)}</p>
         </div>
         <div className="gh-card">
           <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Monthly expenses</p>
           <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{money(figures.totalExpensesNzd)}</p>
+          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+            incl. {money(businessExpensesMonthlyNzd)} from{" "}
+            <Link href="/finance/expenses" style={{ color: "var(--gh-accent)" }}>Business Expenses</Link>
+          </p>
         </div>
         <div className="gh-card">
           <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Contractor payments</p>
@@ -65,36 +83,44 @@ export default async function PersonalFinancePeriodPage({ params }: { params: Pr
       </div>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Buffer savings goals</p>
+        <p className="gh-eyebrow">Buffer minimums (3×/12× expenses)</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--gh-space-3)", fontSize: "var(--gh-text-sm)" }}>
           <div>
-            <p style={{ color: "var(--gh-text-muted)" }}>3-month minimum (3× expenses)</p>
+            <p style={{ color: "var(--gh-text-muted)" }}>3-month minimum</p>
             <p style={{ fontWeight: 500 }}>{money(figures.threeMonthBufferMinimumNzd)}</p>
           </div>
           <div>
-            <p style={{ color: "var(--gh-text-muted)" }}>12-month minimum (12× expenses)</p>
+            <p style={{ color: "var(--gh-text-muted)" }}>12-month minimum</p>
             <p style={{ fontWeight: 500 }}>{money(figures.twelveMonthBufferMinimumNzd)}</p>
           </div>
-          {figures.threeMonthBufferAtTargetDrawNzd != null && (
-            <div>
-              <p style={{ color: "var(--gh-text-muted)" }}>3-month at target draw</p>
-              <p style={{ fontWeight: 500 }}>{money(figures.threeMonthBufferAtTargetDrawNzd)}</p>
-            </div>
-          )}
-          {figures.twelveMonthBufferAtTargetDrawNzd != null && (
-            <div>
-              <p style={{ color: "var(--gh-text-muted)" }}>12-month at target draw</p>
-              <p style={{ fontWeight: 500 }}>{money(figures.twelveMonthBufferAtTargetDrawNzd)}</p>
-            </div>
-          )}
         </div>
-        {period.targetWeeklyDrawNzd != null && (
-          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", lineHeight: 1.5 }}>
-            The two &quot;at target draw&quot; figures use ${period.targetWeeklyDrawNzd}/week × 52/12 × months — this
-            multiplier is an assumption, not a confirmed formula (it didn&apos;t reverse-engineer cleanly
-            from your reference numbers). Check it against what you actually meant before relying on it.
-          </p>
-        )}
+
+        <details>
+          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>
+            Additional financial security goals
+          </summary>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--gh-space-3)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-3)" }}>
+            {figures.threeMonthBufferAtTargetDrawNzd != null ? (
+              <>
+                <div>
+                  <p style={{ color: "var(--gh-text-muted)" }}>3-month (at target weekly draw)</p>
+                  <p style={{ fontWeight: 500 }}>{money(figures.threeMonthBufferAtTargetDrawNzd)}</p>
+                </div>
+                <div>
+                  <p style={{ color: "var(--gh-text-muted)" }}>12-month (at target weekly draw)</p>
+                  <p style={{ fontWeight: 500 }}>{money(figures.twelveMonthBufferAtTargetDrawNzd ?? 0)}</p>
+                </div>
+              </>
+            ) : (
+              <p style={{ color: "var(--gh-text-muted)" }}>Set a target weekly draw on this period to see these.</p>
+            )}
+          </div>
+          {period.targetWeeklyDrawNzd != null && (
+            <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", lineHeight: 1.5, marginTop: "var(--gh-space-3)" }}>
+              (Monthly expenses + ${period.targetWeeklyDrawNzd}/week × 4) × months.
+            </p>
+          )}
+        </details>
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
@@ -139,10 +165,12 @@ export default async function PersonalFinancePeriodPage({ params }: { params: Pr
           </div>
         ))}
         {contractorPayments.length === 0 && <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>None logged yet.</p>}
-        <form action={addContractorPaymentAction.bind(null, period.id)} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
-          <input className="gh-input" name="payee" placeholder="Paid to" required style={{ flex: 1 }} />
-          <input className="gh-input" name="amountNzd" placeholder="Amount (NZD)" required style={{ flex: 1 }} />
-          <input className="gh-input" name="note" placeholder="Note (optional)" style={{ flex: 1 }} />
+        <form action={addContractorPaymentAction.bind(null, period.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+          <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+            <input className="gh-input" name="payee" placeholder="Paid to (e.g. Yuvi)" required style={{ flex: 1 }} />
+            <input className="gh-input" name="note" placeholder="Note (e.g. Dugal job)" style={{ flex: 1 }} />
+          </div>
+          <HourlyRateHelper />
           <SubmitButton>Add</SubmitButton>
         </form>
       </section>

@@ -199,3 +199,47 @@ export async function getTotalActiveMonthlyRevenue(): Promise<number> {
     return total;
   });
 }
+
+/** Same computation as getTotalActiveMonthlyRevenue, broken out per client — powers the MRR breakdown popup. */
+export async function getMonthlyRevenueByClient(): Promise<{ clientId: string; clientName: string; monthlyNzd: number }[]> {
+  return withCaller(async (_caller, tx) => {
+    const rows = await tx
+      .select({
+        clientId: clientServices.clientId,
+        clientName: clients.name,
+        customMonthlyPrice: clientServices.customMonthlyPrice,
+        currentMonthlyPrice: serviceItems.currentMonthlyPrice,
+        discountPercent: clientServices.discountPercent,
+        overallDiscountPercent: clients.overallDiscountPercent,
+      })
+      .from(clientServices)
+      .innerJoin(serviceItems, eq(clientServices.serviceItemId, serviceItems.id))
+      .innerJoin(clients, eq(clientServices.clientId, clients.id))
+      .where(
+        and(
+          eq(clientServices.status, "active"),
+          isNull(clientServices.deletedAt),
+          isNull(clients.deletedAt)
+        )
+      );
+
+    const subtotalByClient = new Map<string, { name: string; subtotal: number; overallDiscount: number }>();
+    for (const r of rows) {
+      const effective = effectiveMonthly(r.customMonthlyPrice, r.currentMonthlyPrice, r.discountPercent);
+      const existing = subtotalByClient.get(r.clientId);
+      subtotalByClient.set(r.clientId, {
+        name: r.clientName,
+        overallDiscount: Number(r.overallDiscountPercent ?? 0),
+        subtotal: (existing?.subtotal ?? 0) + effective,
+      });
+    }
+
+    return Array.from(subtotalByClient.entries())
+      .map(([clientId, { name, subtotal, overallDiscount }]) => ({
+        clientId,
+        clientName: name,
+        monthlyNzd: subtotal * (1 - overallDiscount / 100),
+      }))
+      .sort((a, b) => b.monthlyNzd - a.monthlyNzd);
+  });
+}

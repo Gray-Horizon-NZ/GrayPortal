@@ -1,25 +1,20 @@
 import { redirect } from "next/navigation";
 import {
   Home,
-  CheckSquare,
-  FileText,
-  Gift,
-  Lightbulb,
-  Map,
-  MessagesSquare,
-  Layers,
+  Briefcase,
+  TrendingUp,
   FolderOpen,
-  BarChart3,
+  Receipt,
+  LayoutGrid,
+  UserCircle,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
-import { getEnabledFeatureKeys, getPortalClientLogo } from "@/lib/dal/portal";
-import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
+import { getEnabledFeatureKeys, getPortalIdentity } from "@/lib/dal/portal";
+import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import LogoutButton from "@/app/(app)/LogoutButton";
+import "../portal-theme.css";
 
-// See (app)/layout.tsx's navIcon for why this exists — icon must be a
-// pre-rendered element by the time it reaches AppShell/NavLink, not a bare
-// component reference (functions can't cross the server→client boundary).
 function navIcon(Icon: LucideIcon) {
   return <Icon size={16} strokeWidth={1.75} />;
 }
@@ -31,9 +26,9 @@ function navIcon(Icon: LucideIcon) {
 // the allowlist and role from Postgres on every request, independent of
 // whatever proxy.ts already decided from the (routing-only) claim.
 //
-// AppShell itself does no role/feature-flag branching — this file resolves
-// the full nav list server-side from enabledFeatureKeys and passes it in,
-// same pattern as (app)/layout.tsx resolving from callerRole.
+// PortalShell (not the admin AppShell) renders the mockup's "gray-horizon-
+// client-portal-v2" look — see docs/plans; portal-theme.css is scoped
+// entirely under .ghp-root and never touches src/app/tokens.css.
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const uid = await getVerifiedUid();
   if (!uid) redirect("/login");
@@ -48,84 +43,67 @@ export default async function PortalLayout({ children }: { children: React.React
   } catch (err) {
     if (err instanceof NotOnAllowlistError) {
       return (
-        <main
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "var(--gh-space-4)",
-            textAlign: "center",
-            padding: "var(--gh-space-6)",
-          }}
-        >
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-            Not authorised
-          </h1>
-          <p style={{ color: "var(--gh-text-muted)", maxWidth: 420 }}>
-            This Google account isn&apos;t on the Gray Portal allowlist. Contact Gray Horizon if
-            you believe this is wrong.
-          </p>
-          <LogoutButton />
-        </main>
+        <div className="ghp-root" data-portal-theme="dark">
+          <main
+            style={{
+              minHeight: "100vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "var(--ghp-space-4)",
+              textAlign: "center",
+              padding: "var(--ghp-space-6)",
+            }}
+          >
+            <h1 className="ghp-serif" style={{ fontSize: 26 }}>
+              Not authorised
+            </h1>
+            <p style={{ color: "var(--ghp-text-dim)", maxWidth: 420 }}>
+              This Google account isn&apos;t on the Gray Portal allowlist. Contact Gray Horizon if
+              you believe this is wrong.
+            </p>
+            <LogoutButton />
+          </main>
+        </div>
       );
     }
     throw err;
   }
 
-  const [enabledFeatureKeys, logoUrl] = await Promise.all([getEnabledFeatureKeys(), getPortalClientLogo()]);
+  const [enabledFeatureKeys, identity] = await Promise.all([getEnabledFeatureKeys(), getPortalIdentity()]);
+  const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
 
-  const navItems: ShellNavItem[] = [
-    { href: "/portal", label: "Home", icon: navIcon(Home) },
-    ...(enabledFeatureKeys.includes("tasks")
-      ? [{ href: "/portal/tasks", label: "Tasks", icon: navIcon(CheckSquare), group: "Workspace" }]
+  const navItems: PortalNavItem[] = [
+    { href: "/portal", label: "Dashboard", icon: navIcon(Home) },
+    ...(has("tasks") || has("roadmap") || has("ideation") || has("deliverables")
+      ? [{ href: "/portal/work", label: "Work", icon: navIcon(Briefcase) }]
       : []),
-    ...(enabledFeatureKeys.includes("documents")
-      ? [{ href: "/portal/documents", label: "Documents", icon: navIcon(FileText), group: "Workspace" }]
+    ...(has("performance") || has("campaign_health") || has("activity_feed") || has("reporting")
+      ? [{ href: "/portal/performance", label: "Performance", icon: navIcon(TrendingUp) }]
       : []),
-    ...(enabledFeatureKeys.includes("ideation")
-      ? [{ href: "/portal/ideation", label: "Ideation", icon: navIcon(Lightbulb), group: "Growth" }]
+    ...(has("documents") || has("drive")
+      ? [{ href: "/portal/files", label: "Files", icon: navIcon(FolderOpen) }]
       : []),
-    ...(enabledFeatureKeys.includes("roadmap")
-      ? [{ href: "/portal/roadmap", label: "Roadmap", icon: navIcon(Map), group: "Growth" }]
-      : []),
-    ...(enabledFeatureKeys.includes("referrals")
-      ? [{ href: "/portal/referrals", label: "Referrals", icon: navIcon(Gift), group: "Growth" }]
-      : []),
-    ...(enabledFeatureKeys.includes("meeting_summaries")
-      ? [{ href: "/portal/meetings", label: "Meeting Summaries", icon: navIcon(MessagesSquare), group: "Resources" }]
-      : []),
-    ...(enabledFeatureKeys.includes("tool_stack")
-      ? [{ href: "/portal/tools", label: "Tool Stack", icon: navIcon(Layers), group: "Resources" }]
-      : []),
-    ...(enabledFeatureKeys.includes("drive")
-      ? [{ href: "/portal/drive", label: "Files", icon: navIcon(FolderOpen), group: "Resources" }]
-      : []),
-    ...(enabledFeatureKeys.includes("reporting")
-      ? [{ href: "/portal/reporting", label: "Reporting", icon: navIcon(BarChart3), group: "Resources" }]
+    ...(has("invoices") ? [{ href: "/portal/invoices", label: "Invoices", icon: navIcon(Receipt) }] : []),
+    ...(has("grayscale_page") ? [{ href: "/portal/grayscale", label: "GrayScale", icon: navIcon(LayoutGrid) }] : []),
+    ...(has("tool_stack") || has("referrals") || has("meeting_summaries")
+      ? [{ href: "/portal/account", label: "Account", icon: navIcon(UserCircle) }]
       : []),
   ];
 
+  const clientSince = identity?.createdAt
+    ? new Date(identity.createdAt).toLocaleDateString("en-NZ", { month: "short", year: "numeric" })
+    : null;
+
   return (
-    <AppShell
-      eyebrow="Gray Horizon"
-      title={
-        logoUrl ? (
-          <span style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- external signed Storage URL, not a local asset */}
-            <img src={logoUrl} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />
-            Client portal
-          </span>
-        ) : (
-          "Client portal"
-        )
-      }
+    <PortalShell
+      clientName={identity?.name ?? callerLabel}
+      clientSince={clientSince}
       navItems={navItems}
-      callerLabel={callerLabel}
       logoutSlot={<LogoutButton />}
     >
       {children}
-    </AppShell>
+    </PortalShell>
   );
 }

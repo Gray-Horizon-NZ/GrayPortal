@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withCaller } from "@/lib/dal/auth";
-import { listPeriods } from "@/lib/dal/personalFinance";
+import { listPeriods, getOverallTaxTotal } from "@/lib/dal/personalFinance";
 import { createPeriodAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 
@@ -13,7 +13,7 @@ export default async function PersonalFinancePage() {
   const caller = await withCaller(async (c) => c);
   if (caller.role !== "admin") redirect("/");
 
-  const periods = await listPeriods();
+  const [periods, overallTaxTotal] = await Promise.all([listPeriods(), getOverallTaxTotal()]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
@@ -23,6 +23,13 @@ export default async function PersonalFinancePage() {
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
           Not connected to Xero or client data — a period-by-period split of your own income into
           tax, expenses, contractor payments, and take-home pay, plus buffer savings goals.
+        </p>
+      </div>
+
+      <div className="gh-card" style={{ maxWidth: 260 }}>
+        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Set aside for tax, overall</p>
+        <p className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
+          ${overallTaxTotal.toLocaleString("en-NZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
       </div>
 

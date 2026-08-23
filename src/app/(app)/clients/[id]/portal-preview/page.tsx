@@ -11,16 +11,29 @@ import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
 import { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
+import { createTaskAction, updateTaskAction, deleteTaskAction } from "../../../tasks/actions";
+import TaskCheckRow from "../../../tasks/TaskCheckRow";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 /**
- * Read-only reconstruction of what a client sees in their portal, built
- * from the same admin-scoped, clientId-parameterized listers the client
- * detail page already calls — not RLS impersonation or a cloned route
- * tree (see plan notes: impersonation would require refactoring every
- * listPortalX DAL function to accept an injectable scope, plus loosening
- * portal/layout.tsx's hard client-role gate, for a look-but-don't-touch
- * feature). Each section below mirrors its real /portal/<x> page's exact
- * layout.
+ * Mostly read-only reconstruction of what a client sees in their portal,
+ * built from the same admin-scoped, clientId-parameterized listers the
+ * client detail page already calls — not RLS impersonation or a cloned
+ * route tree (impersonation would require refactoring every listPortalX
+ * DAL function to accept an injectable scope, plus loosening
+ * portal/layout.tsx's hard client-role gate). Each section mirrors its
+ * real /portal/<x> page's exact layout.
+ *
+ * Tasks is the one interactive exception — agency staff need to add, tick,
+ * edit (rename/reschedule), and remove tasks for a client without leaving
+ * this admin-side view, so it reuses the Master Task View components
+ * (TaskCheckRow, createTaskAction) plus its own inline edit/remove
+ * controls (updateTaskAction, deleteTaskAction) rather than staying a
+ * read-only mirror. This keeps the client-facing (portal) route group's
+ * hard role gate intact — admins still never get routed into it, and
+ * clients never see an edit/remove control on their own /portal/work page
+ * — while giving agency staff the full task-management capability from
+ * here instead.
  */
 export default async function ClientPortalPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,7 +65,7 @@ export default async function ClientPortalPreviewPage({ params }: { params: Prom
         <p className="gh-eyebrow">Client portal preview</p>
         <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>{client.name}</h1>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-2)" }}>
-          Read-only — this is what {client.name} sees in their portal.
+          What {client.name} sees in their portal — Tasks below is fully manageable from here (add/tick/edit/remove); everything else is read-only.
         </p>
         <Link href={`/clients/${client.id}`} className="gh-btn-secondary" style={{ marginTop: "var(--gh-space-3)", display: "inline-block" }}>
           ← Back to client
@@ -64,19 +77,35 @@ export default async function ClientPortalPreviewPage({ params }: { params: Prom
       )}
 
       {enabledKeys.has("tasks") && (
-        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <p className="gh-eyebrow">Tasks</p>
+          <form action={createTaskAction.bind(null, client.id, null)} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+            <input className="gh-input" name="title" placeholder="Add a task" required style={{ flex: 1 }} />
+            <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>+</SubmitButton>
+          </form>
           {tasks.map((t) => (
-            <div key={t.id} className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span>{t.title}</span>
-              <span style={{ display: "flex", gap: "var(--gh-space-3)", alignItems: "center" }}>
-                {t.dueDate && (
-                  <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Due {t.dueDate}</span>
-                )}
-                <span className="gh-badge" data-status={t.status === "done" ? "success" : undefined}>
-                  {t.status.replace("_", " ")}
-                </span>
-              </span>
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+              <div style={{ flex: 1 }}>
+                <TaskCheckRow task={t} />
+              </div>
+              <details>
+                <summary className="gh-btn-secondary" style={{ cursor: "pointer", listStyle: "none", padding: "var(--gh-space-1) var(--gh-space-2)" }}>
+                  Edit
+                </summary>
+                <form
+                  action={updateTaskAction.bind(null, t.id, client.id)}
+                  style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+                >
+                  <input className="gh-input" name="title" defaultValue={t.title} required style={{ flex: 1 }} />
+                  <input className="gh-input" type="date" name="dueDate" defaultValue={t.dueDate ?? ""} />
+                  <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>Save</SubmitButton>
+                </form>
+              </details>
+              <form action={deleteTaskAction.bind(null, t.id, client.id)}>
+                <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
+                  Remove
+                </SubmitButton>
+              </form>
             </div>
           ))}
           {tasks.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No tasks right now.</p>}

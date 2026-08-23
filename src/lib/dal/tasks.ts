@@ -3,18 +3,29 @@ import { tasks, deals, companies, clients } from "@/lib/db/schema";
 import { and, eq, getTableColumns, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
-import { auditedInsert, auditedUpdate } from "./mutate";
+import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { syncTaskToGoogle } from "@/lib/google/adapter";
 import { z } from "zod";
 
 export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing"]);
+
+// Registry of internal (no-client) task-list buckets — app-layer, not a
+// pgEnum, matching PORTAL_FEATURE_KEYS's pattern (dal/clients.ts) so a new
+// bucket doesn't need a migration. Only meaningful on tasks with no
+// clientId; ignored otherwise.
+export const INTERNAL_LIST_KEYS = ["gray_horizon", "gray_horizon_focus"] as const;
+export type InternalListKey = (typeof INTERNAL_LIST_KEYS)[number];
+export const INTERNAL_LIST_LABELS: Record<InternalListKey, string> = {
+  gray_horizon: "Gray Horizon",
+  gray_horizon_focus: "Gray Horizon - Focus",
+};
 
 /**
  * Every task, org-wide — the "All" half of the merged /tasks page's
  * toggle, and the source list for the Master Task View (grouped by
  * clientId client-side). Left-joined to clients so a task's client name
  * travels with it — deal-linked tasks with no clientId come back with
- * clientName null, read as "Internal," not an error.
+ * clientName null, read as one of the two internal buckets, not an error.
  */
 export async function listAllTasks() {
   return withCaller(async (_caller, tx) => {
@@ -26,8 +37,26 @@ export async function listAllTasks() {
   });
 }
 
+/** Cross-client — every starred task regardless of clientId, for the Starred view. */
+export async function listStarredTasks() {
+  return withCaller(async (_caller, tx) => {
+    return tx
+      .select({ ...getTableColumns(tasks), clientName: clients.name })
+      .from(tasks)
+      .leftJoin(clients, eq(tasks.clientId, clients.id))
+      .where(and(eq(tasks.starred, true), isNull(tasks.deletedAt)));
+  });
+}
+
+export async function toggleTaskStar(id: string, starred: boolean) {
+  return withCaller(async (caller, tx) => {
+    return auditedUpdate(tx, tasks, eq(tasks.id, id), id, { starred }, { caller, entityType: "task" });
+  });
+}
+
 export const CreateTaskInput = z.object({
   clientId: z.string().uuid().optional(),
+  internalList: z.enum(INTERNAL_LIST_KEYS).optional(),
   title: z.string().min(1),
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
@@ -51,6 +80,7 @@ export async function createTask(input: CreateTaskInputT) {
       tasks,
       {
         clientId: data.clientId ?? null,
+        internalList: data.clientId ? null : (data.internalList ?? null),
         title: data.title,
         dueDate: data.dueDate ?? null,
         assignedTo: data.assignedTo ?? caller.userId,
@@ -98,6 +128,36 @@ export async function listTasksForClient(clientId: string) {
       .select()
       .from(tasks)
       .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)));
+  });
+}
+
+export const UpdateTaskInput = z.object({
+  title: z.string().min(1),
+  dueDate: z.string().optional(),
+});
+export type UpdateTaskInputT = z.infer<typeof UpdateTaskInput>;
+
+/** Admin-only rename/reschedule — no equivalent existed anywhere before (Master Task View only ever changed status/assignee/star). */
+export async function updateTask(id: string, input: UpdateTaskInputT) {
+  const data = UpdateTaskInput.parse(input);
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return auditedUpdate(
+      tx,
+      tasks,
+      eq(tasks.id, id),
+      id,
+      { title: data.title, dueDate: data.dueDate ?? null, updatedBy: caller.userId },
+      { caller, entityType: "task" }
+    );
+  });
+}
+
+/** Admin-only — soft delete, consistent with every other table (no hard deletes). */
+export async function deleteTask(id: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    await auditedSoftDelete(tx, tasks, id, { caller, entityType: "task" });
   });
 }
 

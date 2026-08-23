@@ -43,6 +43,8 @@ import {
   deleteClientActivityFeedEntryAction,
   updateClientServicePriceAction,
   updateClientDiscountAction,
+  renameDocumentAction,
+  deleteDocumentAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
@@ -174,13 +176,35 @@ export default async function ClientDetailPage({
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Documents</p>
         {documents.map((d) => (
-          <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
-            <span>{d.title ?? d.docType}</span>
-            {d.externalUrl ? (
-              <a href={`/api/documents/${d.id}/download`} target="_blank" rel="noreferrer">Open link ↗</a>
-            ) : (
-              <a href={`/api/documents/${d.id}/download`}>Download</a>
-            )}
+          <div key={d.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+              <span>{d.title ?? d.docType}</span>
+              <span style={{ display: "flex", gap: "var(--gh-space-3)", alignItems: "center" }}>
+                {d.externalUrl ? (
+                  <a href={`/api/documents/${d.id}/download`} target="_blank" rel="noreferrer">Open link ↗</a>
+                ) : (
+                  <a href={`/api/documents/${d.id}/download`}>Download</a>
+                )}
+                <form action={deleteDocumentAction.bind(null, d.id, client.id)}>
+                  <SubmitButton
+                    className="gh-btn-secondary"
+                    style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-micro)", padding: "var(--gh-space-1) var(--gh-space-2)" }}
+                  >
+                    Remove
+                  </SubmitButton>
+                </form>
+              </span>
+            </div>
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Rename</summary>
+              <form
+                action={renameDocumentAction.bind(null, d.id, client.id)}
+                style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+              >
+                <input className="gh-input" name="title" defaultValue={d.title ?? ""} required style={{ flex: 1 }} />
+                <SubmitButton style={{ fontSize: "var(--gh-text-micro)" }}>Save</SubmitButton>
+              </form>
+            </details>
           </div>
         ))}
         {documents.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No documents yet.</p>}
