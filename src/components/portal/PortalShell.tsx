@@ -47,7 +47,10 @@ export default function PortalShell({
         <main className="ghp-main">
           {children}
           <div className="ghp-page-footer">
-            <SolusMark size={16} /> Built with Solus
+            <SolusMark size={16} />
+            <span>
+              <b>Solus</b> — a Gray Horizon platform
+            </span>
           </div>
         </main>
       </div>
