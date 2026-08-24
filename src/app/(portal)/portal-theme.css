@@ -80,7 +80,6 @@
   align-items: center;
   gap: var(--ghp-space-2);
 }
-.ghp-brand span { color: var(--ghp-brass); }
 .ghp-nav a {
   display: block;
   padding: 10px 20px;
@@ -105,18 +104,19 @@
   gap: var(--ghp-space-3);
 }
 .ghp-side-foot b { color: var(--ghp-text); }
-.ghp-footer {
+.ghp-main { padding: 26px 34px 50px; display: flex; flex-direction: column; min-height: 100%; }
+.ghp-page-footer {
+  margin-top: 40px;
+  padding-top: 18px;
   border-top: 1px solid var(--ghp-line);
-  padding-top: var(--ghp-space-3);
-  font-size: 10px;
-  color: var(--ghp-text-dim);
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ghp-brass);
 }
-.ghp-footer-solus { display: flex; align-items: center; gap: 6px; }
-
-.ghp-main { padding: 26px 34px 50px; }
 .ghp-page-head { margin-bottom: 20px; }
 .ghp-page-head h1 { font-family: var(--ghp-font-display), serif; font-weight: 400; font-size: 26px; margin: 0; }
 .ghp-page-head .ghp-sub { font-size: 11.5px; color: var(--ghp-text-dim); margin-top: 4px; }

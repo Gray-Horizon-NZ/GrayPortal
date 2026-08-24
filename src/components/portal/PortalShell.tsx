@@ -28,9 +28,7 @@ export default function PortalShell({
       <div className="ghp-shell">
         <aside className="ghp-aside">
           <div>
-            <div className="ghp-brand">
-              GRAY<span>·</span>HORIZON
-            </div>
+            <div className="ghp-brand">Gray Horizon</div>
             <PortalNav items={navItems} />
           </div>
           <div className="ghp-side-foot">
@@ -44,17 +42,14 @@ export default function PortalShell({
               )}
             </div>
             {logoutSlot}
-            <div className="ghp-footer">
-              <span>
-                {clientName} · Client Portal · Gray Horizon
-              </span>
-              <span className="ghp-footer-solus">
-                <SolusMark /> Built with Solus
-              </span>
-            </div>
           </div>
         </aside>
-        <main className="ghp-main">{children}</main>
+        <main className="ghp-main">
+          {children}
+          <div className="ghp-page-footer">
+            <SolusMark size={16} /> Built with Solus
+          </div>
+        </main>
       </div>
     </div>
   );
@@ -65,9 +60,9 @@ export default function PortalShell({
  * previously in docs/Phase-21-Onward-Brief.md §25.2). Swap for a real asset
  * once Max supplies one.
  */
-function SolusMark() {
+function SolusMark({ size = 10 }: { size?: number }) {
   return (
-    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 10 10" aria-hidden="true" style={{ flexShrink: 0 }}>
       <circle cx="5" cy="5" r="4" fill="none" stroke="var(--ghp-brass)" strokeWidth="1.5" />
       <circle cx="5" cy="5" r="1.3" fill="var(--ghp-brass)" />
     </svg>

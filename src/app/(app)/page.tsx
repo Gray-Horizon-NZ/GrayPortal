@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { TrendingUp, Wallet, Activity, Bell, AlertTriangle, Clock3, CreditCard, ListChecks, CalendarDays, Repeat } from "lucide-react";
+import { TrendingUp, Wallet, AlertTriangle, Clock3, CreditCard, ListChecks, CalendarDays, Repeat } from "lucide-react";
 import { listDeals } from "@/lib/dal/deals";
 import { listAllTasks, listMyAssignedTasks } from "@/lib/dal/tasks";
-import { listRecentActivities } from "@/lib/dal/activities";
 import { listLatestHealthScores } from "@/lib/dal/health";
-import { listMyNotifications } from "@/lib/dal/notifications";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { withCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
@@ -35,14 +33,12 @@ export default async function HomePage({
   const taskListView = taskList === "all" ? "all" : "mine";
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
-  const [deals, tasks, myTasks, recentActivities, healthScores, notifications, clients, financials, monthlyRecurringRevenue, recurringRevenueByClient, recurringTemplates, googleConnection, weekEvents] =
+  const [deals, tasks, myTasks, healthScores, clients, financials, monthlyRecurringRevenue, recurringRevenueByClient, recurringTemplates, googleConnection, weekEvents] =
     await Promise.all([
       listDeals(),
       listAllTasks(),
       listMyAssignedTasks(),
-      listRecentActivities(10),
       listLatestHealthScores(),
-      listMyNotifications(),
       listClients(),
       getBusinessFinancialRollup(),
       getTotalActiveMonthlyRevenue(),
@@ -81,7 +77,6 @@ export default async function HomePage({
 
   const clientsById = new Map(clients.map((c) => [c.id, c]));
   const decliningClients = healthScores.filter((h) => h.trend === "down");
-  const unreadNotifications = notifications.filter((n) => !n.read).slice(0, 5);
   const firstName = (caller.displayName ?? caller.email).split(" ")[0].split("@")[0];
 
   const dueItems = [
@@ -220,90 +215,8 @@ export default async function HomePage({
         </div>
       </div>
 
-      <div className={`gh-grid-joined ${isAdmin ? "gh-grid-joined--4" : "gh-grid-joined--3"}`}>
-        <div className="gh-grid-cell">
-          <div className="gh-panel-head">
-            <p className="gh-panel-title">Timeline</p>
-            <p className="gh-eyebrow">Recent activity</p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {recentActivities.map((a, i) => (
-              <div
-                key={a.id}
-                style={{
-                  display: "flex",
-                  gap: "var(--gh-space-3)",
-                  paddingBottom: i === recentActivities.length - 1 ? 0 : "var(--gh-space-3)",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <span style={{ width: 6, height: 6, background: "var(--gh-accent)", flexShrink: 0, marginTop: 5 }} />
-                  {i !== recentActivities.length - 1 && (
-                    <span style={{ width: 1, flex: 1, background: "var(--gh-border)", marginTop: 4 }} />
-                  )}
-                </div>
-                <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
-                  <span style={{ color: "var(--gh-text-primary)", textTransform: "capitalize" }}>{a.type}</span>
-                  {" — "}
-                  {new Date(a.occurredAt).toLocaleDateString("en-NZ")}
-                </p>
-              </div>
-            ))}
-            {recentActivities.length === 0 && <EmptyState icon={Activity} title="No recent activity" />}
-          </div>
-        </div>
-
-        {isAdmin && (
-          <div className="gh-grid-cell">
-            <div className="gh-panel-head">
-              <p className="gh-panel-title">This week</p>
-              <p className="gh-eyebrow">Calendar</p>
-            </div>
-            {!googleConnection ? (
-              <>
-                <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-                  No Google account connected.
-                </p>
-                <Link href="/settings" style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-3)", display: "inline-block" }}>
-                  Connect Google →
-                </Link>
-              </>
-            ) : weekEvents.length === 0 ? (
-              <EmptyState icon={CalendarDays} title="Nothing on the calendar this week" />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-                {weekDays.map((day, i) => {
-                  const dayEvents = eventsByDay.get(day) ?? [];
-                  const label =
-                    i === 0
-                      ? "Today"
-                      : new Date(`${day}T00:00:00`).toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" });
-                  return (
-                    <div key={day} style={{ paddingTop: i === 0 ? 0 : "var(--gh-space-2)", borderTop: i === 0 ? "none" : "1px solid var(--gh-border)" }}>
-                      <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-1)" }}>{label}</p>
-                      {dayEvents.length === 0 ? (
-                        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-disabled)" }}>Nothing scheduled</p>
-                      ) : (
-                        dayEvents.map((e) => (
-                          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: "var(--gh-space-3)", fontSize: "var(--gh-text-sm)" }}>
-                            <span>{e.summary}</span>
-                            {!e.allDay && (
-                              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
-                                {new Date(e.start).toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit" })}
-                              </span>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="gh-grid-cell">
+      <div className="gh-grid-joined gh-grid-joined--3">
+        <div className="gh-grid-cell" style={{ gridColumn: "span 2" }}>
           <div className="gh-panel-head">
             <p className="gh-panel-title">Tasks</p>
             <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
@@ -328,7 +241,16 @@ export default async function HomePage({
           {widgetTasks.length === 0 ? (
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>Nothing outstanding.</p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--gh-space-2)",
+                fontSize: 12,
+                ["--gh-text-sm" as string]: "11px",
+                ["--gh-text-xs" as string]: "10px",
+              } as React.CSSProperties}
+            >
               {widgetTasks.map((t) => (
                 <TaskRow key={t.id} task={t} />
               ))}
@@ -371,26 +293,58 @@ export default async function HomePage({
         </div>
       </div>
 
-      <Card
-        eyebrow="Notifications"
-        title="Unread"
-        density="compact"
-        action={<Bell size={16} strokeWidth={1.75} color="var(--gh-text-muted)" />}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-          {unreadNotifications.map((n) => (
-            <p key={n.id} style={{ fontSize: "var(--gh-text-sm)" }}>
-              {n.type.replace(/_/g, " ")}
-            </p>
-          ))}
-          {unreadNotifications.length === 0 && (
-            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>All caught up.</p>
+      {isAdmin && (
+        <Card
+          eyebrow="Calendar"
+          title="This week"
+          density="compact"
+          action={<CalendarDays size={16} strokeWidth={1.75} color="var(--gh-text-muted)" />}
+        >
+          {!googleConnection ? (
+            <>
+              <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+                No Google account connected — the business calendar shows here once one is.
+              </p>
+              <Link href="/settings" style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-3)", display: "inline-block" }}>
+                Connect Google →
+              </Link>
+            </>
+          ) : weekEvents.length === 0 ? (
+            <EmptyState icon={CalendarDays} title="Nothing on the calendar this week" />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "var(--gh-space-4)" }}>
+              {weekDays.map((day, i) => {
+                const dayEvents = eventsByDay.get(day) ?? [];
+                const label =
+                  i === 0
+                    ? "Today"
+                    : new Date(`${day}T00:00:00`).toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" });
+                return (
+                  <div key={day}>
+                    <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>{label}</p>
+                    {dayEvents.length === 0 ? (
+                      <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-disabled)" }}>Nothing scheduled</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+                        {dayEvents.map((e) => (
+                          <div key={e.id} style={{ fontSize: "var(--gh-text-sm)" }}>
+                            <p>{e.summary}</p>
+                            {!e.allDay && (
+                              <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+                                {new Date(e.start).toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit" })}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
-        </div>
-        <Link href="/notifications" style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-4)", display: "inline-block" }}>
-          View all →
-        </Link>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
