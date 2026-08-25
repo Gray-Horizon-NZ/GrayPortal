@@ -1,12 +1,33 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { disconnectGoogle } from "@/lib/dal/googleConnection";
+import { disconnectGoogle, updateCalendarSettings, setInternalTasklistMapping, type CalendarSetting } from "@/lib/dal/googleConnection";
 import { disconnectXero } from "@/lib/dal/xeroConnection";
 import { revokeMySessions } from "@/lib/dal/users";
+import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib/dal/tasks";
 
 export async function disconnectGoogleAction() {
   await disconnectGoogle();
+  revalidatePath("/settings");
+}
+
+export async function updateCalendarSettingsAction(settings: CalendarSetting[]) {
+  await updateCalendarSettings(settings);
+  revalidatePath("/settings");
+  revalidatePath("/");
+  revalidatePath("/calendar");
+}
+
+export async function listGoogleTasklistsAction() {
+  return listGoogleTasklistsForAdmin();
+}
+
+export async function createGoogleTasklistAction(title: string) {
+  return createGoogleTasklistForAdmin(title);
+}
+
+export async function setInternalTasklistMappingAction(internalListKey: string, tasklistId: string) {
+  await setInternalTasklistMapping(internalListKey, tasklistId);
   revalidatePath("/settings");
 }
 

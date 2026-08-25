@@ -11,6 +11,7 @@ import { getBusinessFinancialRollup } from "@/lib/dal/xero";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
 import { listWeekCalendarEvents } from "@/lib/google/adapter";
 import { isClosedStage } from "@/config/pipeline";
+import { formatEventTimeRange } from "@/lib/date";
 import StatCard from "@/components/ui/StatCard";
 import MrrBreakdownButton from "@/components/ui/MrrBreakdownButton";
 import Card from "@/components/ui/Card";
@@ -328,10 +329,10 @@ export default async function HomePage({
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
                         {dayEvents.map((e) => (
                           <div key={e.id} style={{ fontSize: "var(--gh-text-sm)" }}>
-                            <p>{e.summary}</p>
+                            <p style={{ color: e.color ?? undefined }}>{e.summary}</p>
                             {!e.allDay && (
                               <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-                                {new Date(e.start).toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit" })}
+                                {formatEventTimeRange(e)}
                               </p>
                             )}
                           </div>

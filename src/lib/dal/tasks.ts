@@ -1,10 +1,11 @@
 import "server-only";
 import { tasks, deals, companies, clients } from "@/lib/db/schema";
-import { and, eq, getTableColumns, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
-import { syncTaskToGoogle } from "@/lib/google/adapter";
+import { syncTaskToGoogle, removeTaskFromGoogle, listGoogleTasklists, createGoogleTasklist } from "@/lib/google/adapter";
+import { resolveGoogleTasklistId } from "./googleConnection";
 import { z } from "zod";
 
 export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing"]);
@@ -19,6 +20,24 @@ export const INTERNAL_LIST_LABELS: Record<InternalListKey, string> = {
   gray_horizon: "Gray Horizon",
   gray_horizon_focus: "Gray Horizon - Focus",
 };
+
+// Admin-gated wrappers around the adapter's tasklist picker calls — live
+// here (not googleConnection.ts) because they depend on
+// @/lib/google/adapter, which itself depends on googleConnection.ts;
+// putting them there would be a circular import.
+export async function listGoogleTasklistsForAdmin() {
+  return withCaller(async (caller) => {
+    assertRole(caller, "admin");
+    return listGoogleTasklists();
+  });
+}
+
+export async function createGoogleTasklistForAdmin(title: string) {
+  return withCaller(async (caller) => {
+    assertRole(caller, "admin");
+    return createGoogleTasklist(title);
+  });
+}
 
 /**
  * Every task, org-wide — the "All" half of the merged /tasks page's
@@ -37,7 +56,8 @@ export async function listAllTasks() {
       .leftJoin(clients, eq(tasks.clientId, clients.id))
       .leftJoin(deals, eq(tasks.dealId, deals.id))
       .leftJoin(companies, eq(deals.companyId, companies.id))
-      .where(isNull(tasks.deletedAt));
+      .where(isNull(tasks.deletedAt))
+      .orderBy(desc(tasks.createdAt));
   });
 }
 
@@ -50,7 +70,8 @@ export async function listStarredTasks() {
       .leftJoin(clients, eq(tasks.clientId, clients.id))
       .leftJoin(deals, eq(tasks.dealId, deals.id))
       .leftJoin(companies, eq(deals.companyId, companies.id))
-      .where(and(eq(tasks.starred, true), isNull(tasks.deletedAt)));
+      .where(and(eq(tasks.starred, true), isNull(tasks.deletedAt)))
+      .orderBy(desc(tasks.createdAt));
   });
 }
 
@@ -102,13 +123,18 @@ export async function createTask(input: CreateTaskInputT) {
 
     // Same "never block the underlying mutation on Google" rule as
     // setTaskStatus below — sync is best-effort bookkeeping on top of an
-    // already-committed row.
-    const result = await syncTaskToGoogle(task);
+    // already-committed row. A brand-new task has no prior googleTaskListId
+    // to preserve, so routing is always freshly resolved here (unlike
+    // setTaskStatus, which must keep targeting wherever the task already
+    // lives once synced).
+    const tasklistId = await resolveGoogleTasklistId(task);
+    const result = await syncTaskToGoogle(task, tasklistId);
     if (result.status === "skipped") return task;
     const [updated] = await tx
       .update(tasks)
       .set({
         googleTaskId: result.status === "synced" ? result.googleId : task.googleTaskId,
+        googleTaskListId: result.status === "synced" ? tasklistId : task.googleTaskListId,
         syncState: result.status,
       })
       .where(eq(tasks.id, task.id))
@@ -127,9 +153,13 @@ export async function createTask(input: CreateTaskInputT) {
 export async function listMyAssignedTasks() {
   return withCaller(async (caller, tx) => {
     return tx
-      .select()
+      .select({ ...getTableColumns(tasks), clientName: clients.name, dealCompanyName: companies.name })
       .from(tasks)
-      .where(and(eq(tasks.assignedTo, caller.userId), isNull(tasks.deletedAt)));
+      .leftJoin(clients, eq(tasks.clientId, clients.id))
+      .leftJoin(deals, eq(tasks.dealId, deals.id))
+      .leftJoin(companies, eq(deals.companyId, companies.id))
+      .where(and(eq(tasks.assignedTo, caller.userId), isNull(tasks.deletedAt)))
+      .orderBy(desc(tasks.createdAt));
   });
 }
 
@@ -139,27 +169,41 @@ export async function listTasksForClient(clientId: string) {
     return tx
       .select()
       .from(tasks)
-      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)));
+      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)))
+      .orderBy(desc(tasks.createdAt));
   });
 }
 
 export const UpdateTaskInput = z.object({
   title: z.string().min(1),
   dueDate: z.string().optional(),
+  // Both omitted (undefined) = list unchanged. Either present (even if
+  // null) = an explicit re-list: exactly one of clientId/internalList
+  // ends up set, the other two (including dealId) cleared — a task lives
+  // in exactly one list, matching Master Task View's own column grouping
+  // (tasksForColumn in MasterTaskView.tsx).
+  clientId: z.string().uuid().nullable().optional(),
+  internalList: z.enum(INTERNAL_LIST_KEYS).nullable().optional(),
 });
 export type UpdateTaskInputT = z.infer<typeof UpdateTaskInput>;
 
-/** Admin-only rename/reschedule — no equivalent existed anywhere before (Master Task View only ever changed status/assignee/star). */
+/** Admin-only rename/reschedule/re-list — no equivalent existed anywhere before (Master Task View only ever changed status/assignee/star). */
 export async function updateTask(id: string, input: UpdateTaskInputT) {
   const data = UpdateTaskInput.parse(input);
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
+    const relisted = data.clientId !== undefined || data.internalList !== undefined;
     return auditedUpdate(
       tx,
       tasks,
       eq(tasks.id, id),
       id,
-      { title: data.title, dueDate: data.dueDate ?? null, updatedBy: caller.userId },
+      {
+        title: data.title,
+        dueDate: data.dueDate ?? null,
+        updatedBy: caller.userId,
+        ...(relisted ? { clientId: data.clientId ?? null, internalList: data.internalList ?? null, dealId: null } : {}),
+      },
       { caller, entityType: "task" }
     );
   });
@@ -169,7 +213,13 @@ export async function updateTask(id: string, input: UpdateTaskInputT) {
 export async function deleteTask(id: string) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
+    const [task] = await tx.select().from(tasks).where(eq(tasks.id, id)).limit(1);
     await auditedSoftDelete(tx, tasks, id, { caller, entityType: "task" });
+    // Uses the list this task was actually synced into, not a fresh
+    // resolve — same reasoning as setTaskStatus above.
+    if (task?.googleTaskId) {
+      await removeTaskFromGoogle(task.googleTaskId, task.googleTaskListId ?? "@default");
+    }
   });
 }
 
@@ -239,13 +289,22 @@ export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatu
     // Phase 3: push status (and thus completion) to Google Tasks. Same
     // rationale as deals.ts's applyDealSync — never blocks the underlying
     // mutation, and the googleTaskId/syncState write is bookkeeping, not a
-    // second audited change.
-    const result = await syncTaskToGoogle(task as typeof tasks.$inferSelect);
+    // second audited change. Prefer the list this task is ALREADY synced
+    // into over a fresh resolve — the client's/internal list's mapping may
+    // have changed since creation, but an update must still target the
+    // list the task actually lives in, or Google 404s / it gets orphaned.
+    // Only unsynced tasks (never successfully created in Google, e.g. it
+    // predates this routing or Google was disconnected at creation time)
+    // fall back to a fresh resolve.
+    const typedTask = task as typeof tasks.$inferSelect;
+    const tasklistId = typedTask.googleTaskListId ?? (await resolveGoogleTasklistId(typedTask));
+    const result = await syncTaskToGoogle(typedTask, tasklistId);
     if (result.status === "skipped") return task;
     const [updated] = await tx
       .update(tasks)
       .set({
-        googleTaskId: result.status === "synced" ? result.googleId : (task as typeof tasks.$inferSelect).googleTaskId,
+        googleTaskId: result.status === "synced" ? result.googleId : typedTask.googleTaskId,
+        googleTaskListId: result.status === "synced" ? tasklistId : typedTask.googleTaskListId,
         syncState: result.status,
       })
       .where(eq(tasks.id, id))

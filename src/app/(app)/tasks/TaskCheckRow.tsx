@@ -52,11 +52,6 @@ export default function TaskCheckRow({ task }: { task: Task }) {
         >
           {task.title}
         </span>
-        {task.dueDate && !done && (
-          <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", whiteSpace: "nowrap" }}>
-            {task.dueDate}
-          </span>
-        )}
       </label>
       <button
         type="button"

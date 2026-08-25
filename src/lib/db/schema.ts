@@ -167,6 +167,17 @@ export const clients = pgTable("clients", {
   // one for "this client's whole retainer is discounted X%" deals, the
   // per-service one for "this one line item is discounted" deals.
   overallDiscountPercent: numeric("overall_discount_percent", { precision: 5, scale: 2 }),
+  // Same precedent as xeroContactId directly above — deliberately admin-set
+  // from the client detail page, never auto-matched. Routes this client's
+  // synced tasks into their own Google Tasks list instead of the shared
+  // @default list — see src/lib/dal/googleConnection.ts's
+  // resolveGoogleTasklistId.
+  googleTaskListId: text("google_task_list_id"),
+  // Admin-set, e.g. for a test-only client that will never have real
+  // tasks — keeps Master Task View from carrying a permanently-empty
+  // column. Doesn't affect the client portal or anywhere else the client
+  // shows up, only Master Task View's own column list.
+  hiddenFromTaskView: boolean("hidden_from_task_view").notNull().default(false),
   ...softDelete,
   ...actorColumns,
 });
@@ -272,6 +283,12 @@ export const tasks = pgTable("tasks", {
   dueDate: date("due_date"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   googleTaskId: text("google_task_id"),
+  // The Google Tasks list this task was actually synced into — resolved
+  // once at sync time (resolveGoogleTasklistId) and persisted here so
+  // later updates/deletes always target the list the task actually lives
+  // in, even if the client's or internal list's mapping changes afterward.
+  // Not the same as "what would resolve today" — that's a live lookup.
+  googleTaskListId: text("google_task_list_id"),
   syncState: syncStateEnum("sync_state"),
   // Cross-client highlight list — independent of status/assignment, so a
   // starred task keeps showing in its own client's column AND in the
@@ -529,6 +546,29 @@ export const googleConnections = pgTable("google_connections", {
   // account creation. Lives here rather than a separate table since Gmail
   // reuses the same OAuth grant as Calendar/Tasks (GOOGLE_SYNC_SCOPES).
   gmailHistoryId: text("gmail_history_id"),
+  // Admin-picked subset of the connected account's calendars (Google
+  // Calendar IDs, from calendarList.list) to merge into GrayPortal's
+  // calendar reads — e.g. other Gmail accounts already shared/subscribed
+  // into this account, or the admin's own personal calendar — plus a
+  // display color per calendar, since events from different accounts need
+  // to be visually distinguishable. `{ id: string; color: string }[]`.
+  // Null means "not configured yet," which the adapter treats as
+  // ["primary"] (uncolored) so existing behavior is unchanged until an
+  // admin opts in via Settings.
+  calendarSettings: jsonb("calendar_settings").$type<{ id: string; color: string }[]>(),
+  ...softDelete,
+});
+
+// Maps GrayPortal's two fixed internal task-list keys (INTERNAL_LIST_KEYS
+// in dal/tasks.ts — "gray_horizon", "gray_horizon_focus") to a Google Tasks
+// list ID each, admin-set from Settings. A separate table rather than two
+// columns on google_connections for the same reason internalList itself
+// isn't a pgEnum: the internal-key set is an app-layer concern, and a table
+// keyed by that text doesn't need a migration if the set changes.
+export const internalTasklistMappings = pgTable("internal_tasklist_mappings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  internalListKey: text("internal_list_key").notNull().unique(),
+  googleTasklistId: text("google_tasklist_id").notNull(),
   ...softDelete,
 });
 

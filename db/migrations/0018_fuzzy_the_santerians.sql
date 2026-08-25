@@ -1,0 +1,1 @@
+ALTER TABLE "google_connections" ADD COLUMN "selected_calendar_ids" text[];

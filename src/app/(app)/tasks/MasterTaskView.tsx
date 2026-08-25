@@ -5,7 +5,7 @@ import { INTERNAL_LIST_KEYS, INTERNAL_LIST_LABELS, type InternalListKey } from "
 import { createTaskAction } from "./actions";
 import { createDealTaskAction } from "../deals/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
-import TaskCheckRow from "./TaskCheckRow";
+import TaskRowEditable from "./TaskRowEditable";
 
 type Column =
   | { kind: "client"; clientId: string; name: string }
@@ -35,9 +35,9 @@ export default async function MasterTaskView() {
   }
 
   const columns: Column[] = [
-    ...clients.map((c) => ({ kind: "client", clientId: c.id, name: c.name }) as Column),
-    ...Array.from(dealColumns, ([dealId, name]) => ({ kind: "deal", dealId, name }) as Column),
     ...INTERNAL_LIST_KEYS.map((key) => ({ kind: "internal", internalList: key, name: INTERNAL_LIST_LABELS[key] }) as Column),
+    ...clients.filter((c) => !c.hiddenFromTaskView).map((c) => ({ kind: "client", clientId: c.id, name: c.name }) as Column),
+    ...Array.from(dealColumns, ([dealId, name]) => ({ kind: "deal", dealId, name }) as Column),
   ];
 
   const tasksForColumn = (col: Column) => {
@@ -50,6 +50,9 @@ export default async function MasterTaskView() {
     return <p style={{ color: "var(--gh-text-muted)" }}>No clients yet.</p>;
   }
 
+  const clientOptions = clients.filter((c) => !c.hiddenFromTaskView).map((c) => ({ id: c.id, name: c.name }));
+  const internalListOptions = INTERNAL_LIST_KEYS.map((key) => ({ key, label: INTERNAL_LIST_LABELS[key] }));
+
   return (
     <div style={{ display: "flex", gap: "var(--gh-space-4)", overflowX: "auto", paddingBottom: "var(--gh-space-4)" }}>
       {columns.map((col) => {
@@ -57,11 +60,12 @@ export default async function MasterTaskView() {
         const open = colTasks.filter((t) => t.status !== "done");
         const done = colTasks.filter((t) => t.status === "done");
         const key = col.kind === "client" ? col.clientId : col.kind === "deal" ? col.dealId : col.internalList;
+        const columnClientId = col.kind === "client" ? col.clientId : null;
         return (
           <div
             key={key}
             className="gh-card"
-            style={{ minWidth: 260, maxWidth: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}
+            style={{ minWidth: 360, maxWidth: 360, flexShrink: 0, display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}
           >
             {col.kind === "client" ? (
               <Link
@@ -92,9 +96,15 @@ export default async function MasterTaskView() {
               <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>+</SubmitButton>
             </form>
 
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "column", maxHeight: 420, overflowY: "auto" }}>
               {open.map((t) => (
-                <TaskCheckRow key={t.id} task={t} />
+                <TaskRowEditable
+                  key={t.id}
+                  task={t}
+                  clientId={columnClientId}
+                  clientOptions={clientOptions}
+                  internalListOptions={internalListOptions}
+                />
               ))}
               {open.length === 0 && (
                 <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>Nothing outstanding.</p>
@@ -106,9 +116,15 @@ export default async function MasterTaskView() {
                 <summary className="gh-eyebrow" style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)" }}>
                   Done ({done.length})
                 </summary>
-                <div style={{ display: "flex", flexDirection: "column", marginTop: "var(--gh-space-2)" }}>
+                <div style={{ display: "flex", flexDirection: "column", marginTop: "var(--gh-space-2)", maxHeight: 240, overflowY: "auto" }}>
                   {done.map((t) => (
-                    <TaskCheckRow key={t.id} task={t} />
+                    <TaskRowEditable
+                  key={t.id}
+                  task={t}
+                  clientId={columnClientId}
+                  clientOptions={clientOptions}
+                  internalListOptions={internalListOptions}
+                />
                   ))}
                 </div>
               </details>

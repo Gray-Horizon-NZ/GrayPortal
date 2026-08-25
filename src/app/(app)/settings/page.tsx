@@ -1,23 +1,36 @@
 import { redirect } from "next/navigation";
 import { withCaller } from "@/lib/dal/auth";
-import { getGoogleConnection } from "@/lib/dal/googleConnection";
-import { disconnectGoogleAction, disconnectXeroAction, revokeSessionsAction } from "./actions";
+import { getGoogleConnection, getInternalTasklistMappings } from "@/lib/dal/googleConnection";
+import { listConnectedCalendars } from "@/lib/google/adapter";
+import { INTERNAL_LIST_KEYS, INTERNAL_LIST_LABELS } from "@/lib/dal/tasks";
+import {
+  disconnectGoogleAction,
+  disconnectXeroAction,
+  revokeSessionsAction,
+  listGoogleTasklistsAction,
+  createGoogleTasklistAction,
+  setInternalTasklistMappingAction,
+} from "./actions";
 import McpTokenButton from "./McpTokenButton";
 import TotpEnrollment from "./TotpEnrollment";
+import CalendarPicker from "./CalendarPicker";
+import GoogleTasklistPicker from "@/components/ui/GoogleTasklistPicker";
 import { getXeroConnection } from "@/lib/dal/xeroConnection";
 import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ google?: "connected" | "error" | "notconfigured"; xero?: string }>;
+  searchParams: Promise<{ google?: "connected" | "error" | "notconfigured"; reason?: string; xero?: string }>;
 }) {
-  const { google, xero } = await searchParams;
+  const { google, reason, xero } = await searchParams;
   const caller = await withCaller(async (c) => c);
   if (caller.role !== "admin") redirect("/");
 
   const connection = await getGoogleConnection();
   const xeroConnection = await getXeroConnection();
+  const availableCalendars = connection ? await listConnectedCalendars() : [];
+  const internalTasklistMappings = connection ? await getInternalTasklistMappings() : {};
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 560 }}>
@@ -31,8 +44,14 @@ export default async function SettingsPage({
       )}
       {google === "error" && (
         <p style={{ color: "var(--gh-danger)" }}>
-          Couldn&apos;t connect Google. If you&apos;ve granted this before, remove Gray Portal&apos;s
-          access at myaccount.google.com/permissions and try again. If Google shows &quot;Error 401:
+          Couldn&apos;t connect Google.
+          {reason && (
+            <>
+              {" "}Reason: <code>{reason}</code>.
+            </>
+          )}
+          {" "}If you&apos;ve granted this before, remove Gray Portal&apos;s access at
+          myaccount.google.com/permissions and try again. If Google shows &quot;Error 401:
           invalid_client&quot; on its own consent screen (before you get back here at all), that&apos;s
           not something a retry fixes — the OAuth 2.0 client registered in Google Cloud Console for
           this app has been deleted, recreated under a different ID, or belongs to the wrong project.
@@ -90,6 +109,39 @@ export default async function SettingsPage({
             <form action={disconnectGoogleAction}>
               <SubmitButton className="gh-btn-secondary" pendingLabel="Disconnecting…">Disconnect</SubmitButton>
             </form>
+
+            <div style={{ borderTop: "1px solid var(--gh-border)", paddingTop: "var(--gh-space-3)" }}>
+              <p className="gh-eyebrow">Calendars to merge in</p>
+              <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-2)" }}>
+                Other calendars this Google account can already see — shared/subscribed accounts, or a
+                personal calendar once you share it in — show up here to merge into GrayPortal&apos;s
+                calendar views. Each ticked calendar gets its own color, shown on its events so
+                different accounts stay visually distinct. Nothing ticked means primary only, same as
+                before.
+              </p>
+              <CalendarPicker calendars={availableCalendars} settings={connection.calendarSettings} />
+            </div>
+
+            <div style={{ borderTop: "1px solid var(--gh-border)", paddingTop: "var(--gh-space-3)", display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
+              <div>
+                <p className="gh-eyebrow">Internal task lists</p>
+                <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+                  Route Master Task View&apos;s two internal columns into their own Google Tasks lists.
+                  Per-client routing is set on each client&apos;s own page.
+                </p>
+              </div>
+              {INTERNAL_LIST_KEYS.map((key) => (
+                <div key={key} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+                  <p className="gh-panel-title" style={{ fontSize: "var(--gh-text-sm)" }}>{INTERNAL_LIST_LABELS[key]}</p>
+                  <GoogleTasklistPicker
+                    currentTasklistId={internalTasklistMappings[key] ?? null}
+                    listAction={listGoogleTasklistsAction}
+                    createAction={createGoogleTasklistAction}
+                    onLink={setInternalTasklistMappingAction.bind(null, key)}
+                  />
+                </div>
+              ))}
+            </div>
           </>
         ) : (
           <>

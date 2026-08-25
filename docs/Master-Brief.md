@@ -2,7 +2,7 @@
 
 **For:** Claude Code, and anyone (human or agent) that needs the full picture before touching a single phase
 **Owner:** Max Fawcett, Gray Horizon (Auckland, NZ)
-**Purpose of this document:** The whole system, in one place — what it is, who it's for, everything it does or will do, and the principles that hold it together. This is a reference, not a build queue. For build order and per-phase specs, see `Dashboard-Brief.md` (Phase 0–1), `Phase-2-Brief.md` through `Phase-5-Brief.md`, and `Moving-Forward-Brief.md` (Phase 6 onward).
+**Purpose of this document:** The whole system, in one place — what it is, who it's for, everything it does, and the principles that hold it together. This is a reference, not a build queue. The full original build queue (Phase 0–20) plus the 2026-08-22 owner-review backlog (Phase 21–24) is built — see git history / current code for how any of it works. The only work still open is tracked in `GrayScale-Brief.md`.
 
 ---
 
@@ -33,7 +33,7 @@ Tenant isolation is enforced at the data-access layer for every one of these —
 
 ## 3. Architectural principles (apply everywhere, no exceptions)
 
-These were established in `Dashboard-Brief.md` and hold for every phase built since:
+These were established at the start of the build and hold for every phase built since:
 
 - **Security is structural.** Where an insecure state can be made impossible to write rather than merely checked for, that's the required approach.
 - **Business logic lives in the DAL**, never in UI components or route handlers — the reason an MCP server (Phase 4) was a thin wrapper instead of a rewrite, and the reason every future capability should be designed MCP-tool-first.
@@ -83,7 +83,7 @@ Cut deliberately, not by omission — listed here so no future phase quietly rei
 
 - **Internal wiki / knowledge base.** Considered and dropped. Notes stay attached to CRM records; no standalone docs/SOP module.
 - **General workflow/automation builder.** A fixed library of hardcoded rules (stage-triggered tasks, the three reminder templates) covers launch needs. A visual trigger→condition→action builder is a large, separate project not justified at this scale.
-- **AI Workflow Builder, AI Calendar Assistant, AI Docs Assistant** (Motion-inspired). Each depends on something else that's out of scope (SOP corpus, two-way calendar sync, mature email history) — noted in `Moving-Forward-Brief.md` §17 as future ideas, not current work.
+- **AI Workflow Builder, AI Calendar Assistant, AI Docs Assistant** (Motion-inspired). Each depends on something else that's out of scope (SOP corpus, two-way calendar sync, mature email history) — deferred future ideas, not current work.
 - **Agreement/contract e-signature generation.** Depends on the Pricing Catalogue existing first; not an MVP feature.
 - **Bulk data import/migration tooling.** Client records are created one at a time, by design — including by an agent parsing unstructured input into the onboarding tool — rather than via a CSV importer.
 - **Invoicing, inventory, time tracking.** Xero and existing processes cover these; not being rebuilt inside GrayPortal.
@@ -93,7 +93,7 @@ Cut deliberately, not by omission — listed here so no future phase quietly rei
 
 ## 6. Brand & design system
 
-Carried through every phase without exception — full detail in `Dashboard-Brief.md` §4, summarized here:
+Carried through every phase without exception, summarized here:
 
 - **Palette:** monochrome, dark-first (`--gh-black` background, `--gh-light` text, `--gh-white` as the only "accent," reserved for emphasis and primary actions). Three muted status hues (`--gh-success`, `--gh-warning`, `--gh-danger`) exist solely for state signalling, never decoration.
 - **Type:** Cormorant Garamond (display — page titles, record names, key metrics, used sparingly) paired with DM Sans (everything functional). A monospace face for IDs, timestamps, and currency alignment in tables.
@@ -105,27 +105,6 @@ Carried through every phase without exception — full detail in `Dashboard-Brie
 
 ## 7. Phase index
 
-| Phase | Name | Doc |
-|---|---|---|
-| 0 | Foundation | `Dashboard-Brief.md` |
-| 1 | CRM core | `Dashboard-Brief.md` |
-| 2 | Client portal (base) | `Phase-2-Brief.md` |
-| 3 | Google Calendar/Tasks sync | `Phase-3-Brief.md` |
-| 4 | MCP server | `Phase-4-Brief.md` |
-| 5 | Client onboarding | `Phase-5-Brief.md` |
-| 6 | Credential Vault | `Moving-Forward-Brief.md` |
-| 7 | Pricing Catalogue | `Moving-Forward-Brief.md` |
-| 8 | Client portal expansion | `Moving-Forward-Brief.md` |
-| 9 | Financial snapshot (Xero) | `Moving-Forward-Brief.md` |
-| 10 | Email system | `Moving-Forward-Brief.md` |
-| 11 | Lead capture | `Moving-Forward-Brief.md` |
-| 12 | Unified notifications | `Moving-Forward-Brief.md` |
-| 13 | Client health score | `Moving-Forward-Brief.md` |
-| 14 | Contractor role | `Moving-Forward-Brief.md` |
-| 15 | Search expansion | `Moving-Forward-Brief.md` |
-| 16 | Homepage / command center | `Moving-Forward-Brief.md` |
-| 17 | Recurring task & reminder engine | `Moving-Forward-Brief.md` |
-| 18 | Mobile Operations Package | `Moving-Forward-Brief.md` |
-| 19 | Security monitoring & backup drills | `Moving-Forward-Brief.md` |
-| 20 | AI Task Planner | `Moving-Forward-Brief.md` |
-| — | Deferred ideas (workflow engine, AI Calendar/Docs/Workflow assistants, e-signature, Agent Inbox) | `Moving-Forward-Brief.md` §17–18 |
+Phases 0–20 (the full original build queue) and the 2026-08-22 owner-review backlog (Phase 21–24: quick fixes, personal finance calculator, task system overhaul, client portal redesign) are all built. Their build briefs have been removed from `docs/` now that they're done — see git history for the original specs, or the current code for how each capability actually works (feature inventory in §4 above).
+
+The only work still open — the "GrayScale" product family (Apexus, Tempus, Solus branding, suggested moves) plus a set of ideas deliberately deferred rather than scheduled (general workflow/automation engine, AI Calendar/Docs assistants, e-signature, Agent Inbox) — is tracked in `GrayScale-Brief.md`.

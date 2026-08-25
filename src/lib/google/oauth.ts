@@ -14,8 +14,13 @@ import { google } from "googleapis";
 // same as any other scope change. gmail.send + gmail.readonly cover
 // compose/send and reading inbound mail; neither is gmail.modify, so
 // GrayPortal can never alter labels/delete mail in the connected inbox.
+// calendar.readonly (added later) covers calendarList.list — calendar.events
+// alone grants event read/write but not enumerating the account's other
+// calendars, which the multi-calendar merge needs. Same reconnect-once rule
+// applies to any admin who connected before this scope existed.
 export const GOOGLE_SYNC_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/tasks",
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/gmail.readonly",

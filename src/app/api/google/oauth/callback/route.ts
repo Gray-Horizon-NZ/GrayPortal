@@ -3,6 +3,7 @@ import { withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
 import { exchangeCodeForRefreshToken, GOOGLE_SYNC_SCOPES } from "@/lib/google/oauth";
 import { saveGoogleConnection } from "@/lib/dal/googleConnection";
+import { absoluteUrl } from "@/lib/http";
 
 const STATE_COOKIE = "__google_oauth_state";
 
@@ -22,10 +23,23 @@ export async function GET(request: NextRequest) {
     await saveGoogleConnection(refreshToken, GOOGLE_SYNC_SCOPES);
   } catch (err) {
     console.error("Google OAuth callback failed", err);
-    return NextResponse.redirect(new URL("/settings?google=error", request.url));
+    // Settings is admin-only, so it's safe to surface the actual failure
+    // reason there instead of a single generic message covering every
+    // possible cause — googleapis/postgres errors are descriptive, not
+    // secrets. Drizzle/postgres-js wrap the real driver error in `.cause`
+    // rather than putting it in the top-level message, so walk the chain.
+    let reason = err instanceof Error ? err.message : String(err);
+    let cause = err instanceof Error ? err.cause : undefined;
+    while (cause instanceof Error) {
+      reason += ` | caused by: ${cause.message}`;
+      cause = cause.cause;
+    }
+    const url = absoluteUrl("/settings?google=error", request);
+    url.searchParams.set("reason", reason.slice(0, 500));
+    return NextResponse.redirect(url);
   }
 
-  const response = NextResponse.redirect(new URL("/settings?google=connected", request.url));
+  const response = NextResponse.redirect(absoluteUrl("/settings?google=connected", request));
   response.cookies.delete(STATE_COOKIE);
   return response;
 }

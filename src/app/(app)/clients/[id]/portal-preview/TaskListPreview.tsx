@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import TaskCheckRow from "../../../tasks/TaskCheckRow";
+import TaskRowEditable from "../../../tasks/TaskRowEditable";
 import SubmitButton from "@/components/ui/SubmitButton";
-import { createTaskAction, updateTaskAction, deleteTaskAction } from "../../../tasks/actions";
+import { createTaskAction } from "../../../tasks/actions";
 
 type Task = {
   id: string;
@@ -42,29 +42,7 @@ export default function TaskListPreview({ clientId, tasks }: { clientId: string;
       )}
 
       {visible.map((t) => (
-        <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-          <div style={{ flex: 1 }}>
-            <TaskCheckRow task={t} />
-          </div>
-          <details>
-            <summary className="gh-btn-secondary" style={{ cursor: "pointer", listStyle: "none", padding: "var(--gh-space-1) var(--gh-space-2)" }}>
-              Edit
-            </summary>
-            <form
-              action={updateTaskAction.bind(null, t.id, clientId)}
-              style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
-            >
-              <input className="gh-input" name="title" defaultValue={t.title} required style={{ flex: 1 }} />
-              <input className="gh-input" type="date" name="dueDate" defaultValue={t.dueDate ?? ""} />
-              <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>Save</SubmitButton>
-            </form>
-          </details>
-          <form action={deleteTaskAction.bind(null, t.id, clientId)}>
-            <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
-              Remove
-            </SubmitButton>
-          </form>
-        </div>
+        <TaskRowEditable key={t.id} task={t} clientId={clientId} />
       ))}
       {visible.length === 0 && (
         <p style={{ color: "var(--gh-text-muted)" }}>{tasks.length === 0 ? "No tasks right now." : "All tasks completed."}</p>

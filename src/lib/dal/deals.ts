@@ -184,12 +184,16 @@ export async function changeDealStage(id: string, newStage: Stage, closeReason?:
           updatedBy: caller.userId,
         })
         .returning();
-      const result = await syncTaskToGoogle(autoTask);
+      // Stage-rule auto-tasks are dealId-only (no clientId/internalList),
+      // so routing always resolves to the shared default list — no need to
+      // call resolveGoogleTasklistId just to get that same answer.
+      const result = await syncTaskToGoogle(autoTask, "@default");
       if (result.status !== "skipped") {
         await tx
           .update(tasks)
           .set({
             googleTaskId: result.status === "synced" ? result.googleId : null,
+            googleTaskListId: result.status === "synced" ? "@default" : null,
             syncState: result.status,
           })
           .where(eq(tasks.id, autoTask.id));

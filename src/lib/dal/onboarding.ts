@@ -6,6 +6,7 @@ import { assertRole } from "./session";
 import { auditedInsert } from "./mutate";
 import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "./clients";
 import { syncTaskToGoogle } from "@/lib/google/adapter";
+import { resolveGoogleTasklistId } from "./googleConnection";
 import { ONBOARDING_TASK_TEMPLATE } from "@/config/onboarding";
 import { z } from "zod";
 
@@ -120,7 +121,8 @@ export async function onboardClient(input: OnboardClientInputT) {
         })
         .returning();
 
-      const result = await syncTaskToGoogle(task);
+      const tasklistId = await resolveGoogleTasklistId(task);
+      const result = await syncTaskToGoogle(task, tasklistId);
       if (result.status === "skipped") {
         createdTasks.push(task);
       } else {
@@ -128,6 +130,7 @@ export async function onboardClient(input: OnboardClientInputT) {
           .update(tasks)
           .set({
             googleTaskId: result.status === "synced" ? result.googleId : null,
+            googleTaskListId: result.status === "synced" ? tasklistId : null,
             syncState: result.status,
           })
           .where(eq(tasks.id, task.id))

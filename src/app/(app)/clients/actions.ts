@@ -1,7 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, updateClient, softDeleteClient, setClientFeature, uploadClientLogo, type PortalFeatureKey } from "@/lib/dal/clients";
+import { createClient, updateClient, softDeleteClient, setClientFeature, uploadClientLogo, setClientGoogleTasklist, setClientHiddenFromTaskView, type PortalFeatureKey } from "@/lib/dal/clients";
+import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib/dal/tasks";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
 import { uploadDocument, linkDocument, renameDocument, deleteDocument, DocType } from "@/lib/dal/documents";
@@ -25,6 +26,25 @@ export async function createClientAction(formData: FormData) {
   });
   revalidatePath("/clients");
   redirect(`/clients/${client.id}`);
+}
+
+export async function listGoogleTasklistsAction() {
+  return listGoogleTasklistsForAdmin();
+}
+
+export async function createGoogleTasklistAction(title: string) {
+  return createGoogleTasklistForAdmin(title);
+}
+
+export async function linkClientTasklistAction(clientId: string, tasklistId: string) {
+  await setClientGoogleTasklist(clientId, tasklistId);
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function setClientHiddenFromTaskViewAction(clientId: string, hidden: boolean) {
+  await setClientHiddenFromTaskView(clientId, hidden);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/tasks");
 }
 
 export async function deleteClientAction(id: string) {

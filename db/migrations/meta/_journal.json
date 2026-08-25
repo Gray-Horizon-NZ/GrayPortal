@@ -127,6 +127,34 @@
       "when": 1787483134336,
       "tag": "0017_add_dev_costs",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787632694246,
+      "tag": "0018_fuzzy_the_santerians",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787633615812,
+      "tag": "0019_slim_kree",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787662045964,
+      "tag": "0020_hesitant_bucky",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787662072858,
+      "tag": "0021_tired_wolf_cub",
+      "breakpoints": true
     }
   ]
 }

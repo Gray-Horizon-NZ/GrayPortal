@@ -1,0 +1,1 @@
+ALTER TABLE "google_connections" DROP COLUMN "selected_calendar_ids";

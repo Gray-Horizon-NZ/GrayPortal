@@ -49,6 +49,8 @@ import {
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
 import ReferralStatusSelect from "./ReferralStatusSelect";
+import TasklistLink from "./TasklistLink";
+import HideFromTaskViewToggle from "./HideFromTaskViewToggle";
 import CredentialsList from "../../vault/CredentialsList";
 
 export default async function ClientDetailPage({
@@ -131,6 +133,16 @@ export default async function ClientDetailPage({
           </form>
         </div>
       </div>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Google Tasks list</p>
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+          Route this client&apos;s synced tasks into their own Google Tasks list instead of the shared
+          default list.
+        </p>
+        <TasklistLink clientId={client.id} currentTasklistId={client.googleTaskListId} />
+        <HideFromTaskViewToggle clientId={client.id} hidden={client.hiddenFromTaskView} />
+      </section>
 
       <section className="gh-card">
         <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>Portal features</p>

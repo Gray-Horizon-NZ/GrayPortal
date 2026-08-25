@@ -76,14 +76,22 @@ export async function removeDealFromGoogle(googleEventId: string | null): Promis
   }
 }
 
-/** Upserts a GrayPortal task as a Google Task on the default task list. */
-export async function syncTaskToGoogle(task: {
-  id: string;
-  title: string;
-  dueDate: string | null;
-  status: string;
-  googleTaskId: string | null;
-}): Promise<SyncResult> {
+/**
+ * Upserts a GrayPortal task as a Google Task on the given list. The caller
+ * (src/lib/dal/tasks.ts) resolves which list via
+ * googleConnection.ts's resolveGoogleTasklistId — this adapter no longer
+ * decides routing, it just uses what it's given.
+ */
+export async function syncTaskToGoogle(
+  task: {
+    id: string;
+    title: string;
+    dueDate: string | null;
+    status: string;
+    googleTaskId: string | null;
+  },
+  tasklistId: string
+): Promise<SyncResult> {
   try {
     const auth = await authedClient();
     if (!auth) return { status: "skipped" };
@@ -97,14 +105,14 @@ export async function syncTaskToGoogle(task: {
 
     if (task.googleTaskId) {
       const { data } = await tasksApi.tasks.update({
-        tasklist: "@default",
+        tasklist: tasklistId,
         task: task.googleTaskId,
         requestBody,
       });
       return { status: "synced", googleId: data.id! };
     }
 
-    const { data } = await tasksApi.tasks.insert({ tasklist: "@default", requestBody });
+    const { data } = await tasksApi.tasks.insert({ tasklist: tasklistId, requestBody });
     return { status: "synced", googleId: data.id! };
   } catch (err) {
     console.error(`syncTaskToGoogle failed for task ${task.id}`, err);
@@ -112,69 +120,143 @@ export async function syncTaskToGoogle(task: {
   }
 }
 
-export type UpcomingEvent = { id: string; summary: string; start: string; allDay: boolean };
+/** Lists the connected account's Google Tasks lists — for the client/internal-list picker UIs. */
+export async function listGoogleTasklists(): Promise<{ id: string; title: string }[]> {
+  const auth = await authedClient();
+  if (!auth) throw new Error("Google is not connected");
+  const tasksApi = google.tasks({ version: "v1", auth });
+  const { data } = await tasksApi.tasklists.list();
+  return (data.items ?? []).filter((t) => t.id).map((t) => ({ id: t.id!, title: t.title ?? t.id! }));
+}
 
-/** Read side of the same admin Google connection used for deal/task sync — dashboard "what's on" widget. */
-export async function listUpcomingCalendarEvents(maxResults = 5): Promise<UpcomingEvent[]> {
+/**
+ * Creates a new Google Tasks list. Unlike the rest of this adapter, this
+ * (and listGoogleTasklists above) throws on failure instead of swallowing
+ * to a SyncResult/[] — these are foreground, admin-triggered picker
+ * actions (same shape as finance/actions.ts's searchXeroContactsAction),
+ * not background best-effort CRM sync, so a Google error should surface as
+ * an error to the admin, not silently read as "no lists exist."
+ */
+export async function createGoogleTasklist(title: string): Promise<{ id: string; title: string }> {
+  const auth = await authedClient();
+  if (!auth) throw new Error("Google is not connected");
+  const tasksApi = google.tasks({ version: "v1", auth });
+  const { data } = await tasksApi.tasklists.insert({ requestBody: { title } });
+  if (!data.id) throw new Error("Google did not return a list ID");
+  return { id: data.id, title: data.title ?? title };
+}
+
+export type UpcomingEvent = {
+  id: string;
+  summary: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  calendarSummary?: string;
+  color?: string;
+};
+
+/** Enumerates the connected account's own calendars (calendarList) so Settings can offer them for merging into reads. */
+export async function listConnectedCalendars(): Promise<
+  { id: string; summary: string; primary: boolean }[]
+> {
   try {
     const auth = await authedClient();
     if (!auth) return [];
     const calendar = google.calendar({ version: "v3", auth });
-    const { data } = await calendar.events.list({
-      calendarId: "primary",
-      timeMin: new Date().toISOString(),
-      maxResults,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-    return (data.items ?? []).map((e) => ({
-      id: e.id!,
-      summary: e.summary ?? "(no title)",
-      start: e.start?.dateTime ?? e.start?.date ?? "",
-      allDay: !e.start?.dateTime,
-    }));
+    const { data } = await calendar.calendarList.list();
+    return (data.items ?? [])
+      .filter((c) => c.id)
+      .map((c) => ({ id: c.id!, summary: c.summary ?? c.id!, primary: c.primary ?? false }));
   } catch (err) {
-    console.error("listUpcomingCalendarEvents failed", err);
+    console.error("listConnectedCalendars failed", err);
     return [];
   }
+}
+
+/**
+ * Reads events across every calendar the admin has selected in Settings
+ * (falling back to just "primary" if nothing's configured, so existing
+ * behavior is unchanged for anyone who hasn't opted into the merge), merged
+ * and sorted by start time. Underlies both the dashboard widget and the
+ * full calendar view.
+ */
+export async function listCalendarEventsInRange(
+  timeMin: Date,
+  timeMax: Date,
+  maxResultsPerCalendar = 50
+): Promise<UpcomingEvent[]> {
+  try {
+    const connection = await getGoogleConnectionForSync();
+    if (!connection) return [];
+    const auth = clientFromRefreshToken(connection.refreshToken);
+    const calendar = google.calendar({ version: "v3", auth });
+    const calendarIds = connection.calendarSettings?.length
+      ? connection.calendarSettings.map((c) => c.id)
+      : ["primary"];
+    const colorByCalendarId = new Map(connection.calendarSettings?.map((c) => [c.id, c.color]));
+
+    const perCalendar = await Promise.all(
+      calendarIds.map(async (calendarId) => {
+        try {
+          const { data } = await calendar.events.list({
+            calendarId,
+            timeMin: timeMin.toISOString(),
+            timeMax: timeMax.toISOString(),
+            maxResults: maxResultsPerCalendar,
+            singleEvents: true,
+            orderBy: "startTime",
+          });
+          return (data.items ?? []).map((e) => ({
+            id: e.id!,
+            summary: e.summary ?? "(no title)",
+            start: e.start?.dateTime ?? e.start?.date ?? "",
+            end: e.end?.dateTime ?? e.end?.date ?? "",
+            allDay: !e.start?.dateTime,
+            calendarSummary: data.summary ?? calendarId,
+            color: colorByCalendarId.get(calendarId),
+          }));
+        } catch (err) {
+          // One bad/inaccessible calendar (e.g. sharing revoked) shouldn't
+          // blank out the others.
+          console.error(`listCalendarEventsInRange failed for calendar ${calendarId}`, err);
+          return [];
+        }
+      })
+    );
+
+    return perCalendar.flat().sort((a, b) => a.start.localeCompare(b.start));
+  } catch (err) {
+    console.error("listCalendarEventsInRange failed", err);
+    return [];
+  }
+}
+
+/** Read side of the same admin Google connection used for deal/task sync — dashboard "what's on" widget. */
+export async function listUpcomingCalendarEvents(maxResults = 5): Promise<UpcomingEvent[]> {
+  const timeMin = new Date();
+  const timeMax = new Date(timeMin);
+  timeMax.setFullYear(timeMax.getFullYear() + 1);
+  const events = await listCalendarEventsInRange(timeMin, timeMax, maxResults);
+  return events.slice(0, maxResults);
 }
 
 /** Week-bounded variant for the dashboard's weekly calendar panel — today through +7 days, uncapped by count. */
 export async function listWeekCalendarEvents(): Promise<UpcomingEvent[]> {
-  try {
-    const auth = await authedClient();
-    if (!auth) return [];
-    const calendar = google.calendar({ version: "v3", auth });
-    const timeMin = new Date();
-    timeMin.setHours(0, 0, 0, 0);
-    const timeMax = new Date(timeMin);
-    timeMax.setDate(timeMax.getDate() + 7);
-    const { data } = await calendar.events.list({
-      calendarId: "primary",
-      timeMin: timeMin.toISOString(),
-      timeMax: timeMax.toISOString(),
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-    return (data.items ?? []).map((e) => ({
-      id: e.id!,
-      summary: e.summary ?? "(no title)",
-      start: e.start?.dateTime ?? e.start?.date ?? "",
-      allDay: !e.start?.dateTime,
-    }));
-  } catch (err) {
-    console.error("listWeekCalendarEvents failed", err);
-    return [];
-  }
+  const timeMin = new Date();
+  timeMin.setHours(0, 0, 0, 0);
+  const timeMax = new Date(timeMin);
+  timeMax.setDate(timeMax.getDate() + 7);
+  return listCalendarEventsInRange(timeMin, timeMax);
 }
 
-export async function removeTaskFromGoogle(googleTaskId: string | null): Promise<void> {
+export async function removeTaskFromGoogle(googleTaskId: string | null, tasklistId: string): Promise<void> {
   if (!googleTaskId) return;
   try {
     const auth = await authedClient();
     if (!auth) return;
     const tasksApi = google.tasks({ version: "v1", auth });
-    await tasksApi.tasks.delete({ tasklist: "@default", task: googleTaskId });
+    await tasksApi.tasks.delete({ tasklist: tasklistId, task: googleTaskId });
   } catch (err) {
     console.error(`removeTaskFromGoogle failed for task ${googleTaskId}`, err);
   }

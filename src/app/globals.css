@@ -626,11 +626,15 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: var(--gh-space-2);
+  /* Deliberately no height/overflow-y here — a pinned height + its own
+     scrollbar meant scrolling the sidebar and scrolling the page (e.g.
+     the dashboard, which is taller than one screen) were two separate
+     motions. Sticky without a height constraint still keeps it in view
+     while scrolling, but once its own content (many nav groups) runs
+     past the viewport, the page just carries on scrolling as one region
+     instead of clipping it into its own scrollbar. */
   position: sticky;
   top: var(--gh-header-height);
-  height: calc(100vh - var(--gh-header-height));
-  height: calc(100dvh - var(--gh-header-height));
-  overflow-y: auto;
 }
 
 .gh-shell-brand {

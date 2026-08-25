@@ -8,6 +8,7 @@ export async function setTaskStatusAction(id: string, status: z.infer<typeof Tas
   await setTaskStatus(id, status);
   revalidatePath("/tasks");
   revalidatePath("/clients", "layout");
+  revalidatePath("/calendar");
 }
 
 export async function assignTaskAction(id: string, assigneeUserId: string | null) {
@@ -29,15 +30,34 @@ export async function updateTaskAction(id: string, clientId: string | null, form
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   const dueDate = String(formData.get("dueDate") ?? "").trim();
-  await updateTask(id, { title, dueDate: dueDate || undefined });
+
+  // "list" is only present when the edit popup offers a list picker
+  // (Master Task View — see EditTaskButton.tsx); portal-preview's simpler
+  // edit form never sends it, which means "leave the list unchanged."
+  const list = String(formData.get("list") ?? "");
+  const relist: { clientId?: string | null; internalList?: InternalListKey | null } = {};
+  if (list.startsWith("client:")) {
+    relist.clientId = list.slice("client:".length);
+    relist.internalList = null;
+  } else if (list.startsWith("internal:")) {
+    relist.clientId = null;
+    // Validated at the DAL layer (UpdateTaskInput's z.enum) — this cast is
+    // just narrowing what's structurally still an arbitrary form string.
+    relist.internalList = list.slice("internal:".length) as InternalListKey;
+  }
+
+  await updateTask(id, { title, dueDate: dueDate || undefined, ...relist });
   revalidatePath("/tasks");
+  revalidatePath("/calendar");
   if (clientId) revalidatePath(`/clients/${clientId}/portal-preview`);
+  if (relist.clientId) revalidatePath(`/clients/${relist.clientId}/portal-preview`);
 }
 
 /** Admin-side only (portal-preview page) — see updateTaskAction. */
 export async function deleteTaskAction(id: string, clientId: string | null) {
   await deleteTask(id);
   revalidatePath("/tasks");
+  revalidatePath("/calendar");
   if (clientId) revalidatePath(`/clients/${clientId}/portal-preview`);
 }
 
@@ -56,4 +76,5 @@ export async function createTaskAction(
   await createTask({ clientId: clientId ?? undefined, internalList: internalList ?? undefined, title });
   revalidatePath("/tasks");
   revalidatePath("/clients", "layout");
+  revalidatePath("/calendar");
 }

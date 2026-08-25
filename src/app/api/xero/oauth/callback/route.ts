@@ -3,6 +3,7 @@ import { withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
 import { exchangeCodeForConnection } from "@/lib/xero/oauth";
 import { saveXeroConnection } from "@/lib/dal/xeroConnection";
+import { absoluteUrl } from "@/lib/http";
 
 const STATE_COOKIE = "__xero_oauth_state";
 
@@ -22,10 +23,10 @@ export async function GET(request: NextRequest) {
     await saveXeroConnection(refreshToken, tenant.tenantId, tenant.tenantName);
   } catch (err) {
     console.error("Xero OAuth callback failed", err);
-    return NextResponse.redirect(new URL("/settings?xero=error", request.url));
+    return NextResponse.redirect(absoluteUrl("/settings?xero=error", request));
   }
 
-  const response = NextResponse.redirect(new URL("/settings?xero=connected", request.url));
+  const response = NextResponse.redirect(absoluteUrl("/settings?xero=connected", request));
   response.cookies.delete(STATE_COOKIE);
   return response;
 }

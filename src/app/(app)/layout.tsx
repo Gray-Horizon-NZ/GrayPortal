@@ -14,6 +14,7 @@ import {
   Clock,
   ShieldCheck,
   Settings as SettingsIcon,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
@@ -89,6 +90,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? [{ href: "/contractors", label: "Contractors", icon: navIcon(HardHat), group: "Accounts" }]
       : []),
     { href: "/tasks", label: "Tasks", icon: navIcon(ListChecks), group: "Work" },
+    // Calendar is admin-only in practice, same reasoning as Pipeline/Vault
+    // above — the connected Google account (and thus anything to show) is
+    // always the admin's own, per src/lib/google/adapter.ts.
+    ...(callerRole === "admin" ? [{ href: "/calendar", label: "Calendar", icon: navIcon(CalendarDays), group: "Work" }] : []),
     ...(callerRole === "admin"
       ? [
           { href: "/inbox", label: "Inbox", icon: navIcon(InboxIcon), group: "Comms" },

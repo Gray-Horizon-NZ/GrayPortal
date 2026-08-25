@@ -2,6 +2,7 @@ import "server-only";
 import { clients, referrals, clientFeatures, users, documents } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
+import { assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { adminBucket } from "@/lib/firebase/admin";
 import { z } from "zod";
@@ -81,6 +82,36 @@ export async function getClient(id: string) {
       .where(and(eq(documents.clientId, id), isNull(documents.deletedAt)));
 
     return { client, referrals: clientReferrals, features, portalUsers, documents: clientDocuments };
+  });
+}
+
+/** Same precedent as linkClientToXeroContact (dal/xero.ts) — admin-only, one-time explicit choice from the client detail page. */
+export async function setClientGoogleTasklist(clientId: string, googleTaskListId: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    await auditedUpdate(
+      tx,
+      clients,
+      eq(clients.id, clientId),
+      clientId,
+      { googleTaskListId, updatedBy: caller.userId },
+      { caller, entityType: "client" }
+    );
+  });
+}
+
+/** Same shape as setClientGoogleTasklist — admin toggle, e.g. for a test-only client with no real tasks. */
+export async function setClientHiddenFromTaskView(clientId: string, hidden: boolean) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    await auditedUpdate(
+      tx,
+      clients,
+      eq(clients.id, clientId),
+      clientId,
+      { hiddenFromTaskView: hidden, updatedBy: caller.userId },
+      { caller, entityType: "client" }
+    );
   });
 }
 

@@ -16,9 +16,18 @@ type Task = {
   dealId?: string | null;
   dealCompanyName?: string | null;
   starred?: boolean;
+  internalList?: string | null;
 };
 
 type Assignee = { id: string; displayName: string | null; email: string };
+
+// Duplicated (not imported) from src/lib/dal/tasks.ts's INTERNAL_LIST_LABELS
+// on purpose — that file is "server-only," which a "use client" component
+// can't import from even for a plain constant.
+const INTERNAL_LIST_LABELS: Record<string, string> = {
+  gray_horizon: "Gray Horizon",
+  gray_horizon_focus: "Gray Horizon - Focus",
+};
 
 export default function TaskRow({ task, assignees = [] }: { task: Task; assignees?: Assignee[] }) {
   const [starred, setStarred] = useState(task.starred ?? false);
@@ -60,21 +69,30 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
             ) : (
               <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-1)" }}>{task.clientName}</p>
             )
+          ) : task.dealCompanyName && task.dealId ? (
+            <Link
+              href={`/deals/${task.dealId}`}
+              className="gh-eyebrow"
+              style={{ marginBottom: "var(--gh-space-1)", display: "inline-block", color: "var(--gh-accent)" }}
+            >
+              Prospect: {task.dealCompanyName}
+            </Link>
           ) : (
-            task.dealCompanyName && task.dealId && (
-              <Link
-                href={`/deals/${task.dealId}`}
-                className="gh-eyebrow"
-                style={{ marginBottom: "var(--gh-space-1)", display: "inline-block", color: "var(--gh-accent)" }}
-              >
-                Prospect: {task.dealCompanyName}
-              </Link>
+            task.internalList && (
+              <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-1)", color: "var(--gh-accent)" }}>
+                {INTERNAL_LIST_LABELS[task.internalList] ?? task.internalList}
+              </p>
             )
           )}
           <p style={{ fontWeight: 500 }}>{task.title}</p>
           <div style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
             {task.dueDate && (
               <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Due {task.dueDate}</p>
+            )}
+            {task.starred && (
+              <span className="gh-badge" data-status="accent" style={{ fontSize: "var(--gh-text-micro)" }}>
+                Starred
+              </span>
             )}
             {task.syncState === "failed" && (
               <span className="gh-badge" data-status="danger">Sync failed</span>
