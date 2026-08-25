@@ -15,9 +15,13 @@ const TOKEN_URL = "https://identity.xero.com/connect/token";
 const CONNECTIONS_URL = "https://api.xero.com/connections";
 
 function credentials() {
-  const clientId = process.env.XERO_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.XERO_OAUTH_CLIENT_SECRET;
-  const redirectUri = process.env.XERO_OAUTH_REDIRECT_URI;
+  // .trim(): the Secret Manager values for these were saved with trailing
+  // CRLFs baked in (visible via `firebase apphosting:secrets:access`), which
+  // made Xero's authorize endpoint reject the client_id as unknown
+  // (unauthorized_client) since it does an exact string match.
+  const clientId = process.env.XERO_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.XERO_OAUTH_CLIENT_SECRET?.trim();
+  const redirectUri = process.env.XERO_OAUTH_REDIRECT_URI?.trim();
   if (!clientId || !clientSecret || !redirectUri) {
     throw new Error("Xero OAuth env vars are not configured");
   }
