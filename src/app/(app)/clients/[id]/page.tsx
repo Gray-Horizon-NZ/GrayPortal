@@ -16,6 +16,7 @@ import { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 import { listEmailsForClient } from "@/lib/dal/emails";
+import { getCompany } from "@/lib/dal/companies";
 import {
   createReferralAction,
   inviteClientAction,
@@ -42,6 +43,7 @@ import {
   deleteClientHealthChannelAction,
   addClientActivityFeedEntryAction,
   deleteClientActivityFeedEntryAction,
+  addClientContactEmailAliasAction,
   updateClientServicePriceAction,
   updateClientDiscountAction,
   renameDocumentAction,
@@ -83,6 +85,7 @@ export default async function ClientDetailPage({
     healthChannels,
     activityFeed,
     recentEmails,
+    companyData,
   ] = await Promise.all([
     listActiveDiscounts(client.id),
     listIdeationItems(client.id),
@@ -98,6 +101,7 @@ export default async function ClientDetailPage({
     listClientHealthChannels(client.id),
     listClientActivityFeed(client.id),
     listEmailsForClient(client.id),
+    client.companyId ? getCompany(client.companyId) : Promise.resolve(null),
   ]);
 
   const overallDiscountPercent = Number(client.overallDiscountPercent ?? 0);
@@ -601,6 +605,30 @@ export default async function ClientDetailPage({
           </div>
         ))}
         {recentEmails.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No matched email yet.</p>}
+
+        {companyData && companyData.contacts.length > 0 && (
+          <details>
+            <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+              + Teach a contact another email address
+            </summary>
+            <form
+              action={addClientContactEmailAliasAction.bind(null, client.id)}
+              style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)", flexWrap: "wrap" }}
+            >
+              <select className="gh-input" name="contactId" required defaultValue="" style={{ flex: "1 1 200px" }}>
+                <option value="" disabled>Which contact…</option>
+                {companyData.contacts.map((c) => (
+                  <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+                ))}
+              </select>
+              <input className="gh-input" name="email" type="email" placeholder="another.address@example.com" required style={{ flex: "1 1 220px" }} />
+              <SubmitButton className="gh-btn-secondary" pendingLabel="Adding…">Add</SubmitButton>
+            </form>
+            <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+              Mail from this address will now match this contact automatically, even though it&apos;s not their primary email on file.
+            </p>
+          </details>
+        )}
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>

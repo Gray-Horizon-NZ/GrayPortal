@@ -81,6 +81,17 @@ export async function createIdeationCategory(input: { label: string }) {
   });
 }
 
+/** Soft-deleting a category is safe even with items still tagged under it —
+ * the Ideation page's own "Other" fallback column (src/app/(app)/ideation/
+ * page.tsx) already catches any item whose category key isn't in the live
+ * registry, so nothing disappears. */
+export async function softDeleteIdeationCategory(id: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    await auditedSoftDelete(tx, ideationCategories, id, { caller, entityType: "ideation_category" });
+  });
+}
+
 export async function listIdeationItems(clientId: string) {
   return withCaller(async (_caller, tx) => {
     return tx

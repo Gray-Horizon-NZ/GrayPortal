@@ -12,6 +12,7 @@ import {
   createGoogleTasklistAction,
   setInternalTasklistMappingAction,
   createIdeationCategoryAction,
+  deleteIdeationCategoryAction,
 } from "./actions";
 import McpTokenButton from "./McpTokenButton";
 import TotpEnrollment from "./TotpEnrollment";
@@ -183,12 +184,27 @@ export default async function SettingsPage({
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--gh-space-2)" }}>
           {ideationCategories.map((c) => (
-            <span key={c.id} className="gh-badge">{c.label}</span>
+            <span key={c.id} className="gh-badge" style={{ display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+              {c.label}
+              <form action={deleteIdeationCategoryAction.bind(null, c.id)}>
+                <button
+                  type="submit"
+                  aria-label={`Remove ${c.label}`}
+                  className="gh-btn-secondary"
+                  style={{ color: "var(--gh-danger)", padding: "0 4px", fontSize: "var(--gh-text-micro)", lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </form>
+            </span>
           ))}
           {ideationCategories.length === 0 && (
             <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No categories yet.</span>
           )}
         </div>
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+          Removing a category doesn&apos;t touch its existing ideas — they still show up on the Ideation page, grouped under &quot;Other&quot;.
+        </p>
         <form action={createIdeationCategoryAction} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
           <input className="gh-input" name="label" placeholder="New category name" required style={{ flex: 1 }} />
           <SubmitButton pendingLabel="Adding…">Add</SubmitButton>

@@ -17,6 +17,7 @@ import { addClientMetricsSnapshot, softDeleteClientMetricsSnapshot } from "@/lib
 import { addClientTeamMember, softDeleteClientTeamMember } from "@/lib/dal/clientTeam";
 import { addClientHealthChannel, softDeleteClientHealthChannel } from "@/lib/dal/clientHealthChannels";
 import { addClientActivityFeedEntry, softDeleteClientActivityFeedEntry } from "@/lib/dal/clientActivityFeed";
+import { addContactEmailAlias } from "@/lib/dal/emails";
 import { monthInputToDate } from "@/lib/date";
 
 export async function createClientAction(formData: FormData) {
@@ -274,6 +275,15 @@ export async function addClientActivityFeedEntryAction(clientId: string, formDat
 export async function deleteClientActivityFeedEntryAction(id: string, clientId: string) {
   await softDeleteClientActivityFeedEntry(id);
   revalidatePath(`/clients/${clientId}`);
+}
+
+export async function addClientContactEmailAliasAction(clientId: string, formData: FormData) {
+  const contactId = String(formData.get("contactId") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
+  if (!contactId || !email) return;
+  await addContactEmailAlias(contactId, email);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/email-triage/clients");
 }
 
 export async function uploadDocumentAction(clientId: string, formData: FormData) {

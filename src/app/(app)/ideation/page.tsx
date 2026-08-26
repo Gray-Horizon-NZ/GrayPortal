@@ -54,8 +54,10 @@ export default async function IdeationPage() {
                       display: "flex",
                       flexDirection: "column",
                       gap: "var(--gh-space-2)",
-                      borderBottom: "1px solid var(--gh-border)",
-                      paddingBottom: "var(--gh-space-3)",
+                      background: "var(--gh-surface-raised)",
+                      border: "1px solid var(--gh-border-strong)",
+                      borderRadius: "var(--gh-radius)",
+                      padding: "var(--gh-space-3)",
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--gh-space-2)" }}>
