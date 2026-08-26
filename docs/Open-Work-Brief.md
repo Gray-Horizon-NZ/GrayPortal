@@ -167,11 +167,24 @@ Confirmed: this is an extension of the existing onboarding workflow (`onboardCli
 - **Walkthrough is a wizard**, not passive portal exploration — see §4.3 for the agreed layout.
 
 ### 4.3 Walkthrough wizard UI — decided shape
-Reached via the emailed portal-setup link (§4.1's token-gated entry point). Multi-step, simplified/linear, not the full portal chrome — a dedicated wizard, not a tour bolted onto the real portal UI:
+Reached via the emailed portal-setup link (§4.1's token-gated entry point). Multi-step, simplified/linear, not the full portal chrome — a dedicated wizard, not a tour bolted onto the real portal UI. Linear, one screen per step, Next-only progression (no free jumping between steps) — the "luxury firm, first impression" brief this is being designed against (2026-08-26) calls for unhurried, one-idea-per-screen pacing over a dense multi-field intake form.
 
 - **Left panel** (fixed across every step): darker background, Gray Horizon logo, "Welcome, [Client Name]." Sets identity/orientation once; doesn't change between steps.
 - **Right panel**: dark gray, holds the actual step content — questions, explanations, and the account-access-request step (§4.2) live here, changing per step.
-- Step count and exact content beyond the account-request step and the portal walkthrough itself still need defining with Max (§7, item 11).
+- **Step indicator**: restrained, e.g. "03 / 07" in the app's existing eyebrow micro-type — not a filled progress bar, not gamified (no confetti, no "Step 3 of 7! 🎉").
+
+**Decided step order (2026-08-26):**
+1. **Welcome** — tone-setting, one warm line, no bulleted itinerary of what's ahead.
+2. **Confirm your details** — business name, main email, phone, position, address, postal address (if different), referred-by (if any). Pre-filled from what `onboardClient()` already captured, framed as "here's what we have — tell us if anything's changed," not a blank form. **New fields needed**: phone/position/address/postal-address/referred-by don't exist on `companies`/`contacts` today — small schema addition, not yet designed.
+3. **Request portal access** — the account-access-request step from §4.2.
+4. **Your documents** — the four documents from §4.5 (Welcome, Project Brief, Delivery Guide, Thank You), presented together on one screen as a set, not spread across four pages. Caption note under the set: these stay available afterward under the portal's own Documents section. Exact tile visual spec (2026-08-26):
+   - Fixed-width rectangles, all matching, so the row reads as a clean aligned set.
+   - Rounded corners, gold outline, translucent dark-gray fill.
+   - Single line of text only (e.g. "Welcome Document"), left-aligned inside the tile, no wrapping.
+   - *(Rounded corners are a deliberate one-off departure from the app-wide `--gh-radius: 0` square-corner rule — flagged, not overridden; the wizard is already its own separate shell so this is a real, isolated choice, not an accident.)*
+5. **Your services** — what's currently agreed, pulled live from `clientServices`, not static copy.
+6. **GrayScale discount** — final step before entering the portal; closes on something exclusive/forward-looking rather than a flat "you're done."
+7. **Enter Client Portal** button → loading transition → real portal. Loading animation (2026-08-26): a ring with a glowing gold arc, spinning semi-slowly — not a generic spinner. Runs a few seconds (this only ever happens once per client, so it's allowed to feel ceremonial rather than fast) before landing them in `<PortalShell>` for real.
 
 ### 4.4 Open questions
 See §7 (added there as items 9–13).
