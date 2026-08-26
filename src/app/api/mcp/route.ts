@@ -13,6 +13,7 @@ import { onboardClient, OnboardClientInput } from "@/lib/dal/onboarding";
 import { listCredentials } from "@/lib/dal/credentials";
 import { listServiceItems } from "@/lib/dal/pricing";
 import { prioritizeTasks } from "@/lib/dal/taskPlanner";
+import { createCampaignDraft, updateCampaignDraft, listCampaigns, queueCampaignSend, CampaignInput } from "@/lib/dal/campaigns";
 
 // The MCP server exposing GrayPortal's existing application layer to
 // Claude (Phase 4 brief). Every tool below is a thin wrapper around a DAL
@@ -204,6 +205,49 @@ function buildServer() {
       annotations: { readOnlyHint: true },
     },
     async () => jsonResult(await prioritizeTasks())
+  );
+
+  server.registerTool(
+    "list_campaigns",
+    { description: "List all email campaigns (drafts and sent/sending), with status and audience.", annotations: { readOnlyHint: true } },
+    async () => jsonResult(await listCampaigns())
+  );
+
+  server.registerTool(
+    "create_campaign_draft",
+    {
+      description:
+        "Create a draft email campaign — branded HTML content, subject, and audience (clients, or clients " +
+        "plus open-pipeline prospects). Draft-only: this never sends anything and never resolves an audience " +
+        "list. Structure the HTML body from whatever source material you were given before calling.",
+      inputSchema: CampaignInput.shape,
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await createCampaignDraft(args))
+  );
+
+  server.registerTool(
+    "update_campaign_draft",
+    {
+      description: "Edit an existing draft campaign's name, subject, HTML body, audience, or schedule time. Only works while the campaign is still in draft status.",
+      inputSchema: { id: z.string().uuid(), ...CampaignInput.partial().shape },
+      annotations: { readOnlyHint: false },
+    },
+    async ({ id, ...rest }) => jsonResult(await updateCampaignDraft(id, rest))
+  );
+
+  server.registerTool(
+    "queue_campaign_send",
+    {
+      description:
+        "Resolves the campaign's audience from live CRM data and queues a real send to every resolved " +
+        "recipient — this sends actual email to actual clients (and, if the audience includes prospects, " +
+        "actual pipeline contacts). Irreversible once the throttled cron sender picks up queued recipients — " +
+        "confirm with the caller before using, same as any other high-blast-radius action.",
+      inputSchema: { id: z.string().uuid() },
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async ({ id }) => jsonResult(await queueCampaignSend(id))
   );
 
   return server;

@@ -11,6 +11,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -102,6 +103,28 @@ export const billingTypeEnum = pgEnum("billing_type", ["one_off", "monthly", "ra
 // Gmail's own labels at query time because "which mailbox is 'us'" needs to
 // stay stable even if the connected admin account changes later.
 export const emailDirectionEnum = pgEnum("email_direction", ["inbound", "outbound"]);
+// Email marketing (Open-Work-Brief.md §2, scoped down — no opt-out/legal
+// distinction needed since these are relationship notifications to clients/
+// prospects, not cold marketing). "clients_and_prospects" is the only
+// audience widening beyond the always-available default of clients alone.
+export const campaignAudienceEnum = pgEnum("campaign_audience", ["clients", "clients_and_prospects"]);
+export const campaignStatusEnum = pgEnum("campaign_status", [
+  "draft",
+  "scheduled",
+  "sending",
+  "sent",
+  "failed",
+  "cancelled",
+]);
+// "skipped_no_email" is the only skip reason: no marketingOptOut concept
+// here, so a queued recipient only ever fails to send because there's
+// nothing to send to.
+export const campaignRecipientStatusEnum = pgEnum("campaign_recipient_status", [
+  "queued",
+  "sent",
+  "failed",
+  "skipped_no_email",
+]);
 
 // ---------------------------------------------------------------------------
 // Soft-delete + audit column helpers
@@ -220,6 +243,35 @@ export const contacts = pgTable("contacts", {
   ...softDelete,
   ...actorColumns,
 });
+
+// A contact reaching out from more than one address (e.g. a work + personal
+// inbox) is one person, not several — this table lets inbound-mail matching
+// (syncInboundGmail) and the Client Emails view recognise every address as
+// the same contact instead of only ever matching contacts.email. Deliberately
+// separate from contacts.email rather than an array column: keeps the
+// "canonical address" vs. "also known from" distinction explicit, and gives
+// each alias its own createdBy/createdAt for audit purposes.
+export const contactEmailAliases = pgTable(
+  "contact_email_aliases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    email: text("email").notNull(),
+    ...softDelete,
+    ...actorColumns,
+  },
+  // Partial (not plain) unique index: soft-deleting a wrong alias must free
+  // the address up for re-adding elsewhere, same as every other soft-delete
+  // + unique-key table in this app (e.g. emailTemplates.key has no such
+  // index only because it's genuinely meant to be permanent).
+  (table) => [
+    uniqueIndex("contact_email_aliases_email_lower_idx")
+      .on(sql`lower(${table.email})`)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
 
 export const deals = pgTable("deals", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -789,7 +841,7 @@ export const xeroInvoices = pgTable("xero_invoices", {
 // establishes (extended scopes, not a second auth flow — see
 // GOOGLE_SYNC_SCOPES in src/lib/google/oauth.ts). Every email is logged
 // here regardless of whether it could be matched to a Contact; activityId
-// stays null for unmatched inbound mail (surfaced in the /inbox triage
+// stays null for unmatched inbound mail (surfaced in the /email-triage
 // view per brief §6) since activities' exactly-one-parent check has
 // nothing to attach to until an admin links it to a Contact. Outbound
 // email always has a contact/deal target and gets its Activity row in the
@@ -821,17 +873,63 @@ export const emails = pgTable(
 );
 
 // Phase 10 — recurring send templates (brief §6: "stored as data... not
-// hard-coded strings"). Body/subject carry {{variable}} placeholders,
+// hard-coded strings"). Subject/htmlBody carry {{variable}} placeholders,
 // rendered at send time by src/lib/dal/emails.ts — no templating engine
-// dependency added for what's simple string substitution.
+// dependency added for what's simple string substitution. htmlBody is
+// hand-written/uploaded HTML (no drag-and-drop builder), rendered through
+// src/lib/email/chrome.ts's wrapEmailHtml before it ever reaches Gmail; the
+// multipart plain-text fallback is derived from it at send time rather than
+// stored separately, so there's one authored source, not two to keep in
+// sync.
 export const emailTemplates = pgTable("email_templates", {
   id: uuid("id").primaryKey().defaultRandom(),
   key: text("key").notNull().unique(), // e.g. "proposal_follow_up"
   name: text("name").notNull(),
   subject: text("subject").notNull(),
-  body: text("body").notNull(),
+  htmlBody: text("html_body").notNull(),
   ...softDelete,
   ...actorColumns,
+});
+
+// Email marketing (Open-Work-Brief.md §2) — audience blast sends built on
+// top of the same Gmail adapter/template system above. Deliberately no
+// opt-out/unsubscribe machinery: these are relationship notifications to
+// existing clients (and optionally pipeline prospects), not cold/unsolicited
+// marketing, so the NZ Unsolicited Electronic Messages Act's bulk-marketing
+// consent requirements don't apply the way they would for a newsletter.
+export const emailCampaigns = pgTable("email_campaigns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  templateId: uuid("template_id").references(() => emailTemplates.id), // nullable — ad hoc content allowed
+  subject: text("subject").notNull(),
+  htmlBody: text("html_body").notNull(),
+  audience: campaignAudienceEnum("audience").notNull().default("clients"),
+  status: campaignStatusEnum("status").notNull().default("draft"),
+  scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// One row per resolved recipient, inserted when a campaign is queued
+// (resolveAudience runs at send time, not draft time — a contact added to a
+// client company after the draft was created is still included). This is
+// what makes sending resumable/auditable per-recipient and what the
+// throttled cron sender (api/cron/run-email-campaigns) iterates over in
+// small batches rather than sending the whole audience in one request.
+export const campaignRecipients = pgTable("campaign_recipients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id")
+    .notNull()
+    .references(() => emailCampaigns.id),
+  contactId: uuid("contact_id")
+    .notNull()
+    .references(() => contacts.id),
+  status: campaignRecipientStatusEnum("status").notNull().default("queued"),
+  gmailMessageId: text("gmail_message_id"),
+  error: text("error"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
 import { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
+import { listEmailsForClient } from "@/lib/dal/emails";
 import {
   createReferralAction,
   inviteClientAction,
@@ -81,6 +82,7 @@ export default async function ClientDetailPage({
     teamMembers,
     healthChannels,
     activityFeed,
+    recentEmails,
   ] = await Promise.all([
     listActiveDiscounts(client.id),
     listIdeationItems(client.id),
@@ -95,6 +97,7 @@ export default async function ClientDetailPage({
     listClientTeamMembers(client.id),
     listClientHealthChannels(client.id),
     listClientActivityFeed(client.id),
+    listEmailsForClient(client.id),
   ]);
 
   const overallDiscountPercent = Number(client.overallDiscountPercent ?? 0);
@@ -579,6 +582,25 @@ export default async function ClientDetailPage({
             <SubmitButton>Add channel</SubmitButton>
           </form>
         </details>
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <p className="gh-eyebrow">Emails</p>
+          <Link href="/email-triage/clients" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+            View all in Email Triage →
+          </Link>
+        </div>
+        {recentEmails.map((e) => (
+          <div key={e.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", fontSize: "var(--gh-text-sm)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>{e.subject || "(no subject)"} <span className="gh-badge">{e.direction}</span></span>
+              <span style={{ color: "var(--gh-text-muted)" }}>{new Date(e.sentAt).toLocaleDateString("en-NZ")}</span>
+            </div>
+            <p style={{ color: "var(--gh-text-muted)" }}>{e.contactFirstName} {e.contactLastName} — {e.snippet}</p>
+          </div>
+        ))}
+        {recentEmails.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No matched email yet.</p>}
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>

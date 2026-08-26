@@ -7,9 +7,10 @@ type Contact = { id: string; firstName: string; lastName: string; email: string 
 // Deliberately manual, never auto-matched — see emails.contactId's schema
 // comment for why a wrong guess here is a real risk, not a convenience
 // worth automating.
-export default function MatchContact({ emailId }: { emailId: string }) {
+export default function MatchContact({ emailId, fromAddress }: { emailId: string; fromAddress: string }) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<Contact[]>([]);
+  const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +30,7 @@ export default function MatchContact({ emailId }: { emailId: string }) {
   async function handleMatch(contactId: string) {
     setBusy(true);
     try {
-      await matchEmailToContactAction(emailId, contactId);
+      await matchEmailToContactAction(emailId, contactId, remember);
       window.location.reload();
     } catch {
       setError("Match failed");
@@ -49,6 +50,12 @@ export default function MatchContact({ emailId }: { emailId: string }) {
           <button className="gh-btn-secondary" type="button" onClick={() => handleMatch(c.id)} disabled={busy}>Match</button>
         </div>
       ))}
+      {results.length > 0 && (
+        <label style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          Remember {fromAddress} for whichever contact I match to, going forward
+        </label>
+      )}
       {error && <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>{error}</p>}
     </div>
   );

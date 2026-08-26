@@ -1,10 +1,21 @@
 import "server-only";
-import { emails, activities, contacts, deals, emailTemplates, googleConnections } from "@/lib/db/schema";
+import {
+  emails,
+  activities,
+  contacts,
+  companies,
+  clients,
+  deals,
+  emailTemplates,
+  contactEmailAliases,
+  googleConnections,
+} from "@/lib/db/schema";
 import { and, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 import { sendGmail, fetchInboundMessages } from "@/lib/google/gmailAdapter";
+import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
 import { z } from "zod";
 
 const OUTBOUND_RATE_LIMIT_PER_HOUR = 30;
@@ -106,7 +117,7 @@ export const EmailTemplateInput = z.object({
   key: z.string().min(1),
   name: z.string().min(1),
   subject: z.string().min(1),
-  body: z.string().min(1),
+  htmlBody: z.string().min(1),
 });
 export type EmailTemplateInputT = z.infer<typeof EmailTemplateInput>;
 
@@ -123,7 +134,7 @@ export async function createEmailTemplate(input: EmailTemplateInputT) {
     return auditedInsert(
       tx,
       emailTemplates,
-      { ...data, createdBy: caller.userId, updatedBy: caller.userId },
+      { ...data, htmlBody: sanitizeEmailHtml(data.htmlBody), createdBy: caller.userId, updatedBy: caller.userId },
       { caller, entityType: "email_template" }
     );
   });
@@ -138,7 +149,11 @@ export async function updateEmailTemplate(id: string, input: Partial<EmailTempla
       emailTemplates,
       eq(emailTemplates.id, id),
       id,
-      { ...data, updatedBy: caller.userId },
+      {
+        ...data,
+        ...(data.htmlBody !== undefined ? { htmlBody: sanitizeEmailHtml(data.htmlBody) } : {}),
+        updatedBy: caller.userId,
+      },
       { caller, entityType: "email_template" }
     );
   });
@@ -152,14 +167,72 @@ export async function softDeleteEmailTemplate(id: string) {
 }
 
 /** {{var}} substitution — deliberately not a templating engine dependency. */
-export function renderTemplate(template: { subject: string; body: string }, vars: Record<string, string>) {
+export function renderTemplate(template: { subject: string; htmlBody: string }, vars: Record<string, string>) {
   const substitute = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
-  return { subject: substitute(template.subject), body: substitute(template.body) };
+  return { subject: substitute(template.subject), htmlBody: substitute(template.htmlBody) };
+}
+
+/** Merge + wrap in one step — what both the template editor's live preview
+ * and a campaign's per-recipient preview call so "what's saved is what a
+ * recipient will actually see" (brief §2.8). */
+export function renderTemplatePreview(template: { subject: string; htmlBody: string }, vars: Record<string, string>) {
+  const rendered = renderTemplate(template, vars);
+  return { subject: rendered.subject, html: wrapEmailHtml(rendered.htmlBody) };
+}
+
+/** Sanitize + wrap raw editor content for the template editor's live
+ * preview — runs the exact same sanitization the save path applies, so the
+ * preview never shows markup that won't survive being saved. Admin-only
+ * like every other template operation, even though it's read-only, since
+ * it's reachable as a standalone server action from a form. */
+export async function previewTemplateHtml(html: string) {
+  return withCaller(async (caller) => {
+    assertRole(caller, "admin");
+    return wrapEmailHtml(sanitizeEmailHtml(html));
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Inbound sync + triage (brief §6 — match to Contacts, surface the rest)
 // ---------------------------------------------------------------------------
+
+/**
+ * A contact can be known by more than one address (contactEmailAliases) —
+ * this is the one place that resolves a raw sender address to a contact,
+ * checking the canonical contacts.email first and any remembered alias
+ * second, so inbound-sync matching and manual search never drift apart.
+ */
+async function resolveContactIdByAddress(tx: Tx, address: string): Promise<string | null> {
+  const lowered = address.toLowerCase();
+  const [byEmail] = await tx
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(and(isNull(contacts.deletedAt), sql`lower(${contacts.email}) = ${lowered}`))
+    .limit(1);
+  if (byEmail) return byEmail.id;
+
+  const [byAlias] = await tx
+    .select({ id: contactEmailAliases.contactId })
+    .from(contactEmailAliases)
+    .where(and(isNull(contactEmailAliases.deletedAt), sql`lower(${contactEmailAliases.email}) = ${lowered}`))
+    .limit(1);
+  return byAlias?.id ?? null;
+}
+
+/** Adds another address a contact is known to email from — the fix for a
+ * contact who reaches out from more than one inbox (e.g. work + personal).
+ * Does not touch contacts.email, which stays the canonical/primary address. */
+export async function addContactEmailAlias(contactId: string, email: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return auditedInsert(
+      tx,
+      contactEmailAliases,
+      { contactId, email: email.trim().toLowerCase(), createdBy: caller.userId, updatedBy: caller.userId },
+      { caller, entityType: "contact_email_alias" }
+    );
+  });
+}
 
 /**
  * Scheduled pull, same admin-scope pattern as syncXeroInvoices. System-
@@ -192,18 +265,14 @@ export async function syncInboundGmail() {
         .limit(1);
       if (existing) continue;
 
-      const [matchedContact] = await tx
-        .select({ id: contacts.id })
-        .from(contacts)
-        .where(and(isNull(contacts.deletedAt), sql`lower(${contacts.email}) = ${msg.fromAddress}`))
-        .limit(1);
+      const matchedContactId = await resolveContactIdByAddress(tx, msg.fromAddress);
 
       let activityId: string | null = null;
-      if (matchedContact) {
+      if (matchedContactId) {
         const [activity] = await tx
           .insert(activities)
           .values({
-            contactId: matchedContact.id,
+            contactId: matchedContactId,
             type: "email" as const,
             body: `Subject: ${msg.subject ?? "(no subject)"}\n\n${msg.snippet ?? ""}`,
           })
@@ -219,7 +288,7 @@ export async function syncInboundGmail() {
         toAddresses: msg.toAddresses,
         subject: msg.subject,
         snippet: msg.snippet,
-        contactId: matchedContact?.id ?? null,
+        contactId: matchedContactId,
         activityId,
         sentAt: msg.sentAt,
       });
@@ -246,8 +315,14 @@ export async function listUnmatchedInboundEmails() {
   });
 }
 
-/** Links unmatched inbound mail to a Contact, creating its Activity row now that it has somewhere to attach. */
-export async function matchEmailToContact(emailId: string, contactId: string) {
+/**
+ * Links unmatched inbound mail to a Contact, creating its Activity row now
+ * that it has somewhere to attach. `remember: true` also records the
+ * sender's address as a contactEmailAliases row, so a future email from the
+ * same address auto-matches on the next inbound sync instead of landing
+ * back in triage — the "this client emails me from 3 addresses" case.
+ */
+export async function matchEmailToContact(emailId: string, contactId: string, remember = false) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
     const [email] = await tx.select().from(emails).where(eq(emails.id, emailId)).limit(1);
@@ -273,6 +348,15 @@ export async function matchEmailToContact(emailId: string, contactId: string) {
       { contactId, activityId: activity.id },
       { caller, entityType: "email" }
     );
+
+    if (remember) {
+      await auditedInsert(
+        tx,
+        contactEmailAliases,
+        { contactId, email: email.fromAddress.toLowerCase(), createdBy: caller.userId, updatedBy: caller.userId },
+        { caller, entityType: "contact_email_alias" }
+      );
+    }
   });
 }
 
@@ -280,5 +364,65 @@ export async function dismissUnmatchedEmail(id: string) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
     return auditedSoftDelete(tx, emails, id, { caller, entityType: "email" });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Client Emails view — Email Triage's "Client Emails" tab and the client
+// detail page's Emails section share this join: matched mail (inbound or
+// outbound) whose contact belongs to a company with an active (non-deleted)
+// clients row. Deliberately excludes prospects/pipeline contacts — this is
+// "client correspondence in one place," the same "Clients" audience §2.2
+// of the brief defines for campaigns, not every contact's mail.
+// ---------------------------------------------------------------------------
+
+function clientEmailsQuery(tx: Tx, clientId?: string) {
+  return tx
+    .select({
+      id: emails.id,
+      direction: emails.direction,
+      fromAddress: emails.fromAddress,
+      toAddresses: emails.toAddresses,
+      subject: emails.subject,
+      snippet: emails.snippet,
+      sentAt: emails.sentAt,
+      contactId: contacts.id,
+      contactFirstName: contacts.firstName,
+      contactLastName: contacts.lastName,
+      companyId: companies.id,
+      companyName: companies.name,
+      clientId: clients.id,
+      clientName: clients.name,
+    })
+    .from(emails)
+    .innerJoin(contacts, eq(emails.contactId, contacts.id))
+    .innerJoin(companies, eq(contacts.companyId, companies.id))
+    .innerJoin(clients, eq(clients.companyId, companies.id))
+    .where(
+      and(
+        isNull(emails.deletedAt),
+        isNull(contacts.deletedAt),
+        isNull(companies.deletedAt),
+        isNull(clients.deletedAt),
+        clientId ? eq(clients.id, clientId) : undefined
+      )
+    )
+    .orderBy(desc(emails.sentAt));
+}
+
+/** All matched client correspondence, newest first — Email Triage's Client Emails tab. */
+export async function listClientEmails() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return clientEmailsQuery(tx);
+  });
+}
+
+/** Same feed, scoped to one client — the client detail page's Emails section. */
+export async function listEmailsForClient(clientId: string, limit = 10) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const rows = await clientEmailsQuery(tx, clientId);
+    return rows.slice(0, limit);
   });
 }

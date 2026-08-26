@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Lightbulb,
   Bot,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
@@ -98,8 +99,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(callerRole === "admin" ? [{ href: "/calendar", label: "Calendar", icon: navIcon(CalendarDays), group: "Work" }] : []),
     ...(callerRole === "admin"
       ? [
-          { href: "/inbox", label: "Inbox", icon: navIcon(InboxIcon), group: "Comms" },
+          { href: "/email-triage", label: "Email Triage", icon: navIcon(InboxIcon), group: "Comms" },
           { href: "/email-templates", label: "Email Templates", icon: navIcon(Mail), group: "Comms" },
+          { href: "/email-campaigns", label: "Email Campaigns", icon: navIcon(Megaphone), group: "Comms" },
         ]
       : []),
     // Max's own business-wide ideas (Open-Work-Brief.md §3) — admin-only,

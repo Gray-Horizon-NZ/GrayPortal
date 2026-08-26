@@ -71,7 +71,7 @@ export default async function SearchPage({
             {results.emailRows.map((e) => (
               <Link
                 key={e.id}
-                href={e.contactId ? `/contacts/${e.contactId}` : e.dealId ? `/deals/${e.dealId}` : "/inbox"}
+                href={e.contactId ? `/contacts/${e.contactId}` : e.dealId ? `/deals/${e.dealId}` : "/email-triage"}
                 className="gh-card"
               >
                 {e.subject || "(no subject)"}

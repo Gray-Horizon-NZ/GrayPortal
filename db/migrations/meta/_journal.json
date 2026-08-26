@@ -169,6 +169,20 @@
       "when": 1787723140441,
       "tag": "0023_ideation_categories_and_ai_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787723890887,
+      "tag": "0024_short_mercury",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787723905934,
+      "tag": "0025_military_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

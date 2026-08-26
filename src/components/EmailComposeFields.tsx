@@ -1,14 +1,19 @@
 "use client";
 import { useRef } from "react";
+import { stripHtmlToText } from "@/lib/email/text";
 
-type Template = { key: string; name: string; subject: string; body: string };
+type Template = { key: string; name: string; subject: string; htmlBody: string };
 
 /**
  * Shared compose fields for the deal/contact "Send email" forms — a
  * template picker that prefills subject/body via refs (brief §6:
  * templates are for the *sender's* convenience, not literal
  * variable-substitution UI, since the only real variable in practice is the
- * recipient's name, which the composer types in directly).
+ * recipient's name, which the composer types in directly). This compose
+ * path stays plain-text on purpose (brief §2.1: direct compose is for
+ * genuinely personal messages, HTML/branded sends are Email Templates'
+ * "use as campaign" or one-off HTML compose there) — a template's HTML body
+ * gets stripped to text here, not injected as raw markup.
  */
 export default function EmailComposeFields({ templates }: { templates: Template[] }) {
   const subjectRef = useRef<HTMLInputElement>(null);
@@ -18,7 +23,7 @@ export default function EmailComposeFields({ templates }: { templates: Template[
     const template = templates.find((t) => t.key === key);
     if (!template || !subjectRef.current || !bodyRef.current) return;
     subjectRef.current.value = template.subject;
-    bodyRef.current.value = template.body;
+    bodyRef.current.value = stripHtmlToText(template.htmlBody);
   }
 
   return (

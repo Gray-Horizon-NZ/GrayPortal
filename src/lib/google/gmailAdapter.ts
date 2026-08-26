@@ -18,20 +18,40 @@ function toBase64Url(input: string): string {
     .replace(/=+$/, "");
 }
 
-function buildRawMessage(opts: { from: string; to: string; subject: string; bodyText: string }): string {
-  const headers = [
-    `From: ${opts.from}`,
-    `To: ${opts.to}`,
-    `Subject: ${opts.subject}`,
-    "MIME-Version: 1.0",
+function buildRawMessage(opts: { from: string; to: string; subject: string; bodyText: string; bodyHtml?: string }): string {
+  const headers = [`From: ${opts.from}`, `To: ${opts.to}`, `Subject: ${opts.subject}`, "MIME-Version: 1.0"];
+
+  if (!opts.bodyHtml) {
+    headers.push('Content-Type: text/plain; charset="UTF-8"');
+    return toBase64Url(`${headers.join("\r\n")}\r\n\r\n${opts.bodyText}`);
+  }
+
+  // multipart/alternative — plain-text fallback first, HTML part last, per
+  // RFC 2046's "most preferred alternative last" convention.
+  const boundary = `gh_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+  const parts = [
+    `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
-  ];
-  return toBase64Url(`${headers.join("\r\n")}\r\n\r\n${opts.bodyText}`);
+    "",
+    opts.bodyText,
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "",
+    opts.bodyHtml,
+    `--${boundary}--`,
+  ].join("\r\n");
+  return toBase64Url(`${headers.join("\r\n")}\r\n\r\n${parts}`);
 }
 
 export type SentEmail = { gmailMessageId: string; gmailThreadId: string; from: string; sentAt: Date };
 
-export async function sendGmail(opts: { to: string; subject: string; bodyText: string }): Promise<SentEmail | null> {
+export async function sendGmail(opts: {
+  to: string;
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+}): Promise<SentEmail | null> {
   const auth = await authedClient();
   if (!auth) return null;
   const gmail = google.gmail({ version: "v1", auth });
@@ -40,7 +60,7 @@ export async function sendGmail(opts: { to: string; subject: string; bodyText: s
   const from = profile.data.emailAddress;
   if (!from) throw new Error("Could not resolve the connected Gmail account's address");
 
-  const raw = buildRawMessage({ from, to: opts.to, subject: opts.subject, bodyText: opts.bodyText });
+  const raw = buildRawMessage({ from, to: opts.to, subject: opts.subject, bodyText: opts.bodyText, bodyHtml: opts.bodyHtml });
   const { data } = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
   if (!data.id || !data.threadId) throw new Error("Gmail send did not return a message id");
 

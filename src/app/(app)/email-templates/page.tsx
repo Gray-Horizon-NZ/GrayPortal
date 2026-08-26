@@ -3,11 +3,13 @@ import { withCaller } from "@/lib/dal/auth";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { createEmailTemplateAction, updateEmailTemplateAction, softDeleteEmailTemplateAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import TemplateEditor from "./TemplateEditor";
 
-// Phase 10 — brief §6: known recurring sends, stored as data (subject/body
-// with {{variable}} placeholders), not hard-coded strings. Rendering
-// happens at send time (src/lib/dal/emails.ts's renderTemplate) — this page
-// only manages the raw template text.
+// Phase 10 — brief §6: known recurring sends, stored as data (subject/HTML
+// body with {{variable}} placeholders), not hard-coded strings. Rendering
+// (variable substitution + the wrapEmailHtml design shell) happens at send
+// time (src/lib/dal/emails.ts's renderTemplate/renderTemplatePreview) —
+// this page only manages the raw template content.
 export default async function EmailTemplatesPage() {
   const caller = await withCaller(async (c) => c);
   if (caller.role !== "admin") redirect("/");
@@ -20,7 +22,8 @@ export default async function EmailTemplatesPage() {
         <p className="gh-eyebrow">Internal</p>
         <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Email Templates</h1>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Use <code>{"{{variable}}"}</code> placeholders — rendering happens when a template is used, not here.
+          HTML templates render through Gray Horizon&apos;s branded email shell — use <code>{"{{variable}}"}</code>{" "}
+          placeholders; rendering happens when a template is used, not here.
         </p>
       </div>
 
@@ -34,15 +37,13 @@ export default async function EmailTemplatesPage() {
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>{t.subject}</p>
             <details>
               <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>Edit</summary>
-              <form
-                action={updateEmailTemplateAction.bind(null, t.id)}
-                style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
-              >
-                <input className="gh-input" name="name" defaultValue={t.name} required />
-                <input className="gh-input" name="subject" defaultValue={t.subject} required />
-                <textarea className="gh-input" name="body" defaultValue={t.body} rows={5} required />
-                <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-              </form>
+              <div style={{ marginTop: "var(--gh-space-2)" }}>
+                <TemplateEditor
+                  action={updateEmailTemplateAction.bind(null, t.id)}
+                  defaults={{ name: t.name, subject: t.subject, htmlBody: t.htmlBody }}
+                  submitLabel="Save"
+                />
+              </div>
             </details>
             <form action={softDeleteEmailTemplateAction.bind(null, t.id)}>
               <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">Remove</SubmitButton>
@@ -53,13 +54,9 @@ export default async function EmailTemplatesPage() {
 
         <details className="gh-card">
           <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>New template</summary>
-          <form action={createEmailTemplateAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-4)" }}>
-            <input className="gh-input" name="key" placeholder="Key, e.g. proposal_follow_up" required />
-            <input className="gh-input" name="name" placeholder="Display name" required />
-            <input className="gh-input" name="subject" placeholder="Subject — supports {{variables}}" required />
-            <textarea className="gh-input" name="body" placeholder="Body — supports {{variables}}" rows={5} required />
-            <SubmitButton pendingLabel="Creating…">Create template</SubmitButton>
-          </form>
+          <div style={{ marginTop: "var(--gh-space-4)" }}>
+            <TemplateEditor action={createEmailTemplateAction} showKeyField submitLabel="Create template" />
+          </div>
         </details>
       </section>
     </div>
