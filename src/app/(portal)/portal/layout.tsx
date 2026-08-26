@@ -9,8 +9,8 @@ import {
   UserCircle,
   type LucideIcon,
 } from "lucide-react";
-import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
-import { getEnabledFeatureKeys, getPortalIdentity } from "@/lib/dal/portal";
+import { getVerifiedUid, NotOnAllowlistError } from "@/lib/dal/auth";
+import { getPortalShellContext } from "@/lib/dal/portal";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import LogoutButton from "@/app/(app)/LogoutButton";
 import "../portal-theme.css";
@@ -34,12 +34,16 @@ export default async function PortalLayout({ children }: { children: React.React
   if (!uid) redirect("/login");
 
   let callerLabel: string;
+  let enabledFeatureKeys: Awaited<ReturnType<typeof getPortalShellContext>>["enabledFeatureKeys"];
+  let identity: Awaited<ReturnType<typeof getPortalShellContext>>["identity"];
   try {
-    const caller = await withCaller(async (c) => c);
-    if (caller.role !== "client") {
+    const ctx = await getPortalShellContext();
+    if (ctx.caller.role !== "client") {
       redirect("/");
     }
-    callerLabel = caller.displayName ?? caller.email;
+    callerLabel = ctx.caller.displayName ?? ctx.caller.email;
+    enabledFeatureKeys = ctx.enabledFeatureKeys;
+    identity = ctx.identity;
   } catch (err) {
     if (err instanceof NotOnAllowlistError) {
       return (
@@ -71,7 +75,6 @@ export default async function PortalLayout({ children }: { children: React.React
     throw err;
   }
 
-  const [enabledFeatureKeys, identity] = await Promise.all([getEnabledFeatureKeys(), getPortalIdentity()]);
   const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
 
   const navItems: PortalNavItem[] = [

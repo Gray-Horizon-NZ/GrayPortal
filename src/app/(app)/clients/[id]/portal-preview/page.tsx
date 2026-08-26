@@ -1,33 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getClient } from "@/lib/dal/clients";
-import { listTasksForClient } from "@/lib/dal/tasks";
-import { listIdeationItems } from "@/lib/dal/ideation";
-import { listRoadmapItems } from "@/lib/dal/roadmap";
-import { listMeetingSummaries } from "@/lib/dal/meetingSummaries";
-import { listToolStackItems } from "@/lib/dal/toolStack";
-import { listActiveDiscounts } from "@/lib/dal/referrals";
-import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
-import { listClientTeamMembers } from "@/lib/dal/clientTeam";
-import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
-import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
-import { getClientFinancials } from "@/lib/dal/xero";
+import { getClientPortalPreviewData } from "@/lib/dal/clientPortalPreview";
 import PortalPreviewShell from "./PortalPreviewShell";
 import "../../../../(portal)/portal-theme.css";
 
 /**
  * A structural reconstruction of what a client sees in their portal —
  * same sidebar/tabs/bento-grid/chart layout as the real /portal routes,
- * built from the same admin-scoped, clientId-parameterized listers the
- * client detail page already calls. Not RLS impersonation or a cloned
- * route tree: impersonation would require refactoring every listPortalX
- * DAL function to accept an injectable scope, plus loosening
- * portal/layout.tsx's hard client-role gate — this reads the same
- * underlying data through admin-scoped queries instead, and
- * PortalPreviewShell (a client component) renders it with the identical
- * visual structure as the live portal, tab-switching via local state
- * rather than routing since it's one admin page, not the multi-route
- * client experience.
+ * built from getClientPortalPreviewData's single admin-scoped,
+ * clientId-parameterized transaction (src/lib/dal/clientPortalPreview.ts)
+ * rather than 14 separate DAL calls each paying their own connect+BEGIN+
+ * COMMIT round-trip. Not RLS impersonation or a cloned route tree:
+ * impersonation would require refactoring every listPortalX DAL function
+ * to accept an injectable scope, plus loosening portal/layout.tsx's hard
+ * client-role gate — this reads the same underlying data through an
+ * admin-scoped query instead, and PortalPreviewShell (a client component)
+ * renders it with the identical visual structure as the live portal,
+ * tab-switching via local state rather than routing since it's one admin
+ * page, not the multi-route client experience.
  *
  * Tasks is the one interactive exception — agency staff need to add, tick,
  * edit (rename/reschedule), and remove tasks for a client without leaving
@@ -42,24 +32,25 @@ import "../../../../(portal)/portal-theme.css";
  */
 export default async function ClientPortalPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const data = await getClient(id);
+  const data = await getClientPortalPreviewData(id);
   if (!data) notFound();
-  const { client, referrals, features, documents } = data;
-
-  const [tasks, ideas, roadmap, meetings, tools, activeDiscounts, metricsSnapshots, teamMembers, healthChannels, activityFeed, financials] =
-    await Promise.all([
-      listTasksForClient(id),
-      listIdeationItems(id),
-      listRoadmapItems(id),
-      listMeetingSummaries(id),
-      listToolStackItems(id),
-      listActiveDiscounts(id),
-      listClientMetricsSnapshots(id),
-      listClientTeamMembers(id),
-      listClientHealthChannels(id),
-      listClientActivityFeed(id),
-      getClientFinancials(id),
-    ]);
+  const {
+    client,
+    referrals,
+    features,
+    documents,
+    tasks,
+    ideas,
+    roadmap,
+    meetings,
+    tools,
+    activeDiscounts,
+    metricsSnapshots,
+    teamMembers,
+    healthChannels,
+    activityFeed,
+    financials,
+  } = data;
 
   const enabledKeys = new Set(features.filter((f) => f.enabled).map((f) => f.featureKey));
   const activeDiscountPercent = activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0);

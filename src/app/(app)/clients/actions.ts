@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, updateClient, softDeleteClient, setClientFeature, uploadClientLogo, setClientGoogleTasklist, setClientHiddenFromTaskView, type PortalFeatureKey } from "@/lib/dal/clients";
 import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib/dal/tasks";
+import { createDeal, type DealInputT } from "@/lib/dal/deals";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
 import { uploadDocument, linkDocument, renameDocument, deleteDocument, DocType } from "@/lib/dal/documents";
@@ -284,6 +285,24 @@ export async function addClientContactEmailAliasAction(clientId: string, formDat
   await addContactEmailAlias(contactId, email);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/email-triage/clients");
+}
+
+/** An existing client getting a new/upsell deal — same createDeal() the pipeline and company page use, just entered from the client's own profile instead. */
+export async function addClientDealAction(clientId: string, companyId: string, formData: FormData) {
+  const primaryContactId = String(formData.get("primaryContactId") ?? "") || undefined;
+  const input: DealInputT = {
+    companyId,
+    primaryContactId,
+    nextAction: String(formData.get("nextAction") ?? ""),
+    nextActionDate: String(formData.get("nextActionDate") ?? ""),
+    valueNzd: String(formData.get("valueNzd") ?? "") || undefined,
+    packageTier: String(formData.get("packageTier") ?? "") || undefined,
+    source: String(formData.get("source") ?? "") || undefined,
+  };
+  const deal = await createDeal(input);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/pipeline");
+  redirect(`/deals/${deal.id}`);
 }
 
 export async function uploadDocumentAction(clientId: string, formData: FormData) {

@@ -216,6 +216,49 @@ export async function getPortalHome() {
   });
 }
 
+/**
+ * Everything portal/layout.tsx needs — caller/role, sidebar identity, and
+ * the enabled-feature list for nav — in one transaction instead of three
+ * (a solo withCaller role-check, then getEnabledFeatureKeys and
+ * getPortalIdentity in a Promise.all). Every withSession call pays its own
+ * full connect+BEGIN+3×set_config+COMMIT round-trip (src/lib/dal/
+ * session.ts), and the layout wraps every single portal page navigation,
+ * so this consolidation is worth it precisely because it runs so often.
+ * Still deliberately separate from getPortalHome() — see that function's
+ * own comment on getPortalIdentity below for why the heavier home-page
+ * query stays out of the shell.
+ */
+export async function getPortalShellContext() {
+  return withCaller(async (caller, tx) => {
+    if (caller.role !== "client" || !caller.clientId) {
+      return { caller, identity: null, enabledFeatureKeys: [] as PortalFeatureKey[] };
+    }
+
+    const [identity] = await tx
+      .select({ name: clients.name, createdAt: clients.createdAt })
+      .from(clients)
+      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .limit(1);
+
+    const enabledFeatures = await tx
+      .select()
+      .from(clientFeatures)
+      .where(
+        and(
+          eq(clientFeatures.clientId, caller.clientId),
+          eq(clientFeatures.enabled, true),
+          isNull(clientFeatures.deletedAt)
+        )
+      );
+
+    return {
+      caller,
+      identity: identity ?? null,
+      enabledFeatureKeys: enabledFeatures.map((f) => f.featureKey as PortalFeatureKey),
+    };
+  });
+}
+
 /** Sidebar identity (name + "client since" date) — separate from getPortalHome() so the shell (which wraps every portal page) doesn't duplicate that page's full query. */
 export async function getPortalIdentity(): Promise<{ name: string; createdAt: Date } | null> {
   return withCaller(async (caller, tx) => {

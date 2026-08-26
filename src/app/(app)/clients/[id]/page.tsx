@@ -44,6 +44,7 @@ import {
   addClientActivityFeedEntryAction,
   deleteClientActivityFeedEntryAction,
   addClientContactEmailAliasAction,
+  addClientDealAction,
   updateClientServicePriceAction,
   updateClientDiscountAction,
   renameDocumentAction,
@@ -360,6 +361,34 @@ export default async function ClientDetailPage({
           </form>
         </details>
       </section>
+
+      {client.companyId && (
+        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">New deal</p>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+            For upselling an existing client — creates a real pipeline deal against this client&apos;s company, same as Pipeline or the company page.
+          </p>
+          <form
+            action={addClientDealAction.bind(null, client.id, client.companyId)}
+            style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}
+          >
+            {companyData && companyData.contacts.length > 0 && (
+              <select className="gh-input" name="primaryContactId" defaultValue="">
+                <option value="">Primary contact (optional)…</option>
+                {companyData.contacts.map((c) => (
+                  <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+                ))}
+              </select>
+            )}
+            <input className="gh-input" name="nextAction" placeholder="Next action (required)" required />
+            <input className="gh-input" name="nextActionDate" type="date" required />
+            <input className="gh-input" name="valueNzd" placeholder="Value (NZD)" />
+            <input className="gh-input" name="packageTier" placeholder="Package tier" />
+            <input className="gh-input" name="source" placeholder="Source" defaultValue="Upsell" />
+            <SubmitButton pendingLabel="Creating…">Create deal</SubmitButton>
+          </form>
+        </section>
+      )}
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Referrals</p>

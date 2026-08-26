@@ -15,6 +15,14 @@ export type SyncResult =
   | { status: "failed" }
   | { status: "skipped" }; // no admin has connected Google — not an error
 
+// googleapis/gaxios sets no timeout by default — an unresponsive (not
+// merely erroring) Google API call would otherwise never settle, which is
+// how a single slow request used to leave a task-create/status-change
+// button stuck "pending" forever with no error surfaced. Every Tasks call
+// below passes this as its gaxios request timeout so the promise this
+// module returns always settles one way or the other.
+const GOOGLE_REQUEST_TIMEOUT_MS = 8_000;
+
 export async function authedClient() {
   const connection = await getGoogleConnectionForSync();
   if (!connection) return null;
@@ -104,15 +112,17 @@ export async function syncTaskToGoogle(
     };
 
     if (task.googleTaskId) {
-      const { data } = await tasksApi.tasks.update({
-        tasklist: tasklistId,
-        task: task.googleTaskId,
-        requestBody,
-      });
+      const { data } = await tasksApi.tasks.update(
+        { tasklist: tasklistId, task: task.googleTaskId, requestBody },
+        { timeout: GOOGLE_REQUEST_TIMEOUT_MS }
+      );
       return { status: "synced", googleId: data.id! };
     }
 
-    const { data } = await tasksApi.tasks.insert({ tasklist: tasklistId, requestBody });
+    const { data } = await tasksApi.tasks.insert(
+      { tasklist: tasklistId, requestBody },
+      { timeout: GOOGLE_REQUEST_TIMEOUT_MS }
+    );
     return { status: "synced", googleId: data.id! };
   } catch (err) {
     console.error(`syncTaskToGoogle failed for task ${task.id}`, err);
@@ -256,7 +266,7 @@ export async function removeTaskFromGoogle(googleTaskId: string | null, tasklist
     const auth = await authedClient();
     if (!auth) return;
     const tasksApi = google.tasks({ version: "v1", auth });
-    await tasksApi.tasks.delete({ tasklist: tasklistId, task: googleTaskId });
+    await tasksApi.tasks.delete({ tasklist: tasklistId, task: googleTaskId }, { timeout: GOOGLE_REQUEST_TIMEOUT_MS });
   } catch (err) {
     console.error(`removeTaskFromGoogle failed for task ${googleTaskId}`, err);
   }

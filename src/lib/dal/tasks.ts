@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { tasks, deals, companies, clients } from "@/lib/db/schema";
 import { and, desc, eq, getTableColumns, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
@@ -7,6 +8,37 @@ import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { syncTaskToGoogle, removeTaskFromGoogle, listGoogleTasklists, createGoogleTasklist } from "@/lib/google/adapter";
 import { resolveGoogleTasklistId } from "./googleConnection";
 import { z } from "zod";
+
+/**
+ * Google sync is best-effort bookkeeping on an already-committed task row —
+ * runs via next/server's after(), outside the request/transaction that the
+ * UI is waiting on. Previously this was awaited inside the same open
+ * Postgres transaction as the row write, with no timeout anywhere on the
+ * underlying googleapis call: a slow/unresponsive Google API left the
+ * server action's promise (and thus the button's pending state) hanging
+ * forever with no error, and held a pool connection open the whole time.
+ * Moving it here means a hung Google call only delays this background
+ * write, never the create/status-change action itself.
+ */
+async function syncTaskGoogleBookkeeping(task: typeof tasks.$inferSelect) {
+  try {
+    const tasklistId = task.googleTaskListId ?? (await resolveGoogleTasklistId(task));
+    const result = await syncTaskToGoogle(task, tasklistId);
+    if (result.status === "skipped") return;
+    await withAdminScope("Post-commit Google Tasks sync bookkeeping", async (tx) => {
+      await tx
+        .update(tasks)
+        .set({
+          googleTaskId: result.status === "synced" ? result.googleId : task.googleTaskId,
+          googleTaskListId: result.status === "synced" ? tasklistId : task.googleTaskListId,
+          syncState: result.status,
+        })
+        .where(eq(tasks.id, task.id));
+    });
+  } catch (err) {
+    console.error(`Post-commit Google Tasks sync failed for task ${task.id}`, err);
+  }
+}
 
 export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing"]);
 
@@ -104,10 +136,9 @@ export type CreateTaskInputT = z.infer<typeof CreateTaskInput>;
  */
 export async function createTask(input: CreateTaskInputT) {
   const data = CreateTaskInput.parse(input);
-  return withCaller(async (caller, tx) => {
+  const task = await withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
-
-    const task = await auditedInsert<typeof tasks.$inferSelect>(
+    return auditedInsert<typeof tasks.$inferSelect>(
       tx,
       tasks,
       {
@@ -120,27 +151,10 @@ export async function createTask(input: CreateTaskInputT) {
       },
       { caller, entityType: "task" }
     );
-
-    // Same "never block the underlying mutation on Google" rule as
-    // setTaskStatus below — sync is best-effort bookkeeping on top of an
-    // already-committed row. A brand-new task has no prior googleTaskListId
-    // to preserve, so routing is always freshly resolved here (unlike
-    // setTaskStatus, which must keep targeting wherever the task already
-    // lives once synced).
-    const tasklistId = await resolveGoogleTasklistId(task);
-    const result = await syncTaskToGoogle(task, tasklistId);
-    if (result.status === "skipped") return task;
-    const [updated] = await tx
-      .update(tasks)
-      .set({
-        googleTaskId: result.status === "synced" ? result.googleId : task.googleTaskId,
-        googleTaskListId: result.status === "synced" ? tasklistId : task.googleTaskListId,
-        syncState: result.status,
-      })
-      .where(eq(tasks.id, task.id))
-      .returning();
-    return updated;
   });
+
+  after(() => syncTaskGoogleBookkeeping(task));
+  return task;
 }
 
 /**
@@ -211,16 +225,19 @@ export async function updateTask(id: string, input: UpdateTaskInputT) {
 
 /** Admin-only — soft delete, consistent with every other table (no hard deletes). */
 export async function deleteTask(id: string) {
-  return withCaller(async (caller, tx) => {
+  const task = await withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
-    const [task] = await tx.select().from(tasks).where(eq(tasks.id, id)).limit(1);
+    const [existing] = await tx.select().from(tasks).where(eq(tasks.id, id)).limit(1);
     await auditedSoftDelete(tx, tasks, id, { caller, entityType: "task" });
-    // Uses the list this task was actually synced into, not a fresh
-    // resolve — same reasoning as setTaskStatus above.
-    if (task?.googleTaskId) {
-      await removeTaskFromGoogle(task.googleTaskId, task.googleTaskListId ?? "@default");
-    }
+    return existing;
   });
+
+  // Uses the list this task was actually synced into, not a fresh resolve —
+  // same reasoning as syncTaskGoogleBookkeeping. Runs after the response,
+  // same "never block on Google" rule as create/status-change.
+  if (task?.googleTaskId) {
+    after(() => removeTaskFromGoogle(task.googleTaskId, task.googleTaskListId ?? "@default"));
+  }
 }
 
 export async function assignTask(taskId: string, assigneeUserId: string | null) {
@@ -272,8 +289,8 @@ export async function getTaskDealContext(dealId: string) {
 
 export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatus>) {
   const parsed = TaskStatus.parse(status);
-  return withCaller(async (caller, tx) => {
-    const task = await auditedUpdate(
+  const task = await withCaller(async (caller, tx) => {
+    return auditedUpdate(
       tx,
       tasks,
       eq(tasks.id, id),
@@ -285,32 +302,18 @@ export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatu
       },
       { caller, entityType: "task" }
     );
-
-    // Phase 3: push status (and thus completion) to Google Tasks. Same
-    // rationale as deals.ts's applyDealSync — never blocks the underlying
-    // mutation, and the googleTaskId/syncState write is bookkeeping, not a
-    // second audited change. Prefer the list this task is ALREADY synced
-    // into over a fresh resolve — the client's/internal list's mapping may
-    // have changed since creation, but an update must still target the
-    // list the task actually lives in, or Google 404s / it gets orphaned.
-    // Only unsynced tasks (never successfully created in Google, e.g. it
-    // predates this routing or Google was disconnected at creation time)
-    // fall back to a fresh resolve.
-    const typedTask = task as typeof tasks.$inferSelect;
-    const tasklistId = typedTask.googleTaskListId ?? (await resolveGoogleTasklistId(typedTask));
-    const result = await syncTaskToGoogle(typedTask, tasklistId);
-    if (result.status === "skipped") return task;
-    const [updated] = await tx
-      .update(tasks)
-      .set({
-        googleTaskId: result.status === "synced" ? result.googleId : typedTask.googleTaskId,
-        googleTaskListId: result.status === "synced" ? tasklistId : typedTask.googleTaskListId,
-        syncState: result.status,
-      })
-      .where(eq(tasks.id, id))
-      .returning();
-    return updated;
   });
+
+  // Phase 3: push status (and thus completion) to Google Tasks — never
+  // blocks the underlying mutation (see syncTaskGoogleBookkeeping). Prefers
+  // the list this task is ALREADY synced into over a fresh resolve — the
+  // client's/internal list's mapping may have changed since creation, but
+  // an update must still target the list the task actually lives in, or
+  // Google 404s / it gets orphaned. Only unsynced tasks (never successfully
+  // created in Google) fall back to a fresh resolve, both handled inside
+  // syncTaskGoogleBookkeeping itself.
+  after(() => syncTaskGoogleBookkeeping(task as typeof tasks.$inferSelect));
+  return task;
 }
 
 /**
