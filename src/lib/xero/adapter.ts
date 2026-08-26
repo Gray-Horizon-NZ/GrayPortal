@@ -79,7 +79,9 @@ export async function fetchAccountsReceivableInvoices(): Promise<XeroInvoice[] |
 }
 
 export async function searchXeroContacts(term: string): Promise<XeroContact[] | null> {
-  const encoded = encodeURIComponent(`Name.Contains("${term}")`);
+  // Name.Contains() is case-sensitive in Xero's filter syntax — ToLower()
+  // on both sides so "dm rider" still matches a contact named "DM Rider".
+  const encoded = encodeURIComponent(`Name.ToLower().Contains("${term.toLowerCase()}")`);
   const data = await xeroGet<{ Contacts: XeroContact[] }>(`/Contacts?where=${encoded}`);
   return data === null ? null : data.Contacts;
 }

@@ -11,6 +11,7 @@ type Contact = { ContactID: string; Name: string; EmailAddress?: string };
 export default function XeroLink({ clientId, currentContactId }: { clientId: string; currentContactId: string | null }) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<Contact[]>([]);
+  const [searched, setSearched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +22,7 @@ export default function XeroLink({ clientId, currentContactId }: { clientId: str
     try {
       const contacts = await searchXeroContactsAction(term);
       setResults(contacts);
+      setSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed — is Xero connected?");
     } finally {
@@ -55,6 +57,9 @@ export default function XeroLink({ clientId, currentContactId }: { clientId: str
           <button className="gh-btn-secondary" type="button" onClick={() => handleLink(c.ContactID)} disabled={busy}>Link</button>
         </div>
       ))}
+      {searched && !busy && !error && results.length === 0 && (
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No matching contacts found.</p>
+      )}
       {error && <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>{error}</p>}
     </div>
   );
