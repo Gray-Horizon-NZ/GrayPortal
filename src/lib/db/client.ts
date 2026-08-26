@@ -19,7 +19,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // this EventEmitter, which crashes the whole Node process instead of
 // rejecting the in-flight query's promise — surfaced as a bare 500 with no
 // stack trace, on requests that weren't even using the broken connection.
-pool.on("error", (err) => {
+pool.on("error", (err: Error) => {
   console.error("Unexpected error on idle Postgres client", err);
 });
 
