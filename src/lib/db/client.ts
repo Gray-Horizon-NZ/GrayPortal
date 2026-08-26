@@ -14,5 +14,14 @@ if (!process.env.DATABASE_URL) {
 // that.
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// Required: without a listener, an idle connection's network-level error
+// (e.g. Neon closing a stale socket) becomes an uncaught 'error' event on
+// this EventEmitter, which crashes the whole Node process instead of
+// rejecting the in-flight query's promise — surfaced as a bare 500 with no
+// stack trace, on requests that weren't even using the broken connection.
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle Postgres client", err);
+});
+
 export const rawPool = pool;
 export const db = drizzle(pool, { schema });
