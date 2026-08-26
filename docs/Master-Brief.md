@@ -2,7 +2,7 @@
 
 **For:** Claude Code, and anyone (human or agent) that needs the full picture before touching a single phase
 **Owner:** Max Fawcett, Gray Horizon (Auckland, NZ)
-**Purpose of this document:** The whole system, in one place — what it is, who it's for, everything it does, and the principles that hold it together. This is a reference, not a build queue. The full original build queue (Phase 0–20) plus the 2026-08-22 owner-review backlog (Phase 21–24) is built — see git history / current code for how any of it works. The only work still open is tracked in `GrayScale-Brief.md`.
+**Purpose of this document:** The whole system, in one place — what it is, who it's for, everything it does, and the principles that hold it together. This is a reference, not a build queue. The full original build queue (Phase 0–20) plus the 2026-08-22 owner-review backlog (Phase 21–24) is built — see git history / current code for how any of it works. Everything still open is tracked in `Open-Work-Brief.md`.
 
 ---
 
@@ -107,4 +107,4 @@ Carried through every phase without exception, summarized here:
 
 Phases 0–20 (the full original build queue) and the 2026-08-22 owner-review backlog (Phase 21–24: quick fixes, personal finance calculator, task system overhaul, client portal redesign) are all built. Their build briefs have been removed from `docs/` now that they're done — see git history for the original specs, or the current code for how each capability actually works (feature inventory in §4 above).
 
-The only work still open — the "GrayScale" product family (Apexus, Tempus, Solus branding, suggested moves) plus a set of ideas deliberately deferred rather than scheduled (general workflow/automation engine, AI Calendar/Docs assistants, e-signature, Agent Inbox) — is tracked in `GrayScale-Brief.md`.
+Everything still open — the "GrayScale" product family (Apexus, Tempus, Solus branding, suggested moves), the email marketing/campaign system, the internal ideation tab, and a set of ideas deliberately deferred rather than scheduled (general workflow/automation engine, AI Calendar/Docs assistants, e-signature, Agent Inbox) — is tracked in `Open-Work-Brief.md`.

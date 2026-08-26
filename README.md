@@ -2,13 +2,13 @@
 
 The operating system for Gray Horizon, a solo-led premium digital marketing agency in Auckland. It replaces Notion as the business's information and data powerhouse — Drive stays the file store, Xero stays the books — and ties CRM, client relationships, internal operations, and AI-agent-driven fulfillment together in one place. Business logic lives in a single data access layer, so the same capability is available identically to a human clicking a button, an admin using the API, and Claude acting as an agent through MCP.
 
-Full feature inventory, architectural principles, and who-uses-what: [`docs/Master-Brief.md`](docs/Master-Brief.md). What's still open: [`docs/GrayScale-Brief.md`](docs/GrayScale-Brief.md).
+Full feature inventory, architectural principles, and who-uses-what: [`docs/Master-Brief.md`](docs/Master-Brief.md). What's still open: [`docs/Open-Work-Brief.md`](docs/Open-Work-Brief.md).
 
 ## What's built
 
 CRM core (companies, contacts, deals, activities, documents, configurable pipeline), a client portal (tasks, documents, referrals, Ideation, Roadmap, Meeting Summaries, Tool Stack, Drive/Looker embeds), a contractor portal, an encrypted Credential Vault (MFA-gated reveal), a structured Pricing Catalogue with per-service overrides and an MRR dashboard, a read-only Xero financial snapshot, native Gmail send/receive with inbound triage and templates, unified in-app + email notifications, one-way Google Calendar/Tasks sync, automated client health scoring, full-text search, a homepage command center, a recurring task/reminder engine, a Mobile Operations Package, rules-based security monitoring, an MCP server exposing the DAL to Claude, an AI task planner, and internal tools (personal finance / "Owner's Cut" calculator, business expenses tracker, Master Task View).
 
-The one thing still greenfield is the "GrayScale" product family (Apexus quote tool, Tempus scheduling, Solus branding, suggested-moves intelligence) — see `docs/GrayScale-Brief.md` for what's blocked and on what.
+What's still open — the "GrayScale" product family (Apexus quote tool, Tempus scheduling, Solus branding, suggested-moves intelligence), a full email marketing/campaign system, and a scoping-stage internal ideation tab — is tracked in `docs/Open-Work-Brief.md`, along with what's blocked and on what.
 
 ## Stack
 

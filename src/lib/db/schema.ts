@@ -380,14 +380,21 @@ export const referralDiscounts = pgTable("referral_discounts", {
 // client read-only (matches current real-world usage per the brief — no
 // client-side mutation function exists in the DAL for any of these, same
 // enforcement-by-omission pattern Phase 2 already uses for portal tasks).
+// clientId is nullable so this table can also hold Max's own internal/
+// business ideas (Open-Work-Brief.md §3) alongside per-client ideas — a
+// null clientId means "internal," not "unset." `category` is a plain text
+// column validated at the app layer against INTERNAL_IDEATION_CATEGORIES
+// in src/lib/dal/ideation.ts, not a pgEnum, so adding a third category
+// later is a code change, not a migration (same reasoning as
+// PORTAL_FEATURE_KEYS in src/lib/dal/clients.ts). Only meaningful for
+// internal (null-clientId) rows — per-client ideation ignores it.
 export const ideationItems = pgTable("ideation_items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  clientId: uuid("client_id")
-    .notNull()
-    .references(() => clients.id),
+  clientId: uuid("client_id").references(() => clients.id),
   title: text("title").notNull(),
   description: text("description"),
   status: ideationStatusEnum("status").notNull().default("new"),
+  category: text("category"),
   ...softDelete,
   ...actorColumns,
 });
