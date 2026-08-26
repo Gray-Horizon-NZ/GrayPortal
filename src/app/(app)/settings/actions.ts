@@ -5,6 +5,13 @@ import { disconnectGoogle, updateCalendarSettings, setInternalTasklistMapping, t
 import { disconnectXero } from "@/lib/dal/xeroConnection";
 import { revokeMySessions } from "@/lib/dal/users";
 import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib/dal/tasks";
+import { createIdeationCategory } from "@/lib/dal/ideation";
+
+export async function createIdeationCategoryAction(formData: FormData) {
+  await createIdeationCategory({ label: String(formData.get("label") ?? "") });
+  revalidatePath("/settings");
+  revalidatePath("/ideation");
+}
 
 export async function disconnectGoogleAction() {
   await disconnectGoogle();

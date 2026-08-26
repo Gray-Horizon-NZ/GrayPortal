@@ -1,6 +1,6 @@
 import "server-only";
-import { ideationItems } from "@/lib/db/schema";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { ideationItems, ideationCategories } from "@/lib/db/schema";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
@@ -11,25 +11,75 @@ import { z } from "zod";
 // enforcement-by-omission pattern as portal tasks.
 export const IdeationStatus = z.enum(["new", "under_review", "actioned", "archived"]);
 
-// Categories for Max's own internal ideas (Open-Work-Brief.md §3.2) — an
-// app-layer registry, not a pgEnum, so a third category is a small code
-// change here, not a schema migration (same pattern as PORTAL_FEATURE_KEYS
-// in src/lib/dal/clients.ts). Purely a display-grouping concept on the
-// internal Ideation page; has no effect anywhere else in the app, and is
-// meaningless on per-client ideation items.
-export const INTERNAL_IDEATION_CATEGORIES = ["software", "marketing"] as const;
-export const InternalIdeationCategory = z.enum(INTERNAL_IDEATION_CATEGORIES);
-export type InternalIdeationCategoryT = z.infer<typeof InternalIdeationCategory>;
-
+// Category is validated against the live ideationCategories table (below),
+// not a fixed list — the Settings page lets Max add new categories freely
+// (Open-Work-Brief.md follow-up, 2026-08-26), so the DAL checks the
+// reference at write time instead of a static zod enum. Purely a
+// display-grouping concept on the internal Ideation page; has no effect
+// anywhere else in the app, and is meaningless on per-client ideation
+// items.
 export const IdeationItemInput = z.object({
   // null = internal idea (Max's own, business-wide), not client-scoped.
   clientId: z.string().uuid().nullable(),
   title: z.string().min(1),
   description: z.string().optional(),
   status: IdeationStatus.default("new"),
-  category: InternalIdeationCategory.optional(),
+  category: z.string().min(1).optional(),
 });
 export type IdeationItemInputT = z.infer<typeof IdeationItemInput>;
+
+export const IdeationCategoryInput = z.object({
+  label: z.string().min(1),
+});
+
+function slugifyCategory(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export async function listIdeationCategories() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return tx
+      .select()
+      .from(ideationCategories)
+      .where(isNull(ideationCategories.deletedAt))
+      .orderBy(asc(ideationCategories.sortOrder), asc(ideationCategories.createdAt));
+  });
+}
+
+export async function createIdeationCategory(input: { label: string }) {
+  const { label } = IdeationCategoryInput.parse(input);
+  const key = slugifyCategory(label);
+  if (!key) throw new Error("Category name must contain at least one letter or number");
+
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const [existing] = await tx
+      .select({ id: ideationCategories.id })
+      .from(ideationCategories)
+      .where(and(eq(ideationCategories.key, key), isNull(ideationCategories.deletedAt)))
+      .limit(1);
+    if (existing) {
+      throw new Error(`"${label}" already exists as a category`);
+    }
+    const rows = await tx
+      .select({ sortOrder: ideationCategories.sortOrder })
+      .from(ideationCategories)
+      .where(isNull(ideationCategories.deletedAt));
+    const nextSortOrder = rows.reduce((max, r) => Math.max(max, r.sortOrder), -1) + 1;
+
+    return auditedInsert(
+      tx,
+      ideationCategories,
+      { key, label, sortOrder: nextSortOrder, createdBy: caller.userId, updatedBy: caller.userId },
+      { caller, entityType: "ideation_category" }
+    );
+  });
+}
 
 export async function listIdeationItems(clientId: string) {
   return withCaller(async (_caller, tx) => {
@@ -63,6 +113,14 @@ export async function createIdeationItem(input: IdeationItemInputT) {
   }
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
+    if (data.clientId === null) {
+      const [category] = await tx
+        .select({ id: ideationCategories.id })
+        .from(ideationCategories)
+        .where(and(eq(ideationCategories.key, data.category!), isNull(ideationCategories.deletedAt)))
+        .limit(1);
+      if (!category) throw new Error(`Unknown ideation category: ${data.category}`);
+    }
     return auditedInsert(
       tx,
       ideationItems,

@@ -116,9 +116,17 @@ Direct one-off sends (`sendEmail`) keep the existing 30/hr limit unchanged. Camp
 
 ---
 
-## 3. Internal Ideation tab
+## 3. Internal Ideation tab (+ AI Agents tab)
 
-**Status:** Scoped, 2026-08-26 — ready to build.
+**Status:** Built, 2026-08-26 — coded but **not yet migrated against any live database** (Max asked to hold off on that step). Two things shipped beyond the original scope below, both per follow-up requests the same day:
+
+- **Ideation categories are now Settings-managed, not a fixed code list.** §3.2's original "extensible app-layer registry" plan (edit an array in code to add a category) was superseded — there's now a real `ideation_categories` table, an admin-only "Ideation categories" section on `/settings` to add new ones freely, and the Ideation page renders one column per *currently active* category rather than a hardcoded pair. `src/lib/dal/ideation.ts`'s `createIdeationCategory`/`listIdeationCategories`, `src/app/(app)/settings/page.tsx` (`Ideation categories` section), `db/sql/023_ideation_categories.sql` (admin-only RLS + seeds the original `software`/`marketing` rows so existing data keeps resolving). No deletion UI — only adding, per what was actually asked.
+- **A new AI Agents tab**, same visual design as Ideation (column-per-status cards) but grouped by a fixed 3-stage lifecycle instead of an open category list, since these are inherent pipeline stages, not tags: Active/Published, In Development, Planned/Ideated. Its own top-level nav item next to Ideation, admin-only. New table `ai_agents` (`src/lib/dal/aiAgents.ts`, `src/app/(app)/ai-agents/`, `db/sql/024_ai_agents.sql`).
+
+Both new tables have Drizzle migrations generated (`db/migrations/0022_internal_ideation_tab.sql`, `0023_ideation_categories_and_ai_agents.sql`) and hand-written RLS files (`db/sql/022`–`024`) sitting ready — **apply them in order (022 → 023 → 024, each migration file before its matching db/sql file) before either tab will actually work**, per the README's caveat about not running the full `db:migrate` script post-bootstrap.
+
+### 3.1 The idea (original scope)
+A tab for Max's own internal/business ideas — distinct from the existing **client** ideation feature (`src/lib/dal/ideation.ts`, `listIdeationItems(clientId)`), which is strictly per-client and shown on each client's detail page and portal. This is business-wide, not tied to any client, and lives in the admin (app) shell only — never client-visible.
 
 ### 3.1 The idea
 A tab for Max's own internal/business ideas — distinct from the existing **client** ideation feature (`src/lib/dal/ideation.ts`, `listIdeationItems(clientId)`), which is strictly per-client and shown on each client's detail page and portal. This is business-wide, not tied to any client, and lives in the admin (app) shell only — never client-visible.

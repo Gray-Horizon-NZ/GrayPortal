@@ -16,6 +16,7 @@ import {
   Settings as SettingsIcon,
   CalendarDays,
   Lightbulb,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
@@ -105,6 +106,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // never contractor- or client-visible (db/sql/022 enforces this at RLS,
     // not just by hiding the nav link).
     ...(callerRole === "admin" ? [{ href: "/ideation", label: "Ideation", icon: navIcon(Lightbulb), group: "Work" }] : []),
+    // Same design/admin-only reasoning as Ideation just above — Max's own
+    // AI agent roadmap, grouped next to it in the nav (db/sql/024).
+    ...(callerRole === "admin" ? [{ href: "/ai-agents", label: "AI Agents", icon: navIcon(Bot), group: "Work" }] : []),
     ...(callerRole === "admin" ? [{ href: "/finance", label: "Finance", icon: navIcon(Wallet), group: "Finance" }] : []),
     ...(callerRole === "admin" ? [{ href: "/finance/personal", label: "Owner's Cut", icon: navIcon(PiggyBank), group: "Finance" }] : []),
     ...(callerRole === "admin" ? [{ href: "/finance/expenses", label: "Expenses", icon: navIcon(Receipt), group: "Finance" }] : []),

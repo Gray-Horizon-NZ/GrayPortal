@@ -3,6 +3,7 @@ import { withCaller } from "@/lib/dal/auth";
 import { getGoogleConnection, getInternalTasklistMappings } from "@/lib/dal/googleConnection";
 import { listConnectedCalendars } from "@/lib/google/adapter";
 import { INTERNAL_LIST_KEYS, INTERNAL_LIST_LABELS } from "@/lib/dal/tasks";
+import { listIdeationCategories } from "@/lib/dal/ideation";
 import {
   disconnectGoogleAction,
   disconnectXeroAction,
@@ -10,6 +11,7 @@ import {
   listGoogleTasklistsAction,
   createGoogleTasklistAction,
   setInternalTasklistMappingAction,
+  createIdeationCategoryAction,
 } from "./actions";
 import McpTokenButton from "./McpTokenButton";
 import TotpEnrollment from "./TotpEnrollment";
@@ -31,6 +33,7 @@ export default async function SettingsPage({
   const xeroConnection = await getXeroConnection();
   const availableCalendars = connection ? await listConnectedCalendars() : [];
   const internalTasklistMappings = connection ? await getInternalTasklistMappings() : {};
+  const ideationCategories = await listIdeationCategories();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 560 }}>
@@ -170,6 +173,26 @@ export default async function SettingsPage({
           logging an activity or updating a task status will prompt.
         </p>
         <McpTokenButton />
+      </section>
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Ideation categories</p>
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+          Controls the columns on the internal Ideation page. Add as many as you need — each one
+          becomes its own column there.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--gh-space-2)" }}>
+          {ideationCategories.map((c) => (
+            <span key={c.id} className="gh-badge">{c.label}</span>
+          ))}
+          {ideationCategories.length === 0 && (
+            <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No categories yet.</span>
+          )}
+        </div>
+        <form action={createIdeationCategoryAction} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+          <input className="gh-input" name="label" placeholder="New category name" required style={{ flex: 1 }} />
+          <SubmitButton pendingLabel="Adding…">Add</SubmitButton>
+        </form>
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>

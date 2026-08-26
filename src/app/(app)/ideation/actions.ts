@@ -5,7 +5,6 @@ import {
   updateIdeationItem,
   softDeleteIdeationItem,
   IdeationStatus,
-  InternalIdeationCategory,
 } from "@/lib/dal/ideation";
 
 export async function createInternalIdeationItemAction(formData: FormData) {
@@ -14,7 +13,7 @@ export async function createInternalIdeationItemAction(formData: FormData) {
     title: String(formData.get("title") ?? ""),
     description: String(formData.get("description") ?? "") || undefined,
     status: "new",
-    category: InternalIdeationCategory.parse(formData.get("category")),
+    category: String(formData.get("category") ?? ""),
   });
   revalidatePath("/ideation");
 }

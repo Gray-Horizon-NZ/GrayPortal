@@ -383,11 +383,12 @@ export const referralDiscounts = pgTable("referral_discounts", {
 // clientId is nullable so this table can also hold Max's own internal/
 // business ideas (Open-Work-Brief.md §3) alongside per-client ideas — a
 // null clientId means "internal," not "unset." `category` is a plain text
-// column validated at the app layer against INTERNAL_IDEATION_CATEGORIES
-// in src/lib/dal/ideation.ts, not a pgEnum, so adding a third category
-// later is a code change, not a migration (same reasoning as
-// PORTAL_FEATURE_KEYS in src/lib/dal/clients.ts). Only meaningful for
-// internal (null-clientId) rows — per-client ideation ignores it.
+// column (not a pgEnum) referencing ideationCategories.key below by
+// convention, not a real FK — the category list is admin-managed at
+// runtime (Settings page), so a hard FK would make deleting a category
+// cascade in ways that aren't wanted; the DAL validates the reference
+// instead (src/lib/dal/ideation.ts). Only meaningful for internal
+// (null-clientId) rows — per-client ideation ignores it.
 export const ideationItems = pgTable("ideation_items", {
   id: uuid("id").primaryKey().defaultRandom(),
   clientId: uuid("client_id").references(() => clients.id),
@@ -395,6 +396,38 @@ export const ideationItems = pgTable("ideation_items", {
   description: text("description"),
   status: ideationStatusEnum("status").notNull().default("new"),
   category: text("category"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Admin-managed registry backing ideationItems.category, editable freely
+// from Settings (Open-Work-Brief.md follow-up, 2026-08-26) rather than the
+// hardcoded array it started as — `key` is the stable value stored on
+// ideation_items.category (derived from `label`, slugified), `label` is
+// what's shown in the UI. Admin-only, same as the internal ideas
+// themselves (db/sql/023).
+export const ideationCategories = pgTable("ideation_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  label: text("label").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// AI Agent tab (Open-Work-Brief.md follow-up, 2026-08-26): Max's own
+// roadmap of AI agents built for/with the business, same design as the
+// internal Ideation tab but a fixed 3-stage lifecycle instead of a
+// free-form category list — "active", "in_dev", "planned" are inherent
+// pipeline stages, not open-ended tags, so this stays a pgEnum rather than
+// an admin-editable registry like ideationCategories above.
+export const aiAgentStatusEnum = pgEnum("ai_agent_status", ["planned", "in_dev", "active"]);
+
+export const aiAgents = pgTable("ai_agents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: aiAgentStatusEnum("status").notNull().default("planned"),
   ...softDelete,
   ...actorColumns,
 });
