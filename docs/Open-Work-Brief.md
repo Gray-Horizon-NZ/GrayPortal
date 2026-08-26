@@ -176,6 +176,38 @@ Reached via the emailed portal-setup link (§4.1's token-gated entry point). Mul
 ### 4.4 Open questions
 See §7 (added there as items 9–13).
 
+### 4.5 Onboarding documents (added 2026-08-26)
+
+Every onboarded client needs four documents, supplied on top of the wizard walkthrough itself, and they must be **immediately available on the client's portal** from onboarding — not something added later by hand:
+
+1. Welcome Doc
+2. Project Brief
+3. Delivery Guide
+4. Thank You Doc
+
+**Template design is explicitly out of scope for GrayPortal work** — Max has a separate designer agent producing the actual document templates. What GrayPortal needs to build is the mechanism: how these four get attached to a client during onboarding and show up in their portal immediately.
+
+Likely implementation path (not decided, just the obvious fit): this is the existing Documents feature, not a new system. `documents` table + `docTypeEnum` (`src/lib/db/schema.ts`) currently has `["proposal", "contract", "deck", "other"]` — none of the four fit, so this needs either four new enum values (`welcome`, `project_brief`, `delivery_guide`, `thank_you`) or a way to flag these four as a distinct "onboarding doc" set distinguishable from ad hoc documents. `uploadDocument`/`linkDocument` (`src/lib/dal/documents.ts`) already handle admin-side attach (upload or an external URL — likely how designer-produced docs land here, e.g. a Drive link), and `listPortalDocuments`/`/portal/files` (`src/lib/dal/portal.ts`, `src/app/(portal)/portal/files/page.tsx`) already give clients read+download access — both reusable as-is. What's missing: a step (wizard-driven or admin-checklist-driven, see §4.6) that prompts attaching all four during onboarding, distinct from documents.
+
+### 4.6 Expanded admin onboarding checklist (added 2026-08-26)
+
+Separate from the client-facing wizard (§4.3): a checklist **for Max**, triggered when a client signs, replacing the current `ONBOARDING_TASK_TEMPLATE` (`src/config/onboarding.ts` — today just "Kickoff call," "Gather brand assets and access," "Confirm client portal access"). The new list, as given:
+
+- Add MSA to client portal
+- Connect invoice/Xero contact to client portal
+- Client Portal: Occupy Roadmap
+- Client Portal: add any current/discussed strategies
+- Client Portal: Fill in current tasks
+- Client Portal: add meeting summaries
+- Client Portal: Fill credentials
+- Client Portal: fill toolstack
+- Setup Looker Studio and connect to client portal
+- Run website SEO growth auditor, and add to client portal
+
+Nearly every item maps directly onto an existing GrayPortal feature — this checklist is essentially "don't forget to actually populate what's already built" for a new client, one task per section: MSA → Documents (§4.5's mechanism, `docType: "contract"` or similar), Xero → `clients.xeroContactId` (deliberately admin-set, never auto-matched, per its own schema comment), Roadmap → existing Roadmap feature (`listRoadmapItems`/`createRoadmapItem`), strategies → likely the existing per-client Ideation feature (`listIdeationItems`, distinct from the internal §3 Ideation tab) or a new concept — needs confirming which, current tasks → the Tasks feature itself, meeting summaries → existing Meeting Summaries feature, credentials → existing Credential Vault, toolstack → existing Tool Stack feature, Looker Studio → `clients.lookerStudioUrl` (already a field, just needs setting). **"Run website SEO growth auditor" is the one item with no existing equivalent anywhere in the codebase** — grepped, nothing — this is either a manual/external process being tracked as a task, or a genuinely new capability; needs clarifying which before scoping it as a build item.
+
+**Open tension to resolve before building, not yet asked:** earlier this session Max chose "the wizard's own steps replace `ONBOARDING_TASK_TEMPLATE`" when the two were assumed to be the same thing. Given this checklist is admin-facing operational tasks (not client-facing wizard steps), it's probably a *separate* replacement of `ONBOARDING_TASK_TEMPLATE` sitting alongside the client wizard, not something the wizard itself subsumes — but confirm this reading with Max rather than assuming it.
+
 ---
 
 ## 5. Client portal variations (marketing/service vs. software-only)
