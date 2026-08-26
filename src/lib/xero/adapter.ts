@@ -19,6 +19,18 @@ export type XeroInvoice = {
 
 export type XeroContact = { ContactID: string; Name: string; EmailAddress?: string };
 
+// Xero's Invoices endpoint serialises Date/DueDate as the old .NET JSON
+// date format (`/Date(1785715200000+0000)/`) even under Accept:
+// application/json — everything else on the object is normal JSON. Convert
+// to a plain YYYY-MM-DD (UTC, since these are calendar dates, not instants)
+// before it hits a Postgres `date` column, which rejects the raw form.
+function parseXeroDate(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const match = /^\/Date\((-?\d+)(?:[+-]\d{4})?\)\/$/.exec(raw);
+  if (!match) return raw;
+  return new Date(Number(match[1])).toISOString().slice(0, 10);
+}
+
 async function authedContext(): Promise<{ accessToken: string; tenantId: string } | null> {
   const connection = await getXeroConnectionForSync();
   if (!connection) return null;
@@ -59,7 +71,7 @@ export async function fetchAccountsReceivableInvoices(): Promise<XeroInvoice[] |
       `/Invoices?where=Type%3D%3D%22ACCREC%22&page=${page}&order=UpdatedDateUTC DESC`
     );
     if (data === null) return null; // not connected
-    all.push(...data.Invoices);
+    all.push(...data.Invoices.map((inv) => ({ ...inv, Date: parseXeroDate(inv.Date), DueDate: parseXeroDate(inv.DueDate) })));
     if (data.Invoices.length < 100) break;
     page++;
   }
