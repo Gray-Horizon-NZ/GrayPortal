@@ -149,7 +149,7 @@ A tab for Max's own internal/business ideas — distinct from the existing **cli
 
 ## 4. Client onboarding journey
 
-**Status:** Not scoped, not started — added 2026-08-26 per Max's request.
+**Status:** Partially built as of 2026-08-27 — see §10 for exactly what shipped, what's live, and what's still open. Foundation (token/invite mechanism), the wizard shell, and steps 1/2/3/5/7 are done. Steps 4 (documents) and 6 (GrayScale discount) are deliberately deferred; §4.6's admin checklist is unbuilt.
 **Ask:** After a client is onboarded, an automated journey should email them a link to their portal, let them choose which Google account(s) get portal access, and walk them through the portal on first login.
 
 ### 4.1 Current state
@@ -277,12 +277,7 @@ Ideas deliberately deferred rather than scheduled — don't build without Max ex
 7. Open/click tracking — worth a basic open-rate signal (tracking pixel) for blast sends, or explicitly skip it? Adds real complexity (hosting a pixel endpoint, privacy considerations) — recommend skipping for v1 unless it's a real need.
 8. Existing prospect contacts and consent — do current pipeline contacts have a sufficient existing-relationship basis to receive a first blast under §2.3, or should the first prospect send be preceded by some explicit opt-in step?
 
-**Client onboarding journey:**
-9. Trigger — does the onboarding email send automatically the moment `onboardClient()` runs, or does admin get a review/edit step first (e.g. confirm details, attach a personal note) before the client is contacted?
-10. Token lifetime and re-issue — how long should the portal-setup link stay valid, and can admin re-send/re-issue it if a client misses the window or wants to request another account later?
-11. Wizard step content (§4.3) — beyond the account-access-request step and the portal walkthrough itself, what else belongs in the multi-step flow, and how many steps total?
-12. Does the onboarding journey replace/precede the existing `ONBOARDING_TASK_TEMPLATE` starter task list, or run entirely independently of it?
-13. Completion-email trigger (§4.2) — fires the moment the client finishes the wizard's own steps, or on their first actual sign-in into the live portal right after? Only matters if those two moments can be meaningfully apart.
+**Client onboarding journey:** items 9/10/12/13 settled (§9.2, §10) — review/edit step before send (built), 14-day token with admin resend (built), §4.6's admin checklist is the real `ONBOARDING_TASK_TEMPLATE` replacement, not the wizard (wizard stays client-facing only), completion email fires on first real sign-in (not yet built — needs a `claimOrVerifyAllowlist` hook). Item 11 settled for the 5 steps actually built (§10.2); still open for steps 4 (documents) and 6 (GrayScale discount), and for §4.6's checklist itself, which is unbuilt.
 
 **Client portal variations:**
 14. Naming/scope of "subscription-focused" (§5.2) — specifically GrayScale (Apexus/Tempus/Solus) subscribers, or a broader software-subscription category that doesn't strictly depend on §1's GrayScale build? Shapes what the content model in item 15 needs to contain.
@@ -333,10 +328,38 @@ Four issues Max hit using the live app, reported but not yet triaged:
 
 1. **A deal marked Lost (or removed) still shows on the task list.** Likely root cause, found but not fixed: `listAllTasks()` (`src/lib/dal/tasks.ts` ~line 51) filters only `isNull(tasks.deletedAt)` — it has zero awareness of the linked deal's `stage` (or whether the deal itself was soft-deleted). A task auto-created by a `STAGE_TASK_RULES` rule (`src/config/pipeline.ts`) for a deal that later moves to Lost/Dormant, or gets deleted, just sits there forever unless someone deletes the task separately. Start there.
 2. **Two deals for one client showed as two separate task lists instead of one merged view.** Likely related to the same query: per its own doc comment, `listAllTasks()` groups client-side by `clientId` for the real client column, but a `dealId`-linked task with no `clientId` gets bucketed into a *separate* pseudo-column keyed by `dealCompanyName` (the deal's company name) instead. So a company that's both an active client (tasks with `clientId` set) and still has an open deal (tasks with `dealId` set, `clientId` null) genuinely produces two different Master Task View columns for what's conceptually one client. Grouping logic lives client-side in `src/app/(app)/tasks/MasterTaskView.tsx` — read that alongside `listAllTasks()` before deciding the fix (merge by resolving the deal's company to its client if one exists? backfill `clientId` onto deal tasks once a company converts to a client?).
-3. **Adding/removing a task sometimes gets stuck on "loading."** Not investigated at all yet — no root cause found. Look at `src/app/(app)/tasks/TaskRowEditable.tsx`, `EditTaskButton.tsx`, and whatever server actions back them for a stuck-pending-state bug (an unhandled promise rejection leaving `useTransition`/`SubmitButton`'s pending state true, a race between optimistic UI and `revalidatePath`, etc.).
-4. **General performance — Max wants the app faster, less load/operation time.** No specifics given yet, not investigated. Worth a real profiling pass (slow queries — everything runs through RLS-bound transactions per request, N+1s in list pages doing per-row lookups, bundle size, unnecessary sequential `await`s that could be `Promise.all`) before guessing at fixes.
+3. ~~**Adding/removing a task sometimes gets stuck on "loading."**~~ **Fixed** — commit `7169ee5` (2026-08-27, a concurrent session). Root cause: task add/remove/status-change awaited a live Google Tasks API call inside the same DB transaction the button's click was waiting on, with no timeout on the outbound call — a slow/unresponsive Google API left the action hanging forever. Google sync now runs via `next/server`'s `after()`, outside the transaction and after the response is sent, with an 8s timeout as a backstop.
+4. ~~**General performance.**~~ **Also addressed in `7169ee5`** — client portal page loads were slow; see that commit for the fix (each DAL call was opening its own connection).
 
 ### 9.4 Deploy/infra notes worth knowing
 
 - The auto-mode tool-use classifier **blocks an agent session from running raw SQL directly against the production Neon database** — a Node script hitting `DATABASE_URL_UNPOOLED` gets refused outright, no override found. This actually matches the repo's own long-standing convention (every phase's migrations get applied by Max, by hand) — so treat it as expected, not a bug to route around. Give Max plain SQL to paste into **Neon's web SQL editor** when a migration needs applying, not `psql` shell commands — pasting a `psql "$DATABASE_URL" -f file.sql` line into Neon's editor is not valid SQL and errors; this tripped things up once already this session.
 - Read-only checks against the live DB (via a throwaway `scripts/_check_*.mjs` using the same `@neondatabase/serverless` + `DATABASE_URL_UNPOOLED` pattern as `scripts/migrate.mjs`, deleted after use) are **not** blocked and are worth doing before trusting a "some other session already applied this" note left in a doc — verify independently, cheaply, before acting on it.
+
+---
+
+## 10. Session handoff — 2026-08-27
+
+Picks up §9.2's paused onboarding-wizard work. Two builds this session, in order — read both before touching §4 again.
+
+### 10.1 Foundation slice — token/invite mechanism
+
+Built from scratch (§9.2 confirmed nothing like it existed): a hashed, 14-day-expiry token table (`onboardingInvites` in `src/lib/db/schema.ts`), `sendOnboardingInvite`/`verifyOnboardingToken` (`src/lib/dal/onboardingInvites.ts`), a "Send/Resend portal-setup invite" review-and-edit UI on the client detail page's Portal access section, and the public token-gated route `/onboard/[token]` (exempted in `src/proxy.ts` via a new `TRULY_PUBLIC_PREFIX_PATHS`, own rate-limit bucket). Resending always revokes the previous link and mints a fresh one (decided: 14 days, admin-resendable — settles §7 item 10). Migration `0026_cynical_maelstrom.sql` + RLS `db/sql/026_onboarding_invites_admin_only.sql`, both applied to prod by Max directly in Neon's SQL editor (same handoff as every migration in this repo — the session's tool-use classifier still blocks running SQL against prod directly, confirmed again this session).
+
+### 10.2 Wizard shell + steps 1/2/3/5/7, plus an admin preview mode
+
+Three decisions unblocked the rest of §4.3 this session:
+- **Step 2 fields live on `companies`**, not a new `contacts` row (`mainEmail`, `phone`, `mainContactPosition`, `address`, `postalAddress`, `referredBy` — six new nullable columns, plus the existing `companies.name` is now editable through this step too).
+- **Step 3 approval**: a client's request (`portalAccessRequests` table) triggers a real email to every `role: "admin"` user — not the in-app notifications system, which §9.2 already found has no email leg — and approval/denial happens on the client's own detail page (`approvePortalAccessRequest`/`denyPortalAccessRequest`, `src/lib/dal/portalAccessRequests.ts`), not a link inside the email. Approving inserts the real `users` row (same shape as `inviteClientUser`); denying just marks the request denied. Nothing here touches `ONBOARDING_TASK_TEMPLATE` — the wizard stays purely client-facing, per the settled reading that §4.6's admin checklist (not yet built) is the actual replacement for it, not the wizard's own steps.
+- **New: an admin preview mode.** `/onboarding-preview/[clientId]` (admin-gated via `withCaller`/`assertRole("admin")`, not a token) renders the identical wizard components against a real client's data, but Next never calls the mutating actions in preview mode — no real company-detail write, no real access request, no real admin-notification email. Linked from the client detail page's Portal access section.
+
+Shipped: the two-panel wizard shell (`src/components/onboardingWizard/WizardShell.tsx`), the step-orchestrating client component (`OnboardingWizard.tsx`, `useTransition` + direct server-action calls, same pattern as `CampaignComposer.tsx` — not `<form action>`, since the wizard advances client-side), and steps Welcome / Confirm details / Request access / Your services / Enter portal (reuses the existing `.gh-glow-panel`/`gh-glow-spin` CSS built for the sign-in transition, held longer since this only happens once per client). Migration `0027_daffy_songbird.sql` + RLS `db/sql/027_portal_access_requests_admin_only.sql`, both applied to prod by Max.
+
+One real bug caught before it reached anyone: `auditedUpdate` (`src/lib/dal/mutate.ts`) unconditionally stamps `updatedAt` on every row it touches — `portalAccessRequests` didn't have that column, which would have thrown at runtime the first time anyone approved or denied a request. Added the column before the migration was ever handed over, not after.
+
+**Not built, still open:**
+- Step 4 (the four onboarding documents) — deliberately deferred, Max's call this session ("we'll build the actual documents later").
+- Step 6 (GrayScale discount close) — still blocked on §1's GrayScale family being unscoped.
+- §4.6's admin checklist (replaces `ONBOARDING_TASK_TEMPLATE`) — not started.
+- The completion email (fires on the client's first real portal sign-in, per §9.2's decision) — needs a hook into `claimOrVerifyAllowlist` that doesn't exist yet.
+- **No live browser test happened this session** — this machine's `D:\` drive is FAT32, and Turbopack (both `next dev` and `next build`) needs NTFS junction points it can't create there; confirmed the failure is pre-existing and unrelated to this code (reproduces on stock dependencies like `postcss`/`firebase-admin` on a vanilla build). Verified instead via `tsc --noEmit`, `eslint`, and a full manual read-through — real in-browser testing still needs to happen wherever this repo normally runs on an NTFS filesystem.

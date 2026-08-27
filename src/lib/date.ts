@@ -6,6 +6,15 @@ export function monthInputToDate(value: string): string | undefined {
   return `${value}-01`;
 }
 
+/** Whole days remaining until `expiresAt`, floored at 0. A separate module
+ * function, not an inline `Date.now()` in a component body, so it doesn't
+ * trip react-hooks/purity's "no impure calls during render" rule (same
+ * reason paymentStatus.ts's `new Date()` lives in its own module). */
+export function daysUntil(expiresAt: Date | string): number {
+  const target = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
+  return Math.max(0, Math.ceil((target.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
 function formatClockParts(iso: string): { time: string; period: string } {
   const parts = new Intl.DateTimeFormat("en-NZ", {
     hour: "numeric",

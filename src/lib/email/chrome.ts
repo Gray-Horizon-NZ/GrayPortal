@@ -17,9 +17,12 @@ export { stripHtmlToText };
  * support for var(). Values below mirror the app's --gh-* tokens by hand.
  */
 
-const GOLD = "#b8a369";
-const INK = "#1a1a1a";
-const MUTED = "#6b6b6b";
+// Exported so other one-off callers building small HTML fragments outside
+// wrapEmailHtml's own body (e.g. a fixed CTA button appended after
+// admin-edited content) match these exactly instead of re-declaring them.
+export const GOLD = "#b8a369";
+export const INK = "#1a1a1a";
+export const MUTED = "#6b6b6b";
 const BORDER = "#e2ddd0";
 const PAPER = "#f7f5f0";
 

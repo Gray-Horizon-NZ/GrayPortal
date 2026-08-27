@@ -17,9 +17,13 @@ import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 import { listEmailsForClient } from "@/lib/dal/emails";
 import { getCompany } from "@/lib/dal/companies";
+import { defaultOnboardingInviteEmail } from "@/config/onboarding";
+import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
+import { daysUntil } from "@/lib/date";
 import {
   createReferralAction,
   inviteClientAction,
+  sendOnboardingInviteAction,
   uploadDocumentAction,
   updateClientEmbedsAction,
   updatePortalWelcomeAction,
@@ -49,6 +53,8 @@ import {
   updateClientDiscountAction,
   renameDocumentAction,
   deleteDocumentAction,
+  approvePortalAccessRequestAction,
+  denyPortalAccessRequestAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
@@ -62,13 +68,29 @@ export default async function ClientDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ inviteError?: string; invited?: string }>;
+  searchParams: Promise<{
+    inviteError?: string;
+    invited?: string;
+    onboardingInviteSent?: string;
+    onboardingInviteError?: string;
+    accessRequestApproved?: string;
+    accessRequestDenied?: string;
+    accessRequestError?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { inviteError, invited } = await searchParams;
+  const {
+    inviteError,
+    invited,
+    onboardingInviteSent,
+    onboardingInviteError,
+    accessRequestApproved,
+    accessRequestDenied,
+    accessRequestError,
+  } = await searchParams;
   const data = await getClient(id);
   if (!data) notFound();
-  const { client, referrals, features, portalUsers, documents } = data;
+  const { client, referrals, features, portalUsers, documents, onboardingInvites } = data;
   const status = paymentStatus(client.nextPaymentDate);
 
   const [
@@ -87,6 +109,7 @@ export default async function ClientDetailPage({
     activityFeed,
     recentEmails,
     companyData,
+    pendingAccessRequests,
   ] = await Promise.all([
     listActiveDiscounts(client.id),
     listIdeationItems(client.id),
@@ -103,6 +126,7 @@ export default async function ClientDetailPage({
     listClientActivityFeed(client.id),
     listEmailsForClient(client.id),
     client.companyId ? getCompany(client.companyId) : Promise.resolve(null),
+    listPendingAccessRequests(client.id),
   ]);
 
   const overallDiscountPercent = Number(client.overallDiscountPercent ?? 0);
@@ -170,19 +194,83 @@ export default async function ClientDetailPage({
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Portal access</p>
-        {portalUsers.map((u) => (
-          <div key={u.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
-            <span>{u.email}</span>
-            <span style={{ color: "var(--gh-text-muted)" }}>{u.googleUid ? "Active" : "Invited — awaiting first sign-in"}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p className="gh-eyebrow">Portal access</p>
+          <Link href={`/onboarding-preview/${client.id}`} target="_blank" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
+            Preview onboarding wizard ↗
+          </Link>
+        </div>
+        {pendingAccessRequests.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+            <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textTransform: "uppercase", letterSpacing: "var(--gh-tracking-wide)" }}>
+              Pending access requests
+            </p>
+            {pendingAccessRequests.map((r) => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)" }}>
+                <span>
+                  {r.email}
+                  {r.displayName && <span style={{ color: "var(--gh-text-muted)" }}> ({r.displayName})</span>}
+                </span>
+                <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+                  <form action={approvePortalAccessRequestAction.bind(null, client.id, r.id)}>
+                    <SubmitButton className="gh-btn-primary">Approve</SubmitButton>
+                  </form>
+                  <form action={denyPortalAccessRequestAction.bind(null, client.id, r.id)}>
+                    <SubmitButton className="gh-btn-secondary">Deny</SubmitButton>
+                  </form>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+        {accessRequestApproved && <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Access approved.</p>}
+        {accessRequestDenied && <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>Request denied.</p>}
+        {accessRequestError && (
+          <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t approve: {accessRequestError}</p>
+        )}
+        {portalUsers.map((u) => {
+          const invite = onboardingInvites.find((i) => i.email === u.email);
+          const daysLeft = invite ? daysUntil(invite.expiresAt) : null;
+          const defaults = defaultOnboardingInviteEmail(client.name);
+          return (
+            <div key={u.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
+                <span>{u.email}</span>
+                <span style={{ color: "var(--gh-text-muted)" }}>{u.googleUid ? "Active" : "Invited — awaiting first sign-in"}</span>
+              </div>
+              {!u.googleUid && (
+                <details>
+                  <summary style={{ fontSize: "var(--gh-text-sm)", cursor: "pointer", color: "var(--gh-accent)" }}>
+                    {invite ? `Resend portal-setup invite (link expires in ${daysLeft}d)` : "Send portal-setup invite"}
+                  </summary>
+                  <form
+                    action={sendOnboardingInviteAction.bind(null, client.id)}
+                    style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+                  >
+                    <input type="hidden" name="email" value={u.email} />
+                    <input className="gh-input" name="subject" defaultValue={defaults.subject} required />
+                    <textarea className="gh-input" name="body" defaultValue={defaults.body} rows={4} required />
+                    <SubmitButton>{invite ? "Resend invite (invalidates the previous link)" : "Send invite"}</SubmitButton>
+                  </form>
+                </details>
+              )}
+            </div>
+          );
+        })}
         {portalUsers.length === 0 && (
           <p style={{ color: "var(--gh-text-muted)" }}>No portal login invited yet.</p>
         )}
         {invited && <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Invite sent.</p>}
         {inviteError && (
           <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t invite: {inviteError}</p>
+        )}
+        {onboardingInviteSent && (
+          <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Portal-setup invite sent.</p>
+        )}
+        {onboardingInviteError && (
+          <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>
+            Couldn&apos;t send invite: {onboardingInviteError}
+          </p>
         )}
         <form action={inviteClientAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <input className="gh-input" name="email" type="email" placeholder="Client email" required />

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { headers } from "next/headers";
 
 // Firebase App Hosting terminates TLS at a proxy in front of the Cloud Run
 // container, which listens internally on 0.0.0.0:8080. `request.url` on
@@ -15,4 +16,18 @@ export function absoluteUrl(path: string, request: NextRequest): URL {
     return new URL(path, `${forwardedProto ?? "https"}://${forwardedHost}`);
   }
   return new URL(path, request.url);
+}
+
+// Same forwarded-host/proto problem as absoluteUrl above, but for server
+// actions, which get no NextRequest — only the incoming request's headers
+// via next/headers. Used to build an absolute link (e.g. the onboarding
+// wizard's emailed portal-setup URL) from code that isn't a route handler.
+export async function absoluteOriginFromHeaders(): Promise<string> {
+  const h = await headers();
+  const forwardedHost = h.get("x-forwarded-host");
+  const forwardedProto = h.get("x-forwarded-proto");
+  if (forwardedHost) {
+    return `${forwardedProto ?? "https"}://${forwardedHost}`;
+  }
+  return `${forwardedProto ?? "http"}://${h.get("host")}`;
 }

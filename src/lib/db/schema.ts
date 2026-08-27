@@ -125,6 +125,23 @@ export const campaignRecipientStatusEnum = pgEnum("campaign_recipient_status", [
   "failed",
   "skipped_no_email",
 ]);
+// Client onboarding wizard (Open-Work-Brief.md §4, foundation slice) — a
+// resend mints a new row and flips the previous one to "revoked" rather than
+// deleting it, so the invite history stays visible. No "expired" status: a
+// row can be active but past expiresAt, checked at verify time rather than
+// tracked via a background job.
+export const onboardingInviteStatusEnum = pgEnum("onboarding_invite_status", [
+  "active",
+  "revoked",
+]);
+// Wizard step 3, "Request portal access" (Open-Work-Brief.md §4.2) — a
+// client's request never mints a users row directly; it only ever queues
+// here until an admin approves it from the client's own detail page.
+export const accessRequestStatusEnum = pgEnum("access_request_status", [
+  "pending",
+  "approved",
+  "denied",
+]);
 
 // ---------------------------------------------------------------------------
 // Soft-delete + audit column helpers
@@ -159,6 +176,16 @@ export const companies = pgTable("companies", {
   source: text("source").notNull(),
   status: text("status").notNull().default("active"),
   notes: text("notes"),
+  // Onboarding wizard step 2 (Open-Work-Brief.md §4.3) — captured by admin
+  // at onboarding time only if known; otherwise left blank and the client
+  // fills them in themselves during the wizard's "Confirm your details"
+  // step (updateOnboardingCompanyDetails, src/lib/dal/onboardingInvites.ts).
+  mainEmail: text("main_email"),
+  phone: text("phone"),
+  mainContactPosition: text("main_contact_position"),
+  address: text("address"),
+  postalAddress: text("postal_address"),
+  referredBy: text("referred_by"),
   ...softDelete,
   ...actorColumns,
 });
@@ -930,6 +957,47 @@ export const campaignRecipients = pgTable("campaign_recipients", {
   error: text("error"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Client onboarding wizard — the portal-setup link's token/magic-link table
+// (Open-Work-Brief.md §4, foundation slice; no such mechanism existed
+// anywhere in the app before this). Only the SHA-256 hash of the token is
+// ever stored — the raw token exists only in the URL/email, never at rest.
+// Row-per-send, not row-per-client: resending revokes the previous row
+// (see onboardingInviteStatusEnum) instead of updating it in place, so the
+// send history stays visible for audit.
+export const onboardingInvites = pgTable("onboarding_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: onboardingInviteStatusEnum("status").notNull().default("active"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: uuid("created_by").references(() => users.id),
+});
+
+// Wizard step 3 — see accessRequestStatusEnum above. Never inserted with a
+// users row alongside it: submitPortalAccessRequest only ever writes this
+// row (src/lib/dal/portalAccessRequests.ts), and the real users row (the
+// actual login) is created only on approvePortalAccessRequest.
+export const portalAccessRequests = pgTable("portal_access_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  email: text("email").notNull(),
+  displayName: text("display_name"),
+  status: accessRequestStatusEnum("status").notNull().default("pending"),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  decidedBy: uuid("decided_by").references(() => users.id),
+  // Required by auditedUpdate (src/lib/dal/mutate.ts), which unconditionally
+  // stamps updatedAt on every row it touches — approvePortalAccessRequest/
+  // denyPortalAccessRequest both go through it.
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------------------

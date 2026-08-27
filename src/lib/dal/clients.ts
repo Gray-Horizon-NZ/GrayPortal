@@ -1,5 +1,5 @@
 import "server-only";
-import { clients, referrals, clientFeatures, users, documents } from "@/lib/db/schema";
+import { clients, referrals, clientFeatures, users, documents, onboardingInvites } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
@@ -81,7 +81,22 @@ export async function getClient(id: string) {
       .from(documents)
       .where(and(eq(documents.clientId, id), isNull(documents.deletedAt)));
 
-    return { client, referrals: clientReferrals, features, portalUsers, documents: clientDocuments };
+    // Foundation slice of the onboarding wizard (Open-Work-Brief.md §4) —
+    // only the still-active invite(s) matter for the "Send" vs "Resend"
+    // button state; revoked history isn't shown on this page.
+    const activeOnboardingInvites = await tx
+      .select()
+      .from(onboardingInvites)
+      .where(and(eq(onboardingInvites.clientId, id), eq(onboardingInvites.status, "active")));
+
+    return {
+      client,
+      referrals: clientReferrals,
+      features,
+      portalUsers,
+      documents: clientDocuments,
+      onboardingInvites: activeOnboardingInvites,
+    };
   });
 }
 

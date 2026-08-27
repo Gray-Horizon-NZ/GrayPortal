@@ -19,6 +19,9 @@ import { addClientTeamMember, softDeleteClientTeamMember } from "@/lib/dal/clien
 import { addClientHealthChannel, softDeleteClientHealthChannel } from "@/lib/dal/clientHealthChannels";
 import { addClientActivityFeedEntry, softDeleteClientActivityFeedEntry } from "@/lib/dal/clientActivityFeed";
 import { addContactEmailAlias } from "@/lib/dal/emails";
+import { sendOnboardingInvite } from "@/lib/dal/onboardingInvites";
+import { approvePortalAccessRequest, denyPortalAccessRequest } from "@/lib/dal/portalAccessRequests";
+import { absoluteOriginFromHeaders } from "@/lib/http";
 import { monthInputToDate } from "@/lib/date";
 
 export async function createClientAction(formData: FormData) {
@@ -179,6 +182,41 @@ export async function inviteClientAction(clientId: string, formData: FormData) {
   }
   revalidatePath(`/clients/${clientId}`);
   redirect(`/clients/${clientId}?invited=1`);
+}
+
+export async function sendOnboardingInviteAction(clientId: string, formData: FormData) {
+  const appOrigin = await absoluteOriginFromHeaders();
+  try {
+    await sendOnboardingInvite({
+      clientId,
+      toEmail: String(formData.get("email") ?? ""),
+      subject: String(formData.get("subject") ?? ""),
+      bodyHtml: String(formData.get("body") ?? ""),
+      appOrigin,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invite send failed";
+    redirect(`/clients/${clientId}?onboardingInviteError=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/clients/${clientId}`);
+  redirect(`/clients/${clientId}?onboardingInviteSent=1`);
+}
+
+export async function approvePortalAccessRequestAction(clientId: string, requestId: string) {
+  try {
+    await approvePortalAccessRequest(requestId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Couldn't approve that request";
+    redirect(`/clients/${clientId}?accessRequestError=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/clients/${clientId}`);
+  redirect(`/clients/${clientId}?accessRequestApproved=1`);
+}
+
+export async function denyPortalAccessRequestAction(clientId: string, requestId: string) {
+  await denyPortalAccessRequest(requestId);
+  revalidatePath(`/clients/${clientId}`);
+  redirect(`/clients/${clientId}?accessRequestDenied=1`);
 }
 
 export async function addClientServiceAction(clientId: string, formData: FormData) {

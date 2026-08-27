@@ -1472,3 +1472,70 @@ textarea {
     grid-column: span 1;
   }
 }
+
+/* ---------------------------------------------------------------------
+   Onboarding wizard shell (Open-Work-Brief.md §4.3) — a dedicated shell,
+   not the real portal chrome (PortalShell isn't reusable/parameterizable
+   per the brief's own finding). Left panel stays fixed across every step;
+   right panel is the one thing that changes.
+   --------------------------------------------------------------------- */
+
+.gh-wizard-shell {
+  min-height: 100dvh;
+  display: flex;
+}
+
+.gh-wizard-left {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--gh-bg);
+  border-right: 1px solid var(--gh-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--gh-space-8);
+}
+
+.gh-wizard-right {
+  flex: 1;
+  background: var(--gh-surface);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gh-wizard-step-indicator {
+  padding: var(--gh-space-6) var(--gh-space-8) 0;
+  text-align: right;
+}
+
+.gh-wizard-step-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gh-space-8);
+}
+
+.gh-wizard-step-content {
+  width: 100%;
+  max-width: 480px;
+}
+
+@media (max-width: 640px) {
+  .gh-wizard-shell {
+    flex-direction: column;
+  }
+  .gh-wizard-left {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--gh-space-4) var(--gh-space-6);
+    border-right: none;
+    border-bottom: 1px solid var(--gh-border);
+  }
+  .gh-wizard-step-body {
+    padding: var(--gh-space-6);
+  }
+}

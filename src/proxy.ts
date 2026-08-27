@@ -51,6 +51,15 @@ const BEARER_AUTH_PREFIX_PATHS = ["/api/cron"];
 // redirect, same caveat as BEARER_AUTH_EXACT_PATHS above.
 const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads"];
 
+// Same "genuinely public, own protections" shape as TRULY_PUBLIC_EXACT_PATHS,
+// but for a route with a dynamic segment (the onboarding wizard's per-
+// recipient token, /onboard/[token]) that an exact-match list can't express.
+// The route itself is the real security boundary — it verifies the token
+// against onboarding_invites (src/lib/dal/onboardingInvites.ts), a long
+// random value, not a guessable secret; the rate limit below is defense in
+// depth, not the primary protection.
+const TRULY_PUBLIC_PREFIX_PATHS = ["/onboard"];
+
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -78,6 +87,12 @@ export default async function proxy(request: NextRequest) {
     if (isRateLimited(`leads:${clientKey(request)}`, 5, 10 * 60_000)) {
       return NextResponse.json({ error: "Too many submissions, try again later." }, { status: 429 });
     }
+  } else if (TRULY_PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p))) {
+    // Generous relative to /api/leads: a real invitee only ever loads this a
+    // handful of times, but it's still reachable by anyone with the URL.
+    if (isRateLimited(`onboard:${clientKey(request)}`, 20, 10 * 60_000)) {
+      return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
+    }
   } else if (request.method === "POST") {
     if (isRateLimited(`mutate:${clientKey(request)}`, 30, 60_000)) {
       return NextResponse.json({ error: "Too many requests, slow down." }, { status: 429 });
@@ -90,7 +105,8 @@ export default async function proxy(request: NextRequest) {
     isPublic(pathname) ||
     BEARER_AUTH_EXACT_PATHS.includes(pathname) ||
     BEARER_AUTH_PREFIX_PATHS.some((p) => pathname.startsWith(p)) ||
-    TRULY_PUBLIC_EXACT_PATHS.includes(pathname)
+    TRULY_PUBLIC_EXACT_PATHS.includes(pathname) ||
+    TRULY_PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p))
   ) {
     return NextResponse.next();
   }
