@@ -263,24 +263,21 @@ export default function OnboardingWizard({
 
       {step === 6 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
-          <h2 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-            GrayScale
-          </h2>
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-            Our newest line, opening up as we roll it out.
-          </p>
-          <div
-            style={{
-              border: "1px solid var(--gh-accent)",
-              padding: "var(--gh-space-4)",
-              background: "color-mix(in srgb, var(--gh-surface-raised) 65%, transparent)",
-            }}
-          >
-            <div style={{ fontSize: "var(--gh-text-sm)", fontWeight: 600, marginBottom: "var(--gh-space-1)" }}>Coming soon</div>
-            <div style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
-              Ask Gray Horizon about what&apos;s available for your account.
-            </div>
+          <div className="gh-wizard-grayscale-promo">
+            <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
+              Software Division
+            </p>
+            <h2 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", marginBottom: "var(--gh-space-3)" }}>
+              Introducing <em>Gray Scale</em>.
+            </h2>
+            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+              Prebuilt AI &amp; software systems for real businesses — live now for our clients.
+            </p>
           </div>
+          <p style={{ fontSize: "var(--gh-text-sm)" }}>
+            As a Gray Horizon client, you get member pricing on every GrayScale product — automatically, no extra
+            step.
+          </p>
           <div style={{ marginTop: "var(--gh-space-3)" }}>
             <NextButton onClick={goNext}>Next</NextButton>
           </div>
