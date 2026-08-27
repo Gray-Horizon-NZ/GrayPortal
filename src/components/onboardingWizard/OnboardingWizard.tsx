@@ -297,15 +297,24 @@ export default function OnboardingWizard({
       )}
 
       {step === 6 && (
+        // Not position: relative here — .gh-wizard-grayscale-beam/-vignette
+        // below are absolutely positioned against .gh-wizard-right--promo
+        // (the whole panel), not this 480px content column, so the effect
+        // spans the full right side the way the mockup intended.
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)", textAlign: "center" }}>
+          <div className="gh-wizard-grayscale-beam" />
+          <div className="gh-wizard-grayscale-vignette" />
           <p className="gh-eyebrow">Software Division</p>
-          {/* Matches grayhorizon.nz/grayscale's own hero treatment exactly:
-              "Gray Scale" in muted gray, not white, inside the heading. */}
+          {/* "Introducing" explicitly white — the designer's mockup this is
+              based on never set a base text color on the headline, so it
+              inherited nothing and would've rendered invisible; only
+              "Gray Scale" had an explicit color (gold). */}
           <h2 className="gh-title" style={{ fontSize: "2.75rem", lineHeight: 1.05 }}>
-            Introducing <em style={{ color: "var(--gh-text-muted)" }}>Gray Scale</em>
+            <span style={{ color: "var(--gh-text-emphasis)" }}>Introducing</span>{" "}
+            <em style={{ color: "var(--gh-accent)" }}>Gray Scale</em>
           </h2>
           <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-            Prebuilt AI &amp; software systems for real businesses — live now for our clients.
+            AI and software systems, already live for clients like you.
           </p>
           <p style={{ color: "var(--gh-accent)", fontSize: "var(--gh-text-xs)", marginTop: "var(--gh-space-8)" }}>
             As a Gray Horizon client, you get member pricing on every GrayScale product — automatically, no extra

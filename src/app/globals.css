@@ -1508,18 +1508,40 @@ textarea {
   overflow-y: auto;
 }
 
-/* Step 6 only — the GrayScale close (§10.3, revised 2026-08-28 to match
-   the real grayscale.nz page's own hero background exactly: a faint 56px
-   grid (OS/website/grayhorizon-website/grayscale/index.html's .hero-bg,
-   two 1px hairline gradients) under a soft radial vignette, on near-black
-   — not the earlier plain gold-vignette approximation. */
+/* Step 6 only — the GrayScale close (§10.3, revised again 2026-08-28 to
+   match the "Spotlight Sweep" concept a designer mocked up — a static
+   overhead light cone plus a tight vignette, replacing the grid-pattern
+   approach from the previous revision). z-index: 0 deliberately turns this
+   into its own stacking context so the beam/vignette (negative z-index)
+   are guaranteed to paint behind the step's real content regardless of
+   DOM order — see .gh-wizard-grayscale-beam below. */
 .gh-wizard-right--promo {
-  background:
-    radial-gradient(ellipse 60% 60% at 50% 34%, rgba(255, 255, 255, 0.05) 0%, transparent 70%),
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    var(--gh-bg);
-  background-size: auto, 56px 56px, 56px 56px, auto;
+  position: relative;
+  z-index: 0;
+  background: var(--gh-bg);
+}
+
+/* Static — the mockup's version rotated back and forth on a 9s loop
+   (@keyframes sway); Max asked for that removed, so this just sits fixed
+   at the mockup's midpoint angle. */
+.gh-wizard-grayscale-beam {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: -10%;
+  width: 640px;
+  height: 640px;
+  transform: translateX(-50%);
+  background: conic-gradient(from 250deg at 50% 0%, transparent 0deg, color-mix(in srgb, var(--gh-accent) 16%, transparent) 18deg, transparent 40deg);
+  pointer-events: none;
+}
+
+.gh-wizard-grayscale-vignette {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: radial-gradient(480px 620px at 50% 30%, transparent 0%, rgba(0, 0, 0, 0.75) 78%);
+  pointer-events: none;
 }
 
 .gh-wizard-step-indicator {
