@@ -1486,18 +1486,20 @@ textarea {
 }
 
 .gh-wizard-left {
-  width: 320px;
-  flex-shrink: 0;
+  flex: 0 0 50%;
+  min-width: 33%;
   background: var(--gh-bg);
   border-right: 1px solid var(--gh-border);
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: space-between;
+  text-align: center;
   padding: var(--gh-space-8);
 }
 
 .gh-wizard-right {
-  flex: 1;
+  flex: 1 1 50%;
   background: var(--gh-surface);
   display: flex;
   flex-direction: column;

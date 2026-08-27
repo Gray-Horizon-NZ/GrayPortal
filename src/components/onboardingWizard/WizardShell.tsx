@@ -24,10 +24,15 @@ export default function WizardShell({
       <div className="gh-wizard-left">
         <Image src="/brand-icon.png" alt="" width={40} height={40} className="gh-brand-icon" />
         <div>
-          <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>
+          {/* Larger than the app-wide eyebrow/heading sizes, deliberately —
+              the wizard is already its own separate shell (per the doc
+              comment above), and this is a scoped, one-off departure from
+              the shared type scale, not a change to the brand tokens
+              themselves (tokens.css is untouched). */}
+          <p className="gh-eyebrow" style={{ fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-3)" }}>
             Gray Horizon
           </p>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
+          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
             Welcome, <em>{clientName}</em>
           </h1>
         </div>
