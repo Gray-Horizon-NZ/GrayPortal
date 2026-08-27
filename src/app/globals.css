@@ -1524,6 +1524,32 @@ textarea {
   max-width: 480px;
 }
 
+/* Step 4's document tiles (§4.3, 2026-08-27 visual spec) — a deliberate,
+   flagged one-off departure from the app-wide --gh-radius: 0 square-corner
+   rule: the wizard is already its own separate shell, so this is a real
+   isolated choice, not an accident. Fixed-width so the set reads as one
+   clean aligned row (wraps to two rows in the wizard's ~480px content
+   column rather than cramming four across). */
+.gh-wizard-doc-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gh-space-3);
+}
+
+.gh-wizard-doc-tile {
+  width: 200px;
+  flex-shrink: 0;
+  padding: var(--gh-space-3) var(--gh-space-4);
+  border: 1px solid var(--gh-accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--gh-surface-raised) 65%, transparent);
+  font-size: var(--gh-text-sm);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 640px) {
   .gh-wizard-shell {
     flex-direction: column;

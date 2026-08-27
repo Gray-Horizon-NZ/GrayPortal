@@ -149,7 +149,7 @@ A tab for Max's own internal/business ideas — distinct from the existing **cli
 
 ## 4. Client onboarding journey
 
-**Status:** Partially built as of 2026-08-27 — see §10 for exactly what shipped, what's live, and what's still open. Foundation (token/invite mechanism), the wizard shell, and steps 1/2/3/5/7 are done. Steps 4 (documents) and 6 (GrayScale discount) are deliberately deferred; §4.6's admin checklist is unbuilt.
+**Status:** Partially built as of 2026-08-27 — see §10 for exactly what shipped, what's live, and what's still open. Foundation (token/invite mechanism), the wizard shell, and all 7 steps are in place, though steps 4 (documents) and 6 (GrayScale) are UI-only mocks, not wired to real backends (§10.3). §4.6's admin checklist is unbuilt.
 **Ask:** After a client is onboarded, an automated journey should email them a link to their portal, let them choose which Google account(s) get portal access, and walk them through the portal on first login.
 
 ### 4.1 Current state
@@ -358,8 +358,14 @@ Shipped: the two-panel wizard shell (`src/components/onboardingWizard/WizardShel
 One real bug caught before it reached anyone: `auditedUpdate` (`src/lib/dal/mutate.ts`) unconditionally stamps `updatedAt` on every row it touches — `portalAccessRequests` didn't have that column, which would have thrown at runtime the first time anyone approved or denied a request. Added the column before the migration was ever handed over, not after.
 
 **Not built, still open:**
-- Step 4 (the four onboarding documents) — deliberately deferred, Max's call this session ("we'll build the actual documents later").
-- Step 6 (GrayScale discount close) — still blocked on §1's GrayScale family being unscoped.
 - §4.6's admin checklist (replaces `ONBOARDING_TASK_TEMPLATE`) — not started.
 - The completion email (fires on the client's first real portal sign-in, per §9.2's decision) — needs a hook into `claimOrVerifyAllowlist` that doesn't exist yet.
 - **No live browser test happened this session** — this machine's `D:\` drive is FAT32, and Turbopack (both `next dev` and `next build`) needs NTFS junction points it can't create there; confirmed the failure is pre-existing and unrelated to this code (reproduces on stock dependencies like `postcss`/`firebase-admin` on a vanilla build). Verified instead via `tsc --noEmit`, `eslint`, and a full manual read-through — real in-browser testing still needs to happen wherever this repo normally runs on an NTFS filesystem.
+
+### 10.3 Follow-up same session: 50/50 layout + steps 4 and 6 as UI mocks
+
+Two rounds of feedback after Max tried the shell:
+
+- **Layout**: the fixed 320px left panel read as ~25/75 at normal desktop widths. Both panels now use flex-basis percentages (`.gh-wizard-left`/`.gh-wizard-right` in `globals.css`) — 50/50 to start, 33% floor on the left if that turns out too wide. Left-panel text ("Gray Horizon" / "Welcome, [name]") is now center-aligned and a step larger on the existing type scale (`--gh-text-xs`→`sm`, `--gh-text-xl`→`2xl`) — a scoped override on the wizard shell only, `tokens.css` itself untouched.
+- **Steps 4 and 6 now exist as UI, not backends.** Max's reasoning: GrayScale is already live as something people can inquire about (the portal's own placeholder page, `src/app/(portal)/portal/grayscale/page.tsx`, has shipped "Coming soon — ask Gray Horizon" copy for a while), so the wizard needed *a page* for it even without Apexus/Solus/Tempus being scoped — step 6 mirrors that exact copy/tone, no new backend, no discount mechanism. Step 4 similarly: Max wanted to see the tile-set UI from §4.3's visual spec now, even without the real document-attach mechanism (§4.5) — so it renders the four expected document names (`ONBOARDING_DOCUMENT_NAMES` in `OnboardingWizard.tsx`) as static tiles (gold outline, rounded corners, translucent fill, per spec), not wired to any `documents` row. `STEP_COUNT` is genuinely 7 now, not 5.
+- **Still not built:** the real document-attach mechanism (step 4 stays a mock until §4.5 gets built) and any real GrayScale product content (step 6 stays a static "ask us" note until §1 gets scoped).

@@ -8,12 +8,23 @@ import type { OnboardingWizardData } from "@/lib/dal/onboardingInvites";
 
 type WizardData = Extract<OnboardingWizardData, { status: "valid" }>;
 
-// Only 5 of the 7 steps in Open-Work-Brief.md §4.3 exist yet — documents
-// (step 4) and the GrayScale discount close (step 6) are both deliberately
-// deferred (documents: build later; GrayScale: still an unscoped greenfield
-// product family). The indicator counts what's actually here, not the
-// eventual 7, so it doesn't imply steps that don't exist yet.
-const STEP_COUNT = 5;
+// All 7 steps from Open-Work-Brief.md §4.3 (2026-08-27). Two are
+// deliberately not wired to real backends yet:
+// - Step 4 (documents) is a static UI mock — the four expected document
+//   names, not real attached files. §4.5's attach mechanism is still
+//   deferred; this just shows Max what the tile set looks like.
+// - Step 6 (GrayScale) is a static informational close, not a real product
+//   page — GrayScale (Apexus/Solus/Tempus) is still unscoped per §1, but
+//   it's already something people can inquire about live, so it gets a
+//   page mirroring the same "ask Gray Horizon" copy already live on the
+//   portal's own placeholder GrayScale page (src/app/(portal)/portal/
+//   grayscale/page.tsx).
+const STEP_COUNT = 7;
+
+// Matches §4.5's four expected documents — the UI mock for step 4 until the
+// real attach mechanism (documents typed "other" + title, per the decided
+// approach) is wired up.
+const ONBOARDING_DOCUMENT_NAMES = ["Welcome Document", "Project Brief", "Delivery Guide", "Thank You Document"];
 
 function NextButton({
   onClick,
@@ -211,6 +222,27 @@ export default function OnboardingWizard({
       {step === 4 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <h2 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
+            Your documents
+          </h2>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-2)" }}>
+            A preview of the set — these stay available afterward under your portal&apos;s own Documents section.
+          </p>
+          <div className="gh-wizard-doc-grid">
+            {ONBOARDING_DOCUMENT_NAMES.map((name) => (
+              <div key={name} className="gh-wizard-doc-tile">
+                {name}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: "var(--gh-space-3)" }}>
+            <NextButton onClick={goNext}>Next</NextButton>
+          </div>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <h2 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
             Your services
           </h2>
           <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-2)" }}>
@@ -229,7 +261,33 @@ export default function OnboardingWizard({
         </div>
       )}
 
-      {step === 5 && <EnterPortalStep mode={mode} clientId={data.clientId} />}
+      {step === 6 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
+          <h2 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
+            GrayScale
+          </h2>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+            Our newest line, opening up as we roll it out.
+          </p>
+          <div
+            style={{
+              border: "1px solid var(--gh-accent)",
+              padding: "var(--gh-space-4)",
+              background: "color-mix(in srgb, var(--gh-surface-raised) 65%, transparent)",
+            }}
+          >
+            <div style={{ fontSize: "var(--gh-text-sm)", fontWeight: 600, marginBottom: "var(--gh-space-1)" }}>Coming soon</div>
+            <div style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
+              Ask Gray Horizon about what&apos;s available for your account.
+            </div>
+          </div>
+          <div style={{ marginTop: "var(--gh-space-3)" }}>
+            <NextButton onClick={goNext}>Next</NextButton>
+          </div>
+        </div>
+      )}
+
+      {step === 7 && <EnterPortalStep mode={mode} clientId={data.clientId} />}
     </WizardShell>
   );
 }
