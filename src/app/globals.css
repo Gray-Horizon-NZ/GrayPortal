@@ -1508,12 +1508,18 @@ textarea {
   overflow-y: auto;
 }
 
-/* Step 6 only — the GrayScale close (§10.3, 2026-08-27) styled after the
-   real announcement banner (Branding/Supporting.Graphics/
-   grayscale_announcement_banner.png): the whole panel, not an inset box,
-   carries the near-black-plus-gold-vignette background. */
+/* Step 6 only — the GrayScale close (§10.3, revised 2026-08-28 to match
+   the real grayscale.nz page's own hero background exactly: a faint 56px
+   grid (OS/website/grayhorizon-website/grayscale/index.html's .hero-bg,
+   two 1px hairline gradients) under a soft radial vignette, on near-black
+   — not the earlier plain gold-vignette approximation. */
 .gh-wizard-right--promo {
-  background: radial-gradient(ellipse 70% 55% at 50% 42%, color-mix(in srgb, var(--gh-accent) 18%, transparent), transparent 72%), var(--gh-bg);
+  background:
+    radial-gradient(ellipse 60% 60% at 50% 34%, rgba(255, 255, 255, 0.05) 0%, transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    var(--gh-bg);
+  background-size: auto, 56px 56px, 56px 56px, auto;
 }
 
 .gh-wizard-step-indicator {
@@ -1591,7 +1597,7 @@ textarea {
     width: 100%;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: var(--gh-space-4) var(--gh-space-6);
     border-right: none;
     border-bottom: 1px solid var(--gh-border);

@@ -1,10 +1,10 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 
 /**
  * Fixed two-panel layout, per Open-Work-Brief.md §4.3: left panel (darker
- * background, logo, "Welcome, [Client Name]") stays identical across every
- * step; right panel (dark gray) holds whatever changes. Step indicator is
+ * background, "Welcome, [Client Name]") stays identical across every step;
+ * right panel (dark gray) holds whatever changes. No logo (2026-08-28,
+ * Max's call — removed entirely, not replaced). Step indicator is
  * deliberately restrained — "03 / 07" in the app's own eyebrow micro-type,
  * not a filled progress bar or anything gamified.
  */
@@ -30,8 +30,7 @@ export default function WizardShell({
 }) {
   return (
     <div className="gh-wizard-shell">
-      <div className="gh-wizard-left">
-        <Image src="/brand-icon.png" alt="" width={40} height={40} className="gh-brand-icon" />
+      <div className="gh-wizard-left" style={{ justifyContent: "center" }}>
         <div>
           {/* Larger than the app-wide eyebrow/heading sizes, deliberately —
               the wizard is already its own separate shell (per the doc
@@ -45,7 +44,6 @@ export default function WizardShell({
             Welcome, <em>{clientName}</em>
           </h1>
         </div>
-        <div />
       </div>
       <div className={promo ? "gh-wizard-right gh-wizard-right--promo" : "gh-wizard-right"}>
         <div className="gh-wizard-step-indicator">

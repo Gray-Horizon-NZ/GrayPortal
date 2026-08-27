@@ -299,13 +299,15 @@ export default function OnboardingWizard({
       {step === 6 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)", textAlign: "center" }}>
           <p className="gh-eyebrow">Software Division</p>
-          <h2 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-            Introducing <em>Gray Scale</em>.
+          {/* Matches grayhorizon.nz/grayscale's own hero treatment exactly:
+              "Gray Scale" in muted gray, not white, inside the heading. */}
+          <h2 className="gh-title" style={{ fontSize: "2.75rem", lineHeight: 1.05 }}>
+            Introducing <em style={{ color: "var(--gh-text-muted)" }}>Gray Scale</em>
           </h2>
           <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
             Prebuilt AI &amp; software systems for real businesses — live now for our clients.
           </p>
-          <p style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-4)" }}>
+          <p style={{ color: "var(--gh-accent)", fontSize: "var(--gh-text-xs)", marginTop: "var(--gh-space-8)" }}>
             As a Gray Horizon client, you get member pricing on every GrayScale product — automatically, no extra
             step.
           </p>
