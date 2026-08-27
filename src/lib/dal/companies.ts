@@ -14,6 +14,15 @@ export const CompanyInput = z.object({
   source: z.string().min(1),
   status: z.string().optional(),
   notes: z.string().optional(),
+  // Onboarding wizard confirm-details fields (Open-Work-Brief.md §4.3 step
+  // 2) — normally filled in by the client themselves, but also editable
+  // here so an admin can correct/fill them in directly.
+  mainEmail: z.string().optional(),
+  phone: z.string().optional(),
+  mainContactPosition: z.string().optional(),
+  address: z.string().optional(),
+  postalAddress: z.string().optional(),
+  referredBy: z.string().optional(),
 });
 export type CompanyInputT = z.infer<typeof CompanyInput>;
 

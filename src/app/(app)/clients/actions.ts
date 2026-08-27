@@ -21,6 +21,7 @@ import { addClientActivityFeedEntry, softDeleteClientActivityFeedEntry } from "@
 import { addContactEmailAlias } from "@/lib/dal/emails";
 import { sendOnboardingInvite } from "@/lib/dal/onboardingInvites";
 import { approvePortalAccessRequest, denyPortalAccessRequest } from "@/lib/dal/portalAccessRequests";
+import { updateCompany } from "@/lib/dal/companies";
 import { absoluteOriginFromHeaders } from "@/lib/http";
 import { monthInputToDate } from "@/lib/date";
 
@@ -368,5 +369,17 @@ export async function renameDocumentAction(id: string, clientId: string, formDat
 
 export async function deleteDocumentAction(id: string, clientId: string) {
   await deleteDocument(id);
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function updateCompanyDetailsAction(companyId: string, clientId: string, formData: FormData) {
+  await updateCompany(companyId, {
+    mainEmail: String(formData.get("mainEmail") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    mainContactPosition: String(formData.get("mainContactPosition") ?? ""),
+    address: String(formData.get("address") ?? ""),
+    postalAddress: String(formData.get("postalAddress") ?? ""),
+    referredBy: String(formData.get("referredBy") ?? ""),
+  });
   revalidatePath(`/clients/${clientId}`);
 }

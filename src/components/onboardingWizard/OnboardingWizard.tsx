@@ -8,19 +8,15 @@ import type { OnboardingWizardData } from "@/lib/dal/onboardingInvites";
 
 type WizardData = Extract<OnboardingWizardData, { status: "valid" }>;
 
-// All 7 steps from Open-Work-Brief.md §4.3 (2026-08-27). Two are
-// deliberately not wired to real backends yet:
+// 6 steps from Open-Work-Brief.md §4.3's original 7 (2026-08-28: the
+// original step 7, "Enter Client Portal," was folded into step 6 per
+// Max's request — GrayScale is now the wizard's last real step, and its
+// own action triggers the portal-entry transition directly, no separate
+// step after it). One is deliberately not wired to a real backend yet:
 // - Step 4 (documents) is a static UI mock — the four expected document
 //   names, not real attached files. §4.5's attach mechanism is still
 //   deferred; this just shows Max what the tile set looks like.
-// - Step 6 (GrayScale) is a static informational close, not a real product
-//   page — GrayScale (Apexus/Solus/Tempus) is still unscoped per §1, but
-//   it's already something people can inquire about live, so it gets a
-//   page mirroring the same "ask Gray Horizon" copy already live on the
-//   portal's own placeholder GrayScale page (src/app/(portal)/portal/
-//   grayscale/page.tsx), restyled 2026-08-27 after the real GrayScale
-//   announcement banner.
-const STEP_COUNT = 7;
+const STEP_COUNT = 6;
 
 // Matches §4.5's four expected documents — the UI mock for step 4 until the
 // real attach mechanism (documents typed "other" + title, per the decided
@@ -166,17 +162,11 @@ export default function OnboardingWizard({
           </NextButton>
         );
       case 6:
-        return (
-          <NextButton onClick={goNext} variant="promo">
-            Next
-          </NextButton>
-        );
-      case 7:
         if (entering) return null;
         return mode === "live" ? (
-          <button className="gh-btn-primary" type="button" onClick={handleEnterPortal}>
+          <NextButton onClick={handleEnterPortal} variant="promo">
             Enter Client Portal
-          </button>
+          </NextButton>
         ) : (
           <Link href={`/clients/${data.clientId}`} className="gh-btn-secondary">
             Back to client profile
@@ -188,7 +178,13 @@ export default function OnboardingWizard({
   }
 
   return (
-    <WizardShell clientName={data.clientName} stepIndex={step} stepCount={STEP_COUNT} action={renderAction()} promo={step === 6}>
+    <WizardShell
+      clientName={data.clientName}
+      stepIndex={step}
+      stepCount={STEP_COUNT}
+      action={renderAction()}
+      promo={step === 6 && !entering}
+    >
       {mode === "preview" && step !== STEP_COUNT && (
         <p className="gh-eyebrow" style={{ color: "var(--gh-accent)", marginBottom: "var(--gh-space-4)" }}>
           Preview — nothing here is saved
@@ -296,34 +292,7 @@ export default function OnboardingWizard({
         </div>
       )}
 
-      {step === 6 && (
-        // Not position: relative here — .gh-wizard-grayscale-beam/-vignette
-        // below are absolutely positioned against .gh-wizard-right--promo
-        // (the whole panel), not this 480px content column, so the effect
-        // spans the full right side the way the mockup intended.
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)", textAlign: "center" }}>
-          <div className="gh-wizard-grayscale-beam" />
-          <div className="gh-wizard-grayscale-vignette" />
-          <p className="gh-eyebrow">Software Division</p>
-          {/* "Introducing" explicitly white — the designer's mockup this is
-              based on never set a base text color on the headline, so it
-              inherited nothing and would've rendered invisible; only
-              "Gray Scale" had an explicit color (gold). */}
-          <h2 className="gh-title" style={{ fontSize: "2.75rem", lineHeight: 1.05 }}>
-            <span style={{ color: "var(--gh-text-emphasis)" }}>Introducing</span>{" "}
-            <em style={{ color: "var(--gh-accent)" }}>Gray Scale</em>
-          </h2>
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-            AI and software systems, already live for clients like you.
-          </p>
-          <p style={{ color: "var(--gh-accent)", fontSize: "var(--gh-text-xs)", marginTop: "var(--gh-space-8)" }}>
-            As a Gray Horizon client, you get member pricing on every GrayScale product — automatically, no extra
-            step.
-          </p>
-        </div>
-      )}
-
-      {step === 7 &&
+      {step === 6 &&
         (entering ? (
           <div className="gh-glow-panel gh-animate-fade-in" style={{ textAlign: "center" }}>
             <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
@@ -334,14 +303,31 @@ export default function OnboardingWizard({
             </h1>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
-            <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-              You&apos;re all set.
-            </h1>
-            <p style={{ color: "var(--gh-text-muted)" }}>
-              {mode === "live"
-                ? "Everything's ready — step into your portal."
-                : "This is where a real client lands in their live portal."}
+          // Not position: relative here — .gh-wizard-grayscale-beam/-vignette
+          // below are absolutely positioned against .gh-wizard-right--promo
+          // (the whole panel), not this 480px content column, so the effect
+          // spans the full right side the way the mockup intended.
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)", textAlign: "center" }}>
+            <div className="gh-wizard-grayscale-beam" />
+            <div className="gh-wizard-grayscale-vignette" />
+            <p className="gh-eyebrow">Software Division</p>
+            {/* "Introducing" explicitly white — the designer's mockup this
+                is based on never set a base text color on the headline, so
+                it inherited nothing and would've rendered invisible; only
+                "Gray Scale" had an explicit color (gold). */}
+            <h2 className="gh-title" style={{ fontSize: "2.75rem", lineHeight: 1.05 }}>
+              <span style={{ color: "var(--gh-text-emphasis)" }}>Introducing</span>{" "}
+              <em style={{ color: "var(--gh-accent)" }}>Gray Scale</em>
+            </h2>
+            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+              AI and software systems, already live for clients like you.
+            </p>
+            <p style={{ color: "var(--gh-accent)", fontSize: "var(--gh-text-xs)", marginTop: "var(--gh-space-8)" }}>
+              As a Gray Horizon client, you get member pricing on every GrayScale product — automatically, no extra
+              step.
+            </p>
+            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+              {mode === "live" ? "Ready when you are." : "This is where a real client steps straight into their live portal."}
             </p>
           </div>
         ))}

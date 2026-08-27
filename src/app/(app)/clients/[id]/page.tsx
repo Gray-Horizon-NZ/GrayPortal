@@ -55,6 +55,7 @@ import {
   deleteDocumentAction,
   approvePortalAccessRequestAction,
   denyPortalAccessRequestAction,
+  updateCompanyDetailsAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
@@ -167,27 +168,48 @@ export default async function ClientDetailPage({
       </div>
 
       {companyData && (
-        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <p className="gh-eyebrow">Company details</p>
-          {/* onboardClient() only ever sets the business name; every other field here is filled in by the
-              client themselves on the onboarding wizard's "Confirm your details" step (§4.3 step 2). */}
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)", marginBottom: "var(--gh-space-2)" }}>
-            Filled in by the client during onboarding, not entered by an admin.
+          {/* onboardClient() only sets the business name; the six fields below are normally filled in by
+              the client themselves on the onboarding wizard's "Confirm your details" step (§4.3 step 2),
+              but editable here too so an admin can correct or fill them in directly. */}
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+            Normally filled in by the client during onboarding — editable here if it needs correcting.
           </p>
-          {[
-            ["Business name", companyData.company.name],
-            ["Main email", companyData.company.mainEmail],
-            ["Phone", companyData.company.phone],
-            ["Position", companyData.company.mainContactPosition],
-            ["Address", companyData.company.address],
-            ["Postal address", companyData.company.postalAddress],
-            ["Referred by", companyData.company.referredBy],
-          ].map(([label, value]) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
-              <span style={{ color: "var(--gh-text-muted)" }}>{label}</span>
-              <span>{value || "—"}</span>
-            </div>
-          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
+            <span style={{ color: "var(--gh-text-muted)" }}>Business name</span>
+            <span>{companyData.company.name}</span>
+          </div>
+          <form
+            action={updateCompanyDetailsAction.bind(null, companyData.company.id, client.id)}
+            style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}
+          >
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Main email</span>
+              <input className="gh-input" name="mainEmail" type="email" defaultValue={companyData.company.mainEmail ?? ""} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Phone</span>
+              <input className="gh-input" name="phone" defaultValue={companyData.company.phone ?? ""} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Position</span>
+              <input className="gh-input" name="mainContactPosition" defaultValue={companyData.company.mainContactPosition ?? ""} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Address</span>
+              <input className="gh-input" name="address" defaultValue={companyData.company.address ?? ""} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Postal address</span>
+              <input className="gh-input" name="postalAddress" defaultValue={companyData.company.postalAddress ?? ""} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
+              <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Referred by</span>
+              <input className="gh-input" name="referredBy" defaultValue={companyData.company.referredBy ?? ""} />
+            </label>
+            <SubmitButton style={{ alignSelf: "flex-start" }}>Save company details</SubmitButton>
+          </form>
         </section>
       )}
 
