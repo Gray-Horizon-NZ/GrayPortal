@@ -18,7 +18,8 @@ type WizardData = Extract<OnboardingWizardData, { status: "valid" }>;
 //   it's already something people can inquire about live, so it gets a
 //   page mirroring the same "ask Gray Horizon" copy already live on the
 //   portal's own placeholder GrayScale page (src/app/(portal)/portal/
-//   grayscale/page.tsx).
+//   grayscale/page.tsx), restyled 2026-08-27 after the real GrayScale
+//   announcement banner.
 const STEP_COUNT = 7;
 
 // Matches §4.5's four expected documents — the UI mock for step 4 until the
@@ -30,15 +31,22 @@ function NextButton({
   onClick,
   pending,
   disabled,
+  variant,
   children,
 }: {
   onClick: () => void;
   pending?: boolean;
   disabled?: boolean;
+  variant?: "promo";
   children: ReactNode;
 }) {
   return (
-    <button className="gh-btn-primary" type="button" onClick={onClick} disabled={disabled || pending} style={{ alignSelf: "flex-start" }}>
+    <button
+      className={variant === "promo" ? "gh-btn-primary gh-wizard-cta-promo" : "gh-btn-primary"}
+      type="button"
+      onClick={onClick}
+      disabled={disabled || pending}
+    >
       {pending ? (
         <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
           <Loader2 className="gh-spin" size={14} strokeWidth={2} />
@@ -89,6 +97,7 @@ export default function OnboardingWizard({
   const [step, setStep] = useState(1);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [entering, setEntering] = useState(false);
 
   const [details, setDetails] = useState({
     businessName: data.company.businessName ?? data.clientName,
@@ -137,8 +146,49 @@ export default function OnboardingWizard({
     });
   }
 
+  function handleEnterPortal() {
+    setEntering(true);
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 2600);
+  }
+
+  // Always rendered in WizardShell's fixed bottom-right slot — same spot
+  // on every step regardless of content length (2026-08-27 feedback).
+  function renderAction(): ReactNode {
+    switch (step) {
+      case 1:
+        return <NextButton onClick={goNext}>Get started</NextButton>;
+      case 2:
+        return (
+          <NextButton onClick={handleDetailsNext} pending={pending}>
+            Next
+          </NextButton>
+        );
+      case 6:
+        return (
+          <NextButton onClick={goNext} variant="promo">
+            Next
+          </NextButton>
+        );
+      case 7:
+        if (entering) return null;
+        return mode === "live" ? (
+          <button className="gh-btn-primary" type="button" onClick={handleEnterPortal}>
+            Enter Client Portal
+          </button>
+        ) : (
+          <Link href={`/clients/${data.clientId}`} className="gh-btn-secondary">
+            Back to client profile
+          </Link>
+        );
+      default:
+        return <NextButton onClick={goNext}>Next</NextButton>;
+    }
+  }
+
   return (
-    <WizardShell clientName={data.clientName} stepIndex={step} stepCount={STEP_COUNT}>
+    <WizardShell clientName={data.clientName} stepIndex={step} stepCount={STEP_COUNT} action={renderAction()} promo={step === 6}>
       {mode === "preview" && step !== STEP_COUNT && (
         <p className="gh-eyebrow" style={{ color: "var(--gh-accent)", marginBottom: "var(--gh-space-4)" }}>
           Preview — nothing here is saved
@@ -154,7 +204,6 @@ export default function OnboardingWizard({
             Let&apos;s get your portal set up.
           </h1>
           <p style={{ color: "var(--gh-text-muted)" }}>A few quick steps and you&apos;ll be in.</p>
-          <NextButton onClick={goNext}>Get started</NextButton>
         </div>
       )}
 
@@ -177,11 +226,6 @@ export default function OnboardingWizard({
             onChange={(v) => setDetails((d) => ({ ...d, postalAddress: v }))}
           />
           <LabeledInput label="Referred by (if any)" value={details.referredBy} onChange={(v) => setDetails((d) => ({ ...d, referredBy: v }))} />
-          <div style={{ marginTop: "var(--gh-space-3)" }}>
-            <NextButton onClick={handleDetailsNext} pending={pending}>
-              Next
-            </NextButton>
-          </div>
         </div>
       )}
 
@@ -213,9 +257,6 @@ export default function OnboardingWizard({
               </button>
             </>
           )}
-          <div style={{ marginTop: "var(--gh-space-3)" }}>
-            <NextButton onClick={goNext}>Next</NextButton>
-          </div>
         </div>
       )}
 
@@ -224,7 +265,7 @@ export default function OnboardingWizard({
           <h2 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
             Your documents
           </h2>
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-2)" }}>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-6)" }}>
             A preview of the set — these stay available afterward under your portal&apos;s own Documents section.
           </p>
           <div className="gh-wizard-doc-grid">
@@ -233,9 +274,6 @@ export default function OnboardingWizard({
                 {name}
               </div>
             ))}
-          </div>
-          <div style={{ marginTop: "var(--gh-space-3)" }}>
-            <NextButton onClick={goNext}>Next</NextButton>
           </div>
         </div>
       )}
@@ -255,85 +293,47 @@ export default function OnboardingWizard({
               <span style={{ color: "var(--gh-text-muted)" }}>{servicePriceLabel(s)}</span>
             </div>
           ))}
-          <div style={{ marginTop: "var(--gh-space-3)" }}>
-            <NextButton onClick={goNext}>Next</NextButton>
-          </div>
         </div>
       )}
 
       {step === 6 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
-          <div className="gh-wizard-grayscale-promo">
-            <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
-              Software Division
-            </p>
-            <h2 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", marginBottom: "var(--gh-space-3)" }}>
-              Introducing <em>Gray Scale</em>.
-            </h2>
-            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-              Prebuilt AI &amp; software systems for real businesses — live now for our clients.
-            </p>
-          </div>
-          <p style={{ fontSize: "var(--gh-text-sm)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)", textAlign: "center" }}>
+          <p className="gh-eyebrow">Software Division</p>
+          <h2 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
+            Introducing <em>Gray Scale</em>.
+          </h2>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+            Prebuilt AI &amp; software systems for real businesses — live now for our clients.
+          </p>
+          <p style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-4)" }}>
             As a Gray Horizon client, you get member pricing on every GrayScale product — automatically, no extra
             step.
           </p>
-          <div style={{ marginTop: "var(--gh-space-3)" }}>
-            <NextButton onClick={goNext}>Next</NextButton>
-          </div>
         </div>
       )}
 
-      {step === 7 && <EnterPortalStep mode={mode} clientId={data.clientId} />}
+      {step === 7 &&
+        (entering ? (
+          <div className="gh-glow-panel gh-animate-fade-in" style={{ textAlign: "center" }}>
+            <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
+              Gray Horizon
+            </p>
+            <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
+              Setting up your portal…
+            </h1>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
+            <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
+              You&apos;re all set.
+            </h1>
+            <p style={{ color: "var(--gh-text-muted)" }}>
+              {mode === "live"
+                ? "Everything's ready — step into your portal."
+                : "This is where a real client lands in their live portal."}
+            </p>
+          </div>
+        ))}
     </WizardShell>
-  );
-}
-
-function EnterPortalStep({ mode, clientId }: { mode: "live" | "preview"; clientId: string }) {
-  const [entering, setEntering] = useState(false);
-
-  if (entering) {
-    return (
-      <div className="gh-glow-panel gh-animate-fade-in" style={{ textAlign: "center" }}>
-        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
-          Gray Horizon
-        </p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-          Setting up your portal…
-        </h1>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
-      <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-        You&apos;re all set.
-      </h1>
-      <p style={{ color: "var(--gh-text-muted)" }}>
-        {mode === "live"
-          ? "Everything's ready — step into your portal."
-          : "This is where a real client lands in their live portal."}
-      </p>
-      {mode === "live" ? (
-        <button
-          className="gh-btn-primary"
-          type="button"
-          style={{ alignSelf: "flex-start" }}
-          onClick={() => {
-            setEntering(true);
-            setTimeout(() => {
-              window.location.href = "/login";
-            }, 2600);
-          }}
-        >
-          Enter Client Portal
-        </button>
-      ) : (
-        <Link href={`/clients/${clientId}`} className="gh-btn-secondary" style={{ alignSelf: "flex-start" }}>
-          Back to client profile
-        </Link>
-      )}
-    </div>
   );
 }

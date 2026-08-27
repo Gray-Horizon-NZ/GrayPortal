@@ -166,6 +166,31 @@ export default async function ClientDetailPage({
         </div>
       </div>
 
+      {companyData && (
+        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
+          <p className="gh-eyebrow">Company details</p>
+          {/* onboardClient() only ever sets the business name; every other field here is filled in by the
+              client themselves on the onboarding wizard's "Confirm your details" step (§4.3 step 2). */}
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)", marginBottom: "var(--gh-space-2)" }}>
+            Filled in by the client during onboarding, not entered by an admin.
+          </p>
+          {[
+            ["Business name", companyData.company.name],
+            ["Main email", companyData.company.mainEmail],
+            ["Phone", companyData.company.phone],
+            ["Position", companyData.company.mainContactPosition],
+            ["Address", companyData.company.address],
+            ["Postal address", companyData.company.postalAddress],
+            ["Referred by", companyData.company.referredBy],
+          ].map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
+              <span style={{ color: "var(--gh-text-muted)" }}>{label}</span>
+              <span>{value || "—"}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Google Tasks list</p>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>

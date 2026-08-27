@@ -1499,11 +1499,21 @@ textarea {
 }
 
 .gh-wizard-right {
+  position: relative;
   flex: 1 1 50%;
   background: var(--gh-surface);
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-y: auto;
+}
+
+/* Step 6 only — the GrayScale close (§10.3, 2026-08-27) styled after the
+   real announcement banner (Branding/Supporting.Graphics/
+   grayscale_announcement_banner.png): the whole panel, not an inset box,
+   carries the near-black-plus-gold-vignette background. */
+.gh-wizard-right--promo {
+  background: radial-gradient(ellipse 70% 55% at 50% 42%, color-mix(in srgb, var(--gh-accent) 18%, transparent), transparent 72%), var(--gh-bg);
 }
 
 .gh-wizard-step-indicator {
@@ -1516,7 +1526,16 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--gh-space-8);
+  /* Extra bottom room so the fixed action slot never overlaps content. */
+  padding: var(--gh-space-8) var(--gh-space-8) calc(var(--gh-space-8) * 3);
+}
+
+/* Always bottom-right, same spot on every step regardless of content
+   length (2026-08-27 feedback) — not part of the normal content flow. */
+.gh-wizard-action-slot {
+  position: absolute;
+  right: var(--gh-space-8);
+  bottom: var(--gh-space-8);
 }
 
 .gh-wizard-step-content {
@@ -1524,43 +1543,44 @@ textarea {
   max-width: 480px;
 }
 
-/* Step 4's document tiles (§4.3 visual spec, revised 2026-08-27 per Max's
-   feedback: pill-shaped not just rounded, stacked vertically not 2x2, a
-   faint gold tint not a dark-gray fill) — a deliberate, flagged one-off
-   departure from the app-wide --gh-radius: 0 square-corner rule: the
-   wizard is already its own separate shell, so this is a real isolated
-   choice, not an accident. */
+/* Step 4's document tiles (§4.3 visual spec, revised 2026-08-27 twice per
+   Max's feedback: pill-shaped not just rounded, stacked vertically not
+   2x2, a faint gold tint not a dark-gray fill; then roomier padding, a
+   fixed shared width instead of fit-content, and centered text) — a
+   deliberate, flagged one-off departure from the app-wide --gh-radius: 0
+   square-corner rule: the wizard is already its own separate shell, so
+   this is a real isolated choice, not an accident. */
 .gh-wizard-doc-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--gh-space-3);
+  gap: var(--gh-space-4);
 }
 
 .gh-wizard-doc-tile {
-  width: fit-content;
+  width: 280px;
   max-width: 100%;
-  padding: var(--gh-space-3) var(--gh-space-5);
+  /* ~half a line-height of breathing room above/below the text, well
+     clear of the accent border, plus generous side padding. */
+  padding: var(--gh-space-4) var(--gh-space-8);
   border: 1px solid var(--gh-accent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--gh-accent) 10%, transparent);
   font-size: var(--gh-text-sm);
-  text-align: left;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Step 6's GrayScale close (2026-08-27) — styled after the real GrayScale
-   announcement banner (Branding/Supporting.Graphics/
-   grayscale_announcement_banner.png): a near-black panel with a soft gold
-   vignette behind centered, tracked copy, not the flatter "coming soon"
-   note it replaced. */
-.gh-wizard-grayscale-promo {
-  position: relative;
-  padding: var(--gh-space-12) var(--gh-space-6);
-  text-align: center;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--gh-accent) 14%, transparent), transparent 70%), var(--gh-bg);
-  border: 1px solid var(--gh-border);
+/* The promo CTA (step 6's "Next," in the fixed action slot) needs to stand
+   out against the banner background per Max's "make the CTA read as a
+   real CTA" feedback — stays gold (the app's one accent hue, --gh-danger
+   red is reserved for actual error states, not decoration) but bigger and
+   glowing rather than a second, clashing hue. */
+.gh-wizard-cta-promo {
+  padding-left: var(--gh-space-8);
+  padding-right: var(--gh-space-8);
+  box-shadow: 0 0 28px 6px color-mix(in srgb, var(--gh-accent) 45%, transparent);
 }
 
 @media (max-width: 640px) {
