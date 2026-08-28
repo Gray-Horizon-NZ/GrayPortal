@@ -171,7 +171,9 @@
 .ghp-tag.ghp-danger { border-color: var(--ghp-danger); color: var(--ghp-danger); }
 
 .ghp-prog { width: 70px; height: 4px; background: var(--ghp-line); border-radius: 2px; overflow: hidden; }
-.ghp-prog div { height: 100%; background: var(--ghp-brass); }
+/* Gray, not gold — the last remaining gold background fill in this
+   stylesheet (2026-08-28 audit: client portal only, wizard left as-is). */
+.ghp-prog div { height: 100%; background: var(--ghp-text-dim); }
 
 .ghp-log-row { display: flex; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--ghp-line); font-size: 12px; }
 .ghp-log-row:last-child { border: none; }

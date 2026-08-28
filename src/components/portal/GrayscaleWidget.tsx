@@ -26,6 +26,8 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [hovered, setHovered] = useState<string | null>(null);
+  const hoveredProduct = GRAYSCALE_PRODUCTS.find((p) => p.name === hovered);
 
   function toggle(name: string) {
     setSelected((prev) => {
@@ -111,6 +113,10 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
                       key={p.name}
                       className={`ghp-grayscale-chip${selected.has(p.name) ? " ghp-selected" : ""}`}
                       onClick={() => toggle(p.name)}
+                      onMouseEnter={() => setHovered(p.name)}
+                      onMouseLeave={() => setHovered((h) => (h === p.name ? null : h))}
+                      onFocus={() => setHovered(p.name)}
+                      onBlur={() => setHovered((h) => (h === p.name ? null : h))}
                       role="checkbox"
                       aria-checked={selected.has(p.name)}
                       tabIndex={0}
@@ -120,6 +126,12 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
                     </div>
                   ))}
                 </div>
+                {/* Fixed height regardless of hover state, so nothing above/below it
+                    jumps around as the mouse moves between chips. Text sourced
+                    verbatim from grayhorizon.nz/grayscale (src/config/grayscale.ts). */}
+                <p style={{ fontSize: 11.5, color: "var(--ghp-text-dim)", lineHeight: 1.5, minHeight: 32, margin: "0 0 12px" }}>
+                  {hoveredProduct?.description ?? ""}
+                </p>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, color: "var(--ghp-text-dim)", marginBottom: 16 }}>
                   <span>
                     <b style={{ color: "var(--ghp-brass)" }}>{selected.size}</b> of {GRAYSCALE_PRODUCTS.length} selected
