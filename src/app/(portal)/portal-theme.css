@@ -18,6 +18,10 @@
   --ghp-danger: #c1613f;
   /* dataviz skill's validated sequential/categorical-slot-1 blue (dark step) — data-encoding charts use this, never brass */
   --ghp-chart-1: #3987e5;
+  /* Faint background grid (2026-08-28, matching the GrayScale hero's own
+     hairline grid) — a hairline overlay, not a fill color, so it doesn't
+     compete with --ghp-brass as a highlight. */
+  --ghp-grid-line: rgba(255, 255, 255, 0.035);
 }
 .ghp-root[data-portal-theme="light"] {
   --ghp-ink: #f7f5ef;
@@ -31,6 +35,7 @@
   --ghp-warn: #a2703a;
   --ghp-danger: #a2432a;
   --ghp-chart-1: #2a78d6;
+  --ghp-grid-line: rgba(0, 0, 0, 0.035);
 }
 .ghp-root {
   --ghp-radius: 6px;
@@ -44,13 +49,21 @@
   --ghp-space-4: 16px;
   --ghp-space-6: 24px;
 
-  background: var(--ghp-ink);
+  /* Faint hairline grid across the whole shell, matching the GrayScale
+     hero's own background (grayhorizon.nz/grayscale) — gray, not gold:
+     gold stays reserved for highlights (nav active state, CTAs, values),
+     never a fill or texture color. */
+  background-image:
+    linear-gradient(var(--ghp-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ghp-grid-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-color: var(--ghp-ink);
   color: var(--ghp-text);
   font-family: var(--ghp-font-body), system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.6;
   min-height: 100vh;
-  transition: background 0.15s, color 0.15s;
+  transition: background-color 0.15s, color 0.15s;
 }
 .ghp-root *,
 .ghp-root *::before,
@@ -362,8 +375,13 @@
   transition: all 0.2s;
 }
 .ghp-btn-solid.ghp-ready {
+  /* Gold as a highlight (border + glow + text), not a fill — 2026-08-28:
+     gray backgrounds everywhere, gold reserved for accents. Was a solid
+     brass fill; matches every other primary action in this stylesheet
+     (.ghp-btn is already outline-only, never filled). */
   cursor: pointer;
-  background: var(--ghp-brass);
-  color: var(--ghp-ink);
-  box-shadow: 0 0 20px 2px color-mix(in srgb, var(--ghp-brass) 40%, transparent);
+  background: var(--ghp-panel-2);
+  border: 1px solid var(--ghp-brass);
+  color: var(--ghp-brass);
+  box-shadow: 0 0 16px 1px color-mix(in srgb, var(--ghp-brass) 30%, transparent);
 }

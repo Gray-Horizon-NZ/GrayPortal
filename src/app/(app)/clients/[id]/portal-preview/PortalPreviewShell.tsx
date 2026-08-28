@@ -3,6 +3,7 @@ import { useState } from "react";
 import ThemeToggle from "@/components/portal/ThemeToggle";
 import AdSpendBars from "@/components/portal/charts/AdSpendBars";
 import MilestonesTimeline from "@/components/portal/charts/MilestonesTimeline";
+import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
 import TaskListPreview from "./TaskListPreview";
 
 type Task = { id: string; title: string; status: "not_started" | "in_progress" | "done" | "ongoing"; dueDate: string | null; starred?: boolean };
@@ -162,6 +163,8 @@ export default function PortalPreviewShell({
                     <p style={{ fontSize: 11, color: "var(--ghp-text-dim)", marginTop: "var(--ghp-space-3)" }}>Saved to this browser and remembered next time you sign in.</p>
                   </div>
                 </div>
+
+                {has("grayscale_page") && <GrayscaleWidget previewOnly />}
               </div>
 
               {(spendData.some((d) => d.value > 0) || roadmap.length > 0) && (

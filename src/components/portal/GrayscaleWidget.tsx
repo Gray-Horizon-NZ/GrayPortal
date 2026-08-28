@@ -11,8 +11,15 @@ import { submitGrayscaleRequestAction } from "@/app/(portal)/portal/actions";
  * not a centre piece"). Styled after Downloads/grayscale-consult-widget.html,
  * but with the real 9-product catalogue instead of that mockup's
  * placeholder module names.
+ *
+ * previewOnly (used from the admin-side client-portal-preview page, which
+ * runs as an admin caller, not a real client session) skips the real
+ * server-action call entirely — submitGrayscaleRequest requires
+ * requireClientScope, which an admin caller fails — and just shows the
+ * same "Request sent" confirmation state instead, same no-mutation
+ * precedent as the onboarding wizard's own preview mode.
  */
-export default function GrayscaleWidget() {
+export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
@@ -44,6 +51,10 @@ export default function GrayscaleWidget() {
   function handleSubmit() {
     if (selected.size === 0) return;
     setError(null);
+    if (previewOnly) {
+      setSubmitted(true);
+      return;
+    }
     startTransition(async () => {
       try {
         await submitGrayscaleRequestAction(Array.from(selected), note);
@@ -84,7 +95,9 @@ export default function GrayscaleWidget() {
 
             {submitted ? (
               <p style={{ fontSize: 12.5, color: "var(--ghp-text-dim)", margin: "16px 0 4px", lineHeight: 1.6 }}>
-                We&apos;ll follow up to walk you through the ones you&apos;ve picked. No obligation, no extra step.
+                {previewOnly
+                  ? "Preview only — nothing was actually sent. This is what the client sees after submitting."
+                  : "We'll follow up to walk you through the ones you've picked. No obligation, no extra step."}
               </p>
             ) : (
               <>
