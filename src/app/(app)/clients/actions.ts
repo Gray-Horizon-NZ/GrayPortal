@@ -22,6 +22,7 @@ import { addContactEmailAlias } from "@/lib/dal/emails";
 import { sendOnboardingInvite } from "@/lib/dal/onboardingInvites";
 import { approvePortalAccessRequest, denyPortalAccessRequest } from "@/lib/dal/portalAccessRequests";
 import { updateCompany } from "@/lib/dal/companies";
+import { markGrayscaleRequestContacted } from "@/lib/dal/grayscaleRequests";
 import { absoluteOriginFromHeaders } from "@/lib/http";
 import { monthInputToDate } from "@/lib/date";
 
@@ -381,5 +382,10 @@ export async function updateCompanyDetailsAction(companyId: string, clientId: st
     postalAddress: String(formData.get("postalAddress") ?? ""),
     referredBy: String(formData.get("referredBy") ?? ""),
   });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function markGrayscaleRequestContactedAction(clientId: string, requestId: string) {
+  await markGrayscaleRequestContacted(requestId);
   revalidatePath(`/clients/${clientId}`);
 }

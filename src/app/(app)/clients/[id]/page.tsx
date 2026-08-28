@@ -19,6 +19,7 @@ import { listEmailsForClient } from "@/lib/dal/emails";
 import { getCompany } from "@/lib/dal/companies";
 import { defaultOnboardingInviteEmail } from "@/config/onboarding";
 import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
+import { listGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
 import { daysUntil } from "@/lib/date";
 import {
   createReferralAction,
@@ -56,6 +57,7 @@ import {
   approvePortalAccessRequestAction,
   denyPortalAccessRequestAction,
   updateCompanyDetailsAction,
+  markGrayscaleRequestContactedAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import FeatureToggle from "./FeatureToggle";
@@ -111,6 +113,7 @@ export default async function ClientDetailPage({
     recentEmails,
     companyData,
     pendingAccessRequests,
+    grayscaleRequests,
   ] = await Promise.all([
     listActiveDiscounts(client.id),
     listIdeationItems(client.id),
@@ -128,6 +131,7 @@ export default async function ClientDetailPage({
     listEmailsForClient(client.id),
     client.companyId ? getCompany(client.companyId) : Promise.resolve(null),
     listPendingAccessRequests(client.id),
+    listGrayscaleRequests(client.id),
   ]);
 
   const overallDiscountPercent = Number(client.overallDiscountPercent ?? 0);
@@ -325,6 +329,33 @@ export default async function ClientDetailPage({
           <SubmitButton>Invite to portal</SubmitButton>
         </form>
       </section>
+
+      {grayscaleRequests.length > 0 && (
+        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+          <p className="gh-eyebrow">GrayScale requests</p>
+          {grayscaleRequests.map((r) => (
+            <div key={r.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: "var(--gh-text-sm)" }}>
+                <span>{r.products.join(", ")}</span>
+                <span className="gh-badge" data-status={r.status === "new" ? "warning" : "success"}>
+                  {r.status}
+                </span>
+              </div>
+              {r.note && <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>{r.note}</p>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+                  {new Date(r.createdAt).toLocaleDateString("en-NZ")}
+                </span>
+                {r.status === "new" && (
+                  <form action={markGrayscaleRequestContactedAction.bind(null, client.id, r.id)}>
+                    <SubmitButton className="gh-btn-secondary">Mark contacted</SubmitButton>
+                  </form>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <CredentialsList clientId={client.id} />
 

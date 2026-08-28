@@ -155,7 +155,7 @@ A tab for Max's own internal/business ideas — distinct from the existing **cli
 
 ## 4. Client onboarding journey
 
-**Status:** Partially built as of 2026-08-27 — see §10 for exactly what shipped, what's live, and what's still open. Foundation (token/invite mechanism), the wizard shell, and all 7 steps are in place, though steps 4 (documents) and 6 (GrayScale) are UI-only mocks, not wired to real backends (§10.3). §4.6's admin checklist is unbuilt.
+**Status:** Partially built as of 2026-08-28 — see §10 for exactly what shipped, what's live, and what's still open. Foundation (token/invite mechanism), the wizard shell (now 6 steps, §10.3), and §4.6's admin checklist are all built. Steps 4 (documents) and 6 (GrayScale) are still UI-only mocks, not wired to real backends.
 **Ask:** After a client is onboarded, an automated journey should email them a link to their portal, let them choose which Google account(s) get portal access, and walk them through the portal on first login.
 
 ### 4.1 Current state
@@ -208,9 +208,9 @@ Every onboarded client needs four documents, supplied on top of the wizard walkt
 
 Likely implementation path (not decided, just the obvious fit): this is the existing Documents feature, not a new system. `documents` table + `docTypeEnum` (`src/lib/db/schema.ts`) currently has `["proposal", "contract", "deck", "other"]` — none of the four fit, so this needs either four new enum values (`welcome`, `project_brief`, `delivery_guide`, `thank_you`) or a way to flag these four as a distinct "onboarding doc" set distinguishable from ad hoc documents. `uploadDocument`/`linkDocument` (`src/lib/dal/documents.ts`) already handle admin-side attach (upload or an external URL — likely how designer-produced docs land here, e.g. a Drive link), and `listPortalDocuments`/`/portal/files` (`src/lib/dal/portal.ts`, `src/app/(portal)/portal/files/page.tsx`) already give clients read+download access — both reusable as-is. What's missing: a step (wizard-driven or admin-checklist-driven, see §4.6) that prompts attaching all four during onboarding, distinct from documents.
 
-### 4.6 Expanded admin onboarding checklist (added 2026-08-26)
+### 4.6 Expanded admin onboarding checklist — **built 2026-08-28**
 
-Separate from the client-facing wizard (§4.3): a checklist **for Max**, triggered when a client signs, replacing the current `ONBOARDING_TASK_TEMPLATE` (`src/config/onboarding.ts` — today just "Kickoff call," "Gather brand assets and access," "Confirm client portal access"). The new list, as given:
+Separate from the client-facing wizard (§4.3), confirmed: it's literally `ONBOARDING_TASK_TEMPLATE` itself, not a new feature — Max clarified these are tasks that should land on the client's own task list the same way the old 3-item template did. `src/config/onboarding.ts`'s `ONBOARDING_TASK_TEMPLATE` now holds the 10-item list below (with staggered `dueInDays`, 2–10 days out — a judgment call, not something Max specified, trivially editable per-task afterward). `onboardClient()` needed no changes — it already loops over this array and syncs each task to Google Tasks. "Run website SEO growth auditor" stays a plain task title with no automation, per the fallback below (still unresolved which it should be). The list, as given:
 
 - Add MSA to client portal
 - Connect invoice/Xero contact to client portal
@@ -225,7 +225,7 @@ Separate from the client-facing wizard (§4.3): a checklist **for Max**, trigger
 
 Nearly every item maps directly onto an existing GrayPortal feature — this checklist is essentially "don't forget to actually populate what's already built" for a new client, one task per section: MSA → Documents (§4.5's mechanism, `docType: "contract"` or similar), Xero → `clients.xeroContactId` (deliberately admin-set, never auto-matched, per its own schema comment), Roadmap → existing Roadmap feature (`listRoadmapItems`/`createRoadmapItem`), strategies → likely the existing per-client Ideation feature (`listIdeationItems`, distinct from the internal §3 Ideation tab) or a new concept — needs confirming which, current tasks → the Tasks feature itself, meeting summaries → existing Meeting Summaries feature, credentials → existing Credential Vault, toolstack → existing Tool Stack feature, Looker Studio → `clients.lookerStudioUrl` (already a field, just needs setting). **"Run website SEO growth auditor" is the one item with no existing equivalent anywhere in the codebase** — grepped, nothing — this is either a manual/external process being tracked as a task, or a genuinely new capability; needs clarifying which before scoping it as a build item.
 
-**Open tension to resolve before building, not yet asked:** earlier this session Max chose "the wizard's own steps replace `ONBOARDING_TASK_TEMPLATE`" when the two were assumed to be the same thing. Given this checklist is admin-facing operational tasks (not client-facing wizard steps), it's probably a *separate* replacement of `ONBOARDING_TASK_TEMPLATE` sitting alongside the client wizard, not something the wizard itself subsumes — but confirm this reading with Max rather than assuming it.
+**Settled** (was an open tension in the 2026-08-26 revision of this note): this checklist *is* the `ONBOARDING_TASK_TEMPLATE` replacement — confirmed twice, once via explicit choice earlier in the 2026-08-27 session ("Checklist IS the replacement," not the wizard's own steps) and again 2026-08-28 when Max clarified these are meant to land on the client's task list directly. The client-facing wizard (§4.3) never touches task generation at all.
 
 ---
 
@@ -283,7 +283,7 @@ Ideas deliberately deferred rather than scheduled — don't build without Max ex
 7. Open/click tracking — worth a basic open-rate signal (tracking pixel) for blast sends, or explicitly skip it? Adds real complexity (hosting a pixel endpoint, privacy considerations) — recommend skipping for v1 unless it's a real need.
 8. Existing prospect contacts and consent — do current pipeline contacts have a sufficient existing-relationship basis to receive a first blast under §2.3, or should the first prospect send be preceded by some explicit opt-in step?
 
-**Client onboarding journey:** items 9/10/12/13 settled (§9.2, §10) — review/edit step before send (built), 14-day token with admin resend (built), §4.6's admin checklist is the real `ONBOARDING_TASK_TEMPLATE` replacement, not the wizard (wizard stays client-facing only), completion email fires on first real sign-in (not yet built — needs a `claimOrVerifyAllowlist` hook). Item 11 settled for the 5 steps actually built (§10.2); still open for steps 4 (documents) and 6 (GrayScale discount), and for §4.6's checklist itself, which is unbuilt.
+**Client onboarding journey:** items 9/10/12/13 settled and built (§9.2, §10) — review/edit step before send, 14-day token with admin resend, §4.6's admin checklist is the real `ONBOARDING_TASK_TEMPLATE` replacement and is now built too, completion email fires on first real sign-in (settled, **not yet built** — still needs a `claimOrVerifyAllowlist` hook). Item 11 settled for the 6 steps actually built (§10.2/§10.3); still open for steps 4 (documents) and 6 (GrayScale discount).
 
 **Client portal variations:**
 14. Naming/scope of "subscription-focused" (§5.2) — specifically GrayScale (Apexus/Tempus/Solus) subscribers, or a broader software-subscription category that doesn't strictly depend on §1's GrayScale build? Shapes what the content model in item 15 needs to contain.
@@ -364,7 +364,7 @@ Shipped: the two-panel wizard shell (`src/components/onboardingWizard/WizardShel
 One real bug caught before it reached anyone: `auditedUpdate` (`src/lib/dal/mutate.ts`) unconditionally stamps `updatedAt` on every row it touches — `portalAccessRequests` didn't have that column, which would have thrown at runtime the first time anyone approved or denied a request. Added the column before the migration was ever handed over, not after.
 
 **Not built, still open:**
-- §4.6's admin checklist (replaces `ONBOARDING_TASK_TEMPLATE`) — not started.
+- ~~§4.6's admin checklist~~ — **built 2026-08-28**, see §4.6.
 - The completion email (fires on the client's first real portal sign-in, per §9.2's decision) — needs a hook into `claimOrVerifyAllowlist` that doesn't exist yet.
 - **No live browser test happened this session** — this machine's `D:\` drive is FAT32, and Turbopack (both `next dev` and `next build`) needs NTFS junction points it can't create there; confirmed the failure is pre-existing and unrelated to this code (reproduces on stock dependencies like `postcss`/`firebase-admin` on a vanilla build). Verified instead via `tsc --noEmit`, `eslint`, and a full manual read-through — real in-browser testing still needs to happen wherever this repo normally runs on an NTFS filesystem.
 

@@ -82,6 +82,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "payment_due_soon",
   "security_alert",
   "reminder_due",
+  "grayscale_request",
 ]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "agent", "system"]);
 // "reveal" is a read, not a mutation — Phase 6 (Credential Vault) is the
@@ -141,6 +142,13 @@ export const accessRequestStatusEnum = pgEnum("access_request_status", [
   "pending",
   "approved",
   "denied",
+]);
+// Client portal GrayScale request widget (Open-Work-Brief.md §1.5) — no
+// in-app fulfillment, just a manual-follow-up tracking flag Max flips
+// after actually contacting the client.
+export const grayscaleRequestStatusEnum = pgEnum("grayscale_request_status", [
+  "new",
+  "contacted",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -997,6 +1005,27 @@ export const portalAccessRequests = pgTable("portal_access_requests", {
   // Required by auditedUpdate (src/lib/dal/mutate.ts), which unconditionally
   // stamps updatedAt on every row it touches — approvePortalAccessRequest/
   // denyPortalAccessRequest both go through it.
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// The first client-writable table in the app — every other portal page is
+// read-only for role=client (confirmed while building the onboarding
+// wizard). submitGrayscaleRequest (src/lib/dal/grayscaleRequests.ts)
+// validates `products` against the real catalogue (src/config/grayscale.ts)
+// before insert; never trust this array as pre-validated just because it's
+// client-submitted.
+export const grayscaleRequests = pgTable("grayscale_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  products: text("products").array().notNull(),
+  note: text("note"),
+  status: grayscaleRequestStatusEnum("status").notNull().default("new"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  contactedAt: timestamp("contacted_at", { withTimezone: true }),
+  contactedBy: uuid("contacted_by").references(() => users.id),
+  // Required by auditedUpdate — markGrayscaleRequestContacted goes through it.
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

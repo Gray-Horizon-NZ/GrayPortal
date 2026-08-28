@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getPortalHome } from "@/lib/dal/portal";
 import { paymentStatus } from "@/lib/paymentStatus";
 import ThemeToggle from "@/components/portal/ThemeToggle";
+import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
 import AdSpendBars from "@/components/portal/charts/AdSpendBars";
 import MilestonesTimeline from "@/components/portal/charts/MilestonesTimeline";
 
@@ -96,6 +97,8 @@ export default async function PortalHomePage() {
             </p>
           </div>
         </div>
+
+        {has("grayscale_page") && <GrayscaleWidget />}
       </div>
 
       {(spendData.length > 0 || roadmapPreview.length > 0) && (

@@ -259,3 +259,111 @@
   font-family: var(--ghp-font-body), sans-serif;
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------------------
+   GrayScale request widget (Open-Work-Brief.md §1.5) — a collapsed promo
+   card in the dashboard's existing ghp-widget-grid (side, not centerpiece)
+   that opens a modal on click. Styled after a designer mockup
+   (Downloads/grayscale-consult-widget.html); every color here goes
+   through --ghp-* tokens (not the mockup's hardcoded hex), so it adapts
+   to the portal's light theme automatically instead of only working dark.
+   --------------------------------------------------------------------- */
+
+.ghp-grayscale-widget {
+  border: 1px solid var(--ghp-line);
+  border-radius: var(--ghp-radius);
+  background: var(--ghp-panel);
+  padding: 20px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.ghp-grayscale-widget:hover { border-color: var(--ghp-brass); }
+.ghp-grayscale-widget h3 {
+  font-family: var(--ghp-font-display), serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.1;
+  margin: 8px 0 8px;
+}
+.ghp-grayscale-widget h3 em { font-style: italic; color: var(--ghp-brass); }
+.ghp-grayscale-widget-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  font-size: 11px;
+  color: var(--ghp-brass);
+  font-weight: 500;
+}
+
+.ghp-grayscale-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+.ghp-grayscale-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: var(--ghp-panel);
+  border: 1px solid var(--ghp-line);
+  border-radius: var(--ghp-radius);
+  padding: 26px;
+}
+.ghp-grayscale-modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.ghp-grayscale-modal-head h2 { font-family: var(--ghp-font-display), serif; font-weight: 600; font-size: 19px; margin: 6px 0 0; }
+.ghp-grayscale-close {
+  background: transparent;
+  border: 1px solid var(--ghp-line);
+  color: var(--ghp-text-dim);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ghp-grayscale-close:hover { color: var(--ghp-brass); border-color: var(--ghp-brass); }
+
+.ghp-grayscale-chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0; }
+.ghp-grayscale-chip {
+  border: 1px solid var(--ghp-line);
+  border-radius: var(--ghp-radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.ghp-grayscale-chip:hover { border-color: var(--ghp-brass); }
+.ghp-grayscale-chip.ghp-selected { border-color: var(--ghp-brass); background: var(--ghp-panel-2); }
+.ghp-grayscale-chip .ghp-name { font-family: var(--ghp-font-display), serif; font-style: italic; font-size: 14px; }
+.ghp-grayscale-chip.ghp-selected .ghp-name { color: var(--ghp-brass); }
+.ghp-grayscale-chip .ghp-tag { font-size: 9px; color: var(--ghp-text-dim); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px; }
+
+.ghp-btn-solid {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--ghp-radius);
+  font-family: var(--ghp-font-body), sans-serif;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: not-allowed;
+  background: var(--ghp-panel-2);
+  color: var(--ghp-text-dim);
+  transition: all 0.2s;
+}
+.ghp-btn-solid.ghp-ready {
+  cursor: pointer;
+  background: var(--ghp-brass);
+  color: var(--ghp-ink);
+  box-shadow: 0 0 20px 2px color-mix(in srgb, var(--ghp-brass) 40%, transparent);
+}
