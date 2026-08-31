@@ -447,41 +447,47 @@ textarea {
   .gh-skeleton::after {
     animation: none;
   }
-  .gh-glow-panel::before {
-    animation: none;
-  }
 }
 
-/* Sign-in welcome panel — a rotating conic-gradient glow behind an inset
-   solid background, standing in for the SVG-stroke .gh-ring keyframe
-   above (that one's shaped for a circular progress ring, not a div). */
-@keyframes gh-glow-spin {
+/* Sign-in welcome sequence — staged ring-draw + text reveal + bar fill.
+   Delays are set inline from WelcomeTransition.tsx (not baked in here) so
+   the reduced-motion path can collapse them to 0, not just shorten the
+   durations. */
+.gh-welcome-ring-fill {
+  stroke-dashoffset: var(--gh-ring-circumference);
+  animation: gh-welcome-ring-draw 0.9s var(--gh-ease) forwards;
+}
+
+@keyframes gh-welcome-ring-draw {
   to {
-    transform: rotate(360deg);
+    stroke-dashoffset: 0;
   }
 }
 
-.gh-glow-panel {
-  position: relative;
-  padding: var(--gh-space-8) var(--gh-space-10);
-  isolation: isolate;
+.gh-welcome-line {
+  opacity: 0;
+  animation: gh-fade-in var(--gh-duration) var(--gh-ease) forwards;
 }
 
-.gh-glow-panel::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  z-index: -1;
-  background: conic-gradient(from 0deg, transparent, var(--gh-accent) 15%, transparent 35%);
-  animation: gh-glow-spin 2.4s linear infinite;
+.gh-welcome-bar {
+  height: 2px;
+  width: 160px;
+  background: var(--gh-border);
+  overflow: hidden;
+  margin: var(--gh-space-4) auto 0;
 }
 
-.gh-glow-panel::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  background: var(--gh-bg);
+.gh-welcome-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--gh-accent);
+  animation: gh-welcome-bar-fill 0.8s var(--gh-ease) forwards;
+}
+
+@keyframes gh-welcome-bar-fill {
+  to {
+    width: 100%;
+  }
 }
 
 /* ---------------------------------------------------------------------
