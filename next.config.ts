@@ -13,7 +13,7 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https://*.googleusercontent.com",
       "connect-src 'self' https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com",
-      "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
+      "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://lookerstudio.google.com https://datastudio.google.com",
       "object-src 'none'",
       "base-uri 'self'",
       "frame-ancestors 'none'",
