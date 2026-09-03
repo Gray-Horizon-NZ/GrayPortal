@@ -52,6 +52,18 @@ export async function listClients() {
   });
 }
 
+/** Used to guard against onboarding the same prospect company twice — see lib/dal/onboarding.ts. */
+export async function getClientByCompanyId(companyId: string) {
+  return withCaller(async (_caller, tx) => {
+    const [client] = await tx
+      .select()
+      .from(clients)
+      .where(and(eq(clients.companyId, companyId), isNull(clients.deletedAt)))
+      .limit(1);
+    return client ?? null;
+  });
+}
+
 export async function getClient(id: string) {
   return withCaller(async (_caller, tx) => {
     const [client] = await tx

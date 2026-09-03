@@ -1,4 +1,5 @@
 import { PORTAL_FEATURE_KEYS } from "@/lib/dal/clients";
+import { getCompany } from "@/lib/dal/companies";
 import { ONBOARDING_TASK_TEMPLATE } from "@/config/onboarding";
 import { onboardClientAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -8,9 +9,16 @@ const DEFAULT_ENABLED = new Set(["tasks", "documents", "referrals"]);
 export default async function OnboardClientPage({
   searchParams,
 }: {
-  searchParams: Promise<{ onboardError?: string }>;
+  searchParams: Promise<{ onboardError?: string; companyId?: string }>;
 }) {
-  const { onboardError } = await searchParams;
+  const { onboardError, companyId } = await searchParams;
+  // Converting a won prospect (a companies row that already exists, from
+  // the pipeline) reuses that row instead of creating a new one — see
+  // lib/dal/onboarding.ts's companyId branch. The company section below is
+  // skipped in that case since there's nothing new to collect for it.
+  const existingCompanyData = companyId ? await getCompany(companyId) : null;
+  const existingCompany = existingCompanyData?.company ?? null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 560 }}>
       <div>
@@ -19,8 +27,9 @@ export default async function OnboardClientPage({
           Onboard <em>client</em>
         </h1>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-2)" }}>
-          Creates the company, client record, portal login invite, selected features, and a starter
-          task list in one step.
+          {existingCompany
+            ? `Converting ${existingCompany.name} from prospect to client — creates the client record, portal login invite, selected features, and a starter task list. The company itself isn't duplicated.`
+            : "Creates the company, client record, portal login invite, selected features, and a starter task list in one step."}
         </p>
         {onboardError && (
           <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-3)" }}>
@@ -30,14 +39,18 @@ export default async function OnboardClientPage({
       </div>
 
       <form action={onboardClientAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
-        <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-          <p className="gh-eyebrow">Company</p>
-          <input className="gh-input" name="companyName" placeholder="Company name" required />
-          <input className="gh-input" name="source" placeholder="Source (e.g. referral, cold outreach)" required />
-          <input className="gh-input" name="industry" placeholder="Industry (optional)" />
-          <input className="gh-input" name="region" placeholder="Region (optional)" />
-          <input className="gh-input" name="website" placeholder="Website (optional)" />
-        </section>
+        {existingCompany ? (
+          <input type="hidden" name="companyId" value={existingCompany.id} />
+        ) : (
+          <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+            <p className="gh-eyebrow">Company</p>
+            <input className="gh-input" name="companyName" placeholder="Company name" required />
+            <input className="gh-input" name="source" placeholder="Source (e.g. referral, cold outreach)" required />
+            <input className="gh-input" name="industry" placeholder="Industry (optional)" />
+            <input className="gh-input" name="region" placeholder="Region (optional)" />
+            <input className="gh-input" name="website" placeholder="Website (optional)" />
+          </section>
+        )}
 
         <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <p className="gh-eyebrow">Billing</p>

@@ -10,27 +10,39 @@ import { resolveGoogleTasklistId } from "./googleConnection";
 import { ONBOARDING_TASK_TEMPLATE } from "@/config/onboarding";
 import { z } from "zod";
 
-export const OnboardClientInput = z.object({
-  company: z.object({
-    name: z.string().min(1),
-    industry: z.string().optional(),
-    region: z.string().optional(),
-    website: z.string().optional(),
-    sizeBand: z.string().optional(),
-    source: z.string().min(1),
-  }),
-  client: z
-    .object({
-      name: z.string().min(1).optional(),
-      nextPaymentDate: z.string().optional(),
-    })
-    .optional(),
-  portalInvite: z.object({
-    email: z.string().email(),
-    displayName: z.string().optional(),
-  }),
-  enabledFeatures: z.array(z.enum(PORTAL_FEATURE_KEYS)).default(["tasks", "documents", "referrals"]),
-});
+export const OnboardClientInput = z
+  .object({
+    // Set when converting an already-existing prospect (a companies row with
+    // a Won deal, no client yet) instead of onboarding a brand-new company —
+    // reuses that row rather than inserting a duplicate. `company` is
+    // ignored (and not required) when this is set.
+    companyId: z.string().uuid().optional(),
+    company: z
+      .object({
+        name: z.string().min(1),
+        industry: z.string().optional(),
+        region: z.string().optional(),
+        website: z.string().optional(),
+        sizeBand: z.string().optional(),
+        source: z.string().min(1),
+      })
+      .optional(),
+    client: z
+      .object({
+        name: z.string().min(1).optional(),
+        nextPaymentDate: z.string().optional(),
+      })
+      .optional(),
+    portalInvite: z.object({
+      email: z.string().email(),
+      displayName: z.string().optional(),
+    }),
+    enabledFeatures: z.array(z.enum(PORTAL_FEATURE_KEYS)).default(["tasks", "documents", "referrals"]),
+  })
+  .refine((data) => data.companyId || data.company, {
+    message: "Either companyId (existing prospect) or company (new company) is required",
+    path: ["company"],
+  });
 export type OnboardClientInputT = z.infer<typeof OnboardClientInput>;
 
 /**
@@ -56,24 +68,41 @@ export async function onboardClient(input: OnboardClientInputT) {
       throw new Error(`${data.portalInvite.email} is already on the allowlist`);
     }
 
-    const company = await auditedInsert(
-      tx,
-      companies,
-      {
-        ...data.company,
-        status: "active",
-        createdBy: caller.userId,
-        updatedBy: caller.userId,
-      },
-      { caller, entityType: "company" }
-    );
-    const companyId = (company as { id: string }).id;
+    let company: unknown;
+    let companyId: string;
+    if (data.companyId) {
+      const [existingCompany] = await tx.select().from(companies).where(eq(companies.id, data.companyId)).limit(1);
+      if (!existingCompany) throw new Error("Company not found");
+
+      const [existingClientForCompany] = await tx
+        .select({ id: clients.id })
+        .from(clients)
+        .where(and(eq(clients.companyId, data.companyId), isNull(clients.deletedAt)))
+        .limit(1);
+      if (existingClientForCompany) throw new Error(`${existingCompany.name} has already been onboarded`);
+
+      company = existingCompany;
+      companyId = existingCompany.id;
+    } else {
+      company = await auditedInsert(
+        tx,
+        companies,
+        {
+          ...data.company!,
+          status: "active",
+          createdBy: caller.userId,
+          updatedBy: caller.userId,
+        },
+        { caller, entityType: "company" }
+      );
+      companyId = (company as { id: string }).id;
+    }
 
     const client = await auditedInsert(
       tx,
       clients,
       {
-        name: data.client?.name ?? data.company.name,
+        name: data.client?.name ?? data.company?.name ?? (company as { name: string }).name,
         companyId,
         nextPaymentDate: data.client?.nextPaymentDate,
         createdBy: caller.userId,

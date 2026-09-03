@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCompany } from "@/lib/dal/companies";
+import { getClientByCompanyId } from "@/lib/dal/clients";
 import { createContactAction, deleteCompanyAction } from "../actions";
 import { createDealAction } from "../../deals/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const data = await getCompany(id);
+  const [data, existingClient] = await Promise.all([getCompany(id), getClientByCompanyId(id)]);
   if (!data) notFound();
   const { company, contacts, deals } = data;
+  const hasWonDeal = deals.some((d) => d.stage === "Won");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 800 }}>
@@ -21,11 +23,24 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
         <p style={{ color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
           {company.industry ?? "—"} · {company.region ?? "—"} · {company.status}
         </p>
-        <form action={deleteCompanyAction.bind(null, company.id)} style={{ marginTop: "var(--gh-space-3)" }}>
-          <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">
-            Remove company
-          </SubmitButton>
-        </form>
+        <div style={{ display: "flex", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-3)" }}>
+          {existingClient ? (
+            <Link href={`/clients/${existingClient.id}`} className="gh-btn-primary">
+              View client →
+            </Link>
+          ) : (
+            hasWonDeal && (
+              <Link href={`/clients/onboard?companyId=${company.id}`} className="gh-btn-primary">
+                Onboard client
+              </Link>
+            )
+          )}
+          <form action={deleteCompanyAction.bind(null, company.id)}>
+            <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">
+              Remove company
+            </SubmitButton>
+          </form>
+        </div>
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
