@@ -18,7 +18,7 @@ import {
   serviceItems,
   xeroInvoices,
 } from "@/lib/db/schema";
-import { and, asc, desc, eq, isNull, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { requireClientScope } from "./session";
 import type { Tx } from "./session";
@@ -436,7 +436,7 @@ export async function listPortalInvoices() {
       .select()
       .from(xeroInvoices)
       .where(eq(xeroInvoices.clientId, caller.clientId))
-      .orderBy(desc(xeroInvoices.invoiceDate));
+      .orderBy(sql`${xeroInvoices.invoiceDate} DESC NULLS LAST`);
   });
 }
 

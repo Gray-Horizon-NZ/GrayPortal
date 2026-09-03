@@ -54,6 +54,7 @@ export async function syncXeroInvoices() {
             total: inv.Total != null ? String(inv.Total) : null,
             amountDue: inv.AmountDue != null ? String(inv.AmountDue) : null,
             amountPaid: inv.AmountPaid != null ? String(inv.AmountPaid) : null,
+            invoiceDate: inv.Date ?? null,
             dueDate: inv.DueDate ?? null,
             lastSyncedAt: new Date(),
           },
