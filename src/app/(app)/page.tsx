@@ -18,6 +18,7 @@ import Card from "@/components/ui/Card";
 import ScoreGauge from "@/components/ui/ScoreGauge";
 import EmptyState from "@/components/ui/EmptyState";
 import TaskRow from "./tasks/TaskRow";
+import DashboardReadySignal from "@/components/ui/DashboardReadySignal";
 
 // Phase 16 — the "front door" (brief §12): composes data from nearly every
 // other phase, so it's built last among the read surfaces. Laid out as
@@ -97,6 +98,7 @@ export default async function HomePage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", maxWidth: 1200 }}>
+      <DashboardReadySignal />
       <div className="gh-animate-fade-up" style={{ paddingBottom: "var(--gh-space-6)", borderBottom: "1px solid var(--gh-border)" }}>
         <p className="gh-eyebrow">Welcome back</p>
         <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>

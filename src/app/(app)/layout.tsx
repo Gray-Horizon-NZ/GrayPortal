@@ -25,6 +25,7 @@ import { listMyNotifications } from "@/lib/dal/notifications";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "./notifications/actions";
 import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
 import LogoutButton from "./LogoutButton";
+import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
 
 // Renders the icon element server-side. NavLink/AppShell's icon prop is a
 // pre-rendered ReactNode, not a component reference — a bare component
@@ -125,17 +126,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <AppShell
-      eyebrow="Gray Horizon"
-      title="Portal"
-      navItems={navItems}
-      callerLabel={callerLabel}
-      logoutSlot={<LogoutButton />}
-      notifications={notifications}
-      markNotificationReadAction={markNotificationReadAction}
-      markAllNotificationsReadAction={markAllNotificationsReadAction}
-    >
-      {children}
-    </AppShell>
+    <>
+      <SessionBootOverlay />
+      <AppShell
+        eyebrow="Gray Horizon"
+        title="Portal"
+        navItems={navItems}
+        callerLabel={callerLabel}
+        logoutSlot={<LogoutButton />}
+        notifications={notifications}
+        markNotificationReadAction={markNotificationReadAction}
+        markAllNotificationsReadAction={markAllNotificationsReadAction}
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }

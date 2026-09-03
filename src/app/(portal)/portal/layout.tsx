@@ -13,6 +13,7 @@ import { getVerifiedUid, NotOnAllowlistError } from "@/lib/dal/auth";
 import { getPortalShellContext } from "@/lib/dal/portal";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import LogoutButton from "@/app/(app)/LogoutButton";
+import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
 import "../portal-theme.css";
 
 function navIcon(Icon: LucideIcon) {
@@ -100,13 +101,16 @@ export default async function PortalLayout({ children }: { children: React.React
     : null;
 
   return (
-    <PortalShell
-      clientName={identity?.name ?? callerLabel}
-      clientSince={clientSince}
-      navItems={navItems}
-      logoutSlot={<LogoutButton />}
-    >
-      {children}
-    </PortalShell>
+    <>
+      <SessionBootOverlay />
+      <PortalShell
+        clientName={identity?.name ?? callerLabel}
+        clientSince={clientSince}
+        navItems={navItems}
+        logoutSlot={<LogoutButton />}
+      >
+        {children}
+      </PortalShell>
+    </>
   );
 }

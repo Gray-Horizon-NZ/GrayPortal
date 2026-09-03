@@ -1,12 +1,13 @@
 import "server-only";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
-import { grayscaleRequests, notifications, users } from "@/lib/db/schema";
+import { grayscaleRequests, notifications, users, emailTemplates, clients } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { assertRole, requireClientScope } from "./session";
 import { auditedUpdate } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
+import { renderTemplate } from "./emails";
 import { GRAYSCALE_PRODUCT_NAMES } from "@/config/grayscale";
 
 export const SubmitGrayscaleRequestInput = z.object({
@@ -52,17 +53,33 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
       .from(users)
       .where(and(eq(users.role, "admin"), isNull(users.deletedAt)));
 
+    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, caller.clientId)).limit(1);
+    const clientName = client?.name ?? "A client";
+
     const productList = data.products.join(", ");
-    const messageHtml = sanitizeEmailHtml(
-      `<p>A client requested a GrayScale consultation for: <strong>${escapeHtml(productList)}</strong>.</p>${
-        data.note ? `<p>Note: ${escapeHtml(data.note)}</p>` : ""
-      }<p>Review it from that client's detail page in GrayPortal.</p>`
-    );
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "grayscale_request_notification"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+
+    // Falls back to the original hardcoded copy until the
+    // grayscale_request_notification template is seeded (gh_email_style_guide_v1.md
+    // §6) — same defensive pattern as onboarding_invite/onboarding_completion.
+    const noteBlock = data.note ? `<p>Note: ${escapeHtml(data.note)}</p>` : "";
+    const { subject, htmlBody } = template
+      ? renderTemplate(template, { client_name: clientName, products: escapeHtml(productList), note: noteBlock })
+      : {
+          subject: "GrayScale consultation requested",
+          htmlBody: `<p>A client requested a GrayScale consultation for: <strong>${escapeHtml(productList)}</strong>.</p>${noteBlock}<p>Review it from that client's detail page in GrayPortal.</p>`,
+        };
+    const messageHtml = sanitizeEmailHtml(htmlBody);
+
     for (const admin of admins) {
       const sent = await sendGmail({
         to: admin.email,
-        subject: "GrayScale consultation requested",
-        bodyText: `A client requested a GrayScale consultation for: ${productList}.${data.note ? ` Note: ${data.note}` : ""} Review it from that client's detail page in GrayPortal.`,
+        subject,
+        bodyText: `${clientName} requested a GrayScale consultation for: ${productList}.${data.note ? ` Note: ${data.note}` : ""} Review it from that client's detail page in GrayPortal.`,
         bodyHtml: wrapEmailHtml(messageHtml),
       });
       // Best-effort — a failed notification email shouldn't roll back a

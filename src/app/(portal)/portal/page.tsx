@@ -5,6 +5,7 @@ import ThemeToggle from "@/components/portal/ThemeToggle";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
 import AdSpendBars from "@/components/portal/charts/AdSpendBars";
 import MilestonesTimeline from "@/components/portal/charts/MilestonesTimeline";
+import DashboardReadySignal from "@/components/ui/DashboardReadySignal";
 
 export default async function PortalHomePage() {
   const {
@@ -52,6 +53,7 @@ export default async function PortalHomePage() {
 
   return (
     <div>
+      <DashboardReadySignal />
       <div className="ghp-page-head">
         <h1>Dashboard</h1>
         <div className="ghp-sub">

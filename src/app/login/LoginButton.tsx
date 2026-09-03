@@ -3,13 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithPopup } from "firebase/auth";
 import { firebaseAuth, googleProvider } from "@/lib/firebase/client";
-import WelcomeTransition from "@/components/ui/WelcomeTransition";
 
 export default function LoginButton() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [welcomeName, setWelcomeName] = useState<string | null>(null);
 
   async function handleSignIn() {
     setError(null);
@@ -57,24 +55,23 @@ export default function LoginButton() {
         return;
       }
 
+      // The boot overlay (SessionBootOverlay, mounted in the destination
+      // shell's own layout) reads this on mount and covers the page while
+      // it actually loads — pushing immediately, not after a fixed-timer
+      // animation, is what lets it start loading in the background instead
+      // of only starting once an unrelated animation finishes.
       const firstName = (result.user.displayName ?? result.user.email ?? "back").split(" ")[0];
-      setWelcomeName(firstName);
+      try {
+        sessionStorage.setItem("gh_welcome_name", firstName);
+      } catch {
+        // ignore — overlay just falls back to its generic "Welcome back" copy
+      }
+      router.push("/");
+      router.refresh();
     } catch {
       setError("Sign-in failed. Try again.");
       setLoading(false);
     }
-  }
-
-  if (welcomeName) {
-    return (
-      <WelcomeTransition
-        name={welcomeName}
-        onDone={() => {
-          router.push("/");
-          router.refresh();
-        }}
-      />
-    );
   }
 
   return (
