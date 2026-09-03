@@ -1,6 +1,6 @@
 import "server-only";
 import { xeroInvoices, clients } from "@/lib/db/schema";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lt } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { auditedUpdate } from "./mutate";
@@ -89,6 +89,25 @@ export async function getBusinessFinancialRollup() {
       overdueCount: unpaid.filter((r) => r.dueDate && r.dueDate < today).length,
       unlinkedInvoiceCount: rows.filter((r) => !r.clientId).length,
     };
+  });
+}
+
+/**
+ * Real cash actually paid on Gray Horizon's own sales invoices, dated in
+ * [fromIso, toIsoExclusive) — used to ground the personal-tax calculator's
+ * bracket position in real invoice history instead of an estimate. Reads
+ * the cached xero_invoices table (kept warm by the scheduled
+ * syncXeroInvoices, not a live Xero API call), same admin-only posture as
+ * lib/dal/personalFinance.ts since it feeds that calculator.
+ */
+export async function getXeroPaidIncomeBetween(fromIso: string, toIsoExclusive: string): Promise<number> {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const rows = await tx
+      .select({ amountPaid: xeroInvoices.amountPaid })
+      .from(xeroInvoices)
+      .where(and(gte(xeroInvoices.invoiceDate, fromIso), lt(xeroInvoices.invoiceDate, toIsoExclusive)));
+    return rows.reduce((sum, r) => sum + Number(r.amountPaid ?? 0), 0);
   });
 }
 

@@ -1,36 +1,62 @@
 "use client";
 import { useState } from "react";
+import { estimateMonthlySetAsideFromYtd } from "@/lib/nzTax";
 
 function money(n: number) {
   return `$${n.toLocaleString("en-NZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
- * Fully client-side — every input (income override, tax %, target weekly
- * draw) recalculates instantly with no server round-trip, since none of it
- * needs to be saved; it's a calculator, not a record. The only server-
- * backed pieces are the live income/expenses/dev-cost totals passed in as
- * props and the dev-cost list rendered below this component.
+ * Fully client-side — every input (income override, other-income YTD,
+ * target weekly draw) recalculates instantly with no server round-trip,
+ * since none of it needs to be saved; it's a calculator, not a record. The
+ * only server-backed pieces are the live income/expenses/dev-cost/Xero
+ * totals passed in as props and the dev-cost list rendered below this
+ * component.
+ *
+ * Tax is NZ's progressive brackets + ACC earner's levy (lib/nzTax.ts),
+ * applied as the *marginal* amount on top of a real year-to-date cumulative
+ * figure — not a flat percentage of gross, and not a single month
+ * annualized in isolation. The brackets are annual and apply to Max's
+ * combined personal income across every income source, which is why
+ * xeroYtdPriorNzd (Gray Horizon, via lib/dal/xero.ts) and
+ * spiderFawcettYtdNzd (the party-performance business, via a live read of
+ * its own separate app — lib/spiderFawcett.ts) both feed the cumulative
+ * figure, with otherYtdIncome as a manual catch-all for anything not wired
+ * up yet. Every dollar of deductible expense lowers the tax bill too, not
+ * just the cash left over.
  */
 export default function OwnersCutCalculator({
   liveIncomeNzd,
   businessExpensesMonthlyNzd,
+  businessExpensesWriteoffMonthlyNzd,
   devCostsMonthlyNzd,
+  xeroYtdPriorNzd,
+  xeroConnected,
+  spiderFawcettYtdNzd,
 }: {
   liveIncomeNzd: number;
   businessExpensesMonthlyNzd: number;
+  businessExpensesWriteoffMonthlyNzd: number;
   devCostsMonthlyNzd: number;
+  xeroYtdPriorNzd: number;
+  xeroConnected: boolean;
+  spiderFawcettYtdNzd: number | null;
 }) {
   const [incomeMode, setIncomeMode] = useState<"live" | "manual">("live");
   const [manualIncome, setManualIncome] = useState("");
-  const [taxPercent, setTaxPercent] = useState("17.5");
+  const [otherYtdIncome, setOtherYtdIncome] = useState("");
   const [targetWeeklyDraw, setTargetWeeklyDraw] = useState("");
 
   const income = incomeMode === "live" ? liveIncomeNzd : Number(manualIncome) || 0;
-  const taxFraction = (Number(taxPercent) || 0) / 100;
-  const taxAmount = income * taxFraction;
-  const postTax = income - taxAmount;
   const totalExpenses = businessExpensesMonthlyNzd + devCostsMonthlyNzd;
+  const deductibleExpenses = businessExpensesWriteoffMonthlyNzd + devCostsMonthlyNzd;
+  const taxableIncome = Math.max(income - deductibleExpenses, 0);
+  const ytdTaxableBeforeThisMonth =
+    xeroYtdPriorNzd + (spiderFawcettYtdNzd ?? 0) + (Number(otherYtdIncome) || 0);
+  const setAside = estimateMonthlySetAsideFromYtd(taxableIncome, ytdTaxableBeforeThisMonth);
+  const taxAmount = setAside.totalNzd;
+  const postTax = income - taxAmount;
   const ownersCut = postTax - totalExpenses;
 
   const threeMonthMin = totalExpenses * 3;
@@ -78,6 +104,42 @@ export default function OwnersCutCalculator({
         </p>
       </section>
 
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Tax-year-to-date position</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", fontSize: "var(--gh-text-sm)" }}>
+          <p>
+            {xeroConnected ? (
+              <>{money(xeroYtdPriorNzd)} paid on Gray Horizon invoices so far this tax year (Xero), before this month.</>
+            ) : (
+              <span style={{ color: "var(--gh-danger)" }}>
+                Xero isn&apos;t connected — counting $0 from Gray Horizon for prior months.
+              </span>
+            )}
+          </p>
+          <p>
+            {spiderFawcettYtdNzd !== null ? (
+              <>{money(spiderFawcettYtdNzd)} paid so far this tax year via Spider-Fawcett OS.</>
+            ) : (
+              <span style={{ color: "var(--gh-danger)" }}>
+                Spider-Fawcett OS isn&apos;t reachable right now — counting $0 from it; check the manual figure
+                below covers it.
+              </span>
+            )}
+          </p>
+        </div>
+        <input
+          className="gh-input"
+          placeholder="Other taxable income already earned this tax year (anything not wired up above)"
+          value={otherYtdIncome}
+          onChange={(e) => setOtherYtdIncome(e.target.value)}
+        />
+        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+          NZ brackets apply to your combined personal income, not per business — even income you tax
+          separately still pushes this month&apos;s marginal rate up. Cumulative taxable income before
+          this month: {money(ytdTaxableBeforeThisMonth)}.
+        </p>
+      </section>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--gh-space-4)" }}>
         <div className="gh-card">
           <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Gross income</p>
@@ -85,15 +147,13 @@ export default function OwnersCutCalculator({
         </div>
         <div className="gh-card">
           <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>
-            Going to tax (
-            <input
-              value={taxPercent}
-              onChange={(e) => setTaxPercent(e.target.value)}
-              style={{ width: 40, background: "transparent", border: "none", borderBottom: "1px solid var(--gh-border)", color: "inherit", font: "inherit" }}
-            />
-            %)
+            Going to tax ({(setAside.effectiveRate * 100).toFixed(1)}%)
           </p>
           <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{money(taxAmount)}</p>
+          <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
+            {money(setAside.incomeTaxNzd)} income tax + {money(setAside.accLevyNzd)} ACC levy, marginal on{" "}
+            {money(taxableIncome)} taxable this month, stacked on {money(ytdTaxableBeforeThisMonth)} already earned this tax year
+          </p>
         </div>
         <div className="gh-card">
           <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Post-tax sum</p>
@@ -104,6 +164,7 @@ export default function OwnersCutCalculator({
           <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)" }}>{money(totalExpenses)}</p>
           <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
             {money(businessExpensesMonthlyNzd)} business + {money(devCostsMonthlyNzd)} dev costs
+            ({money(deductibleExpenses)} of it deductible)
           </p>
         </div>
         <div className="gh-card" style={{ borderTop: "2px solid var(--gh-accent)", gridColumn: "1 / -1" }}>

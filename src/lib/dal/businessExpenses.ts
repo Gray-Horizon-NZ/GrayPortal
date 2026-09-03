@@ -1,6 +1,6 @@
 import "server-only";
 import { businessExpenses } from "@/lib/db/schema";
-import { eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
@@ -90,6 +90,23 @@ export async function getMonthlyExpenseTotal(): Promise<number> {
       .select({ monthlyAmountNzd: businessExpenses.monthlyAmountNzd })
       .from(businessExpenses)
       .where(isNull(businessExpenses.deletedAt));
+    return rows.reduce((sum, r) => sum + Number(r.monthlyAmountNzd ?? 0), 0);
+  });
+}
+
+/**
+ * Subset of getMonthlyExpenseTotal() flagged isWriteoff — the deductible
+ * portion that actually lowers taxable income, as opposed to the full cash
+ * outflow. Used by the tax set-aside calc; getMonthlyExpenseTotal() (all
+ * expenses, write-off or not) is still what's subtracted for real cashflow.
+ */
+export async function getMonthlyWriteoffExpenseTotal(): Promise<number> {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const rows = await tx
+      .select({ monthlyAmountNzd: businessExpenses.monthlyAmountNzd })
+      .from(businessExpenses)
+      .where(and(isNull(businessExpenses.deletedAt), eq(businessExpenses.isWriteoff, true)));
     return rows.reduce((sum, r) => sum + Number(r.monthlyAmountNzd ?? 0), 0);
   });
 }

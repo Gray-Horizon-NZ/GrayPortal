@@ -99,6 +99,20 @@ env:
     secret: LEAD_CAPTURE_SECRET
     availability: [RUNTIME]
 
+  # Read-only pull from Spider-Fawcett OS's /api/external/ytd-income
+  # (separate app/deploy, see src/lib/spiderFawcett.ts) so the personal-tax
+  # calculator can fold Max's party-business YTD income into its NZ bracket
+  # math — brackets apply to combined sole-trader income, not per business.
+  # URL is just the public Hosting domain, not sensitive; the key must match
+  # spider-fawcett-os's EXTERNAL_API_KEY env var.
+  - variable: SPIDER_FAWCETT_API_URL
+    value: https://spider-fawcett-os.web.app
+    availability: [RUNTIME]
+
+  - variable: SPIDER_FAWCETT_API_KEY
+    secret: SPIDER_FAWCETT_API_KEY
+    availability: [RUNTIME]
+
   # No FIREBASE_ADMIN_* here on purpose: on App Hosting, the Admin SDK picks
   # up the attached Cloud Run service account automatically via
   # applicationDefault() (see src/lib/firebase/admin.ts) — no key needed in

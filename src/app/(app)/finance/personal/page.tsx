@@ -2,8 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withCaller } from "@/lib/dal/auth";
 import { getTotalActiveMonthlyRevenue } from "@/lib/dal/clientServices";
-import { getMonthlyExpenseTotal } from "@/lib/dal/businessExpenses";
+import { getMonthlyExpenseTotal, getMonthlyWriteoffExpenseTotal } from "@/lib/dal/businessExpenses";
 import { listDevCosts, getMonthlyDevCostTotal } from "@/lib/dal/devCosts";
+import { getXeroPaidIncomeBetween } from "@/lib/dal/xero";
+import { getXeroConnection } from "@/lib/dal/xeroConnection";
+import { getSpiderFawcettYtdIncome } from "@/lib/spiderFawcett";
+import { nzTaxYearStart } from "@/lib/nzTax";
 import { createDevCostAction, deleteDevCostAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import OwnersCutCalculator from "./OwnersCutCalculator";
@@ -21,11 +25,28 @@ export default async function OwnersCutCalculatorPage() {
   const caller = await withCaller(async (c) => c);
   if (caller.role !== "admin") redirect("/");
 
-  const [liveIncomeNzd, businessExpensesMonthlyNzd, devCostsMonthlyNzd, devCosts] = await Promise.all([
+  const now = new Date();
+  const taxYearStartIso = nzTaxYearStart(now).toISOString().slice(0, 10);
+  const startOfThisMonthIso = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+
+  const [
+    liveIncomeNzd,
+    businessExpensesMonthlyNzd,
+    businessExpensesWriteoffMonthlyNzd,
+    devCostsMonthlyNzd,
+    devCosts,
+    xeroYtdPriorNzd,
+    xeroConnection,
+    spiderFawcettYtdNzd,
+  ] = await Promise.all([
     getTotalActiveMonthlyRevenue(),
     getMonthlyExpenseTotal(),
+    getMonthlyWriteoffExpenseTotal(),
     getMonthlyDevCostTotal(),
     listDevCosts(),
+    getXeroPaidIncomeBetween(taxYearStartIso, startOfThisMonthIso),
+    getXeroConnection(),
+    getSpiderFawcettYtdIncome(),
   ]);
 
   return (
@@ -34,8 +55,9 @@ export default async function OwnersCutCalculatorPage() {
         <p className="gh-eyebrow">Internal</p>
         <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Owner&apos;s Cut Calculator</h1>
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Not connected to Xero or client-visible data — a live split of your income into tax, expenses,
-          and take-home, plus buffer savings goals.{" "}
+          Not client-visible data — a live split of your income into tax, expenses, and take-home, plus
+          buffer savings goals. Tax is estimated from real Xero + Spider-Fawcett OS year-to-date income
+          run through NZ's actual bracket rates, not a flat percentage.{" "}
           <Link href="/finance/personal/history" style={{ color: "var(--gh-accent)" }}>Past periods →</Link>
         </p>
       </div>
@@ -43,7 +65,11 @@ export default async function OwnersCutCalculatorPage() {
       <OwnersCutCalculator
         liveIncomeNzd={liveIncomeNzd}
         businessExpensesMonthlyNzd={businessExpensesMonthlyNzd}
+        businessExpensesWriteoffMonthlyNzd={businessExpensesWriteoffMonthlyNzd}
         devCostsMonthlyNzd={devCostsMonthlyNzd}
+        xeroYtdPriorNzd={xeroYtdPriorNzd}
+        xeroConnected={xeroConnection !== null}
+        spiderFawcettYtdNzd={spiderFawcettYtdNzd}
       />
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
