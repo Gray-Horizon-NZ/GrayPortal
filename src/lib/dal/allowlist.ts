@@ -1,8 +1,9 @@
 import "server-only";
 import { users } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import { withAdminScope, NotOnAllowlistError } from "./session";
 import { adminAuth } from "@/lib/firebase/admin";
+import { sendOnboardingCompletionEmail } from "./onboardingInvites";
 
 /**
  * Runs on every sign-in, before a session cookie is issued (brief §5.1:
@@ -29,7 +30,36 @@ export async function claimOrVerifyAllowlist(email: string, uid: string): Promis
     }
 
     if (!row.googleUid) {
+      // Onboarding-completion signal (Open-Work-Brief.md §4.2/§9.2): only
+      // the client's genuinely first claimed login should fire the
+      // completion email, not every later portal user added for the same
+      // client (e.g. a bookkeeper invited months afterward) or any
+      // admin/contractor sign-in. Checked before this row claims its own
+      // uid, against every OTHER already-claimed (googleUid set) row for
+      // the same clientId — if none exist, this is the first.
+      let isFirstClientSignIn = false;
+      if (row.role === "client" && row.clientId) {
+        const [otherClaimed] = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.clientId, row.clientId),
+              eq(users.role, "client"),
+              isNotNull(users.googleUid),
+              isNull(users.deletedAt),
+              ne(users.id, row.id)
+            )
+          )
+          .limit(1);
+        isFirstClientSignIn = !otherClaimed;
+      }
+
       await tx.update(users).set({ googleUid: uid, updatedAt: new Date() }).where(eq(users.id, row.id));
+
+      if (isFirstClientSignIn && row.clientId) {
+        await sendOnboardingCompletionEmail(tx, row.clientId, row.email);
+      }
     }
 
     return { role: row.role, clientId: row.clientId };

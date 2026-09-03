@@ -17,7 +17,7 @@ import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 import { listEmailsForClient } from "@/lib/dal/emails";
 import { getCompany } from "@/lib/dal/companies";
-import { defaultOnboardingInviteEmail } from "@/config/onboarding";
+import { getDefaultOnboardingInviteEmail } from "@/lib/dal/onboardingInvites";
 import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
 import { listGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
 import { daysUntil } from "@/lib/date";
@@ -95,6 +95,7 @@ export default async function ClientDetailPage({
   if (!data) notFound();
   const { client, referrals, features, portalUsers, documents, onboardingInvites } = data;
   const status = paymentStatus(client.nextPaymentDate);
+  const defaultInviteEmail = await getDefaultOnboardingInviteEmail(client.name);
 
   const [
     activeDiscounts,
@@ -282,7 +283,7 @@ export default async function ClientDetailPage({
         {portalUsers.map((u) => {
           const invite = onboardingInvites.find((i) => i.email === u.email);
           const daysLeft = invite ? daysUntil(invite.expiresAt) : null;
-          const defaults = defaultOnboardingInviteEmail(client.name);
+          const defaults = defaultInviteEmail;
           return (
             <div key={u.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>

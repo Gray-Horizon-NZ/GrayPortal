@@ -4,6 +4,7 @@ import { listEmailTemplates } from "@/lib/dal/emails";
 import { createEmailTemplateAction, updateEmailTemplateAction, softDeleteEmailTemplateAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import TemplateEditor from "./TemplateEditor";
+import TestSendControl from "./TestSendControl";
 
 // Phase 10 — brief §6: known recurring sends, stored as data (subject/HTML
 // body with {{variable}} placeholders), not hard-coded strings. Rendering
@@ -45,9 +46,12 @@ export default async function EmailTemplatesPage() {
                 />
               </div>
             </details>
-            <form action={softDeleteEmailTemplateAction.bind(null, t.id)}>
-              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">Remove</SubmitButton>
-            </form>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--gh-space-2)" }}>
+              <TestSendControl templateId={t.id} />
+              <form action={softDeleteEmailTemplateAction.bind(null, t.id)}>
+                <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">Remove</SubmitButton>
+              </form>
+            </div>
           </div>
         ))}
         {templates.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No templates yet.</p>}

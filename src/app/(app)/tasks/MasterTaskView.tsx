@@ -23,13 +23,21 @@ type Column =
  * with neither a clientId nor a dealId (genuinely internal work) land in
  * one of the two fixed internal columns — no internalList set defaults
  * into "Gray Horizon" rather than disappearing.
+ *
+ * Grouping uses each task's resolvedClientId (listAllTasks), not the raw
+ * clientId — a deal-linked task created before its company converted to a
+ * client would otherwise still bucket into a separate prospect
+ * pseudo-column even after that conversion, splitting one client across
+ * two columns. resolvedClientId already folds that deal task back onto
+ * the real client column; only a deal with no converted client still gets
+ * its own "deal" column.
  */
 export default async function MasterTaskView() {
   const [tasks, clients] = await Promise.all([listAllTasks(), listClients()]);
 
   const dealColumns = new Map<string, string>();
   for (const t of tasks) {
-    if (t.dealId && !t.clientId) {
+    if (t.dealId && !t.resolvedClientId) {
       dealColumns.set(t.dealId, t.dealCompanyName ?? "Prospect");
     }
   }
@@ -41,9 +49,9 @@ export default async function MasterTaskView() {
   ];
 
   const tasksForColumn = (col: Column) => {
-    if (col.kind === "client") return tasks.filter((t) => t.clientId === col.clientId);
-    if (col.kind === "deal") return tasks.filter((t) => !t.clientId && t.dealId === col.dealId);
-    return tasks.filter((t) => !t.clientId && !t.dealId && (t.internalList ?? INTERNAL_LIST_KEYS[0]) === col.internalList);
+    if (col.kind === "client") return tasks.filter((t) => t.resolvedClientId === col.clientId);
+    if (col.kind === "deal") return tasks.filter((t) => !t.resolvedClientId && t.dealId === col.dealId);
+    return tasks.filter((t) => !t.resolvedClientId && !t.dealId && (t.internalList ?? INTERNAL_LIST_KEYS[0]) === col.internalList);
   };
 
   if (columns.length === 0) {

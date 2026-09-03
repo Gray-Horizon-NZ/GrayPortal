@@ -2,6 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import { tasks, deals, companies, clients } from "@/lib/db/schema";
 import { and, desc, eq, getTableColumns, isNull, lt } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
@@ -71,25 +72,44 @@ export async function createGoogleTasklistForAdmin(title: string) {
   });
 }
 
+const dealClients = alias(clients, "deal_clients");
+
 /**
  * Every task, org-wide — the "All" half of the merged /tasks page's
  * toggle, and the source list for the Master Task View (grouped by
- * clientId client-side). Left-joined to clients (for clientName) and to
- * deals→companies (for dealCompanyName) so a task's client OR prospect
- * name travels with it — a deal-linked task with no clientId still gets
- * bucketed into an internal Master View column, but TaskRow can now show
- * and link to which prospect it's actually for.
+ * resolvedClientId client-side). Left-joined to clients (for clientName)
+ * and to deals→companies (for dealCompanyName) so a task's client OR
+ * prospect name travels with it — a deal-linked task with no clientId
+ * still gets bucketed into an internal Master View column, but TaskRow can
+ * now show and link to which prospect it's actually for.
+ *
+ * A second join (aliased dealClients) resolves whether the deal's own
+ * company has since become a real client — a company that's both an
+ * active client and still has an open deal otherwise produced two
+ * separate Master Task View columns for what's conceptually one client
+ * (the real client column, plus a prospect pseudo-column keyed by
+ * dealCompanyName for any task created back when it was still a deal).
+ * resolvedClientId folds those back into one: the task's own clientId if
+ * set, else the client that deal's company now belongs to, if any.
  */
 export async function listAllTasks() {
   return withCaller(async (_caller, tx) => {
-    return tx
-      .select({ ...getTableColumns(tasks), clientName: clients.name, dealCompanyName: companies.name })
+    const rows = await tx
+      .select({
+        ...getTableColumns(tasks),
+        clientName: clients.name,
+        dealCompanyName: companies.name,
+        dealClientId: dealClients.id,
+      })
       .from(tasks)
       .leftJoin(clients, eq(tasks.clientId, clients.id))
       .leftJoin(deals, eq(tasks.dealId, deals.id))
       .leftJoin(companies, eq(deals.companyId, companies.id))
+      .leftJoin(dealClients, and(eq(dealClients.companyId, companies.id), isNull(dealClients.deletedAt)))
       .where(isNull(tasks.deletedAt))
       .orderBy(desc(tasks.createdAt));
+
+    return rows.map((t) => ({ ...t, resolvedClientId: t.clientId ?? t.dealClientId ?? null }));
   });
 }
 

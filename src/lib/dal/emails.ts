@@ -15,7 +15,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 import { sendGmail, fetchInboundMessages } from "@/lib/google/gmailAdapter";
-import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
+import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/chrome";
 import { z } from "zod";
 
 const OUTBOUND_RATE_LIMIT_PER_HOUR = 30;
@@ -189,6 +189,39 @@ export async function previewTemplateHtml(html: string) {
   return withCaller(async (caller) => {
     assertRole(caller, "admin");
     return wrapEmailHtml(sanitizeEmailHtml(html));
+  });
+}
+
+/** Same {{var}} syntax as renderTemplate, but for a template being test-sent
+ * with no real record behind it — each placeholder renders as its own name
+ * (e.g. {{client_name}} -> [client_name]) so a tester can see which
+ * variables the template actually uses, rather than silently going blank. */
+function renderTemplateWithPlaceholders(template: { subject: string; htmlBody: string }) {
+  const substitute = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, key: string) => `[${key}]`);
+  return { subject: substitute(template.subject), htmlBody: substitute(template.htmlBody) };
+}
+
+/** "Test" button on the Email Templates tab — sends the saved template as a
+ * real email to an address the admin picks, so what's reviewed there is
+ * exactly what a recipient's client will render (fonts, spacing, dark-mode
+ * quirks), not just the in-app iframe preview. Placeholder vars only — this
+ * isn't tied to a real contact/deal/client, so it bypasses sendEmail the
+ * same way onboarding invites and campaign sends already do. */
+export async function sendTestEmailTemplate(id: string, toEmail: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const [template] = await tx.select().from(emailTemplates).where(eq(emailTemplates.id, id)).limit(1);
+    if (!template) throw new Error("Template not found");
+
+    const rendered = renderTemplateWithPlaceholders(template);
+    const html = wrapEmailHtml(rendered.htmlBody);
+    const sent = await sendGmail({
+      to: toEmail,
+      subject: `[Test] ${rendered.subject}`,
+      bodyText: stripHtmlToText(rendered.htmlBody),
+      bodyHtml: html,
+    });
+    if (!sent) throw new Error("Gmail is not connected — could not send the test");
   });
 }
 

@@ -2,12 +2,13 @@ import "server-only";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
-import { onboardingInvites, clients, companies, clientServices, serviceItems } from "@/lib/db/schema";
+import { onboardingInvites, clients, companies, clientServices, serviceItems, emailTemplates, users } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, GOLD, INK, MUTED } from "@/lib/email/chrome";
+import { renderTemplate } from "./emails";
 
 // Client onboarding wizard, foundation slice (Open-Work-Brief.md §4, §7 item
 // 10 — decided 2026-08-27: 14 days, admin can resend anytime).
@@ -17,6 +18,74 @@ function generateInviteToken(): { raw: string; hash: string } {
   const raw = crypto.randomBytes(32).toString("base64url");
   const hash = crypto.createHash("sha256").update(raw).digest("hex");
   return { raw, hash };
+}
+
+/**
+ * Default subject/body for the "send/resend portal-setup invite" review-
+ * and-edit form (client detail page) — pulled from the editable
+ * onboarding_invite email template if one's been saved (Email Templates
+ * tab), so the same copy that's edited/previewed/tested there is what
+ * pre-fills every send, and a wording change only has to happen in one
+ * place. Falls back to the original hardcoded copy if that template
+ * hasn't been seeded yet, so nothing breaks in the meantime.
+ */
+export async function getDefaultOnboardingInviteEmail(clientName: string): Promise<{ subject: string; body: string }> {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "onboarding_invite"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+    if (!template) {
+      const { defaultOnboardingInviteEmail } = await import("@/config/onboarding");
+      return defaultOnboardingInviteEmail(clientName);
+    }
+    const rendered = renderTemplate(template, { client_name: clientName });
+    return { subject: rendered.subject, body: rendered.htmlBody };
+  });
+}
+
+/**
+ * Fires once, on a client's genuinely first successful portal sign-in
+ * (claimOrVerifyAllowlist) — landing in a real, working portal is a more
+ * meaningful "onboarding complete" signal than the wizard's own last step,
+ * since a client could finish every wizard step and never actually sign
+ * in. Sent to both the client and every admin, confirming completion from
+ * both sides (Open-Work-Brief.md §4.2). Takes the caller's own tx directly
+ * — no real Caller exists yet at sign-in time, same constraint every other
+ * pre-caller write in this file works around. Best-effort throughout: a
+ * failed send must never block the client's actual sign-in.
+ */
+export async function sendOnboardingCompletionEmail(tx: Tx, clientId: string, clientEmail: string) {
+  try {
+    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, clientId)).limit(1);
+    if (!client) return;
+
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "onboarding_completion"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+    if (!template) {
+      console.error("onboarding_completion email template not found — completion email not sent");
+      return;
+    }
+
+    const rendered = renderTemplate(template, { client_name: client.name });
+    const html = wrapEmailHtml(sanitizeEmailHtml(rendered.htmlBody));
+    const admins = await tx
+      .select({ email: users.email })
+      .from(users)
+      .where(and(eq(users.role, "admin"), isNull(users.deletedAt)));
+
+    for (const to of [clientEmail, ...admins.map((a) => a.email)]) {
+      const sent = await sendGmail({ to, subject: rendered.subject, bodyText: stripHtmlToText(rendered.htmlBody), bodyHtml: html });
+      if (!sent) console.error(`Failed to send onboarding completion email to ${to}`);
+    }
+  } catch (err) {
+    console.error("Onboarding completion email failed", err);
+  }
 }
 
 function inviteCtaHtml(link: string): string {
