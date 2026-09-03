@@ -1,12 +1,13 @@
 import "server-only";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
-import { portalAccessRequests, users } from "@/lib/db/schema";
+import { portalAccessRequests, users, emailTemplates } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { auditedInsert, auditedUpdate } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
+import { renderTemplate } from "./emails";
 import { resolveActiveInvite } from "./onboardingInvites";
 
 export const SubmitPortalAccessRequestInput = z.object({
@@ -66,15 +67,29 @@ export async function submitPortalAccessRequest(rawToken: string, input: SubmitP
       .from(users)
       .where(and(eq(users.role, "admin"), isNull(users.deletedAt)));
 
-    const messageHtml = sanitizeEmailHtml(
-      `<p>${resolved.clientName} requested portal access for <strong>${escapeHtml(data.email)}</strong>${
-        data.displayName ? ` (${escapeHtml(data.displayName)})` : ""
-      }.</p><p>Review and approve it from that client's detail page in GrayPortal.</p>`
-    );
+    const requesterLine = data.displayName ? `${escapeHtml(data.email)} (${escapeHtml(data.displayName)})` : escapeHtml(data.email);
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "portal_access_request_notification"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+
+    // Falls back to the original hardcoded copy until the
+    // portal_access_request_notification template is seeded
+    // (gh_email_style_guide_v1.md §6) — same defensive pattern as every
+    // other admin-notification template in this app.
+    const { subject, htmlBody } = template
+      ? renderTemplate(template, { client_name: resolved.clientName, requester: requesterLine })
+      : {
+          subject: `Portal access requested — ${resolved.clientName}`,
+          htmlBody: `<p>${resolved.clientName} requested portal access for <strong>${requesterLine}</strong>.</p><p>Review and approve it from that client's detail page in GrayPortal.</p>`,
+        };
+    const messageHtml = sanitizeEmailHtml(htmlBody);
+
     for (const admin of admins) {
       const sent = await sendGmail({
         to: admin.email,
-        subject: `Portal access requested — ${resolved.clientName}`,
+        subject,
         bodyText: `${resolved.clientName} requested portal access for ${data.email}. Review it from that client's detail page in GrayPortal.`,
         bodyHtml: wrapEmailHtml(messageHtml),
       });

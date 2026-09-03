@@ -1,6 +1,10 @@
 import "server-only";
-import { companies, contacts } from "@/lib/db/schema";
-import { withAdminScope } from "./session";
+import { companies, contacts, emailTemplates } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
+import { withAdminScope, type Tx } from "./session";
+import { sendGmail } from "@/lib/google/gmailAdapter";
+import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/chrome";
+import { renderTemplate } from "./emails";
 import { z } from "zod";
 
 export const LeadInput = z.object({
@@ -52,6 +56,33 @@ export async function createLead(input: LeadInputT) {
       })
       .returning();
 
+    if (contact.email) await sendInquiryAcknowledgment(tx, contact.email, contact.firstName);
+
     return { company, contact };
   });
+}
+
+/** Best-effort — a failed/skipped confirmation email must never fail the
+ * public form submission itself. `email` is optional on the inquiry form,
+ * so this is only ever called once one is actually present. */
+async function sendInquiryAcknowledgment(tx: Tx, email: string, firstName: string) {
+  try {
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "new_inquiry_acknowledgment"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+    if (!template) return;
+
+    const rendered = renderTemplate(template, { client_name: firstName });
+    const sent = await sendGmail({
+      to: email,
+      subject: rendered.subject,
+      bodyText: stripHtmlToText(rendered.htmlBody),
+      bodyHtml: wrapEmailHtml(sanitizeEmailHtml(rendered.htmlBody)),
+    });
+    if (!sent) console.error(`Failed to send inquiry acknowledgment to ${email}`);
+  } catch (err) {
+    console.error("Inquiry acknowledgment email failed", err);
+  }
 }

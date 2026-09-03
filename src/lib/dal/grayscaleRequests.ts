@@ -88,6 +88,26 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
       if (!sent) console.error(`Failed to email admin ${admin.email} about a GrayScale request`);
     }
 
+    // Client-facing acknowledgment — the admin notification above always
+    // existed, but the client themselves previously got no confirmation
+    // their request actually went through beyond the in-app "Request sent"
+    // modal state, which disappears the moment they close it.
+    const [ackTemplate] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "grayscale_request_client_ack"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+    if (ackTemplate) {
+      const ack = renderTemplate(ackTemplate, { client_name: clientName, products: escapeHtml(productList) });
+      const sentAck = await sendGmail({
+        to: caller.email,
+        subject: ack.subject,
+        bodyText: `We've received your GrayScale request for: ${productList}. We'll be in touch shortly.`,
+        bodyHtml: wrapEmailHtml(sanitizeEmailHtml(ack.htmlBody)),
+      });
+      if (!sentAck) console.error(`Failed to send GrayScale request acknowledgment to ${caller.email}`);
+    }
+
     return request;
   });
 }

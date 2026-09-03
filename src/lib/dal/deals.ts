@@ -1,13 +1,50 @@
 import "server-only";
-import { deals, activities, tasks, companies, users } from "@/lib/db/schema";
+import { deals, activities, tasks, companies, users, contacts, emailTemplates } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import type { Tx } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 import { syncDealToGoogle, removeDealFromGoogle, syncTaskToGoogle } from "@/lib/google/adapter";
+import { sendGmail } from "@/lib/google/gmailAdapter";
+import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/chrome";
+import { renderTemplate } from "./emails";
 import { z } from "zod";
 import { numericString } from "./validation";
 import { STAGES, STAGE_TASK_RULES, type Stage } from "@/config/pipeline";
+
+/**
+ * The immediate confirmation the moment a deal closes — deliberately
+ * distinct from the full onboarding_invite (which only goes out once an
+ * admin actually runs onboardClient, sometimes days later). Best-effort:
+ * a failed/skipped send must never roll back the stage change itself.
+ */
+async function sendDealWonWelcome(tx: Tx, deal: typeof deals.$inferSelect) {
+  try {
+    if (!deal.primaryContactId) return;
+    const [contact] = await tx.select().from(contacts).where(eq(contacts.id, deal.primaryContactId)).limit(1);
+    if (!contact?.email) return;
+
+    const [company] = await tx.select({ name: companies.name }).from(companies).where(eq(companies.id, deal.companyId)).limit(1);
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, "deal_won_welcome"), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+    if (!template) return;
+
+    const rendered = renderTemplate(template, { client_name: contact.firstName || company?.name || "there" });
+    const html = wrapEmailHtml(sanitizeEmailHtml(rendered.htmlBody));
+    const sent = await sendGmail({
+      to: contact.email,
+      subject: rendered.subject,
+      bodyText: stripHtmlToText(rendered.htmlBody),
+      bodyHtml: html,
+    });
+    if (!sent) console.error(`Failed to send deal-won welcome to ${contact.email}`);
+  } catch (err) {
+    console.error("Deal-won welcome email failed", err);
+  }
+}
 
 /**
  * Phase 3: pushes a deal's next action to Google Calendar (brief §3, single
@@ -209,6 +246,10 @@ export async function changeDealStage(id: string, newStage: Stage, closeReason?:
         .update(deals)
         .set({ googleEventId: null, syncState: null })
         .where(eq(deals.id, id));
+    }
+
+    if (newStage === "Won") {
+      await sendDealWonWelcome(tx, updatedDeal);
     }
 
     return updated;
