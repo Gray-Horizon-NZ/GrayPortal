@@ -1,14 +1,15 @@
 import "server-only";
 import crypto from "node:crypto";
 import { z } from "zod";
-import { and, eq, isNull } from "drizzle-orm";
-import { onboardingInvites, clients, companies, clientServices, serviceItems, emailTemplates, users } from "@/lib/db/schema";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { onboardingInvites, clients, companies, clientServices, serviceItems, emailTemplates, users, documents } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, GOLD, INK, MUTED } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
+import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 
 // Client onboarding wizard, foundation slice (Open-Work-Brief.md §4, §7 item
 // 10 — decided 2026-08-27: 14 days, admin can resend anytime).
@@ -241,7 +242,14 @@ type WizardServiceRow = {
 };
 
 export type OnboardingWizardData =
-  | { status: "valid"; clientId: string; clientName: string; company: WizardCompanyDetails; services: WizardServiceRow[] }
+  | {
+      status: "valid";
+      clientId: string;
+      clientName: string;
+      company: WizardCompanyDetails;
+      services: WizardServiceRow[];
+      attachedDocumentNames: string[];
+    }
   | { status: "expired" }
   | { status: "not_found" };
 
@@ -303,7 +311,22 @@ async function buildWizardData(
       )
     );
 
-  return { status: "valid", clientId, clientName, company, services };
+  // Step 4's real state (Open-Work-Brief.md §4.5) — which of the four fixed
+  // onboarding documents are actually attached, matched by title against
+  // the shared ONBOARDING_DOCUMENT_NAMES registry rather than a new docType.
+  const attachedDocs = await tx
+    .select({ title: documents.title })
+    .from(documents)
+    .where(
+      and(
+        eq(documents.clientId, clientId),
+        inArray(documents.title, [...ONBOARDING_DOCUMENT_NAMES]),
+        isNull(documents.deletedAt)
+      )
+    );
+  const attachedDocumentNames = attachedDocs.map((d) => d.title!);
+
+  return { status: "valid", clientId, clientName, company, services, attachedDocumentNames };
 }
 
 /** Live wizard entry point — /onboard/[token]. */

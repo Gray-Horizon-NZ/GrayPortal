@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import WizardShell from "./WizardShell";
 import { updateOnboardingDetailsAction, submitAccessRequestAction } from "@/app/onboard/[token]/actions";
 import type { OnboardingWizardData } from "@/lib/dal/onboardingInvites";
+import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 
 type WizardData = Extract<OnboardingWizardData, { status: "valid" }>;
 
@@ -12,16 +13,8 @@ type WizardData = Extract<OnboardingWizardData, { status: "valid" }>;
 // original step 7, "Enter Client Portal," was folded into step 6 per
 // Max's request — GrayScale is now the wizard's last real step, and its
 // own action triggers the portal-entry transition directly, no separate
-// step after it). One is deliberately not wired to a real backend yet:
-// - Step 4 (documents) is a static UI mock — the four expected document
-//   names, not real attached files. §4.5's attach mechanism is still
-//   deferred; this just shows Max what the tile set looks like.
+// step after it).
 const STEP_COUNT = 6;
-
-// Matches §4.5's four expected documents — the UI mock for step 4 until the
-// real attach mechanism (documents typed "other" + title, per the decided
-// approach) is wired up.
-const ONBOARDING_DOCUMENT_NAMES = ["Welcome Document", "Project Brief", "Delivery Guide", "Thank You Document"];
 
 function NextButton({
   onClick,
@@ -265,11 +258,15 @@ export default function OnboardingWizard({
             A preview of the set — these stay available afterward under your portal&apos;s own Documents section.
           </p>
           <div className="gh-wizard-doc-grid">
-            {ONBOARDING_DOCUMENT_NAMES.map((name) => (
-              <div key={name} className="gh-wizard-doc-tile">
-                {name}
-              </div>
-            ))}
+            {ONBOARDING_DOCUMENT_NAMES.map((name) => {
+              const attached = data.attachedDocumentNames.includes(name);
+              return (
+                <div key={name} className={`gh-wizard-doc-tile${attached ? " gh-wizard-doc-tile-ready" : ""}`}>
+                  {name}
+                  {attached && <span className="gh-wizard-doc-tile-check">✓</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -18,6 +18,7 @@ import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 import { listEmailsForClient } from "@/lib/dal/emails";
 import { getCompany } from "@/lib/dal/companies";
 import { getDefaultOnboardingInviteEmail } from "@/lib/dal/onboardingInvites";
+import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
 import { listGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
 import { daysUntil } from "@/lib/date";
@@ -359,6 +360,46 @@ export default async function ClientDetailPage({
       )}
 
       <CredentialsList clientId={client.id} />
+
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Onboarding documents</p>
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
+          The four documents every client sees in the onboarding wizard and their portal&apos;s own Documents
+          section. Attach each with a file or a link — same mechanism as any other document below, just tracked
+          against these fixed names.
+        </p>
+        {ONBOARDING_DOCUMENT_NAMES.map((name) => {
+          const existing = documents.find((d) => d.title === name);
+          return (
+            <div
+              key={name}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--gh-text-sm)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}
+            >
+              <span>{name}</span>
+              {existing ? (
+                <span style={{ color: "var(--gh-success)" }}>✓ Attached</span>
+              ) : (
+                <details>
+                  <summary style={{ cursor: "pointer", color: "var(--gh-accent)" }}>Attach</summary>
+                  <form
+                    action={uploadDocumentAction.bind(null, client.id)}
+                    encType="multipart/form-data"
+                    style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)", textAlign: "left" }}
+                  >
+                    <input type="hidden" name="companyId" value={client.companyId ?? ""} />
+                    <input type="hidden" name="title" value={name} />
+                    <input type="hidden" name="docType" value="other" />
+                    <input className="gh-input" name="file" type="file" />
+                    <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textAlign: "center" }}>— or —</p>
+                    <input className="gh-input" name="externalUrl" type="url" placeholder="Link a Drive/hosted PDF URL instead" />
+                    <SubmitButton>Attach {name}</SubmitButton>
+                  </form>
+                </details>
+              )}
+            </div>
+          );
+        })}
+      </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Documents</p>

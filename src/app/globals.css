@@ -1604,6 +1604,22 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+}
+
+/* A real document is actually attached (Open-Work-Brief.md §4.5) — a
+   stronger fill than the pending/placeholder tile above, so the set reads
+   at a glance as "some ready, some not" rather than uniformly pending. */
+.gh-wizard-doc-tile-ready {
+  background: color-mix(in srgb, var(--gh-accent) 22%, transparent);
+}
+
+.gh-wizard-doc-tile-check {
+  position: absolute;
+  right: var(--gh-space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gh-accent);
 }
 
 /* The promo CTA (step 6's "Next," in the fixed action slot) needs to stand

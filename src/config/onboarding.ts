@@ -38,3 +38,13 @@ export function defaultOnboardingInviteEmail(clientName: string): { subject: str
     body: `<p>Hi ${clientName},</p><p>We're excited to have you on board. Click below to set up access to your Gray Horizon client portal.</p>`,
   };
 }
+
+// The four documents every onboarded client needs (Open-Work-Brief.md §4.5).
+// Template design is out of scope for GrayPortal — a separate designer
+// agent produces the actual files; this is just the fixed set of names the
+// admin-side "Onboarding documents" checklist (client detail page) and the
+// wizard's step 4 both match against. Attached the same way as any other
+// document (docType "other" + this exact title, clientId set) — no new
+// docType enum values, matching PORTAL_FEATURE_KEYS/INTERNAL_LIST_KEYS'
+// established "app-layer registry, not a migration" pattern in this repo.
+export const ONBOARDING_DOCUMENT_NAMES = ["Welcome Document", "Project Brief", "Delivery Guide", "Thank You Document"] as const;
