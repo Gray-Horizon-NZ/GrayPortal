@@ -13,6 +13,11 @@ import { GRAYSCALE_PRODUCT_NAMES } from "@/config/grayscale";
 export const SubmitGrayscaleRequestInput = z.object({
   products: z.array(z.enum(GRAYSCALE_PRODUCT_NAMES as [string, ...string[]])).min(1),
   note: z.string().optional(),
+  // Same threading pattern as sendOnboardingInvite's appOrigin — computed
+  // from next/headers in the server-action wrapper (src/app/(portal)/portal/actions.ts),
+  // not read directly here, since a DAL function shouldn't reach into
+  // next/headers itself.
+  appOrigin: z.string().url(),
 });
 export type SubmitGrayscaleRequestInputT = z.infer<typeof SubmitGrayscaleRequestInput>;
 
@@ -55,6 +60,7 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
 
     const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, caller.clientId)).limit(1);
     const clientName = client?.name ?? "A client";
+    const clientUrl = `${data.appOrigin}/clients/${caller.clientId}`;
 
     const productList = data.products.join(", ");
     const [template] = await tx
@@ -68,10 +74,10 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
     // §6) — same defensive pattern as onboarding_invite/onboarding_completion.
     const noteBlock = data.note ? `<p>Note: ${escapeHtml(data.note)}</p>` : "";
     const { subject, htmlBody } = template
-      ? renderTemplate(template, { client_name: clientName, products: escapeHtml(productList), note: noteBlock })
+      ? renderTemplate(template, { client_name: clientName, products: escapeHtml(productList), note: noteBlock, client_url: clientUrl })
       : {
           subject: "GrayScale consultation requested",
-          htmlBody: `<p>A client requested a GrayScale consultation for: <strong>${escapeHtml(productList)}</strong>.</p>${noteBlock}<p>Review it from that client's detail page in GrayPortal.</p>`,
+          htmlBody: `<p>A client requested a GrayScale consultation for: <strong>${escapeHtml(productList)}</strong>.</p>${noteBlock}<p><a href="${clientUrl}">Review it from that client's detail page in GrayPortal</a>.</p>`,
         };
     const messageHtml = sanitizeEmailHtml(htmlBody);
 

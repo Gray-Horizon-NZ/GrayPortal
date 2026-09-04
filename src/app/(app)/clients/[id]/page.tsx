@@ -66,6 +66,7 @@ import ReferralStatusSelect from "./ReferralStatusSelect";
 import TasklistLink from "./TasklistLink";
 import HideFromTaskViewToggle from "./HideFromTaskViewToggle";
 import CredentialsList from "../../vault/CredentialsList";
+import SendInviteGate from "./SendInviteGate";
 
 export default async function ClientDetailPage({
   params,
@@ -97,6 +98,16 @@ export default async function ClientDetailPage({
   const { client, referrals, features, portalUsers, documents, onboardingInvites } = data;
   const status = paymentStatus(client.nextPaymentDate);
   const defaultInviteEmail = await getDefaultOnboardingInviteEmail(client.name);
+
+  // Same fixed four-name registry as the "Onboarding documents" checklist
+  // below — a portal-setup invite can't send until every one of these is
+  // attached (sendOnboardingInvite enforces this too; this is just what lets
+  // the UI block before the round trip). documents here already excludes
+  // soft-deleted rows (getClient's own query), so no extra filter needed.
+  const attachedOnboardingDocNames = new Set(documents.map((d) => d.title));
+  const missingOnboardingDocumentNames = ONBOARDING_DOCUMENT_NAMES.filter(
+    (name) => !attachedOnboardingDocNames.has(name)
+  );
 
   const [
     activeDiscounts,
@@ -292,20 +303,22 @@ export default async function ClientDetailPage({
                 <span style={{ color: "var(--gh-text-muted)" }}>{u.googleUid ? "Active" : "Invited — awaiting first sign-in"}</span>
               </div>
               {!u.googleUid && (
-                <details>
-                  <summary style={{ fontSize: "var(--gh-text-sm)", cursor: "pointer", color: "var(--gh-accent)" }}>
-                    {invite ? `Resend portal-setup invite (link expires in ${daysLeft}d)` : "Send portal-setup invite"}
-                  </summary>
-                  <form
-                    action={sendOnboardingInviteAction.bind(null, client.id)}
-                    style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
-                  >
-                    <input type="hidden" name="email" value={u.email} />
-                    <input className="gh-input" name="subject" defaultValue={defaults.subject} required />
-                    <textarea className="gh-input" name="body" defaultValue={defaults.body} rows={4} required />
-                    <SubmitButton>{invite ? "Resend invite (invalidates the previous link)" : "Send invite"}</SubmitButton>
-                  </form>
-                </details>
+                <SendInviteGate missingDocumentNames={missingOnboardingDocumentNames}>
+                  <details>
+                    <summary style={{ fontSize: "var(--gh-text-sm)", cursor: "pointer", color: "var(--gh-accent)" }}>
+                      {invite ? `Resend portal-setup invite (link expires in ${daysLeft}d)` : "Send portal-setup invite"}
+                    </summary>
+                    <form
+                      action={sendOnboardingInviteAction.bind(null, client.id)}
+                      style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+                    >
+                      <input type="hidden" name="email" value={u.email} />
+                      <input className="gh-input" name="subject" defaultValue={defaults.subject} required />
+                      <textarea className="gh-input" name="body" defaultValue={defaults.body} rows={4} required />
+                      <SubmitButton>{invite ? "Resend invite (invalidates the previous link)" : "Send invite"}</SubmitButton>
+                    </form>
+                  </details>
+                </SendInviteGate>
               )}
             </div>
           );

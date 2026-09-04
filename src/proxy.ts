@@ -58,7 +58,12 @@ const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads"];
 // against onboarding_invites (src/lib/dal/onboardingInvites.ts), a long
 // random value, not a guessable secret; the rate limit below is defense in
 // depth, not the primary protection.
-const TRULY_PUBLIC_PREFIX_PATHS = ["/onboard"];
+// Same shape again — the campaign email open-tracking pixel
+// (api/track/open/[recipientId]). A mail client fetches this with no
+// session at all; the route itself is the boundary (a guessed/garbled
+// recipientId just fails the DB write silently and still returns the
+// pixel, src/app/api/track/open/[recipientId]/route.ts).
+const TRULY_PUBLIC_PREFIX_PATHS = ["/onboard", "/api/track"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

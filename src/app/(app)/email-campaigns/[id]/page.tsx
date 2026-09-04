@@ -15,6 +15,8 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     acc[r.status] = (acc[r.status] ?? 0) + 1;
     return acc;
   }, {});
+  const sentCount = counts.sent ?? 0;
+  const openedCount = recipients.filter((r) => r.openedAt).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", maxWidth: 700 }}>
@@ -32,7 +34,21 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>{status}</p>
           </div>
         ))}
+        <div>
+          <p style={{ fontSize: "var(--gh-text-xl)", fontWeight: 500 }}>
+            {openedCount}
+            {sentCount > 0 && (
+              <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", fontWeight: 400 }}>
+                {" "}/ {Math.round((openedCount / sentCount) * 100)}%
+              </span>
+            )}
+          </p>
+          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>opened</p>
+        </div>
       </section>
+      <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)", marginTop: "calc(var(--gh-space-4) * -1)" }}>
+        Open tracking is a floor, not an exact count — many mail clients block remote images by default.
+      </p>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
         <p className="gh-eyebrow">Recipients</p>
@@ -41,6 +57,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             <span>{r.firstName} {r.lastName}</span>
             <span style={{ display: "flex", gap: "var(--gh-space-3)", alignItems: "center" }}>
               {r.error && <span style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-xs)" }}>{r.error}</span>}
+              {r.openedAt && (
+                <span className="gh-badge" data-status="success" title={new Date(r.openedAt).toLocaleString("en-NZ")}>
+                  Opened
+                </span>
+              )}
               <span className="gh-badge">{r.status}</span>
             </span>
           </div>

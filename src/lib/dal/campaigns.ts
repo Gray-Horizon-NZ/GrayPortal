@@ -252,6 +252,7 @@ export async function listCampaignRecipients(campaignId: string) {
         status: campaignRecipients.status,
         error: campaignRecipients.error,
         sentAt: campaignRecipients.sentAt,
+        openedAt: campaignRecipients.openedAt,
       })
       .from(campaignRecipients)
       .innerJoin(contacts, eq(campaignRecipients.contactId, contacts.id))
@@ -304,7 +305,15 @@ export async function runQueuedCampaignSends() {
 
       const vars = { firstName: contact.firstName, lastName: contact.lastName };
       const rendered = renderTemplate({ subject: campaign.subject, htmlBody: campaign.htmlBody }, vars);
-      const html = wrapEmailHtml(rendered.htmlBody);
+      // Open tracking, campaign sends only (never transactional single
+      // sends) — a 1x1 pixel hitting the unauthenticated route below sets
+      // campaignRecipients.openedAt the first time a recipient's mail
+      // client fetches remote images. NEXT_PUBLIC_APP_URL exists because
+      // this cron job has no incoming request to derive an origin from
+      // (unlike sendOnboardingInvite's appOrigin, threaded from a real
+      // request's headers).
+      const trackingPixel = `<img src="${process.env.NEXT_PUBLIC_APP_URL}/api/track/open/${recipient.id}" width="1" height="1" alt="" style="display:none" />`;
+      const html = wrapEmailHtml(rendered.htmlBody + trackingPixel);
 
       try {
         const result = await sendGmail({ to: contact.email, subject: rendered.subject, bodyText: stripHtmlToText(html), bodyHtml: html });
@@ -359,5 +368,23 @@ export async function runQueuedCampaignSends() {
     }
 
     return { sent, failed };
+  });
+}
+
+/**
+ * Fired by the unauthenticated tracking-pixel route (api/track/open/[recipientId])
+ * when a recipient's mail client fetches the embedded image — no real Caller
+ * exists at that point (an anonymous image request), same withAdminScope
+ * escape hatch every other pre-caller write in this app uses. The `isNull`
+ * guard makes this a genuine first-open timestamp, not a last-open one: a
+ * recipient re-opening the same email (or a mail client re-fetching images
+ * on scroll) never overwrites it.
+ */
+export async function recordCampaignRecipientOpen(recipientId: string) {
+  return withAdminScope("Campaign email open pixel", async (tx) => {
+    await tx
+      .update(campaignRecipients)
+      .set({ openedAt: new Date() })
+      .where(and(eq(campaignRecipients.id, recipientId), isNull(campaignRecipients.openedAt)));
   });
 }

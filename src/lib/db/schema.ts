@@ -964,6 +964,13 @@ export const campaignRecipients = pgTable("campaign_recipients", {
   gmailMessageId: text("gmail_message_id"),
   error: text("error"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
+  // First-open signal only (not a count) — set once, by the unauthenticated
+  // tracking-pixel route (api/track/open/[recipientId]) embedded in every
+  // campaign send's HTML, never touched again after the first hit. Null
+  // means "not known to have opened," not "definitely never opened" — many
+  // mail clients block remote images by default, so this is a floor on the
+  // real open rate, not an exact count.
+  openedAt: timestamp("opened_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

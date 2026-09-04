@@ -118,6 +118,10 @@ env:
   # applicationDefault() (see src/lib/firebase/admin.ts) — no key needed in
   # production. The explicit env vars only matter for local dev.
 
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://app.grayhorizon.nz
+    availability: [BUILD, RUNTIME]
+
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyAdZgbWQ4lZpXln_-v_FILGu9Tok80QbyU
     availability: [BUILD, RUNTIME]

@@ -6,6 +6,7 @@ import { getVerifiedUid, withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
 import { listDeals, getDeal } from "@/lib/dal/deals";
 import { listCompanies, getCompany } from "@/lib/dal/companies";
+import { listClients, getClientByCompanyId, getClient } from "@/lib/dal/clients";
 import { listAllTasks, setTaskStatus, createTask, updateTask, deleteTask, TaskStatus, INTERNAL_LIST_KEYS } from "@/lib/dal/tasks";
 import { searchAll } from "@/lib/dal/search";
 import { logActivity } from "@/lib/dal/activities";
@@ -64,6 +65,40 @@ function buildServer() {
       annotations: { readOnlyHint: true },
     },
     async ({ id }) => jsonResult(await getCompany(id))
+  );
+
+  server.registerTool(
+    "list_clients",
+    { description: "List all active (non-deleted) clients — the subset of companies that are actual paying clients, not just pipeline prospects.", annotations: { readOnlyHint: true } },
+    async () => jsonResult(await listClients())
+  );
+
+  server.registerTool(
+    "get_client_by_company",
+    {
+      description:
+        "Resolve a company to its client record, if that company has one — a company only becomes a " +
+        "client via a deliberate onboarding act, so this returns null for a pipeline-only prospect. Use " +
+        "this to get a clientId from a companyId (e.g. after get_company/list_companies/search) before " +
+        "calling get_client for the full detail.",
+      inputSchema: { companyId: z.string().uuid() },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ companyId }) => jsonResult(await getClientByCompanyId(companyId))
+  );
+
+  server.registerTool(
+    "get_client",
+    {
+      description:
+        "Get a single client by id, with its portal features, portal logins, referrals, attached " +
+        "documents (title/docType/whether it's a file or an external link — never the file bytes " +
+        "themselves), and any active onboarding invite. Same data an admin sees on that client's own " +
+        "detail page in the app.",
+      inputSchema: { id: z.string().uuid() },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ id }) => jsonResult(await getClient(id))
   );
 
   server.registerTool(

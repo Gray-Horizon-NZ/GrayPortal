@@ -112,18 +112,49 @@ export const SendOnboardingInviteInput = z.object({
 export type SendOnboardingInviteInputT = z.infer<typeof SendOnboardingInviteInput>;
 
 /**
+ * Shared by sendOnboardingInvite's pre-send gate below and buildWizardData's
+ * step 4 (same query) — one place, so "did the client get their documents"
+ * never drifts between the two checks that ask it.
+ */
+async function getAttachedOnboardingDocumentNames(tx: Tx, clientId: string): Promise<string[]> {
+  const rows = await tx
+    .select({ title: documents.title })
+    .from(documents)
+    .where(
+      and(
+        eq(documents.clientId, clientId),
+        inArray(documents.title, [...ONBOARDING_DOCUMENT_NAMES]),
+        isNull(documents.deletedAt)
+      )
+    );
+  return rows.map((d) => d.title!);
+}
+
+/**
  * Mints a fresh 14-day portal-setup token and emails it — the only way an
  * onboarding-wizard link gets created or resent. Calling this again for the
  * same client always wins: any existing active invite is revoked first, so
  * only the newest emailed link ever verifies. The link itself is a fixed CTA
  * appended after the admin's (freely edited, sanitized) message — never part
  * of the editable body — so an edit can't accidentally drop it.
+ *
+ * Gated on all four onboarding documents (Open-Work-Brief.md §4.5) being
+ * attached first — enforced here, not just in the UI, so the rule holds
+ * regardless of caller (a direct action call bypassing the client-detail
+ * page can't skip it either). The client-detail page's own gate is a UX
+ * nicety on top of this, not the real enforcement.
  */
 export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
   const data = SendOnboardingInviteInput.parse(input);
 
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
+
+    const attached = await getAttachedOnboardingDocumentNames(tx, data.clientId);
+    const missing = ONBOARDING_DOCUMENT_NAMES.filter((name) => !attached.includes(name));
+    if (missing.length > 0) {
+      throw new Error(`Attach all onboarding documents before sending an invite — still missing: ${missing.join(", ")}`);
+    }
 
     // Bulk status flip, not auditedUpdate: there's no meaningful before/after
     // diff to record on the superseded rows beyond "revoked because a newer
@@ -314,17 +345,7 @@ async function buildWizardData(
   // Step 4's real state (Open-Work-Brief.md §4.5) — which of the four fixed
   // onboarding documents are actually attached, matched by title against
   // the shared ONBOARDING_DOCUMENT_NAMES registry rather than a new docType.
-  const attachedDocs = await tx
-    .select({ title: documents.title })
-    .from(documents)
-    .where(
-      and(
-        eq(documents.clientId, clientId),
-        inArray(documents.title, [...ONBOARDING_DOCUMENT_NAMES]),
-        isNull(documents.deletedAt)
-      )
-    );
-  const attachedDocumentNames = attachedDocs.map((d) => d.title!);
+  const attachedDocumentNames = await getAttachedOnboardingDocumentNames(tx, clientId);
 
   return { status: "valid", clientId, clientName, company, services, attachedDocumentNames };
 }

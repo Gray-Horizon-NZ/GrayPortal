@@ -1,0 +1,1 @@
+ALTER TABLE "campaign_recipients" ADD COLUMN "opened_at" timestamp with time zone;
