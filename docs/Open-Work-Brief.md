@@ -49,6 +49,12 @@ Confirmed done by Max, 2026-09-04. `src/components/portal/GrayscaleWidget.tsx` +
 
 **Status:** Built and deployed (confirmed live via git log — `8104cac` and later email-system commits are ancestors of the current `main` tip, checked 2026-09-04; this section's earlier "not yet migrated/not yet pushed" note is stale, left unedited above for history). Scoped down from the plan below same day: this is for **notifying existing clients and prospects**, not newsletter-style marketing, so §2.3's opt-out/unsubscribe machinery was cut entirely — no `contacts.marketingOptOut`, no unsubscribe footer/link/token route, no `List-Unsubscribe` header, no `emailTemplates.kind` split.
 
+**2026-09-04 addition — shell/content pass, per Max's direct feedback on the live emails:**
+- Real wordmark image in the header (`public/email-wordmark.png`, ink-on-white recolour of `website/grayhorizon-website/assets/logo.svg`'s letterforms), replacing a typed `<span>` that only looked like a logotype.
+- Header divider changed from gold to `MUTED` gray — gold was never supposed to be a structural line (`gh_email_style_guide_v1.md` §2), only the CTA fill.
+- `onboarding_invite`'s content substantially expanded (was one thin line) — both the code fallback (`config/onboarding.ts`) and fresh copy handed to Max for the real stored template. `onboarding_completion` deliberately left as-is — Max confirmed its terser, system-register content is fine.
+- Real root-cause fix, not just copy: `sendTestEmailTemplate` (`src/lib/dal/emails.ts`) was previewing `onboarding_invite` **without** the CTA button that `sendOnboardingInvite` always appends at real send time (the button is deliberately never part of the editable template body, so an edit can't drop it) — this is almost certainly why Max read it as missing a button. Fixed by mirroring the same append in the test-send path against a placeholder link. New shared `ctaButtonHtml` (`src/lib/email/chrome.ts`) is now the one canonical button implementation both paths use.
+
 **2026-09-04 addition — open tracking (§7 item 7, resolved):** Max confirmed the connected Gmail account is Google Workspace (§7 item 5, resolved) and wants open/view tracking. Built: `campaignRecipients.openedAt` (migration `0029_complex_impossible_man.sql` — **needs applying by hand in Neon**, same as every migration in this repo), a public 1x1-pixel route `api/track/open/[recipientId]` (`src/proxy.ts`'s `TRULY_PUBLIC_PREFIX_PATHS`), `recordCampaignRecipientOpen` (`src/lib/dal/campaigns.ts`, `withAdminScope`, first-open-only via an `isNull` guard), embedded into every campaign send (not transactional single sends) via a new `NEXT_PUBLIC_APP_URL` env var (needed because the cron sender has no request to derive an origin from). Campaign detail page (`email-campaigns/[id]/page.tsx`) shows an open count/rate, flagged in the UI itself as a floor not an exact count (many clients block remote images by default). Click tracking was not built — Max's ask was specifically "opened or viewed," and rewriting every link in a campaign body to redirect through a tracking route is a materially bigger, separate feature; flag to Max before building if actually wanted.
 
 Two things also shipped beyond the plan below, both per follow-up requests the same day as the original build:
@@ -283,7 +289,7 @@ Ideas deliberately deferred rather than scheduled — don't build without Max ex
 
 **Email marketing:**
 5. ~~Gmail account type — personal Gmail or Google Workspace?~~ **Resolved 2026-09-04: Workspace.** Realistic safe batch/day for the throttle (§2.7) still worth sizing properly against Workspace's actual sending limits rather than assumed.
-6. Light-background email design (§2.4) — confirm the light/editorial email variant over the app's dark-first theme, since dark HTML email is unreliable across clients.
+6. ~~Light-background email design~~ **Confirmed 2026-09-04 by Max — all good as-is.**
 7. ~~Open/click tracking~~ **Open tracking resolved 2026-09-04 — built** (see §2's 2026-09-04 addition). Click tracking specifically still unbuilt/unasked-for — a separate, bigger feature if ever wanted.
 8. Existing prospect contacts and consent — do current pipeline contacts have a sufficient existing-relationship basis to receive a first blast under §2.3, or should the first prospect send be preceded by some explicit opt-in step?
 

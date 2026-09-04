@@ -26,8 +26,20 @@ export const MUTED = "#6b6b6b";
 const BORDER = "#e2ddd0";
 const PAPER = "#f7f5f0";
 
-const HEADING_FONT = "Georgia, 'Times New Roman', serif";
+// Exported for the same reason GOLD/INK/MUTED are — other callers building
+// headline moments in their own htmlBody (the signature "statement, then
+// italic payoff" construction) should reuse this, not re-type the stack.
+export const HEADING_FONT = "Georgia, 'Times New Roman', serif";
 const BODY_FONT = "-apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
+
+// No incoming request in every context that builds email HTML (the campaign
+// cron sender, in particular — see src/lib/dal/campaigns.ts's tracking-pixel
+// comment), so this reads the same public-origin env var rather than
+// threading appOrigin through every caller. Not secret — it's the app's own
+// public domain, same NEXT_PUBLIC_ exception as the Firebase config values.
+export function appUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://app.grayhorizon.nz";
+}
 
 export function wrapEmailHtml(bodyHtml: string, opts?: { previewText?: string }): string {
   const preview = opts?.previewText ?? "";
@@ -45,10 +57,8 @@ export function wrapEmailHtml(bodyHtml: string, opts?: { previewText?: string })
         <td align="center" style="padding: 32px 16px;">
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border:1px solid ${BORDER};">
             <tr>
-              <td style="padding: 28px 32px; border-bottom: 2px solid ${GOLD};">
-                <span style="font-family:${HEADING_FONT}; font-size:20px; letter-spacing:0.04em; color:${INK};">
-                  Gray Horizon
-                </span>
+              <td style="padding: 28px 32px; border-bottom: 2px solid ${MUTED};">
+                <img src="${appUrl()}/email-wordmark.png" width="180" height="39" alt="Gray Horizon" style="display:block; border:0; outline:none;" />
               </td>
             </tr>
             <tr>
@@ -67,6 +77,18 @@ export function wrapEmailHtml(bodyHtml: string, opts?: { previewText?: string })
     </table>
   </body>
 </html>`;
+}
+
+/**
+ * The one canonical "primary action" button for email — centralized so
+ * every CTA in the system looks identical regardless of which template
+ * produced it (gh_email_style_guide_v1.md §5), and so a caller appending a
+ * fixed CTA after editable content (sendOnboardingInvite's invite link) and
+ * a caller previewing that same template (sendTestEmailTemplate) render the
+ * exact same button rather than the preview silently omitting it.
+ */
+export function ctaButtonHtml(label: string, href: string): string {
+  return `<p style="margin: 28px 0 0;"><a href="${href}" style="display:inline-block; padding:12px 28px; background:${GOLD}; color:${INK}; text-decoration:none; font-weight:600; border-radius:0;">${label}</a></p>`;
 }
 
 function escapeHtml(s: string): string {

@@ -7,7 +7,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
-import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, GOLD, INK, MUTED } from "@/lib/email/chrome";
+import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, ctaButtonHtml, MUTED } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
 import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 
@@ -91,11 +91,7 @@ export async function sendOnboardingCompletionEmail(tx: Tx, clientId: string, cl
 
 function inviteCtaHtml(link: string): string {
   return `
-    <p style="margin: 28px 0 0;">
-      <a href="${link}" style="display:inline-block; padding:12px 28px; background:${GOLD}; color:${INK}; text-decoration:none; font-weight:600; border-radius:0;">
-        Set up your portal
-      </a>
-    </p>
+    ${ctaButtonHtml("Set up your portal", link)}
     <p style="margin:12px 0 0; font-size:13px; color:${MUTED};">
       Or copy this link: ${link}
     </p>

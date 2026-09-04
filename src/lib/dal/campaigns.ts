@@ -14,7 +14,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
-import { wrapEmailHtml, stripHtmlToText, sanitizeEmailHtml } from "@/lib/email/chrome";
+import { wrapEmailHtml, stripHtmlToText, sanitizeEmailHtml, appUrl } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
 import { z } from "zod";
 
@@ -312,7 +312,7 @@ export async function runQueuedCampaignSends() {
       // this cron job has no incoming request to derive an origin from
       // (unlike sendOnboardingInvite's appOrigin, threaded from a real
       // request's headers).
-      const trackingPixel = `<img src="${process.env.NEXT_PUBLIC_APP_URL}/api/track/open/${recipient.id}" width="1" height="1" alt="" style="display:none" />`;
+      const trackingPixel = `<img src="${appUrl()}/api/track/open/${recipient.id}" width="1" height="1" alt="" style="display:none" />`;
       const html = wrapEmailHtml(rendered.htmlBody + trackingPixel);
 
       try {

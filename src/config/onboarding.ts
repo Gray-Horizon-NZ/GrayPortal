@@ -35,7 +35,7 @@ export const ONBOARDING_TASK_TEMPLATE: { title: string; dueInDays: number }[] = 
 export function defaultOnboardingInviteEmail(clientName: string): { subject: string; body: string } {
   return {
     subject: `Welcome to Gray Horizon, ${clientName}`,
-    body: `<p>Hi ${clientName},</p><p>We're excited to have you on board. Click below to set up access to your Gray Horizon client portal.</p>`,
+    body: `<p style="margin:0 0 16px; font-family:Georgia, 'Times New Roman', serif; font-size:22px; color:#1a1a1a; font-weight:600;">Welcome to Gray Horizon, ${clientName}.<span style="display:block; font-style:italic; font-weight:400; color:#6b6b6b; font-size:17px; margin-top:6px;">&rarr; Let's get your portal set up.</span></p><p style="margin:0 0 14px;">This is where everything lives from here — your documents, your roadmap, your tasks, and a live view of what we're building together. No digging through email threads for the file you need.</p><p style="margin:0 0 14px;">Setting it up takes a few minutes: confirm a few details, choose which Google account gets access, and you're in. The button below gets you started.</p>`,
   };
 }
 
