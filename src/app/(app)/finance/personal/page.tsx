@@ -57,7 +57,7 @@ export default async function OwnersCutCalculatorPage() {
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
           Not client-visible data — a live split of your income into tax, expenses, and take-home, plus
           buffer savings goals. Tax is estimated from real Xero + Spider-Fawcett OS year-to-date income
-          run through NZ's actual bracket rates, not a flat percentage.{" "}
+          run through NZ&apos;s actual bracket rates, not a flat percentage.{" "}
           <Link href="/finance/personal/history" style={{ color: "var(--gh-accent)" }}>Past periods →</Link>
         </p>
       </div>
