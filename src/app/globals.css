@@ -177,6 +177,26 @@ textarea {
   }
 }
 
+/* Client detail tabs — two-column "bento" layout, stacks on tablet/mobile */
+.gh-tab-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gh-space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .gh-tab-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gh-tab-grid-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-4);
+}
+
 .gh-card {
   background: var(--gh-surface);
   border: 1px solid var(--gh-border);
@@ -836,6 +856,32 @@ textarea {
 }
 
 .gh-shell-sidebar {
+  /* Pinned to the pre-redesign palette — Max asked for the sidebar to stay
+     visually unchanged while the rest of the app adopts the warmer mockup
+     colours above. Every --gh-* semantic token is defined purely in terms
+     of these primitives, so redeclaring just the primitives here is enough:
+     var() resolves per-element, so every descendant reading e.g.
+     var(--gh-surface) picks up this scope's var(--gh-900) automatically. */
+  --gh-black: #141414;
+  --gh-dark: #333333;
+  --gh-mid: #6b6b6b;
+  --gh-light: #f4f4f4;
+  --gh-white: #ffffff;
+  --gh-900: #1c1c1c;
+  --gh-850: #202020;
+  --gh-800: #212121;
+  --gh-750: #262626;
+  --gh-600: #4a4a4a;
+  --gh-400: #8f8f8f;
+  --gh-accent: #b8a369;
+  --gh-accent-dim: #3a3626;
+  --gh-accent-contrast: #141414;
+  --gh-focus-ring: #b8a369;
+  --gh-success: #4a7c59;
+  --gh-warning: #c98a3f;
+  --gh-danger: #c1613f;
+  background: var(--gh-bg);
+
   width: 240px;
   flex-shrink: 0;
   border-right: 1px solid var(--gh-border);
@@ -1103,12 +1149,19 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   font-family: var(--gh-font-display);
   font-style: italic;
   font-size: var(--gh-text-base);
   color: var(--gh-accent);
   cursor: pointer;
   transition: border-color var(--gh-transition);
+}
+
+.gh-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .gh-avatar:hover {

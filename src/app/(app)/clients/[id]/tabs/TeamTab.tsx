@@ -44,7 +44,8 @@ export default function TeamTab({
   activityFeed: ActivityFeedEntry[];
 }) {
   return (
-    <>
+    <div className="gh-tab-grid">
+      <div className="gh-tab-grid-col">
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Account team</p>
         {teamMembers.map((m) => (
@@ -94,7 +95,9 @@ export default function TeamTab({
           </details>
         </div>
       </section>
+      </div>
 
+      <div className="gh-tab-grid-col">
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Campaign health</p>
         {healthChannels.map((c) => (
@@ -214,6 +217,7 @@ export default function TeamTab({
           </details>
         </div>
       </section>
-    </>
+      </div>
+    </div>
   );
 }

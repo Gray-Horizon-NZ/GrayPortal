@@ -27,7 +27,8 @@ export default function DeliveryTab({
   tools: ToolStackItem[];
 }) {
   return (
-    <>
+    <div className="gh-tab-grid">
+      <div className="gh-tab-grid-col">
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Documents</p>
         {documents.map((d) => (
@@ -92,7 +93,9 @@ export default function DeliveryTab({
           <SubmitButton style={{ alignSelf: "flex-start" }}>Save</SubmitButton>
         </form>
       </section>
+      </div>
 
+      <div className="gh-tab-grid-col">
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Tool Stack</p>
         {tools.map((t) => (
@@ -166,6 +169,7 @@ export default function DeliveryTab({
           </details>
         </div>
       </section>
-    </>
+      </div>
+    </div>
   );
 }

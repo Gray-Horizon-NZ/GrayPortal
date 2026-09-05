@@ -45,7 +45,8 @@ export default function AccessTab({
   accessRequestError?: string;
 }) {
   return (
-    <>
+    <div className="gh-tab-grid">
+      <div className="gh-tab-grid-col">
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <p className="gh-eyebrow">Portal access</p>
@@ -174,8 +175,11 @@ export default function AccessTab({
           );
         })}
       </section>
+      </div>
 
+      <div className="gh-tab-grid-col">
       <CredentialsList clientId={client.id} />
-    </>
+      </div>
+    </div>
   );
 }

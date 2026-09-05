@@ -16,7 +16,8 @@ export default function OverviewTab({
   features: ClientFeatureRow[];
 }) {
   return (
-    <>
+    <div className="gh-tab-grid">
+      <div className="gh-tab-grid-col">
       {companyData && (
         <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <p className="gh-eyebrow">Company details</p>
@@ -73,28 +74,6 @@ export default function OverviewTab({
         <HideFromTaskViewToggle clientId={client.id} hidden={client.hiddenFromTaskView} />
       </section>
 
-      <section className="gh-card">
-        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
-          Portal features
-          <span style={{ float: "right", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-            {features.filter((f) => f.enabled).length} of {PORTAL_FEATURE_KEYS.length} on
-          </span>
-        </p>
-        <div>
-          {PORTAL_FEATURE_KEYS.map((key) => {
-            const row = features.find((f) => f.featureKey === key);
-            return (
-              <FeatureToggle
-                key={key}
-                clientId={client.id}
-                featureKey={key}
-                enabled={row?.enabled ?? false}
-              />
-            );
-          })}
-        </div>
-      </section>
-
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Portal appearance</p>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-4)" }}>
@@ -118,6 +97,31 @@ export default function OverviewTab({
           <SubmitButton style={{ alignSelf: "flex-start" }}>Save</SubmitButton>
         </form>
       </section>
-    </>
+      </div>
+
+      <div className="gh-tab-grid-col">
+      <section className="gh-card">
+        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-3)" }}>
+          Portal features
+          <span style={{ float: "right", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+            {features.filter((f) => f.enabled).length} of {PORTAL_FEATURE_KEYS.length} on
+          </span>
+        </p>
+        <div>
+          {PORTAL_FEATURE_KEYS.map((key) => {
+            const row = features.find((f) => f.featureKey === key);
+            return (
+              <FeatureToggle
+                key={key}
+                clientId={client.id}
+                featureKey={key}
+                enabled={row?.enabled ?? false}
+              />
+            );
+          })}
+        </div>
+      </section>
+      </div>
+    </div>
   );
 }

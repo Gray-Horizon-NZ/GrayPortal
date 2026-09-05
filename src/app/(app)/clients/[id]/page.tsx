@@ -134,6 +134,8 @@ export default async function ClientDetailPage({
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }} className="gh-animate-fade-up">
       <RecordHeader
         icon={Building2}
+        avatarUrl={client.logoUrl}
+        avatarAlt={`${client.name} logo`}
         title={client.name}
         meta={status && <Badge status={status.tone}>{status.label}</Badge>}
         actions={

@@ -43,7 +43,8 @@ export default function CommercialTab({
   grayscaleRequests: GrayscaleRequest[];
 }) {
   return (
-    <>
+    <div className="gh-tab-grid">
+      <div className="gh-tab-grid-col">
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <p className="gh-eyebrow">Services</p>
@@ -87,7 +88,7 @@ export default function CommercialTab({
             <div className="gh-item-row" style={{ border: "none", padding: 0 }}>
               <div className="gh-item-row-info">
                 <span className="t">
-                  {s.deliverable} <span className="gh-badge">{s.status}</span>
+                  {s.deliverable} <span className="gh-badge" data-status={s.status === "active" ? "success" : undefined}>{s.status}</span>
                 </span>
                 <div className="d">
                   ${s.customMonthlyPrice ?? s.currentMonthlyPrice ?? s.customSetupPrice ?? s.currentSetupPrice ?? "—"}
@@ -163,6 +164,35 @@ export default function CommercialTab({
         </div>
       </section>
 
+      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+        <p className="gh-eyebrow">Referrals</p>
+        {referrals.map((r) => (
+          <div key={r.id} className="gh-item-row">
+            <span>{r.referredName}</span>
+            <ReferralStatusSelect referralId={r.id} clientId={client.id} status={r.status} />
+          </div>
+        ))}
+        {referrals.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No referrals yet.</p>}
+        {activeDiscounts.length > 0 && (
+          <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
+            Active discount: {activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0)}%
+            {" "}(from {activeDiscounts.length} converted referral{activeDiscounts.length === 1 ? "" : "s"})
+          </p>
+        )}
+        <div className="gh-add-form">
+          <details>
+            <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>+ Log referral</summary>
+            <form action={createReferralAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+              <input className="gh-input" name="referredName" placeholder="Who they referred" required />
+              <textarea className="gh-input" name="notes" placeholder="Notes" rows={2} />
+              <SubmitButton>Log referral</SubmitButton>
+            </form>
+          </details>
+        </div>
+      </section>
+      </div>
+
+      <div className="gh-tab-grid-col">
       {grayscaleRequests.length > 0 && (
         <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
           <p className="gh-eyebrow">GrayScale requests</p>
@@ -217,33 +247,7 @@ export default function CommercialTab({
           </form>
         </section>
       )}
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Referrals</p>
-        {referrals.map((r) => (
-          <div key={r.id} className="gh-item-row">
-            <span>{r.referredName}</span>
-            <ReferralStatusSelect referralId={r.id} clientId={client.id} status={r.status} />
-          </div>
-        ))}
-        {referrals.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No referrals yet.</p>}
-        {activeDiscounts.length > 0 && (
-          <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
-            Active discount: {activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0)}%
-            {" "}(from {activeDiscounts.length} converted referral{activeDiscounts.length === 1 ? "" : "s"})
-          </p>
-        )}
-        <div className="gh-add-form">
-          <details>
-            <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>+ Log referral</summary>
-            <form action={createReferralAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
-              <input className="gh-input" name="referredName" placeholder="Who they referred" required />
-              <textarea className="gh-input" name="notes" placeholder="Notes" rows={2} />
-              <SubmitButton>Log referral</SubmitButton>
-            </form>
-          </details>
-        </div>
-      </section>
-    </>
+      </div>
+    </div>
   );
 }

@@ -39,7 +39,7 @@ export default function ClientDetailTabs({
       <div style={{ marginTop: "var(--gh-space-6)" }}>
         {tabs.map((tab) => (
           <div key={tab.id} className="gh-tab-pane" data-active={activeTab === tab.id} role="tabpanel">
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>{tab.content}</div>
+            {tab.content}
           </div>
         ))}
       </div>

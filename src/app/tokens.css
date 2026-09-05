@@ -3,20 +3,25 @@
  * properties. No hard-coded hex values or font names anywhere else. */
 
 :root {
-  /* Editorial ledger palette (pricing/ledger reference mocks) */
-  --gh-black: #141414;
-  --gh-dark: #333333;
-  --gh-mid: #6b6b6b;
-  --gh-light: #f4f4f4;
-  --gh-white: #ffffff;
+  /* Warm editorial palette, sourced from the client-control-panel mockup
+     (gray-portal-tabbed-editable.html) — a warmer, creamier near-black than
+     the previous neutral-gray ramp, with the same brass accent tuned closer
+     to the mock's gold. The sidebar pins itself back to the old values below
+     (Max asked for it to stay visually unchanged) — everything else in the
+     app reads these. */
+  --gh-black: #0b0b0c;
+  --gh-dark: #28282b;
+  --gh-mid: #5c5a54;
+  --gh-light: #eeece6;
+  --gh-white: #f7f4ee;
 
   /* Derived neutral ramp */
-  --gh-900: #1c1c1c;
-  --gh-850: #202020;
-  --gh-800: #212121;
-  --gh-750: #262626;
-  --gh-600: #4a4a4a;
-  --gh-400: #8f8f8f;
+  --gh-900: #151517;
+  --gh-850: #18181a;
+  --gh-800: #1a1a1d;
+  --gh-750: #1e1e21;
+  --gh-600: #4a463d;
+  --gh-400: #8d8a80;
 
   /* Semantic tokens */
   --gh-bg: var(--gh-black);
@@ -39,18 +44,18 @@
   /* Gold is the one accent hue — reserved for highlights and callouts
      (active nav, primary actions, hover accents, "suggested"/featured
      values). Everything else stays monochrome. */
-  --gh-accent: #b8a369;
-  --gh-accent-dim: #3a3626;
-  --gh-accent-contrast: var(--gh-black);
-  --gh-focus-ring: #b8a369;
+  --gh-accent: #c2a468;
+  --gh-accent-dim: #2a2418;
+  --gh-accent-contrast: #161310;
+  --gh-focus-ring: #c2a468;
 
   /* Status colours — the one other departure from monochrome. State
    * signalling only, never decorative. Always paired with a text label or
    * icon. Kept clear of the gold accent hue so "warning" never reads as
    * "featured". */
-  --gh-success: #4a7c59;
-  --gh-warning: #c98a3f;
-  --gh-danger: #c1613f;
+  --gh-success: #7fa583;
+  --gh-warning: #bd7f45;
+  --gh-danger: #c17553;
 
   /* Typography — font files are self-hosted via next/font/google, which
    * exposes them through these CSS variables (see app/layout.tsx). */
