@@ -1,12 +1,17 @@
-import { getEnabledFeatureKeys, listPortalTasks, listPortalRoadmap, listPortalIdeation } from "@/lib/dal/portal";
+import { getEnabledFeatureKeys, getPortalCallerContext, listPortalTasks, listPortalRoadmap, listPortalRoadmapFunnelTasks, listPortalIdeation } from "@/lib/dal/portal";
+import RoadmapWidget from "@/components/portal/RoadmapWidget";
+import TaskRowEditable from "@/app/(app)/tasks/TaskRowEditable";
+import { createTaskAction } from "@/app/(app)/tasks/actions";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function PortalWorkPage() {
-  const enabled = await getEnabledFeatureKeys();
+  const [enabled, { clientId, isAdminPreview }] = await Promise.all([getEnabledFeatureKeys(), getPortalCallerContext()]);
   const has = (key: string) => enabled.includes(key as (typeof enabled)[number]);
 
-  const [tasks, roadmap, ideas] = await Promise.all([
+  const [tasks, roadmap, roadmapTasks, ideas] = await Promise.all([
     has("tasks") || has("deliverables") ? listPortalTasks() : Promise.resolve([]),
     has("roadmap") ? listPortalRoadmap() : Promise.resolve([]),
+    has("roadmap") ? listPortalRoadmapFunnelTasks() : Promise.resolve([]),
     has("ideation") ? listPortalIdeation() : Promise.resolve([]),
   ]);
   const deliverables = tasks.filter((t) => t.dueDate);
@@ -29,16 +34,31 @@ export default async function PortalWorkPage() {
               <div className="ghp-t">Tasks</div>
               <div className="ghp-n">{tasks.filter((t) => t.status !== "done").length} open</div>
             </div>
-            {tasks.map((t) => (
-              <div key={t.id} className="ghp-task-row">
-                <span className={`ghp-task-check${t.status === "done" ? " ghp-good" : ""}`}>
-                  {t.status === "done" ? "✓" : ""}
-                </span>
-                <span className={`ghp-task-name${t.status === "done" ? " ghp-done-text" : ""}`}>{t.title}</span>
-                {t.dueDate && <span className="ghp-task-due">Due {t.dueDate}</span>}
+            {isAdminPreview ? (
+              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                <form action={createTaskAction.bind(null, clientId, null)} style={{ display: "flex", gap: 8 }}>
+                  <input className="ghp-input" name="title" placeholder="Add a task" required style={{ flex: 1 }} />
+                  <SubmitButton style={{ padding: "0 12px" }}>+</SubmitButton>
+                </form>
+                {tasks.map((t) => (
+                  <TaskRowEditable key={t.id} task={t} clientId={clientId} />
+                ))}
+                {tasks.length === 0 && <p className="ghp-empty">No tasks right now.</p>}
               </div>
-            ))}
-            {tasks.length === 0 && <p className="ghp-empty">No tasks right now.</p>}
+            ) : (
+              <>
+                {tasks.map((t) => (
+                  <div key={t.id} className="ghp-task-row">
+                    <span className={`ghp-task-check${t.status === "done" ? " ghp-good" : ""}`}>
+                      {t.status === "done" ? "✓" : ""}
+                    </span>
+                    <span className={`ghp-task-name${t.status === "done" ? " ghp-done-text" : ""}`}>{t.title}</span>
+                    {t.dueDate && <span className="ghp-task-due">Due {t.dueDate}</span>}
+                  </div>
+                ))}
+                {tasks.length === 0 && <p className="ghp-empty">No tasks right now.</p>}
+              </>
+            )}
           </div>
         )}
 
@@ -60,25 +80,6 @@ export default async function PortalWorkPage() {
           </div>
         )}
 
-        {has("roadmap") && (
-          <div className="ghp-panel-block">
-            <div className="ghp-panel-head">
-              <div className="ghp-t">Roadmap</div>
-              <div className="ghp-n">{roadmap.length} items</div>
-            </div>
-            {roadmap.map((it) => (
-              <div key={it.id} className="ghp-roadmap-item">
-                <div className="ghp-roadmap-q">{it.targetDate ?? it.status}</div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 500 }}>{it.title}</div>
-                  {it.description && <div style={{ fontSize: 11, color: "var(--ghp-text-dim)", marginTop: 3 }}>{it.description}</div>}
-                </div>
-              </div>
-            ))}
-            {roadmap.length === 0 && <p className="ghp-empty">No roadmap items yet.</p>}
-          </div>
-        )}
-
         {has("ideation") && (
           <div className="ghp-panel-block">
             <div className="ghp-panel-head">
@@ -96,6 +97,8 @@ export default async function PortalWorkPage() {
           </div>
         )}
       </div>
+
+      {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} />}
     </div>
   );
 }

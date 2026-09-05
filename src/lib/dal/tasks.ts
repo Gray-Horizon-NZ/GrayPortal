@@ -197,16 +197,7 @@ export async function listMyAssignedTasks() {
   });
 }
 
-/** Admin-side, clientId-parameterized — powers the client portal preview page. */
-export async function listTasksForClient(clientId: string) {
-  return withCaller(async (_caller, tx) => {
-    return tx
-      .select()
-      .from(tasks)
-      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)))
-      .orderBy(desc(tasks.createdAt));
-  });
-}
+export const TaskFunnelStage = z.enum(["next", "doing", "done"]);
 
 export const UpdateTaskInput = z.object({
   title: z.string().min(1),
@@ -218,6 +209,11 @@ export const UpdateTaskInput = z.object({
   // (tasksForColumn in MasterTaskView.tsx).
   clientId: z.string().uuid().nullable().optional(),
   internalList: z.enum(INTERNAL_LIST_KEYS).nullable().optional(),
+  // Omitted = unchanged; null = take this task off whichever roadmap column
+  // it's in. Only meaningful for a task with a clientId — the UI only
+  // offers this field when one is set — but nothing here enforces that at
+  // the data layer, same posture as internalList only mattering without one.
+  funnelStage: TaskFunnelStage.nullable().optional(),
 });
 export type UpdateTaskInputT = z.infer<typeof UpdateTaskInput>;
 
@@ -237,6 +233,7 @@ export async function updateTask(id: string, input: UpdateTaskInputT) {
         dueDate: data.dueDate ?? null,
         updatedBy: caller.userId,
         ...(relisted ? { clientId: data.clientId ?? null, internalList: data.internalList ?? null, dealId: null } : {}),
+        ...(data.funnelStage !== undefined ? { funnelStage: data.funnelStage } : {}),
       },
       { caller, entityType: "task" }
     );

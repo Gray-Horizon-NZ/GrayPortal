@@ -1,5 +1,6 @@
 import {
   getEnabledFeatureKeys,
+  getPortalCallerContext,
   listPortalToolStack,
   listPortalReferrals,
   getReferralStats,
@@ -22,12 +23,13 @@ export default async function PortalAccountPage() {
   const enabled = await getEnabledFeatureKeys();
   const has = (key: string) => enabled.includes(key as (typeof enabled)[number]);
 
-  const [tools, invoices, referrals, referralStats, meetings] = await Promise.all([
+  const [tools, invoices, referrals, referralStats, meetings, { isAdminPreview }] = await Promise.all([
     has("tool_stack") ? listPortalToolStack() : Promise.resolve([]),
     has("invoices") ? listPortalInvoices() : Promise.resolve([]),
     has("referrals") ? listPortalReferrals() : Promise.resolve([]),
     has("referrals") ? getReferralStats() : Promise.resolve(null),
     has("meeting_summaries") ? listPortalMeetingSummaries() : Promise.resolve([]),
+    getPortalCallerContext(),
   ]);
   const outstandingInvoices = invoices.filter((i) => i.status === "AUTHORISED" || i.status === "SUBMITTED");
 
@@ -129,13 +131,19 @@ export default async function PortalAccountPage() {
                 </div>
               </div>
               <div style={{ padding: "0 18px 18px" }}>
-                <form action={submitPortalReferralAction} style={{ display: "flex", flexDirection: "column", gap: "var(--ghp-space-2)" }}>
-                  <input className="ghp-input" name="referredName" placeholder="Who you're referring" required />
-                  <textarea className="ghp-input" name="notes" placeholder="Notes (optional)" rows={2} />
-                  <SubmitButton pendingLabel="Submitting…" className="ghp-btn">
-                    Submit referral
-                  </SubmitButton>
-                </form>
+                {isAdminPreview ? (
+                  <p style={{ fontSize: 11, color: "var(--ghp-text-dim)", fontStyle: "italic" }}>
+                    Referral submission is disabled while previewing — this is a client-only action.
+                  </p>
+                ) : (
+                  <form action={submitPortalReferralAction} style={{ display: "flex", flexDirection: "column", gap: "var(--ghp-space-2)" }}>
+                    <input className="ghp-input" name="referredName" placeholder="Who you're referring" required />
+                    <textarea className="ghp-input" name="notes" placeholder="Notes (optional)" rows={2} />
+                    <SubmitButton pendingLabel="Submitting…" className="ghp-btn">
+                      Submit referral
+                    </SubmitButton>
+                  </form>
+                )}
               </div>
               {referrals.length > 0 && (
                 <div style={{ borderTop: "1px solid var(--ghp-line)" }}>

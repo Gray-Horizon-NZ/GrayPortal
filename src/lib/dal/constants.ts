@@ -10,3 +10,11 @@ export const SESSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days (Firebase
 // 5 minutes is Firebase Admin SDK's createSessionCookie minimum.
 export const VAULT_SESSION_COOKIE_NAME = "__vault_session";
 export const VAULT_SESSION_MAX_AGE_MS = 5 * 60 * 1000;
+
+// Set only by an admin's "View client portal" action (src/app/(app)/clients/
+// actions.ts), read by withCaller (src/lib/dal/auth.ts) to resolve an admin
+// caller's effective clientId for the duration of a portal preview session.
+// A real client-role caller's own scoping never consults this cookie at all
+// — see requireClientScope (src/lib/dal/session.ts).
+export const ADMIN_PORTAL_PREVIEW_COOKIE = "gh_admin_preview_client";
+export const ADMIN_PORTAL_PREVIEW_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes

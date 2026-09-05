@@ -1,8 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
+import { and, eq, isNull } from "drizzle-orm";
+import { clients } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebase/admin";
-import { SESSION_COOKIE_NAME } from "./constants";
+import { SESSION_COOKIE_NAME, ADMIN_PORTAL_PREVIEW_COOKIE } from "./constants";
 import { withSession, NotOnAllowlistError, type Caller, type Tx } from "./session";
 
 export { NotOnAllowlistError };
@@ -53,5 +55,20 @@ export const getVerifiedUid = cache(async (): Promise<string | null> => {
 export async function withCaller<T>(fn: (caller: Caller, tx: Tx) => Promise<T>): Promise<T> {
   const uid = await getVerifiedUid();
   if (!uid) throw new Error("Unauthenticated");
-  return withSession(uid, (tx, caller) => fn(caller, tx));
+  return withSession(uid, async (tx, caller) => {
+    if (caller.role === "admin") {
+      const previewClientId = (await cookies()).get(ADMIN_PORTAL_PREVIEW_COOKIE)?.value;
+      if (previewClientId) {
+        const [row] = await tx
+          .select({ id: clients.id })
+          .from(clients)
+          .where(and(eq(clients.id, previewClientId), isNull(clients.deletedAt)))
+          .limit(1);
+        if (row) {
+          caller = { ...caller, clientId: row.id, isAdminPreview: true };
+        }
+      }
+    }
+    return fn(caller, tx);
+  });
 }

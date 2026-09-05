@@ -22,9 +22,10 @@ export async function toggleTaskStarAction(id: string, starred: boolean) {
 }
 
 /**
- * Admin-side only (portal-preview page) — clients never get an edit form,
- * consistent with the read-only-except-tasks-tick-off boundary documented
- * on that page.
+ * Admin-side only — clients never get an edit form. Reachable from Master
+ * Task View and from the real /portal/work page when an admin is
+ * previewing that client's portal (gated on isAdminPreview there, never
+ * shown to a real client).
  */
 export async function updateTaskAction(id: string, clientId: string | null, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -46,25 +47,35 @@ export async function updateTaskAction(id: string, clientId: string | null, form
     relist.internalList = list.slice("internal:".length) as InternalListKey;
   }
 
-  await updateTask(id, { title, dueDate: dueDate || undefined, ...relist });
+  // Field is only rendered when the task already has a clientId (see
+  // EditTaskButton) — absent means "leave unchanged," present (even "" =
+  // Not on roadmap) means an explicit set/clear.
+  const funnelStage = formData.has("funnelStage")
+    ? ((String(formData.get("funnelStage") ?? "") || null) as "next" | "doing" | "done" | null)
+    : undefined;
+
+  await updateTask(id, { title, dueDate: dueDate || undefined, ...relist, funnelStage });
   revalidatePath("/tasks");
   revalidatePath("/calendar");
-  if (clientId) revalidatePath(`/clients/${clientId}/portal-preview`);
-  if (relist.clientId) revalidatePath(`/clients/${relist.clientId}/portal-preview`);
+  revalidatePath("/portal/work");
+  revalidatePath("/portal");
 }
 
-/** Admin-side only (portal-preview page) — see updateTaskAction. */
+/** Admin-side only — see updateTaskAction. */
 export async function deleteTaskAction(id: string, clientId: string | null) {
   await deleteTask(id);
   revalidatePath("/tasks");
   revalidatePath("/calendar");
-  if (clientId) revalidatePath(`/clients/${clientId}/portal-preview`);
+  if (clientId) {
+    revalidatePath("/portal/work");
+    revalidatePath("/portal");
+  }
 }
 
 /**
  * Bound to a column's clientId (real client, or null for one of the two
  * internal buckets — see internalList) from the Master Task View and the
- * client portal-preview page.
+ * real /portal/work page (admin-preview mode only).
  */
 export async function createTaskAction(
   clientId: string | null,

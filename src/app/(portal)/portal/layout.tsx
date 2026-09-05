@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { getVerifiedUid, NotOnAllowlistError } from "@/lib/dal/auth";
 import { getPortalShellContext } from "@/lib/dal/portal";
+import { exitPortalPreviewAction } from "@/app/(app)/clients/actions";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import LogoutButton from "@/app/(app)/LogoutButton";
 import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
@@ -36,9 +37,18 @@ export default async function PortalLayout({ children }: { children: React.React
   let callerLabel: string;
   let enabledFeatureKeys: Awaited<ReturnType<typeof getPortalShellContext>>["enabledFeatureKeys"];
   let identity: Awaited<ReturnType<typeof getPortalShellContext>>["identity"];
+  let isAdminPreview = false;
   try {
     const ctx = await getPortalShellContext();
-    if (ctx.caller.role !== "client") {
+    // A real client is let through exactly as before, regardless of
+    // identity state (a client whose own record went missing still isn't
+    // redirected here — same as pre-existing behaviour). An admin only gets
+    // through when withCaller has already validated a preview cookie
+    // against a real client (isAdminPreview) — a plain admin visiting
+    // /portal with no active preview still gets redirected away.
+    const isRealClient = ctx.caller.role === "client";
+    isAdminPreview = ctx.caller.role === "admin" && ctx.caller.isAdminPreview === true;
+    if (!isRealClient && !isAdminPreview) {
       redirect("/");
     }
     callerLabel = ctx.caller.displayName ?? ctx.caller.email;
@@ -106,6 +116,18 @@ export default async function PortalLayout({ children }: { children: React.React
         clientSince={clientSince}
         navItems={navItems}
         logoutSlot={<LogoutButton />}
+        previewBanner={
+          isAdminPreview && (
+            <div className="ghp-preview-banner">
+              <span>Previewing as {identity?.name ?? "this client"} — admin session, not a live login.</span>
+              <form action={exitPortalPreviewAction}>
+                <button type="submit" style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", textDecoration: "underline", fontWeight: 600, cursor: "pointer" }}>
+                  Exit preview
+                </button>
+              </form>
+            </div>
+          )
+        }
       >
         {children}
       </PortalShell>

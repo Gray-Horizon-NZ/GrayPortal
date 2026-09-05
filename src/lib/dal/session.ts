@@ -17,6 +17,11 @@ export type Caller = {
   // 6 needs this to match the caller against the vault re-auth cookie's
   // decoded uid — see src/lib/dal/vaultAuth.ts.
   firebaseUid: string;
+  // Set only by withCaller (src/lib/dal/auth.ts) when this is a real admin
+  // session previewing a client's portal (the gh_admin_preview_client
+  // cookie) — clientId above is the previewed client's id in that case, not
+  // this admin's own (admins have none). Never true for role "client".
+  isAdminPreview?: boolean;
 };
 
 export class NotOnAllowlistError extends Error {
@@ -130,14 +135,45 @@ export function assertRole(caller: Caller, ...allowed: Role[]) {
  * (brief §5.3 / Phase 2 §5): a client-role caller with no client_id is a
  * broken invariant (the users row should never allow it — role "client"
  * always implies a set clientId), not something a portal query should
- * quietly tolerate. Every portal DAL function calls this before querying so
- * a caller in that state fails loudly instead of RLS's nullif(...)::uuid
- * cast silently returning zero rows, which reads indistinguishable from
- * "this client genuinely has no tasks."
+ * quietly tolerate. Every portal *read* DAL function calls this before
+ * querying so a caller in that state fails loudly instead of RLS's
+ * nullif(...)::uuid cast silently returning zero rows, which reads
+ * indistinguishable from "this client genuinely has no tasks."
+ *
+ * Returns the effective clientId to scope the query to, rather than just
+ * asserting — a real client caller gets their own clientId exactly as
+ * before; an admin caller genuinely previewing a client's portal
+ * (caller.isAdminPreview, set only by withCaller from a validated cookie —
+ * see auth.ts) gets that client's id instead. Every other caller shape
+ * throws, same as before this function returned anything. Client-only
+ * *mutations* (submitGrayscaleRequest, submitPortalReferral) deliberately
+ * do NOT use this — they assertRole(caller, "client") directly, so an
+ * admin's preview session can look at a client's portal but can never
+ * submit on their behalf.
  */
-export function requireClientScope(caller: Caller): asserts caller is Caller & { clientId: string } {
+export function requireClientScope(caller: Caller): string {
+  if (caller.role === "client") {
+    if (!caller.clientId) {
+      throw new Error(`Forbidden: client-role caller ${caller.userId} has no clientId`);
+    }
+    return caller.clientId;
+  }
+  if (caller.isAdminPreview && caller.clientId) {
+    return caller.clientId;
+  }
+  throw new Error(`Forbidden: role ${caller.role} is not scoped to a client`);
+}
+
+/**
+ * Strict client-only variant for the two client-writable mutations
+ * (submitPortalReferral, submitGrayscaleRequest) — never honors an admin
+ * preview session, unlike requireClientScope above, so an admin looking at
+ * a client's portal can never submit on their behalf.
+ */
+export function requireRealClientScope(caller: Caller): string {
   assertRole(caller, "client");
   if (!caller.clientId) {
     throw new Error(`Forbidden: client-role caller ${caller.userId} has no clientId`);
   }
+  return caller.clientId;
 }

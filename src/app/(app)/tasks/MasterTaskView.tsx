@@ -77,7 +77,7 @@ export default async function MasterTaskView() {
           >
             {col.kind === "client" ? (
               <Link
-                href={`/clients/${col.clientId}/portal-preview`}
+                href={`/clients/${col.clientId}`}
                 target="_blank"
                 className="gh-panel-title"
                 style={{ color: "var(--gh-accent)" }}

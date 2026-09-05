@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getPortalHome, listPortalInvoices } from "@/lib/dal/portal";
+import { getPortalHome, getPortalCallerContext, listPortalInvoices, listPortalRoadmap, listPortalRoadmapFunnelTasks } from "@/lib/dal/portal";
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { paymentStatus } from "@/lib/paymentStatus";
 import ThemeToggle from "@/components/portal/ThemeToggle";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
 import AdSpendBars from "@/components/portal/charts/AdSpendBars";
-import MilestonesTimeline from "@/components/portal/charts/MilestonesTimeline";
+import RoadmapWidget from "@/components/portal/RoadmapWidget";
 import DashboardReadySignal from "@/components/ui/DashboardReadySignal";
 
 export default async function PortalHomePage() {
@@ -15,7 +15,6 @@ export default async function PortalHomePage() {
       openTaskCount,
       enabledFeatureKeys,
       tasksPreview,
-      roadmapPreview,
       referralStats,
       metricsSnapshots,
       teamMembers,
@@ -23,6 +22,9 @@ export default async function PortalHomePage() {
     },
     allInvoices,
     grayscaleProducts,
+    roadmap,
+    roadmapTasks,
+    { isAdminPreview },
   ] = await Promise.all([
     getPortalHome(),
     listPortalInvoices(),
@@ -33,6 +35,9 @@ export default async function PortalHomePage() {
       console.error("listGrayscaleProducts failed, hiding the GrayScale widget", err);
       return [];
     }),
+    listPortalRoadmap(),
+    listPortalRoadmapFunnelTasks(),
+    getPortalCallerContext(),
   ]);
 
   const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
@@ -173,10 +178,10 @@ export default async function PortalHomePage() {
           </div>
         </div>
 
-        {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} />}
+        {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} previewOnly={isAdminPreview} />}
       </div>
 
-      {(spendData.length > 0 || roadmapPreview.length > 0) && (
+      {(spendData.length > 0 || has("roadmap")) && (
         <>
           <div className="ghp-page-head" style={{ marginTop: 8 }}>
             <h1 style={{ fontSize: 18 }}>At a glance</h1>
@@ -193,17 +198,7 @@ export default async function PortalHomePage() {
                 </div>
               </div>
             )}
-            {roadmapPreview.length > 0 && (
-              <div className="ghp-panel-block">
-                <div className="ghp-panel-head">
-                  <div className="ghp-t">Upcoming milestones</div>
-                  <div className="ghp-n">roadmap</div>
-                </div>
-                <div className="ghp-panel-body">
-                  <MilestonesTimeline items={roadmapPreview} />
-                </div>
-              </div>
-            )}
+            {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} compact workHref="/portal/work" />}
           </div>
         </>
       )}

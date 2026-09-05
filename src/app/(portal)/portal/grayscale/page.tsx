@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEnabledFeatureKeys } from "@/lib/dal/portal";
+import { getEnabledFeatureKeys, getPortalCallerContext } from "@/lib/dal/portal";
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
 
@@ -7,10 +7,13 @@ export default async function PortalGrayScalePage() {
   const enabled = await getEnabledFeatureKeys();
   if (!enabled.includes("grayscale_page")) notFound();
 
-  const products = await listGrayscaleProducts().catch((err) => {
-    console.error("listGrayscaleProducts failed", err);
-    return [];
-  });
+  const [products, { isAdminPreview }] = await Promise.all([
+    listGrayscaleProducts().catch((err) => {
+      console.error("listGrayscaleProducts failed", err);
+      return [];
+    }),
+    getPortalCallerContext(),
+  ]);
 
   return (
     <div>
@@ -49,7 +52,7 @@ export default async function PortalGrayScalePage() {
       </div>
 
       <div style={{ marginTop: "var(--ghp-space-6)" }}>
-        <GrayscaleWidget products={products} />
+        <GrayscaleWidget products={products} previewOnly={isAdminPreview} />
       </div>
     </div>
   );

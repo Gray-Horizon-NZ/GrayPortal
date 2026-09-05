@@ -172,6 +172,58 @@
 .ghp-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--ghp-line); }
 .ghp-panel-head .ghp-t { font-size: 12.5px; letter-spacing: 0.02em; font-weight: 500; }
 .ghp-panel-head .ghp-n { font-family: var(--ghp-font-mono), monospace; font-size: 11px; color: var(--ghp-text-dim); }
+
+/* Roadmap widget — Focus Dial + Now/Next/Later, one shared component
+   (src/components/portal/RoadmapWidget.tsx) used on the real /portal/work
+   page, the dashboard's compact "at a glance" slot, and the admin preview —
+   never re-typed per surface. */
+.ghp-dial-wrap { display: grid; grid-template-columns: 120px 1fr; gap: 22px; align-items: center; padding: 18px; }
+@media (max-width: 560px) { .ghp-dial-wrap { grid-template-columns: 1fr; } }
+.ghp-dial { position: relative; width: 108px; height: 108px; flex-shrink: 0; }
+.ghp-dial svg { transform: rotate(-90deg); }
+.ghp-dial .ghp-dial-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ghp-dial .ghp-dial-pct { font-family: var(--ghp-font-display), serif; font-size: 19px; font-weight: 500; }
+.ghp-dial .ghp-dial-lbl { font-size: 9px; color: var(--ghp-text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+.ghp-dial-focus .ghp-eyebrow-live { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ghp-brass); font-weight: 600; margin-bottom: 5px; display: flex; align-items: center; }
+.ghp-dial-focus h4 { margin: 0 0 6px; font-size: 16px; font-weight: 500; font-family: var(--ghp-font-display), serif; }
+.ghp-dial-focus p { margin: 0 0 10px; font-size: 12px; color: var(--ghp-text-dim); line-height: 1.5; max-width: 460px; }
+.ghp-dial-upnext { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--ghp-text-dim); }
+.ghp-dial-upnext b { color: var(--ghp-text); font-weight: 500; }
+.ghp-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ghp-brass); display: inline-block; margin-right: 6px; animation: ghp-pulse 2s infinite; }
+@keyframes ghp-pulse { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+
+.ghp-nnl-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ghp-text-dim); font-weight: 600; padding: 0 18px; margin-bottom: 10px; }
+.ghp-nnl { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 0 18px 18px; }
+@media (max-width: 640px) { .ghp-nnl { grid-template-columns: 1fr; } }
+.ghp-nnl-col { border: 1px solid var(--ghp-line); border-radius: var(--ghp-radius); overflow: hidden; background: var(--ghp-panel-2); }
+.ghp-nnl-col.ghp-current { border-color: var(--ghp-brass); }
+.ghp-nnl-head { padding: 9px 11px; border-bottom: 1px solid var(--ghp-line); }
+.ghp-nnl-col.ghp-current .ghp-nnl-head { background: rgba(194, 164, 104, 0.1); }
+.ghp-nnl-head .ghp-lab { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ghp-text-dim); font-weight: 600; }
+.ghp-nnl-col.ghp-current .ghp-nnl-head .ghp-lab { color: var(--ghp-brass); }
+.ghp-nnl-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+.ghp-nnl-item { background: var(--ghp-ink); border: 1px solid var(--ghp-line); border-radius: var(--ghp-radius); padding: 8px 9px; }
+.ghp-nnl-item .ghp-t { font-size: 12px; font-weight: 600; }
+.ghp-nnl-item .ghp-d { font-size: 10.5px; color: var(--ghp-text-dim); margin-top: 2px; }
+.ghp-nnl-empty { color: var(--ghp-text-dim); font-size: 11px; font-style: italic; }
+
+/* Admin-preview banner (portal/layout.tsx) — shown only while an admin is
+   viewing this portal via a validated preview cookie, never for a real
+   client session. */
+.ghp-preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--ghp-brass);
+  color: #161310;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: var(--ghp-radius);
+  margin-bottom: 20px;
+}
+.ghp-preview-banner a { color: #161310; text-decoration: underline; font-weight: 600; }
 .ghp-panel-body { padding: 18px; }
 .ghp-empty { color: var(--ghp-text-dim); padding: 24px 18px; text-align: center; font-size: 12px; }
 

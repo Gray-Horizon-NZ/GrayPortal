@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
 import { grayscaleRequests, grayscaleProducts, notifications, users, emailTemplates, clients } from "@/lib/db/schema";
 import { withCaller } from "./auth";
-import { assertRole, requireClientScope } from "./session";
+import { assertRole, requireRealClientScope } from "./session";
 import { auditedUpdate } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
@@ -33,7 +33,7 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
   const data = SubmitGrayscaleRequestInput.parse(input);
 
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireRealClientScope(caller);
 
     const catalogue = await tx.select({ name: grayscaleProducts.name }).from(grayscaleProducts).where(isNull(grayscaleProducts.deletedAt));
     const validNames = new Set(catalogue.map((p) => p.name));
@@ -44,7 +44,7 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
     const [request] = await tx
       .insert(grayscaleRequests)
       .values({
-        clientId: caller.clientId,
+        clientId,
         products: data.products,
         note: data.note?.trim() || null,
       })
@@ -65,9 +65,9 @@ export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT
       .from(users)
       .where(and(eq(users.role, "admin"), isNull(users.deletedAt)));
 
-    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, caller.clientId)).limit(1);
+    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, clientId)).limit(1);
     const clientName = client?.name ?? "A client";
-    const clientUrl = `${data.appOrigin}/clients/${caller.clientId}`;
+    const clientUrl = `${data.appOrigin}/clients/${clientId}`;
 
     const productList = data.products.join(", ");
     const [template] = await tx

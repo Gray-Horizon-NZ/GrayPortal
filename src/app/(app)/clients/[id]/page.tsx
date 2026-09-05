@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { getClient } from "@/lib/dal/clients";
@@ -21,7 +20,7 @@ import { getDefaultOnboardingInviteEmail } from "@/lib/dal/onboardingInvites";
 import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
 import { listGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
-import { deleteClientAction } from "../actions";
+import { deleteClientAction, startPortalPreviewAction } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 import RecordHeader from "@/components/ui/RecordHeader";
 import Badge from "@/components/ui/Badge";
@@ -140,9 +139,9 @@ export default async function ClientDetailPage({
         meta={status && <Badge status={status.tone}>{status.label}</Badge>}
         actions={
           <>
-            <Link href={`/clients/${client.id}/portal-preview`} className="gh-btn-secondary">
-              View client portal
-            </Link>
+            <form action={startPortalPreviewAction.bind(null, client.id)}>
+              <SubmitButton className="gh-btn-secondary">View client portal</SubmitButton>
+            </form>
             <form action={deleteClientAction.bind(null, client.id)}>
               <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
                 Remove client

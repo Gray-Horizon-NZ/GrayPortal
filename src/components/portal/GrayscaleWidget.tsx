@@ -13,12 +13,12 @@ export type GrayscaleProduct = { name: string; category: string | null; descript
  * but with the real 9-product catalogue instead of that mockup's
  * placeholder module names.
  *
- * previewOnly (used from the admin-side client-portal-preview page, which
- * runs as an admin caller, not a real client session) skips the real
- * server-action call entirely — submitGrayscaleRequest requires
- * requireClientScope, which an admin caller fails — and just shows the
- * same "Request sent" confirmation state instead, same no-mutation
- * precedent as the onboarding wizard's own preview mode.
+ * previewOnly (passed by the real portal pages whenever getPortalCallerContext
+ * reports an admin previewing this client, not a real client session) skips
+ * the real server-action call entirely — submitGrayscaleRequest requires
+ * requireRealClientScope, which an admin caller always fails, deliberately —
+ * and just shows the same "Request sent" confirmation state instead, same
+ * no-mutation precedent as the onboarding wizard's own preview mode.
  */
 export default function GrayscaleWidget({
   products,

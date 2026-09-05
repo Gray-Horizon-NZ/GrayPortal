@@ -20,7 +20,7 @@ import {
 } from "@/lib/db/schema";
 import { and, asc, desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
 import { withCaller } from "./auth";
-import { requireClientScope } from "./session";
+import { requireClientScope, requireRealClientScope } from "./session";
 import type { Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "./clients";
@@ -174,12 +174,12 @@ async function getHomeWidgetPreviews(
 
 export async function getPortalHome() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
 
     const [client] = await tx
       .select()
       .from(clients)
-      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .where(and(eq(clients.id, clientId), isNull(clients.deletedAt)))
       .limit(1);
 
     const openTasks = await tx
@@ -187,7 +187,7 @@ export async function getPortalHome() {
       .from(tasks)
       .where(
         and(
-          eq(tasks.clientId, caller.clientId),
+          eq(tasks.clientId, clientId),
           isNull(tasks.deletedAt),
           eq(tasks.status, "not_started")
         )
@@ -198,14 +198,14 @@ export async function getPortalHome() {
       .from(clientFeatures)
       .where(
         and(
-          eq(clientFeatures.clientId, caller.clientId),
+          eq(clientFeatures.clientId, clientId),
           eq(clientFeatures.enabled, true),
           isNull(clientFeatures.deletedAt)
         )
       );
 
     const enabledFeatureKeys = enabledFeatures.map((f) => f.featureKey as PortalFeatureKey);
-    const previews = await getHomeWidgetPreviews(tx, caller.clientId, enabledFeatureKeys);
+    const previews = await getHomeWidgetPreviews(tx, clientId, enabledFeatureKeys);
 
     return {
       client,
@@ -230,14 +230,20 @@ export async function getPortalHome() {
  */
 export async function getPortalShellContext() {
   return withCaller(async (caller, tx) => {
-    if (caller.role !== "client" || !caller.clientId) {
+    // A real client always resolves to their own clientId; an admin only
+    // resolves here at all when withCaller has already validated a preview
+    // cookie against a real, non-deleted client (isAdminPreview). Anything
+    // else (a plain admin/contractor with no preview active) falls through
+    // to the null-identity shape the layout uses to redirect away.
+    const effectiveClientId = caller.role === "client" ? caller.clientId : caller.isAdminPreview ? caller.clientId : null;
+    if (!effectiveClientId) {
       return { caller, identity: null, enabledFeatureKeys: [] as PortalFeatureKey[] };
     }
 
     const [identity] = await tx
       .select({ name: clients.name, createdAt: clients.createdAt })
       .from(clients)
-      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .where(and(eq(clients.id, effectiveClientId), isNull(clients.deletedAt)))
       .limit(1);
 
     const enabledFeatures = await tx
@@ -245,7 +251,7 @@ export async function getPortalShellContext() {
       .from(clientFeatures)
       .where(
         and(
-          eq(clientFeatures.clientId, caller.clientId),
+          eq(clientFeatures.clientId, effectiveClientId),
           eq(clientFeatures.enabled, true),
           isNull(clientFeatures.deletedAt)
         )
@@ -262,11 +268,11 @@ export async function getPortalShellContext() {
 /** Sidebar identity (name + "client since" date) — separate from getPortalHome() so the shell (which wraps every portal page) doesn't duplicate that page's full query. */
 export async function getPortalIdentity(): Promise<{ name: string; createdAt: Date } | null> {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     const [row] = await tx
       .select({ name: clients.name, createdAt: clients.createdAt })
       .from(clients)
-      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .where(and(eq(clients.id, clientId), isNull(clients.deletedAt)))
       .limit(1);
     return row ?? null;
   });
@@ -274,13 +280,13 @@ export async function getPortalIdentity(): Promise<{ name: string; createdAt: Da
 
 export async function getEnabledFeatureKeys(): Promise<PortalFeatureKey[]> {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     const rows = await tx
       .select()
       .from(clientFeatures)
       .where(
         and(
-          eq(clientFeatures.clientId, caller.clientId),
+          eq(clientFeatures.clientId, clientId),
           eq(clientFeatures.enabled, true),
           isNull(clientFeatures.deletedAt)
         )
@@ -289,43 +295,57 @@ export async function getEnabledFeatureKeys(): Promise<PortalFeatureKey[]> {
   });
 }
 
+/**
+ * clientId + whether this is an admin previewing (vs. a real client) — for
+ * the one interactive exception in the portal, task management, which
+ * stays available to an admin in preview (their own legitimate capability,
+ * not a client-only action) while every client-only mutation stays
+ * strictly client-only (see requireRealClientScope in session.ts).
+ */
+export async function getPortalCallerContext(): Promise<{ clientId: string; isAdminPreview: boolean }> {
+  return withCaller(async (caller) => {
+    const clientId = requireClientScope(caller);
+    return { clientId, isAdminPreview: caller.isAdminPreview === true };
+  });
+}
+
 export async function listPortalTasks() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(tasks)
-      .where(and(eq(tasks.clientId, caller.clientId), isNull(tasks.deletedAt)));
+      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)));
   });
 }
 
 export async function listPortalDocuments() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(documents)
-      .where(and(eq(documents.clientId, caller.clientId), isNull(documents.deletedAt)));
+      .where(and(eq(documents.clientId, clientId), isNull(documents.deletedAt)));
   });
 }
 
 export async function listPortalReferrals() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(referrals)
-      .where(and(eq(referrals.clientId, caller.clientId), isNull(referrals.deletedAt)));
+      .where(and(eq(referrals.clientId, clientId), isNull(referrals.deletedAt)));
   });
 }
 
 export async function getReferralStats() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     const rows = await tx
       .select({ status: referrals.status })
       .from(referrals)
-      .where(and(eq(referrals.clientId, caller.clientId), isNull(referrals.deletedAt)));
+      .where(and(eq(referrals.clientId, clientId), isNull(referrals.deletedAt)));
 
     // Active discount % — "with stacking" (Phase 8 brief §4): sum whatever
     // referral_discounts windows are currently live for this client, not
@@ -335,7 +355,7 @@ export async function getReferralStats() {
     const discountRows = await tx
       .select()
       .from(referralDiscounts)
-      .where(and(eq(referralDiscounts.clientId, caller.clientId), isNull(referralDiscounts.deletedAt)));
+      .where(and(eq(referralDiscounts.clientId, clientId), isNull(referralDiscounts.deletedAt)));
     const activeDiscounts = discountRows.filter((d) => d.startsOn <= today && d.endsOn >= today);
     const activeDiscountPercent = activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0);
 
@@ -345,53 +365,66 @@ export async function getReferralStats() {
 
 export async function listPortalIdeation() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(ideationItems)
-      .where(and(eq(ideationItems.clientId, caller.clientId), isNull(ideationItems.deletedAt)));
+      .where(and(eq(ideationItems.clientId, clientId), isNull(ideationItems.deletedAt)));
   });
 }
 
 export async function listPortalRoadmap() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(roadmapItems)
-      .where(and(eq(roadmapItems.clientId, caller.clientId), isNull(roadmapItems.deletedAt)))
+      .where(and(eq(roadmapItems.clientId, clientId), isNull(roadmapItems.deletedAt)))
       .orderBy(roadmapItems.sortOrder);
+  });
+}
+
+/** Tasks tagged with a funnel stage (Next/Doing/Done) — feeds the Roadmap
+ * widget's "the work behind it" columns. Deliberately sourced from tasks
+ * Max is already managing in Master Task View, not a second list. */
+export async function listPortalRoadmapFunnelTasks() {
+  return withCaller(async (caller, tx) => {
+    const clientId = requireClientScope(caller);
+    return tx
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt), isNotNull(tasks.funnelStage)));
   });
 }
 
 export async function listPortalMeetingSummaries() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(meetingSummaries)
-      .where(and(eq(meetingSummaries.clientId, caller.clientId), isNull(meetingSummaries.deletedAt)))
+      .where(and(eq(meetingSummaries.clientId, clientId), isNull(meetingSummaries.deletedAt)))
       .orderBy(desc(meetingSummaries.occurredAt));
   });
 }
 
 export async function listPortalToolStack() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(toolStackItems)
-      .where(and(eq(toolStackItems.clientId, caller.clientId), isNull(toolStackItems.deletedAt)));
+      .where(and(eq(toolStackItems.clientId, clientId), isNull(toolStackItems.deletedAt)));
   });
 }
 
 export async function getPortalEmbeds() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     const [client] = await tx
       .select({ driveFolderUrl: clients.driveFolderUrl, lookerStudioUrl: clients.lookerStudioUrl })
       .from(clients)
-      .where(and(eq(clients.id, caller.clientId), isNull(clients.deletedAt)))
+      .where(and(eq(clients.id, clientId), isNull(clients.deletedAt)))
       .limit(1);
     return client ?? { driveFolderUrl: null, lookerStudioUrl: null };
   });
@@ -413,11 +446,11 @@ export type PortalReferralInputT = z.infer<typeof PortalReferralInput>;
 export async function submitPortalReferral(input: PortalReferralInputT) {
   const data = PortalReferralInput.parse(input);
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireRealClientScope(caller);
     return auditedInsert(
       tx,
       referrals,
-      { ...data, clientId: caller.clientId, createdBy: caller.userId, updatedBy: caller.userId },
+      { ...data, clientId, createdBy: caller.userId, updatedBy: caller.userId },
       { caller, entityType: "referral" }
     );
   });
@@ -431,11 +464,11 @@ export async function submitPortalReferral(input: PortalReferralInputT) {
  */
 export async function listPortalInvoices() {
   return withCaller(async (caller, tx) => {
-    requireClientScope(caller);
+    const clientId = requireClientScope(caller);
     return tx
       .select()
       .from(xeroInvoices)
-      .where(eq(xeroInvoices.clientId, caller.clientId))
+      .where(eq(xeroInvoices.clientId, clientId))
       .orderBy(sql`${xeroInvoices.invoiceDate} DESC NULLS LAST`);
   });
 }

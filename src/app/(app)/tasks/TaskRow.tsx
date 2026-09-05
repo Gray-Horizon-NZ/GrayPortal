@@ -59,7 +59,7 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
           {task.clientName ? (
             task.clientId ? (
               <Link
-                href={`/clients/${task.clientId}/portal-preview`}
+                href={`/clients/${task.clientId}`}
                 target="_blank"
                 className="gh-eyebrow"
                 style={{ marginBottom: "var(--gh-space-1)", display: "inline-block", color: "var(--gh-accent)" }}

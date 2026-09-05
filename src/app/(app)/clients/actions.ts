@@ -1,6 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { withCaller } from "@/lib/dal/auth";
+import { assertRole } from "@/lib/dal/session";
+import { ADMIN_PORTAL_PREVIEW_COOKIE, ADMIN_PORTAL_PREVIEW_MAX_AGE_MS } from "@/lib/dal/constants";
 import { createClient, updateClient, softDeleteClient, setClientFeature, uploadClientLogo, setClientGoogleTasklist, setClientHiddenFromTaskView, type PortalFeatureKey } from "@/lib/dal/clients";
 import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib/dal/tasks";
 import { createDeal, type DealInputT } from "@/lib/dal/deals";
@@ -10,7 +14,7 @@ import { uploadDocument, linkDocument, renameDocument, deleteDocument, DocType }
 import type { z } from "zod";
 import { ReferralStatus } from "@/lib/dal/referrals";
 import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
-import { createRoadmapItem, softDeleteRoadmapItem } from "@/lib/dal/roadmap";
+import { createRoadmapItem, updateRoadmapItem, softDeleteRoadmapItem, RoadmapStatus } from "@/lib/dal/roadmap";
 import { createMeetingSummary, softDeleteMeetingSummary } from "@/lib/dal/meetingSummaries";
 import { createToolStackItem, softDeleteToolStackItem } from "@/lib/dal/toolStack";
 import { addClientService, removeClientService, updateClientServicePrice } from "@/lib/dal/clientServices";
@@ -25,6 +29,38 @@ import { updateCompany } from "@/lib/dal/companies";
 import { markGrayscaleRequestContacted } from "@/lib/dal/grayscaleRequests";
 import { absoluteOriginFromHeaders } from "@/lib/http";
 import { monthInputToDate } from "@/lib/date";
+
+/**
+ * "View client portal" — sets a short-lived cookie identifying which client
+ * an admin is previewing, then sends them into the REAL /portal route tree
+ * (withCaller, src/lib/dal/auth.ts, resolves it into that client's scope for
+ * every DAL call for the duration of the cookie). Replaces the old
+ * hand-maintained PortalPreviewShell mirror, which could silently drift
+ * from the real pages — this renders the exact same pages a client does.
+ */
+export async function startPortalPreviewAction(clientId: string) {
+  await withCaller(async (caller) => {
+    assertRole(caller, "admin");
+  });
+  (await cookies()).set(ADMIN_PORTAL_PREVIEW_COOKIE, clientId, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: ADMIN_PORTAL_PREVIEW_MAX_AGE_MS / 1000,
+    path: "/",
+  });
+  redirect("/portal");
+}
+
+/** Clears the preview cookie and returns to the client's own admin page. */
+export async function exitPortalPreviewAction() {
+  const clientId = await withCaller(async (caller) => {
+    assertRole(caller, "admin");
+    return caller.clientId;
+  });
+  (await cookies()).delete(ADMIN_PORTAL_PREVIEW_COOKIE);
+  redirect(clientId ? `/clients/${clientId}` : "/clients");
+}
 
 export async function createClientAction(formData: FormData) {
   const client = await createClient({
@@ -141,6 +177,16 @@ export async function createRoadmapItemAction(clientId: string, formData: FormDa
     targetDate: String(formData.get("targetDate") ?? "") || undefined,
     status: "planned",
     sortOrder: 0,
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function updateRoadmapItemAction(id: string, clientId: string, formData: FormData) {
+  await updateRoadmapItem(id, {
+    title: String(formData.get("title") ?? ""),
+    description: String(formData.get("description") ?? "") || undefined,
+    targetDate: String(formData.get("targetDate") ?? "") || undefined,
+    status: RoadmapStatus.parse(formData.get("status")),
   });
   revalidatePath(`/clients/${clientId}`);
 }

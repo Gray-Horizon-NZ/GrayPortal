@@ -7,6 +7,7 @@ import {
   createToolStackItemAction,
   deleteToolStackItemAction,
   createRoadmapItemAction,
+  updateRoadmapItemAction,
   deleteRoadmapItemAction,
   createIdeationItemAction,
   deleteIdeationItemAction,
@@ -124,24 +125,53 @@ export default function DeliveryTab({
       </section>
 
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Roadmap</p>
+        <p className="gh-eyebrow">Roadmap phases</p>
+        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+          Feeds the client portal&apos;s Focus Dial — order is the phase sequence, and whichever phase is set to
+          &quot;In progress&quot; is the one shown as current.
+        </p>
         {roadmap.map((it) => (
-          <div key={it.id} className="gh-item-row">
-            <span>{it.title} <span className="gh-badge">{it.status}</span> {it.targetDate && <span style={{ color: "var(--gh-text-muted)" }}>({it.targetDate})</span>}</span>
-            <form action={deleteRoadmapItemAction.bind(null, it.id, client.id)}>
-              <SubmitButton className="gh-link-btn gh-link-btn--danger">Remove</SubmitButton>
-            </form>
+          <div key={it.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", paddingBottom: "var(--gh-space-2)", borderBottom: "1px solid var(--gh-border)" }}>
+            <div className="gh-item-row" style={{ border: "none", padding: 0 }}>
+              <span>
+                {it.title}{" "}
+                <span className="gh-badge" data-status={it.status === "done" ? "success" : it.status === "in_progress" ? "accent" : undefined}>
+                  {it.status.replace("_", " ")}
+                </span>{" "}
+                {it.targetDate && <span style={{ color: "var(--gh-text-muted)" }}>({it.targetDate})</span>}
+              </span>
+              <form action={deleteRoadmapItemAction.bind(null, it.id, client.id)}>
+                <SubmitButton className="gh-link-btn gh-link-btn--danger">Remove</SubmitButton>
+              </form>
+            </div>
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Edit</summary>
+              <form
+                action={updateRoadmapItemAction.bind(null, it.id, client.id)}
+                style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+              >
+                <input className="gh-input" name="title" defaultValue={it.title} required />
+                <textarea className="gh-input" name="description" defaultValue={it.description ?? ""} placeholder="Narrative shown on the Focus Dial" rows={2} />
+                <input className="gh-input" name="targetDate" type="date" defaultValue={it.targetDate ?? ""} />
+                <select className="gh-input" name="status" defaultValue={it.status}>
+                  <option value="planned">Planned</option>
+                  <option value="in_progress">In progress (current)</option>
+                  <option value="done">Done</option>
+                </select>
+                <SubmitButton className="gh-btn-secondary" pendingLabel="Saving…">Save</SubmitButton>
+              </form>
+            </details>
           </div>
         ))}
-        {roadmap.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No roadmap items yet.</p>}
+        {roadmap.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No roadmap phases yet.</p>}
         <div className="gh-add-form">
           <details>
-            <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>+ Add roadmap item</summary>
+            <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>+ Add phase</summary>
             <form action={createRoadmapItemAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
-              <input className="gh-input" name="title" placeholder="Title" required />
-              <textarea className="gh-input" name="description" placeholder="Description" rows={2} />
+              <input className="gh-input" name="title" placeholder="Phase name" required />
+              <textarea className="gh-input" name="description" placeholder="Narrative shown on the Focus Dial" rows={2} />
               <input className="gh-input" name="targetDate" type="date" />
-              <SubmitButton>Add item</SubmitButton>
+              <SubmitButton>Add phase</SubmitButton>
             </form>
           </details>
         </div>

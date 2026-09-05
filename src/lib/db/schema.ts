@@ -36,6 +36,11 @@ export const taskStatusEnum = pgEnum("task_status", [
   "done",
   "ongoing",
 ]);
+// Independent of task_status above — this is "does this task appear on the
+// client's Roadmap widget, and in which column," not "is it done." Nullable,
+// no default: the common case is a task that's on nobody's roadmap at all.
+// Only meaningful for tasks with a clientId set.
+export const taskFunnelStageEnum = pgEnum("task_funnel_stage", ["next", "doing", "done"]);
 // Phase 8 extends this lifecycle from Phase 2's original 4 generic states
 // to the named states the brief specifies — "converted" and
 // "discount_applied" are two distinct events (a referred lead becoming a
@@ -388,6 +393,7 @@ export const tasks = pgTable("tasks", {
   // registry, not a pgEnum, since the list of internal buckets is a UI
   // concern that shouldn't need a migration to extend.
   internalList: text("internal_list"),
+  funnelStage: taskFunnelStageEnum("funnel_stage"),
   ...softDelete,
   ...actorColumns,
 });

@@ -14,6 +14,7 @@ type Task = {
   internalList?: string | null;
   dealId?: string | null;
   dealCompanyName?: string | null;
+  funnelStage?: "next" | "doing" | "done" | null;
 };
 
 type ClientOption = { id: string; name: string };
@@ -55,6 +56,7 @@ export default function TaskRowEditable({
           internalList: task.internalList ?? null,
           dealId: task.dealId ?? null,
           dealCompanyName: task.dealCompanyName,
+          funnelStage: task.funnelStage ?? null,
         }}
         clientId={clientId}
         clientOptions={clientOptions}

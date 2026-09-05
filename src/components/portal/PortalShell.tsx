@@ -13,12 +13,14 @@ export default function PortalShell({
   clientSince,
   navItems,
   logoutSlot,
+  previewBanner,
   children,
 }: {
   clientName: string;
   clientSince: string | null;
   navItems: PortalNavItem[];
   logoutSlot: React.ReactNode;
+  previewBanner?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -45,6 +47,7 @@ export default function PortalShell({
           </div>
         </aside>
         <main className="ghp-main">
+          {previewBanner}
           {children}
           <div className="ghp-page-footer">
             <SolusMark size={16} />

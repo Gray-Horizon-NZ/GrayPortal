@@ -12,6 +12,7 @@ type Task = {
   internalList: string | null;
   dealId: string | null;
   dealCompanyName?: string | null;
+  funnelStage?: "next" | "doing" | "done" | null;
 };
 
 type ClientOption = { id: string; name: string };
@@ -132,6 +133,17 @@ export default function EditTaskButton({
                         {l.label}
                       </option>
                     ))}
+                  </select>
+                </label>
+              )}
+              {task.clientId && (
+                <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+                  Roadmap stage
+                  <select className="gh-input" name="funnelStage" defaultValue={task.funnelStage ?? ""}>
+                    <option value="">Not on roadmap</option>
+                    <option value="next">Next</option>
+                    <option value="doing">Doing</option>
+                    <option value="done">Done</option>
                   </select>
                 </label>
               )}

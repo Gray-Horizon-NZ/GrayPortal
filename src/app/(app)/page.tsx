@@ -281,8 +281,7 @@ export default async function HomePage({
               {decliningClients.map((h) => (
                 <Link
                   key={h.clientId}
-                  href={`/clients/${h.clientId}/portal-preview`}
-                  target="_blank"
+                  href={`/clients/${h.clientId}`}
                   style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}
                 >
                   <ScoreGauge value={Math.round(Number(h.score))} size={40} />
