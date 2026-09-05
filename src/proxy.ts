@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
-import { SESSION_COOKIE_NAME } from "@/lib/dal/constants";
+import { SESSION_COOKIE_NAME, ADMIN_PORTAL_PREVIEW_COOKIE } from "@/lib/dal/constants";
 import { isRateLimited } from "@/lib/rateLimit";
 
 // Deny-by-default route protection (brief §5.2). Every route not listed in
@@ -133,7 +133,15 @@ export default async function proxy(request: NextRequest) {
     if (claimedRole === "client" && !isPortalPath(pathname)) {
       return NextResponse.redirect(new URL(PORTAL_PREFIX, request.url));
     }
-    if (claimedRole && claimedRole !== "client" && isPortalPath(pathname)) {
+    // An admin previewing a client's portal (gh_admin_preview_client cookie,
+    // set by startPortalPreviewAction) is deliberately let through here —
+    // this check is a routing hint only, same posture as the comment above
+    // it, so a bare cookie presence check is enough at this layer. The real
+    // validation (is this caller actually admin, does the cookie's client
+    // actually exist) happens where it always has: Postgres, via
+    // withCaller/requireClientScope re-checking on every DAL call.
+    const hasAdminPreview = request.cookies.has(ADMIN_PORTAL_PREVIEW_COOKIE);
+    if (claimedRole && claimedRole !== "client" && isPortalPath(pathname) && !hasAdminPreview) {
       return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
