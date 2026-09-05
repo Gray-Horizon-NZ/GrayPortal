@@ -1,13 +1,20 @@
-// The real GrayScale product catalogue — discovered 2026-08-28 while
-// fact-checking a discount figure for the onboarding wizard's GrayScale
-// step, pulled from the live marketing site's own structured data
-// (OS/website/grayhorizon-website/grayscale/index.html). Single source of
-// truth for the client portal's request widget: the chip grid it renders,
-// the per-product hover description, and the DAL's validation of a
-// submitted request (never trust a client-submitted product list against
-// anything looser than this). `description` is copied verbatim from that
-// page's own JSON-LD product descriptions, not paraphrased.
-export const GRAYSCALE_PRODUCTS: { name: string; category: string; description: string }[] = [
+// One-off backfill for the new grayscale_products table — the 9 products
+// that used to live in src/config/grayscale.ts (deleted once this table
+// became the live source of truth), copied here verbatim so nothing is
+// lost switching over. Upserts on `name` (ON CONFLICT DO NOTHING), so
+// re-running is safe. Run once, after db/sql/029_grayscale_products.sql
+// has been applied.
+//
+// Run with: node scripts/import-grayscale-products.mjs
+import { Client } from "@neondatabase/serverless";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
+
+const client = new Client(process.env.DATABASE_URL_UNPOOLED);
+await client.connect();
+
+const PRODUCTS = [
   {
     name: "Osseus",
     category: "Platform",
@@ -56,4 +63,14 @@ export const GRAYSCALE_PRODUCTS: { name: string; category: string; description: 
   },
 ];
 
-export const GRAYSCALE_PRODUCT_NAMES = GRAYSCALE_PRODUCTS.map((p) => p.name);
+for (const [i, p] of PRODUCTS.entries()) {
+  await client.query(
+    `INSERT INTO grayscale_products (name, category, description, sort_order)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (name) DO NOTHING`,
+    [p.name, p.category, p.description, i]
+  );
+}
+
+console.log(`Imported ${PRODUCTS.length} GrayScale products (skipping any name already present).`);
+await client.end();

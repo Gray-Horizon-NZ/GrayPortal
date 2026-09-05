@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getPortalHome } from "@/lib/dal/portal";
+import { getPortalHome, listPortalInvoices } from "@/lib/dal/portal";
+import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { paymentStatus } from "@/lib/paymentStatus";
 import ThemeToggle from "@/components/portal/ThemeToggle";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
@@ -8,19 +9,25 @@ import MilestonesTimeline from "@/components/portal/charts/MilestonesTimeline";
 import DashboardReadySignal from "@/components/ui/DashboardReadySignal";
 
 export default async function PortalHomePage() {
-  const {
-    client,
-    openTaskCount,
-    enabledFeatureKeys,
-    roadmapPreview,
-    referralStats,
-    metricsSnapshots,
-    teamMembers,
-    healthChannels,
-  } = await getPortalHome();
+  const [
+    {
+      client,
+      openTaskCount,
+      enabledFeatureKeys,
+      tasksPreview,
+      roadmapPreview,
+      referralStats,
+      metricsSnapshots,
+      teamMembers,
+      healthChannels,
+    },
+    allInvoices,
+    grayscaleProducts,
+  ] = await Promise.all([getPortalHome(), listPortalInvoices(), listGrayscaleProducts()]);
 
   const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
   const status = client ? paymentStatus(client.nextPaymentDate) : null;
+  const latestInvoices = allInvoices.slice(0, 3);
 
   const spendData = [...metricsSnapshots].reverse().map((s) => ({ label: s.periodLabel, value: Number(s.adSpend ?? 0) }));
   const latest = metricsSnapshots[0];
@@ -36,7 +43,7 @@ export default async function PortalHomePage() {
     ...(has("documents") || has("drive")
       ? [{ key: "files", href: "/portal/files", label: "Files", value: "→", meta: "documents & drive" }]
       : []),
-    ...(has("invoices") ? [{ key: "invoices", href: "/portal/invoices", label: "Invoices", value: "→", meta: "billing history" }] : []),
+    ...(has("invoices") ? [{ key: "invoices", href: "/portal/account", label: "Invoices", value: "→", meta: "billing history" }] : []),
     ...(has("grayscale_page") ? [{ key: "grayscale", href: "/portal/grayscale", label: "GrayScale", value: "→", meta: "product catalogue" }] : []),
     ...(has("tool_stack") || has("referrals") || has("meeting_summaries") || has("account_team")
       ? [
@@ -88,6 +95,62 @@ export default async function PortalHomePage() {
           </div>
         )}
 
+        {has("tasks") && (
+          <div className="ghp-panel-block">
+            <div className="ghp-panel-head">
+              <div className="ghp-t">Tasks</div>
+              <div className="ghp-n">{openTaskCount} open</div>
+            </div>
+            {tasksPreview.map((t) => (
+              <div key={t.id} className="ghp-task-row">
+                <span className={`ghp-task-check${t.status === "done" ? " ghp-good" : ""}`}>
+                  {t.status === "done" ? "✓" : ""}
+                </span>
+                <span className={`ghp-task-name${t.status === "done" ? " ghp-done-text" : ""}`}>{t.title}</span>
+                {t.dueDate && <span className="ghp-task-due">Due {t.dueDate}</span>}
+              </div>
+            ))}
+            {tasksPreview.length === 0 && <p className="ghp-empty">No open tasks right now.</p>}
+          </div>
+        )}
+
+        {has("referrals") && (
+          <div className="ghp-panel-block">
+            <div className="ghp-panel-head">
+              <div className="ghp-t">Referrals</div>
+              <div className="ghp-n">program active</div>
+            </div>
+            <div className="ghp-ref-hero">
+              <div className="ghp-card">
+                <div className="ghp-l">Total</div>
+                <div className="ghp-v">{referralStats?.totalReferrals ?? 0}</div>
+              </div>
+              <div className="ghp-card">
+                <div className="ghp-l">Active discount</div>
+                <div className="ghp-v">{referralStats?.activeDiscountPercent ?? 0}%</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {has("invoices") && (
+          <div className="ghp-panel-block">
+            <div className="ghp-panel-head">
+              <div className="ghp-t">Latest invoices</div>
+              <div className="ghp-n">{latestInvoices.length} shown</div>
+            </div>
+            {latestInvoices.map((inv) => (
+              <div key={inv.id} className="ghp-row">
+                <span>{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-NZ", { month: "long", year: "numeric" }) : "—"}</span>
+                <span className="ghp-serif" style={{ fontSize: 14 }}>
+                  {inv.total ? `$${Number(inv.total).toLocaleString("en-NZ")}` : "—"}
+                </span>
+              </div>
+            ))}
+            {latestInvoices.length === 0 && <p className="ghp-empty">No invoices yet.</p>}
+          </div>
+        )}
+
         <div className="ghp-panel-block">
           <div className="ghp-panel-head">
             <div className="ghp-t">Appearance</div>
@@ -100,7 +163,7 @@ export default async function PortalHomePage() {
           </div>
         </div>
 
-        {has("grayscale_page") && <GrayscaleWidget />}
+        {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} />}
       </div>
 
       {(spendData.length > 0 || roadmapPreview.length > 0) && (

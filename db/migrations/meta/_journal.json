@@ -211,6 +211,13 @@
       "when": 1788496031089,
       "tag": "0029_complex_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788582401441,
+      "tag": "0030_spotty_xorn",
+      "breakpoints": true
     }
   ]
 }

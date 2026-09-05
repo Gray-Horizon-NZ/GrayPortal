@@ -4,7 +4,6 @@ import {
   Briefcase,
   TrendingUp,
   FolderOpen,
-  Receipt,
   LayoutGrid,
   UserCircle,
   type LucideIcon,
@@ -89,9 +88,8 @@ export default async function PortalLayout({ children }: { children: React.React
     ...(has("documents") || has("drive")
       ? [{ href: "/portal/files", label: "Files", icon: navIcon(FolderOpen) }]
       : []),
-    ...(has("invoices") ? [{ href: "/portal/invoices", label: "Invoices", icon: navIcon(Receipt) }] : []),
     ...(has("grayscale_page") ? [{ href: "/portal/grayscale", label: "GrayScale", icon: navIcon(LayoutGrid) }] : []),
-    ...(has("tool_stack") || has("referrals") || has("meeting_summaries")
+    ...(has("tool_stack") || has("invoices") || has("referrals") || has("meeting_summaries")
       ? [{ href: "/portal/account", label: "Account", icon: navIcon(UserCircle) }]
       : []),
   ];

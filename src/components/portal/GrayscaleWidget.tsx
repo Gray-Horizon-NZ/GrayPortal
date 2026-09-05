@@ -1,7 +1,8 @@
 "use client";
 import { useState, useTransition } from "react";
-import { GRAYSCALE_PRODUCTS } from "@/config/grayscale";
 import { submitGrayscaleRequestAction } from "@/app/(portal)/portal/actions";
+
+type GrayscaleProduct = { name: string; category: string | null; description: string | null };
 
 /**
  * Dashboard widget (Open-Work-Brief.md §1.5) — a collapsed promo card that
@@ -19,7 +20,13 @@ import { submitGrayscaleRequestAction } from "@/app/(portal)/portal/actions";
  * same "Request sent" confirmation state instead, same no-mutation
  * precedent as the onboarding wizard's own preview mode.
  */
-export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?: boolean }) {
+export default function GrayscaleWidget({
+  products,
+  previewOnly = false,
+}: {
+  products: GrayscaleProduct[];
+  previewOnly?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
@@ -27,7 +34,7 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [hovered, setHovered] = useState<string | null>(null);
-  const hoveredProduct = GRAYSCALE_PRODUCTS.find((p) => p.name === hovered);
+  const hoveredProduct = products.find((p) => p.name === hovered);
 
   function toggle(name: string) {
     setSelected((prev) => {
@@ -75,7 +82,7 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
           Explore <em>GrayScale.</em>
         </h3>
         <p style={{ fontSize: 12, color: "var(--ghp-text-dim)", maxWidth: 260 }}>
-          {GRAYSCALE_PRODUCTS.length} products, member pricing. See what fits your business.
+          {products.length} products, member pricing. See what fits your business.
         </p>
         <div className="ghp-grayscale-widget-foot">
           <span>Tap to select →</span>
@@ -108,7 +115,7 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
                   No obligation, no extra step.
                 </p>
                 <div className="ghp-grayscale-chip-grid">
-                  {GRAYSCALE_PRODUCTS.map((p) => (
+                  {products.map((p) => (
                     <div
                       key={p.name}
                       className={`ghp-grayscale-chip${selected.has(p.name) ? " ghp-selected" : ""}`}
@@ -127,14 +134,13 @@ export default function GrayscaleWidget({ previewOnly = false }: { previewOnly?:
                   ))}
                 </div>
                 {/* Fixed height regardless of hover state, so nothing above/below it
-                    jumps around as the mouse moves between chips. Text sourced
-                    verbatim from grayhorizon.nz/grayscale (src/config/grayscale.ts). */}
+                    jumps around as the mouse moves between chips. */}
                 <p style={{ fontSize: 11.5, color: "var(--ghp-text-dim)", lineHeight: 1.5, minHeight: 32, margin: "0 0 12px" }}>
                   {hoveredProduct?.description ?? ""}
                 </p>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, color: "var(--ghp-text-dim)", marginBottom: 16 }}>
                   <span>
-                    <b style={{ color: "var(--ghp-brass)" }}>{selected.size}</b> of {GRAYSCALE_PRODUCTS.length} selected
+                    <b style={{ color: "var(--ghp-brass)" }}>{selected.size}</b> of {products.length} selected
                   </span>
                   {selected.size > 0 && (
                     <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelected(new Set())}>

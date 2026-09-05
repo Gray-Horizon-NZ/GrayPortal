@@ -1021,6 +1021,25 @@ export const portalAccessRequests = pgTable("portal_access_requests", {
 // validates `products` against the real catalogue (src/config/grayscale.ts)
 // before insert; never trust this array as pre-validated just because it's
 // client-submitted.
+// The GrayScale product catalogue — previously a hardcoded array in
+// src/config/grayscale.ts (a human copy-paste from the marketing site's own
+// structured data). Admin-editable now so the catalogue can change without
+// a code deploy. `name` stays the join key grayscale_requests.products
+// (a plain text[]) validates against — that table isn't touched by this
+// one, so no migration needed there.
+export const grayscaleProducts = pgTable("grayscale_products", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Unique so the one-off backfill script (scripts/import-grayscale-products.mjs)
+  // can upsert on it (ON CONFLICT (name) DO NOTHING) and so the admin CRUD
+  // page can't accidentally create a duplicate product.
+  name: text("name").notNull().unique(),
+  category: text("category"),
+  description: text("description"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
 export const grayscaleRequests = pgTable("grayscale_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   clientId: uuid("client_id")

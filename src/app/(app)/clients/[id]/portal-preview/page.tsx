@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClientPortalPreviewData } from "@/lib/dal/clientPortalPreview";
+import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import PortalPreviewShell from "./PortalPreviewShell";
 import "../../../../(portal)/portal-theme.css";
 
@@ -32,7 +33,7 @@ import "../../../../(portal)/portal-theme.css";
  */
 export default async function ClientPortalPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const data = await getClientPortalPreviewData(id);
+  const [data, grayscaleProducts] = await Promise.all([getClientPortalPreviewData(id), listGrayscaleProducts()]);
   if (!data) notFound();
   const {
     client,
@@ -89,6 +90,7 @@ export default async function ClientPortalPreviewPage({ params }: { params: Prom
         invoices={financials.invoices}
         driveFolderUrl={client.driveFolderUrl}
         lookerStudioUrl={client.lookerStudioUrl}
+        grayscaleProducts={grayscaleProducts}
       />
     </div>
   );

@@ -274,6 +274,7 @@ Ideas deliberately deferred rather than scheduled — don't build without Max ex
 - AI Calendar Assistant, AI Docs Assistant
 - Agreement/contract e-signature generation
 - Agent Inbox
+- **Real performance-metrics sourcing for "Performance snapshot"** (2026-09-05) — snapshots (`client_metrics_snapshots`) are hand-entered by design (see the table's own schema comment); Max asked whether they could instead be sourced from the Looker Studio report already embedded via `client.lookerStudioUrl`. Confirmed not possible as asked: Looker Studio has no public API to read data *values* out of a report, only asset/embed management. A real fix would be a separate, non-trivial project one layer upstream — a Google Ads API and/or GA4 Data API integration (new OAuth scope, a new adapter module parallel to `src/lib/google/adapter.ts`, per-client platform account IDs stored somewhere, a scheduled sync job) feeding `client_metrics_snapshots` or a new raw-metrics table automatically. Max chose to leave manual entry as-is for now and track this here rather than build it.
 
 (Tempus and Suggested moves above are also in this deferred category, but tracked with their own numbered sections since they're part of the named GrayScale family.)
 
@@ -405,3 +406,24 @@ Picked up as a documentation/audit pass ("what's outstanding, local vs. live"), 
 - Firebase CLI in this environment has stale credentials (`firebase login --reauth` needed) — couldn't confirm the Cloud Run rollout landed via `firebase apphosting:backends:get`. Verify via the Firebase console, or by re-checking the new MCP tools respond once the rollout's had a few minutes.
 
 **Found sitting uncommitted, not this session's work — flagged, not touched:** `src/app/(app)/clients/[id]/portal-preview/PortalPreviewShell.tsx`, `src/app/(portal)/portal-theme.css`, `src/app/(portal)/portal/performance/page.tsx` — a Looker Studio full-width reporting-embed change, mid-flight from an earlier session. Left unstaged deliberately; pick up or discard per whoever was mid-way through it.
+
+---
+
+## 12. Session handoff — 2026-09-05
+
+Picked up as a design/UX pass on the client-detail control panel (a tabbed rehaul against a supplied mockup), which grew across the session into several rounds of follow-up polish and a few separate feature requests.
+
+**Built this session:**
+- Client detail page (`src/app/(app)/clients/[id]/`) rebuilt from one ~900-line scrolling page into 5 tabs (Overview / Access & credentials / Commercial / Delivery / Team & activity), each a two-column bento layout (`.gh-tab-grid`), with a KPI strip and real toggle switches (`.gh-switch`) replacing bare checkboxes. Every existing field/form/action carried over 1:1. The Commercial tab now lists a client's existing pipeline deals (value, next action, stage) above the "new deal" form — previously only the create form showed, with no way to see what's already there.
+- App-wide colour palette (`src/app/tokens.css`) re-sourced from the supplied mockup — warmer, creamier near-black, nicer sage green for success states. The left sidebar (`.gh-shell-sidebar`) pins itself back to the previous palette via a scoped custom-property override, so it stays visually unchanged as asked.
+- Client-detail header now shows the client's uploaded logo in place of the building-icon placeholder once one exists (`RecordHeader` gained an optional `avatarUrl`).
+- New "view all emails" popup on the client detail page (`EmailsModal.tsx`/`EmailDetailModal.tsx`) — All/Sent/Received tabs over every matched email (not just the 3-item inline preview), a detail popup fetching the full body live from Gmail by message id (nothing beyond a snippet is ever stored — new `getGmailMessage` in `gmailAdapter.ts`), and a "Download as PDF" link (`src/app/print/emails/[emailId]/`) that opens a print-styled view and auto-triggers the browser's print dialog rather than adding a PDF-rendering dependency.
+- Fixed the portal-preview's task list ("Add a task" input, checkbox) rendering in the admin's always-dark colours regardless of the portal's own light/dark toggle — it reuses Master Task View's shared components on purpose, but those read `--gh-*` tokens; `portal-theme.css`'s `.ghp-root` now redirects the handful they use to its own `--ghp-*` equivalents.
+- **GrayScale product catalogue is now a real database table** (`grayscale_products`, `src/lib/dal/grayscaleProducts.ts`) with an admin CRUD page (`/grayscale-products`) — previously a hardcoded array in `src/config/grayscale.ts` (now deleted) with no admin UI at all. The portal's `GrayscaleWidget` and the request-validation check in `grayscaleRequests.ts` both read the live table now.
+- Portal: folded the small single-purpose Invoices page into Account (two-column layout, Tool stack + Invoices / Referrals + Meetings) — `/portal/invoices` is now a redirect stub, matching the pattern already used for other consolidated portal routes. Dashboard (`/portal`) gained 3 new widget panels (Tasks, Referrals, Latest invoices) alongside the existing Account team/Appearance/GrayScale panels — reusing data `getPortalHome()` already fetched (`tasksPreview`, `referralStats`) or a cheap extra call (`listPortalInvoices()`), no new backend work.
+- §6 above: logged real performance-metrics sourcing (Google Ads/GA4 API integration, replacing manual snapshot entry) as deferred, not built — confirmed Looker Studio has no API to read report data values out of an embed, only asset management.
+
+**Deploy notes:**
+- **Two new migrations need applying by hand** (same handoff as every migration in this repo, and as `0029` below): `db/migrations/0030_spotty_xorn.sql` (`CREATE TABLE grayscale_products ...`), then `db/sql/029_grayscale_products.sql` (RLS + grants — read-open to any role, write admin-only), then `scripts/import-grayscale-products.mjs` once to backfill the 9 existing products by name. Until all three run, `/grayscale-products` and the portal's GrayScale widget will error on the missing table.
+- **`0029_complex_impossible_man.sql` from the previous session was still unapplied as of this session's start** — flagging again in case it was missed; the campaign detail page and cron sender error on the missing `campaign_recipients.opened_at` column until it's run.
+- This session's work was pushed across four commits as it was reviewed/approved in rounds rather than one large one at the end — see git log for the exact split.

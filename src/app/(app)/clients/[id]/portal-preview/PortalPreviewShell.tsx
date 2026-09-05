@@ -18,6 +18,7 @@ type TeamMember = { id: string; name: string; role: string | null };
 type HealthChannel = { id: string; channelName: string; status: string; statusLabel: string };
 type Activity = { id: string; body: string; occurredAt: string | Date };
 type Invoice = { id: string; status: string; total: string | null; invoiceDate: string | null; dueDate: string | null };
+type GrayscaleProduct = { name: string; category: string | null; description: string | null };
 
 const STATUS_TAG: Record<string, string> = {
   PAID: "ghp-good",
@@ -66,6 +67,7 @@ export default function PortalPreviewShell({
   invoices,
   driveFolderUrl,
   lookerStudioUrl,
+  grayscaleProducts,
 }: {
   clientId: string;
   clientName: string;
@@ -86,6 +88,7 @@ export default function PortalPreviewShell({
   invoices: Invoice[];
   driveFolderUrl: string | null;
   lookerStudioUrl: string | null;
+  grayscaleProducts: GrayscaleProduct[];
 }) {
   const [tab, setTab] = useState<Tab>("dashboard");
   const has = (key: string) => enabledKeys.has(key);
@@ -164,7 +167,7 @@ export default function PortalPreviewShell({
                   </div>
                 </div>
 
-                {has("grayscale_page") && <GrayscaleWidget previewOnly />}
+                {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} previewOnly />}
               </div>
 
               {(spendData.some((d) => d.value > 0) || roadmap.length > 0) && (

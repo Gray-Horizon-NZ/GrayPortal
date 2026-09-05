@@ -1,17 +1,16 @@
 import "server-only";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
-import { grayscaleRequests, notifications, users, emailTemplates, clients } from "@/lib/db/schema";
+import { grayscaleRequests, grayscaleProducts, notifications, users, emailTemplates, clients } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { assertRole, requireClientScope } from "./session";
 import { auditedUpdate } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
-import { GRAYSCALE_PRODUCT_NAMES } from "@/config/grayscale";
 
 export const SubmitGrayscaleRequestInput = z.object({
-  products: z.array(z.enum(GRAYSCALE_PRODUCT_NAMES as [string, ...string[]])).min(1),
+  products: z.array(z.string()).min(1),
   note: z.string().optional(),
   // Same threading pattern as sendOnboardingInvite's appOrigin — computed
   // from next/headers in the server-action wrapper (src/app/(portal)/portal/actions.ts),
@@ -23,16 +22,24 @@ export type SubmitGrayscaleRequestInputT = z.infer<typeof SubmitGrayscaleRequest
 
 /**
  * The first client-writable path in the app — every other portal page is
- * read-only for role=client. `products` is validated against the real
- * catalogue by the Zod enum above (z.enum, not a loose string array), so a
- * tampered request can't inject an arbitrary product name; Zod throws
- * before this function body ever runs.
+ * read-only for role=client. `products` used to be validated by a static
+ * Zod enum built from the hardcoded config array; the catalogue is
+ * admin-editable now (grayscaleProducts.ts), so the enum can't be built at
+ * module load time — instead this checks the submitted names against a
+ * live read of the catalogue below, before anything is inserted. A
+ * tampered request still can't inject an arbitrary product name.
  */
 export async function submitGrayscaleRequest(input: SubmitGrayscaleRequestInputT) {
   const data = SubmitGrayscaleRequestInput.parse(input);
 
   return withCaller(async (caller, tx) => {
     requireClientScope(caller);
+
+    const catalogue = await tx.select({ name: grayscaleProducts.name }).from(grayscaleProducts).where(isNull(grayscaleProducts.deletedAt));
+    const validNames = new Set(catalogue.map((p) => p.name));
+    if (!data.products.every((name) => validNames.has(name))) {
+      throw new Error("One or more selected products aren't in the current catalogue.");
+    }
 
     const [request] = await tx
       .insert(grayscaleRequests)
