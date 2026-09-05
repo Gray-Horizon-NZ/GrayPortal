@@ -42,7 +42,12 @@ export default function RoadmapWidget({
 }) {
   const sortedPhases = [...phases].sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder));
   const inProgressIndex = sortedPhases.findIndex((p) => p.status === "in_progress");
-  const currentIndex = inProgressIndex >= 0 ? inProgressIndex : sortedPhases.length - 1;
+  // No phase explicitly marked "in progress" — infer it: the one right
+  // after the last "done" phase (so a fresh roadmap defaults to phase 1,
+  // not the last phase in the list), clamped to the last phase once
+  // everything's done.
+  const lastDoneIndex = sortedPhases.reduce((last, p, i) => (p.status === "done" ? i : last), -1);
+  const currentIndex = inProgressIndex >= 0 ? inProgressIndex : Math.min(lastDoneIndex + 1, sortedPhases.length - 1);
   const current = sortedPhases[currentIndex] ?? null;
   const nextPhase = currentIndex >= 0 ? sortedPhases[currentIndex + 1] : undefined;
   const total = sortedPhases.length;

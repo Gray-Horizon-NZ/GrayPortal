@@ -211,6 +211,7 @@ export async function getPortalHome() {
       client,
       openTaskCount: openTasks.length,
       enabledFeatureKeys,
+      isAdminPreview: caller.isAdminPreview === true,
       ...previews,
     };
   });
@@ -296,16 +297,40 @@ export async function getEnabledFeatureKeys(): Promise<PortalFeatureKey[]> {
 }
 
 /**
- * clientId + whether this is an admin previewing (vs. a real client) — for
- * the one interactive exception in the portal, task management, which
- * stays available to an admin in preview (their own legitimate capability,
- * not a client-only action) while every client-only mutation stays
- * strictly client-only (see requireRealClientScope in session.ts).
+ * enabledFeatureKeys + clientId + whether this is an admin previewing (vs. a
+ * real client), all in one transaction — for pages that need both (currently
+ * work/account/grayscale, which need isAdminPreview for the one interactive
+ * exception in the portal, task management: it stays available to an admin
+ * in preview, their own legitimate capability, while every client-only
+ * mutation stays strictly client-only — see requireRealClientScope in
+ * session.ts). Replaces those pages' previous separate
+ * getEnabledFeatureKeys() + getPortalCallerContext() calls, each of which
+ * paid its own connect+BEGIN+3×set_config+COMMIT round-trip — the same
+ * "consolidate what a page needs into one transaction" reasoning as
+ * getPortalHome()/getPortalShellContext() above.
  */
-export async function getPortalCallerContext(): Promise<{ clientId: string; isAdminPreview: boolean }> {
-  return withCaller(async (caller) => {
+export async function getPortalPageContext(): Promise<{
+  clientId: string;
+  isAdminPreview: boolean;
+  enabledFeatureKeys: PortalFeatureKey[];
+}> {
+  return withCaller(async (caller, tx) => {
     const clientId = requireClientScope(caller);
-    return { clientId, isAdminPreview: caller.isAdminPreview === true };
+    const enabledFeatures = await tx
+      .select()
+      .from(clientFeatures)
+      .where(
+        and(
+          eq(clientFeatures.clientId, clientId),
+          eq(clientFeatures.enabled, true),
+          isNull(clientFeatures.deletedAt)
+        )
+      );
+    return {
+      clientId,
+      isAdminPreview: caller.isAdminPreview === true,
+      enabledFeatureKeys: enabledFeatures.map((f) => f.featureKey as PortalFeatureKey),
+    };
   });
 }
 

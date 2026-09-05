@@ -1,11 +1,11 @@
-import { getEnabledFeatureKeys, getPortalCallerContext, listPortalTasks, listPortalRoadmap, listPortalRoadmapFunnelTasks, listPortalIdeation } from "@/lib/dal/portal";
+import { getPortalPageContext, listPortalTasks, listPortalRoadmap, listPortalRoadmapFunnelTasks, listPortalIdeation } from "@/lib/dal/portal";
 import RoadmapWidget from "@/components/portal/RoadmapWidget";
 import TaskRowEditable from "@/app/(app)/tasks/TaskRowEditable";
 import { createTaskAction } from "@/app/(app)/tasks/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function PortalWorkPage() {
-  const [enabled, { clientId, isAdminPreview }] = await Promise.all([getEnabledFeatureKeys(), getPortalCallerContext()]);
+  const { clientId, isAdminPreview, enabledFeatureKeys: enabled } = await getPortalPageContext();
   const has = (key: string) => enabled.includes(key as (typeof enabled)[number]);
 
   const [tasks, roadmap, roadmapTasks, ideas] = await Promise.all([
@@ -15,6 +15,8 @@ export default async function PortalWorkPage() {
     has("ideation") ? listPortalIdeation() : Promise.resolve([]),
   ]);
   const deliverables = tasks.filter((t) => t.dueDate);
+  const openTasks = tasks.filter((t) => t.status !== "done");
+  const doneTasks = tasks.filter((t) => t.status === "done");
 
   const nothingEnabled = !has("tasks") && !has("deliverables") && !has("roadmap") && !has("ideation");
 
@@ -32,7 +34,7 @@ export default async function PortalWorkPage() {
           <div className="ghp-panel-block">
             <div className="ghp-panel-head">
               <div className="ghp-t">Tasks</div>
-              <div className="ghp-n">{tasks.filter((t) => t.status !== "done").length} open</div>
+              <div className="ghp-n">{openTasks.length} open</div>
             </div>
             {isAdminPreview ? (
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -40,10 +42,22 @@ export default async function PortalWorkPage() {
                   <input className="ghp-input" name="title" placeholder="Add a task" required style={{ flex: 1 }} />
                   <SubmitButton style={{ padding: "0 12px" }}>+</SubmitButton>
                 </form>
-                {tasks.map((t) => (
+                {openTasks.map((t) => (
                   <TaskRowEditable key={t.id} task={t} clientId={clientId} />
                 ))}
-                {tasks.length === 0 && <p className="ghp-empty">No tasks right now.</p>}
+                {openTasks.length === 0 && <p className="ghp-empty">No tasks right now.</p>}
+                {doneTasks.length > 0 && (
+                  <details>
+                    <summary style={{ cursor: "pointer", fontSize: 11, color: "var(--ghp-text-dim)" }}>
+                      Done ({doneTasks.length})
+                    </summary>
+                    <div style={{ display: "flex", flexDirection: "column", marginTop: 8, gap: 8 }}>
+                      {doneTasks.map((t) => (
+                        <TaskRowEditable key={t.id} task={t} clientId={clientId} />
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
             ) : (
               <>

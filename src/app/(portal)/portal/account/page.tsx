@@ -1,6 +1,5 @@
 import {
-  getEnabledFeatureKeys,
-  getPortalCallerContext,
+  getPortalPageContext,
   listPortalReferrals,
   getReferralStats,
   listPortalInvoices,
@@ -18,14 +17,13 @@ const STATUS_TAG: Record<string, string> = {
 };
 
 export default async function PortalAccountPage() {
-  const enabled = await getEnabledFeatureKeys();
+  const { isAdminPreview, enabledFeatureKeys: enabled } = await getPortalPageContext();
   const has = (key: string) => enabled.includes(key as (typeof enabled)[number]);
 
-  const [invoices, referrals, referralStats, { isAdminPreview }] = await Promise.all([
+  const [invoices, referrals, referralStats] = await Promise.all([
     has("invoices") ? listPortalInvoices() : Promise.resolve([]),
     has("referrals") ? listPortalReferrals() : Promise.resolve([]),
     has("referrals") ? getReferralStats() : Promise.resolve(null),
-    getPortalCallerContext(),
   ]);
   const outstandingInvoices = invoices.filter((i) => i.status === "AUTHORISED" || i.status === "SUBMITTED");
 

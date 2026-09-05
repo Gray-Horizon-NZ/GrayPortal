@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPortalHome, getPortalCallerContext, listPortalInvoices, listPortalRoadmap, listPortalRoadmapFunnelTasks } from "@/lib/dal/portal";
+import { getPortalHome, listPortalInvoices, listPortalRoadmap, listPortalRoadmapFunnelTasks } from "@/lib/dal/portal";
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { paymentStatus } from "@/lib/paymentStatus";
 import ThemeToggle from "@/components/portal/ThemeToggle";
@@ -19,12 +19,12 @@ export default async function PortalHomePage() {
       metricsSnapshots,
       teamMembers,
       healthChannels,
+      isAdminPreview,
     },
     allInvoices,
     grayscaleProducts,
     roadmap,
     roadmapTasks,
-    { isAdminPreview },
   ] = await Promise.all([
     getPortalHome(),
     listPortalInvoices(),
@@ -37,7 +37,6 @@ export default async function PortalHomePage() {
     }),
     listPortalRoadmap(),
     listPortalRoadmapFunnelTasks(),
-    getPortalCallerContext(),
   ]);
 
   const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
