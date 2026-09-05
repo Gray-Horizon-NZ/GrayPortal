@@ -2,7 +2,6 @@ import Link from "next/link";
 import { getPortalHome, listPortalInvoices, listPortalRoadmap, listPortalRoadmapFunnelTasks } from "@/lib/dal/portal";
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { paymentStatus } from "@/lib/paymentStatus";
-import ThemeToggle from "@/components/portal/ThemeToggle";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
 import AdSpendBars from "@/components/portal/charts/AdSpendBars";
 import RoadmapWidget from "@/components/portal/RoadmapWidget";
@@ -164,18 +163,6 @@ export default async function PortalHomePage() {
             {latestInvoices.length === 0 && <p className="ghp-empty">No invoices yet.</p>}
           </div>
         )}
-
-        <div className="ghp-panel-block">
-          <div className="ghp-panel-head">
-            <div className="ghp-t">Appearance</div>
-          </div>
-          <div className="ghp-panel-body">
-            <ThemeToggle />
-            <p style={{ fontSize: 11, color: "var(--ghp-text-dim)", marginTop: "var(--ghp-space-3)" }}>
-              Saved to this browser and remembered next time you sign in.
-            </p>
-          </div>
-        </div>
 
         {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} previewOnly={isAdminPreview} />}
       </div>

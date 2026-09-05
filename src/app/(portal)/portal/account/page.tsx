@@ -6,6 +6,7 @@ import {
 } from "@/lib/dal/portal";
 import { submitPortalReferralAction } from "../referrals/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import ThemeToggle from "@/components/portal/ThemeToggle";
 
 const STATUS_TAG: Record<string, string> = {
   PAID: "ghp-good",
@@ -27,16 +28,12 @@ export default async function PortalAccountPage() {
   ]);
   const outstandingInvoices = invoices.filter((i) => i.status === "AUTHORISED" || i.status === "SUBMITTED");
 
-  const nothingEnabled = !has("invoices") && !has("referrals");
-
   return (
     <div>
       <div className="ghp-page-head">
         <h1>Account</h1>
-        <div className="ghp-sub">Invoices and referrals</div>
+        <div className="ghp-sub">Invoices, referrals and appearance</div>
       </div>
-
-      {nothingEnabled && <p className="ghp-empty">No account sections are enabled for your account yet.</p>}
 
       <div className="ghp-widget-grid">
         <div>
@@ -82,6 +79,18 @@ export default async function PortalAccountPage() {
               )}
             </div>
           )}
+
+          <div className="ghp-panel-block">
+            <div className="ghp-panel-head">
+              <div className="ghp-t">Appearance</div>
+            </div>
+            <div className="ghp-panel-body">
+              <ThemeToggle />
+              <p style={{ fontSize: 11, color: "var(--ghp-text-dim)", marginTop: "var(--ghp-space-3)" }}>
+                Saved to this browser and remembered next time you sign in.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div>
