@@ -294,43 +294,41 @@ export default function PortalPreviewShell({
           {tab === "performance" && (
             <div>
               <div className="ghp-page-head"><h1>Performance</h1><div className="ghp-sub">Reporting, performance snapshot and campaign health</div></div>
-              <div className="ghp-widget-grid">
-                {has("reporting") && (
-                  <div className="ghp-panel-block">
-                    <div className="ghp-panel-head"><div className="ghp-t">Reporting</div><div className="ghp-n">Looker Studio</div></div>
-                    {lookerStudioUrl ? (
-                      <iframe src={lookerStudioUrl} style={{ width: "100%", height: 340, border: "none" }} />
-                    ) : (
-                      <div className="ghp-embed-frame">Live reporting dashboard not configured yet.<br />Ask Gray Horizon to add one.</div>
-                    )}
-                  </div>
-                )}
-                {has("performance") && (
-                  <div className="ghp-panel-block">
-                    <div className="ghp-panel-head"><div className="ghp-t">Performance snapshot</div><div className="ghp-n">{latest?.periodLabel ?? "no data yet"}</div></div>
-                    {latest ? (
-                      <div className="ghp-stat-row" style={{ padding: 18, margin: 0 }}>
-                        <div className="ghp-stat"><div className="ghp-l">Ad spend</div><div className="ghp-v">{latest.adSpend ? `$${Number(latest.adSpend).toLocaleString("en-NZ")}` : "—"}</div></div>
-                        <div className="ghp-stat"><div className="ghp-l">Leads</div><div className="ghp-v">{latest.leadsGenerated ?? "—"}</div></div>
-                        <div className="ghp-stat"><div className="ghp-l">Cost / lead</div><div className="ghp-v ghp-brass">{costPerLead ? `$${costPerLead.toFixed(2)}` : "—"}</div></div>
-                        <div className="ghp-stat">
-                          <div className="ghp-l">ROAS</div>
-                          <div className="ghp-v">
-                            {latest.roas ? `${latest.roas}×` : "—"}
-                            {previous?.roas && latest.roas && (
-                              <span style={{ fontSize: 10, color: "var(--ghp-text-dim)", marginLeft: 6 }}>
-                                {Number(latest.roas) >= Number(previous.roas) ? "↑" : "↓"} vs last period
-                              </span>
-                            )}
-                          </div>
+              {has("reporting") && (
+                <div className="ghp-panel-block">
+                  <div className="ghp-panel-head"><div className="ghp-t">Reporting</div><div className="ghp-n">Looker Studio</div></div>
+                  {lookerStudioUrl ? (
+                    <iframe src={lookerStudioUrl} className="ghp-reporting-frame" />
+                  ) : (
+                    <div className="ghp-embed-frame">Live reporting dashboard not configured yet.<br />Ask Gray Horizon to add one.</div>
+                  )}
+                </div>
+              )}
+              {has("performance") && (
+                <div className="ghp-panel-block">
+                  <div className="ghp-panel-head"><div className="ghp-t">Performance snapshot</div><div className="ghp-n">{latest?.periodLabel ?? "no data yet"}</div></div>
+                  {latest ? (
+                    <div className="ghp-stat-row" style={{ padding: 18, margin: 0 }}>
+                      <div className="ghp-stat"><div className="ghp-l">Ad spend</div><div className="ghp-v">{latest.adSpend ? `$${Number(latest.adSpend).toLocaleString("en-NZ")}` : "—"}</div></div>
+                      <div className="ghp-stat"><div className="ghp-l">Leads</div><div className="ghp-v">{latest.leadsGenerated ?? "—"}</div></div>
+                      <div className="ghp-stat"><div className="ghp-l">Cost / lead</div><div className="ghp-v ghp-brass">{costPerLead ? `$${costPerLead.toFixed(2)}` : "—"}</div></div>
+                      <div className="ghp-stat">
+                        <div className="ghp-l">ROAS</div>
+                        <div className="ghp-v">
+                          {latest.roas ? `${latest.roas}×` : "—"}
+                          {previous?.roas && latest.roas && (
+                            <span style={{ fontSize: 10, color: "var(--ghp-text-dim)", marginLeft: 6 }}>
+                              {Number(latest.roas) >= Number(previous.roas) ? "↑" : "↓"} vs last period
+                            </span>
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      <p className="ghp-empty">No performance data logged yet.</p>
-                    )}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ) : (
+                    <p className="ghp-empty">No performance data logged yet.</p>
+                  )}
+                </div>
+              )}
               {has("campaign_health") && (
                 <div className="ghp-panel-block">
                   <div className="ghp-panel-head"><div className="ghp-t">Campaign health</div><div className="ghp-n">{healthChannels.length} channel{healthChannels.length === 1 ? "" : "s"} tracked</div></div>

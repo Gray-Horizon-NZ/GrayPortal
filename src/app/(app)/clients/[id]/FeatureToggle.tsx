@@ -12,13 +12,16 @@ export default function FeatureToggle({
   enabled: boolean;
 }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-3)" }}>
-      <input
-        type="checkbox"
-        defaultChecked={enabled}
-        onChange={(e) => toggleFeatureAction(clientId, featureKey, e.target.checked)}
-      />
-      <span style={{ fontSize: "var(--gh-text-sm)" }}>{featureKey.replace("_", " ")}</span>
-    </label>
+    <div className="gh-toggle-row">
+      <span style={{ textTransform: "capitalize" }}>{featureKey.replace("_", " ")}</span>
+      <label className="gh-switch">
+        <input
+          type="checkbox"
+          defaultChecked={enabled}
+          onChange={(e) => toggleFeatureAction(clientId, featureKey, e.target.checked)}
+        />
+        <span className="track" />
+      </label>
+    </div>
   );
 }

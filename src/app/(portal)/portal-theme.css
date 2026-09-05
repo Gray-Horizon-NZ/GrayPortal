@@ -229,6 +229,13 @@
 .ghp-embed-frame { margin: 18px; border: 1px dashed var(--ghp-line); border-radius: var(--ghp-radius); padding: 34px 20px; text-align: center; color: var(--ghp-text-dim); font-size: 12px; }
 .ghp-embed-frame a { color: var(--ghp-brass); text-decoration: none; display: block; margin-top: 10px; font-size: 12px; }
 
+/* Full-width Looker Studio embed — the report itself needs real screen
+   real estate to be readable, not a half-width column shared with other
+   panels. Height scales with the viewport but keeps a tall floor so it
+   doesn't shrink to uselessness on a short window. */
+.ghp-reporting-frame { width: 100%; height: 82vh; min-height: 700px; border: none; display: block; }
+@media (max-width: 900px) { .ghp-reporting-frame { height: 70vh; min-height: 480px; } }
+
 .ghp-theme-toggle { display: flex; border: 1px solid var(--ghp-line); border-radius: 20px; overflow: hidden; width: fit-content; }
 .ghp-theme-toggle button { border: none; background: transparent; color: var(--ghp-text-dim); font-size: 12px; padding: 8px 20px; cursor: pointer; font-family: var(--ghp-font-body), sans-serif; }
 .ghp-theme-toggle button.ghp-active { background: var(--ghp-panel-2); color: var(--ghp-brass); }

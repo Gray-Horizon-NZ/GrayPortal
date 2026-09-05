@@ -2,7 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { onboardingInvites, clients, companies, clientServices, serviceItems, emailTemplates, users, documents } from "@/lib/db/schema";
+import { onboardingInvites, clients, companies, clientServices, serviceItems, emailTemplates, users, documents, roadmapItems } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert } from "./mutate";
@@ -127,6 +127,22 @@ async function getAttachedOnboardingDocumentNames(tx: Tx, clientId: string): Pro
 }
 
 /**
+ * Shared by sendOnboardingInvite's pre-send gate and the client-detail page's
+ * UI gate, same "one place" reasoning as getAttachedOnboardingDocumentNames —
+ * a client can't get a portal-setup invite until their roadmap actually has
+ * something on it (Max: an empty roadmap means the portal isn't ready to
+ * hand over, same blocker class as a missing onboarding document).
+ */
+async function clientHasRoadmapItems(tx: Tx, clientId: string): Promise<boolean> {
+  const rows = await tx
+    .select({ id: roadmapItems.id })
+    .from(roadmapItems)
+    .where(and(eq(roadmapItems.clientId, clientId), isNull(roadmapItems.deletedAt)))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
  * Mints a fresh 14-day portal-setup token and emails it — the only way an
  * onboarding-wizard link gets created or resent. Calling this again for the
  * same client always wins: any existing active invite is revoked first, so
@@ -135,7 +151,7 @@ async function getAttachedOnboardingDocumentNames(tx: Tx, clientId: string): Pro
  * of the editable body — so an edit can't accidentally drop it.
  *
  * Gated on all four onboarding documents (Open-Work-Brief.md §4.5) being
- * attached first — enforced here, not just in the UI, so the rule holds
+ * attached, and the roadmap being non-empty, first — enforced here, not just in the UI, so the rule holds
  * regardless of caller (a direct action call bypassing the client-detail
  * page can't skip it either). The client-detail page's own gate is a UX
  * nicety on top of this, not the real enforcement.
@@ -147,9 +163,12 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
     assertRole(caller, "admin");
 
     const attached = await getAttachedOnboardingDocumentNames(tx, data.clientId);
-    const missing = ONBOARDING_DOCUMENT_NAMES.filter((name) => !attached.includes(name));
+    const missing: string[] = ONBOARDING_DOCUMENT_NAMES.filter((name) => !attached.includes(name));
+    if (!(await clientHasRoadmapItems(tx, data.clientId))) {
+      missing.push("Roadmap");
+    }
     if (missing.length > 0) {
-      throw new Error(`Attach all onboarding documents before sending an invite — still missing: ${missing.join(", ")}`);
+      throw new Error(`Attach all onboarding documents and set up a roadmap before sending an invite — still missing: ${missing.join(", ")}`);
     }
 
     // Bulk status flip, not auditedUpdate: there's no meaningful before/after

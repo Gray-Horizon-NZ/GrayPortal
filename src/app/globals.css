@@ -317,6 +317,196 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------
+   Client detail — tabs, switches, item rows, KPI strip
+   --------------------------------------------------------------------- */
+
+.gh-tabs {
+  display: flex;
+  gap: var(--gh-space-6);
+  border-bottom: 1px solid var(--gh-border);
+  overflow-x: auto;
+}
+
+.gh-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--gh-text-muted);
+  font-size: var(--gh-text-sm);
+  font-weight: 500;
+  padding: var(--gh-space-3) 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-tab-btn:hover {
+  color: var(--gh-text-primary);
+}
+
+.gh-tab-btn[data-active="true"] {
+  color: var(--gh-text-emphasis);
+  border-bottom-color: var(--gh-accent);
+  font-weight: 600;
+}
+
+.gh-tab-pane {
+  display: none;
+}
+
+.gh-tab-pane[data-active="true"] {
+  display: block;
+}
+
+.gh-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--gh-space-4);
+}
+
+.gh-kpi {
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  padding: var(--gh-space-4);
+}
+
+.gh-kpi-n {
+  font-family: var(--gh-font-display);
+  font-size: var(--gh-text-xl);
+  font-weight: 600;
+  color: var(--gh-text-emphasis);
+}
+
+.gh-kpi-l {
+  font-size: var(--gh-text-xs);
+  color: var(--gh-text-muted);
+  margin-top: var(--gh-space-1);
+}
+
+.gh-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gh-space-3);
+  padding: var(--gh-space-2) 0;
+  border-bottom: 1px solid var(--gh-border);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.gh-switch {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+.gh-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.gh-switch .track {
+  position: absolute;
+  inset: 0;
+  background: var(--gh-surface-raised);
+  border: 1px solid var(--gh-border-strong);
+  border-radius: var(--gh-radius-full);
+  cursor: pointer;
+  transition: background var(--gh-transition), border-color var(--gh-transition);
+}
+
+.gh-switch .track::before {
+  content: "";
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  left: 2px;
+  top: 2px;
+  background: var(--gh-text-muted);
+  border-radius: var(--gh-radius-full);
+  transition: transform var(--gh-transition), background var(--gh-transition);
+}
+
+.gh-switch input:checked + .track {
+  background: var(--gh-accent-dim);
+  border-color: var(--gh-accent);
+}
+
+.gh-switch input:checked + .track::before {
+  transform: translateX(15px);
+  background: var(--gh-accent);
+}
+
+.gh-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gh-space-4);
+  padding: var(--gh-space-3) 0;
+  border-bottom: 1px solid var(--gh-border);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-item-row:last-of-type {
+  border-bottom: none;
+}
+
+.gh-item-row-info {
+  min-width: 0;
+}
+
+.gh-item-row-info .t {
+  font-weight: 500;
+}
+
+.gh-item-row-info .d {
+  font-size: var(--gh-text-xs);
+  color: var(--gh-text-muted);
+  margin-top: var(--gh-space-1);
+}
+
+.gh-item-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-3);
+  flex-shrink: 0;
+}
+
+.gh-link-btn {
+  background: none;
+  border: none;
+  color: var(--gh-text-muted);
+  font-size: var(--gh-text-xs);
+  cursor: pointer;
+  padding: var(--gh-space-1) 0;
+  font-weight: 500;
+}
+
+.gh-link-btn:hover {
+  color: var(--gh-text-primary);
+}
+
+.gh-link-btn--danger {
+  color: var(--gh-danger);
+}
+
+.gh-link-btn--danger:hover {
+  opacity: 0.8;
+}
+
+.gh-add-form {
+  border-top: 1px dashed var(--gh-border);
+  margin-top: var(--gh-space-3);
+  padding-top: var(--gh-space-3);
+}
+
+/* ---------------------------------------------------------------------
    Motion — keyframes
    --------------------------------------------------------------------- */
 

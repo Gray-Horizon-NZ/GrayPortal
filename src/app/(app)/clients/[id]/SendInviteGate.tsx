@@ -4,14 +4,17 @@ import { useState, type ReactNode } from "react";
 
 /**
  * Blocks the "send/resend portal-setup invite" trigger until all four
- * onboarding documents (Open-Work-Brief.md §4.5) are attached — a UX
- * nicety in front of the real enforcement, which lives in
- * sendOnboardingInvite (src/lib/dal/onboardingInvites.ts) so a direct
- * action call can't skip it either. Renders `children` (the existing
- * send-invite <details> block) unchanged once nothing's missing.
+ * onboarding documents (Open-Work-Brief.md §4.5) are attached AND the
+ * client's roadmap has something on it — a UX nicety in front of the real
+ * enforcement, which lives in sendOnboardingInvite
+ * (src/lib/dal/onboardingInvites.ts) so a direct action call can't skip it
+ * either. Renders `children` (the existing send-invite <details> block)
+ * unchanged once nothing's missing. "Roadmap" rides in `missingItems`
+ * alongside document names rather than getting its own prop — the modal
+ * doesn't need to distinguish the two kinds of readiness gap.
  */
 export default function SendInviteGate({
-  missingDocumentNames,
+  missingDocumentNames: missingItems,
   children,
 }: {
   missingDocumentNames: string[];
@@ -19,7 +22,7 @@ export default function SendInviteGate({
 }) {
   const [open, setOpen] = useState(false);
 
-  if (missingDocumentNames.length === 0) {
+  if (missingItems.length === 0) {
     return <>{children}</>;
   }
 
@@ -53,18 +56,18 @@ export default function SendInviteGate({
               Can&apos;t send yet
             </p>
             <p style={{ fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-2)" }}>
-              Every client needs all four onboarding documents attached before a portal-setup invite can go out.
-              Still missing:
+              Every client needs all four onboarding documents attached, and a roadmap set up, before a
+              portal-setup invite can go out. Still missing:
             </p>
             <ul style={{ margin: "var(--gh-space-3) 0", paddingLeft: "var(--gh-space-4)" }}>
-              {missingDocumentNames.map((name) => (
+              {missingItems.map((name) => (
                 <li key={name} style={{ fontSize: "var(--gh-text-sm)" }}>
                   {name}
                 </li>
               ))}
             </ul>
             <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-              Attach them under &ldquo;Onboarding documents&rdquo; above, then come back here.
+              Attach documents under &ldquo;Onboarding documents&rdquo; above, or set up the roadmap, then come back here.
             </p>
             <button
               type="button"
