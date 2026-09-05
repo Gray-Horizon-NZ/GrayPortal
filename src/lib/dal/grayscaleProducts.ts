@@ -26,6 +26,7 @@ export const GrayscaleProductInput = z.object({
   name: z.string().min(1),
   category: z.string().optional(),
   description: z.string().optional(),
+  monthlyPriceNzd: z.string().optional(),
   sortOrder: z.number().int().optional(),
 });
 export type GrayscaleProductInputT = z.infer<typeof GrayscaleProductInput>;

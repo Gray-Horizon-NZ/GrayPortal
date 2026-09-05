@@ -1,7 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { tasks, deals, companies, clients } from "@/lib/db/schema";
-import { and, desc, eq, getTableColumns, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, isNotNull, lt, notInArray, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
@@ -74,6 +74,14 @@ export async function createGoogleTasklistForAdmin(title: string) {
 
 const dealClients = alias(clients, "deal_clients");
 
+// Deal stages that mean the deal is dead, not just closed — a task
+// auto-created by a STAGE_TASK_RULES rule for a deal that later lands here
+// (or whose deal row gets soft-deleted) should stop showing up on the task
+// list. "Won" is deliberately excluded: a won deal's company routinely
+// becomes a client, and that case is already handled by the dealClients
+// join below, not by stage filtering.
+const DEAD_DEAL_STAGES = ["Lost", "Dormant"] as const;
+
 /**
  * Every task, org-wide — the "All" half of the merged /tasks page's
  * toggle, and the source list for the Master Task View (grouped by
@@ -91,6 +99,11 @@ const dealClients = alias(clients, "deal_clients");
  * dealCompanyName for any task created back when it was still a deal).
  * resolvedClientId folds those back into one: the task's own clientId if
  * set, else the client that deal's company now belongs to, if any.
+ *
+ * A task whose only link is a dead deal (Lost/Dormant, or the deal row
+ * itself soft-deleted) is excluded unless the deal's company has since
+ * become a client anyway — previously this had no filter at all, so a
+ * deal-stage-rule task just sat on the list forever after its deal died.
  */
 export async function listAllTasks() {
   return withCaller(async (_caller, tx) => {
@@ -106,7 +119,16 @@ export async function listAllTasks() {
       .leftJoin(deals, eq(tasks.dealId, deals.id))
       .leftJoin(companies, eq(deals.companyId, companies.id))
       .leftJoin(dealClients, and(eq(dealClients.companyId, companies.id), isNull(dealClients.deletedAt)))
-      .where(isNull(tasks.deletedAt))
+      .where(
+        and(
+          isNull(tasks.deletedAt),
+          or(
+            isNull(tasks.dealId),
+            isNotNull(dealClients.id),
+            and(isNull(deals.deletedAt), notInArray(deals.stage, [...DEAD_DEAL_STAGES]))
+          )
+        )
+      )
       .orderBy(desc(tasks.createdAt));
 
     return rows.map((t) => ({ ...t, resolvedClientId: t.clientId ?? t.dealClientId ?? null }));

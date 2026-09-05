@@ -1041,6 +1041,10 @@ export const grayscaleProducts = pgTable("grayscale_products", {
   name: text("name").notNull().unique(),
   category: text("category"),
   description: text("description"),
+  // Editable list price, NZD/month — seeded from the live grayhorizon.nz/grayscale
+  // catalogue (scripts/backfill-grayscale-pricing.mjs), then admin-editable
+  // going forward. Nullable: a product can exist before pricing is settled.
+  monthlyPriceNzd: numeric("monthly_price_nzd", { precision: 10, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
   ...softDelete,
   ...actorColumns,

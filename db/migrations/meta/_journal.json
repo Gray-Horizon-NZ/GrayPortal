@@ -225,6 +225,13 @@
       "when": 1788603028981,
       "tag": "0031_overconfident_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788611307060,
+      "tag": "0032_legal_ben_grimm",
+      "breakpoints": true
     }
   ]
 }

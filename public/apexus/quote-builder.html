@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Gray Horizon Quote Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     GRAY HORIZON — DYNAMIC QUOTE BUILDER (grayhorizon.nz brand)
+     PARENT document. Max curates which catalogue items are on the
+     table for a given client (checked = available option; "Free?"
+     = baked-in freebie). "Create Document" bundles that curated
+     menu + prefilled client info into a standalone CHILD HTML file
+     (downloaded, named by client/business/date) that the client
+     opens themselves to toggle within Max's curated menu and hit
+     "Save PDF" to send their chosen package back.
+     Typography/palette matches the live site: Cormorant Garamond
+     serif headings, DM Sans body, monochrome grayscale, uppercase-
+     tracked labels, italic mid-gray emphasis, split wordmark.
+     ============================================================ */
+
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root{
+    /* Experiment, 2026-09-06: --black swapped for GrayPortal's own gold
+       accent (--gh-accent, #c2a468) so text/button-chrome across this tool
+       reads gold instead of near-black — everything downstream that
+       referenced var(--black) picks this up automatically. Revert to
+       #1c1c1c if it doesn't read well against the light quote-page
+       background. */
+    --black: #c2a468;
+    --dark: #333333;
+    --mid: #6b6b6b;
+    --light: #f4f4f4;
+    --white: #ffffff;
+    --line: #e2e2e2;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html, body{
+    background: #eaeaea;
+    font-family: var(--sans);
+    color: var(--black);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ---------- Layout ---------- */
+  .app{
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 20px;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+  .builder{
+    flex: 0 0 500px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px 20px 26px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+  }
+  .preview-wrap{
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .builder h1{
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+    color: var(--black);
+    margin-bottom: 2px;
+  }
+  .builder .sub{
+    font-size: 10px;
+    letter-spacing: .04em;
+    color: var(--mid);
+    margin-bottom: 16px;
+  }
+  .builder section{
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .builder section:last-of-type{ border-bottom: none; }
+  .builder h2{
+    font-size: 10px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--mid);
+    font-weight: 500;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .builder h2::before{ content:''; width: 16px; height: 1px; background: var(--mid); flex: 0 0 auto; }
+  .builder label.field{
+    display: block;
+    font-size: 10px;
+    color: var(--mid);
+    margin-bottom: 3px;
+    margin-top: 8px;
+  }
+  .builder label.field:first-child{ margin-top: 0; }
+  .builder input[type="text"],
+  .builder input[type="number"],
+  .builder textarea,
+  .builder select{
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--black);
+    background: #fff;
+  }
+  .builder textarea{ resize: vertical; min-height: 44px; }
+
+  .pkg-row{ display:flex; gap:6px; margin-bottom: 4px; }
+  .pkg-btn{
+    flex:1;
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 9px 4px;
+    border: 1px solid var(--black);
+    background: var(--black);
+    color: #fff;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .pkg-btn:hover{ background: var(--dark); }
+  .clear-btn{
+    width: 100%;
+    margin-top: 6px;
+    font-size: 10px;
+    letter-spacing: .04em;
+    padding: 6px 4px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--mid);
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  /* Admin item table: checkbox | name | one-off | recurring | freebie */
+  table.admin-table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+    margin-bottom: 4px;
+  }
+  table.admin-table th{
+    text-align: left;
+    font-size: 8.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    padding: 3px 4px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 500;
+  }
+  table.admin-table th.num, table.admin-table td.num{ text-align: right; }
+  table.admin-table th.ctr, table.admin-table td.ctr{ text-align: center; }
+  table.admin-table td{
+    padding: 5px 4px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  table.admin-table td.name-cell{ color: var(--black); }
+  table.admin-table .r-tag{
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 10px;
+    color: var(--mid);
+    margin-left: 3px;
+  }
+  table.admin-table .price-cell{ color: var(--mid); white-space: nowrap; }
+  table.admin-table .dash{ color: #d2d2d2; }
+  tr.sub-choice-row td{ padding-top: 0; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .sub-choice{ font-size: 10px; color: var(--mid); padding-left: 20px; }
+  .sub-choice label{ margin-right: 12px; cursor: pointer; }
+  .sub-choice input{ margin-right: 3px; }
+  .free-chk{ accent-color: var(--dark); }
+
+  .gs-row{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .gs-row input[type="text"]{ flex: 2; }
+  .gs-row input[type="number"]{ flex: 1; }
+  .gs-row .free-inline{ font-size: 9px; color: var(--mid); display:flex; align-items:center; gap:3px; flex: 0 0 auto; white-space: nowrap; }
+  .gs-row button{
+    flex: 0 0 auto;
+    border: none;
+    background: #f0e0e0;
+    color: #a33;
+    border-radius: 3px;
+    font-size: 11px;
+    padding: 0 8px;
+    cursor: pointer;
+  }
+  .add-row-btn{
+    font-size: 10.5px;
+    letter-spacing: .02em;
+    color: var(--dark);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+    text-decoration: underline;
+  }
+
+  .toggle-row{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .radio-inline label{ font-size: 11px; margin-right: 14px; }
+  .radio-inline input{ margin-right: 4px; }
+
+  .webdev-free-row{ display:flex; align-items:center; gap:6px; margin-top:8px; font-size: 11px; }
+
+  .print-btn{
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px;
+    background: var(--black);
+    color: #fff;
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .print-btn:hover{ background: var(--dark); }
+  .note{ font-size: 9.5px; color: var(--mid); margin-top: 6px; line-height: 1.4; }
+
+  /* ---------- Printable quote page ---------- */
+  .page{
+    width: 210mm;
+    min-height: 297mm;
+    background: var(--white);
+    box-shadow: 0 0 0 1px var(--line), 0 8px 30px rgba(0,0,0,0.12);
+    padding: 16mm 16mm 14mm;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 300;
+    line-height: 1.5;
+    color: var(--black);
+  }
+  .page::after{
+    content: "A4 PAGE BREAK — trim content above this line if it appears";
+    position: absolute;
+    top: 297mm;
+    left: 0; right: 0;
+    border-top: 1px dashed #c0392b;
+    color: #c0392b;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding-top: 2px;
+  }
+  .page-body{ flex: 1 0 auto; }
+
+  .brand{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom: 1px solid var(--black);
+    padding-bottom: 14px;
+    margin-bottom: 20px;
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  /* Split two-tone wordmark, matching the site's nav/footer logo treatment */
+  .brand-name{ font-size: 22px; }
+  .brand-name .wm-gray{ font-family: var(--sans); font-weight: 500; color: var(--black); letter-spacing: .04em; }
+  .brand-name .wm-horizon{ font-family: var(--sans); font-weight: 300; font-style: italic; color: var(--mid); letter-spacing: .1em; margin-left: 6px; font-size: 0.62em; }
+  .brand-tag{ font-size: 8.5px; letter-spacing: .2em; color: var(--mid); text-transform: uppercase; margin-top: 4px; }
+  .brand-meta{ text-align: right; font-size: 10.5px; color: var(--mid); }
+  .brand-meta strong{ color: var(--black); font-weight: 500; }
+
+  h1.doc-title{ font-family: var(--serif); font-weight: 600; font-size: 27px; color: var(--black); margin-bottom: 4px; line-height: 1.15; }
+  h1.doc-title em{ font-style: italic; font-weight: 400; color: var(--mid); }
+  .doc-sub{ font-size: 12px; color: var(--mid); margin-bottom: 16px; }
+  .intro{
+    background: var(--light);
+    border-left: 2px solid var(--black);
+    padding: 12px 16px;
+    font-size: 11.5px;
+    color: var(--dark);
+    margin-bottom: 20px;
+  }
+
+  .section-label{
+    font-size: 9.5px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--mid);
+    font-weight: 500;
+    margin-bottom: 9px;
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::before{ content:''; width: 20px; height: 1px; background: var(--mid); flex: 0 0 auto; }
+  .section-label:first-of-type{ margin-top: 0; }
+  .section-note{ font-size: 9.5px; color: var(--mid); margin-top: -5px; margin-bottom: 8px; margin-left: 32px; }
+
+  .invest-grid{ display:flex; gap: 10px; margin-bottom: 16px; }
+  .invest-card{
+    flex:1;
+    border: 1px solid var(--line);
+    border-top: 2px solid var(--black);
+    padding: 14px 14px 11px;
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  .invest-card .price{ font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--black); margin-bottom: 4px; }
+  .invest-card .price-label{ font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--mid); font-weight: 500; margin-bottom: 6px; }
+  .invest-card .price-desc{ font-size: 9.5px; color: var(--mid); }
+
+  table.items-table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+    margin-bottom: 4px;
+  }
+  table.items-table th{
+    background: var(--black);
+    color: #fff;
+    text-align:left;
+    padding: 7px 9px;
+    font-size: 8.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  table.items-table td{
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--line);
+    color: var(--dark);
+  }
+  table.items-table tr{ page-break-inside: avoid; break-inside: avoid; }
+  table.items-table tr:nth-child(even) td{ background: var(--light); }
+  table.items-table td.num{ text-align: right; white-space: nowrap; }
+  .discount-line{
+    display:flex; justify-content:flex-end; gap: 18px;
+    font-size: 9.5px; color: var(--mid); padding: 4px 9px 10px;
+  }
+
+  .callout{
+    background: var(--light);
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--black);
+    padding: 11px 15px;
+    font-size: 10.5px;
+    color: var(--dark);
+    margin-top: 12px;
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  .callout strong{ color: var(--black); font-weight: 500; }
+  .callout .value-total{ margin-top: 7px; font-weight: 500; color: var(--black); font-family: var(--serif); font-size: 13px; }
+
+  .incl-note{ font-size: 9.5px; color: var(--mid); margin-top: 11px; line-height: 1.6; }
+  .incl-note strong{ color: var(--dark); font-weight: 500; }
+
+  .terms{ font-size: 8.5px; color: var(--mid); margin-top: 15px; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 9px; }
+
+  .page-footer{
+    margin-top: auto;
+    padding-top: 9px;
+    font-size: 8.5px;
+    letter-spacing: .02em;
+    color: var(--mid);
+    border-top: 1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+  }
+
+  .empty-hint{
+    font-size: 11px;
+    color: var(--mid);
+    font-style: italic;
+    padding: 10px 0;
+  }
+
+  .callout-warn{
+    background: #fdecea;
+    border: 1px solid #f0b4b0;
+    border-left: 3px solid #c0392b;
+    padding: 10px 14px;
+    font-size: 10px;
+    color: #7a2420;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    line-height: 1.5;
+    display: none;
+  }
+  .callout-warn strong{ color: #c0392b; font-weight: 500; }
+
+  .pages-col{ display:flex; flex-direction:column; align-items:center; gap: 20px; }
+
+  .scroll-note{
+    text-align: center;
+    margin-top: 30px;
+    font-size: 8.5px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--mid);
+  }
+  .scroll-note .chevron{ margin-top: 8px; font-size: 15px; color: var(--mid); }
+
+  .includes-item{
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--dark);
+    line-height: 1.55;
+  }
+  .includes-item:last-child{ border-bottom: none; }
+  .includes-item .dash{ color: var(--mid); flex: 0 0 auto; }
+  .includes-item strong{ color: var(--black); font-weight: 500; }
+
+  @media print{
+    body{ background: #fff; }
+    .app{ padding: 0; max-width: none; display:block; }
+    .builder, .page::after{ display: none !important; }
+    .preview-wrap{ display:block; }
+    .pages-col{ display:block; }
+    .page{ box-shadow:none; margin: 0; }
+    .page.page-break{ page-break-before: always; break-before: page; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ BUILDER (screen only) ============ -->
+  <div class="builder">
+    <h1>Gray Horizon Quote Builder</h1>
+    <div class="sub">SITE-BRANDED · INTERNAL TOOL · CURRENT PRICING</div>
+
+    <section>
+      <h2>Quick-Start Packages</h2>
+      <div class="pkg-row">
+        <button class="pkg-btn" onclick="applyPackage('foundation')">Foundation</button>
+        <button class="pkg-btn" onclick="applyPackage('growth')">Growth</button>
+        <button class="pkg-btn" onclick="applyPackage('full')">Full Engagement</button>
+      </div>
+      <button class="clear-btn" onclick="clearAll()">Clear all selections</button>
+      <div class="note">Presets pre-check items below — everything stays fully editable after. Scroll down for the full à la carte catalogue.</div>
+    </section>
+
+    <section>
+      <h2>Client &amp; Proposal</h2>
+      <label class="field">Client contact name</label>
+      <input type="text" id="f_contact" placeholder="Daniel Thompson">
+      <label class="field">Client company</label>
+      <input type="text" id="f_company" placeholder="Apex Performance NZ">
+      <label class="field">Quote title / tier name</label>
+      <input type="text" id="f_tier" placeholder="Growth Partner Quote" value="Growth Partner Quote">
+      <label class="field">Document date (shown on the document + used in the filename)</label>
+      <input type="month" id="f_filedate">
+      <label class="field">Prepared by</label>
+      <input type="text" id="f_preparedby" placeholder="Max Fawcett" value="Max Fawcett">
+      <label class="field">Intro line (optional, 1–2 sentences)</label>
+      <textarea id="f_intro" placeholder="A short line on what this package builds and who it's for."></textarea>
+      <label class="field">"What This Includes" benefits — page 2 (one per line: Headline: supporting sentence). Leave blank to use the default pain-point set (time, tool knowledge, setup confidence).</label>
+      <textarea id="f_benefits" placeholder="No time lost learning ad platforms: You're running a business, not an ads agency — we manage this end-to-end.&#10;No guesswork with tools you don't use daily: This is the software we live in every day.&#10;No wondering if it's set up right: Tracking and campaigns are configured and monitored by us, to industry standard." style="min-height:70px;"></textarea>
+    </section>
+
+    <section>
+      <h2>GS — Growth Strategy</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
+        <tbody id="grp_gs"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>GA — Growth &amp; Acquisition</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
+        <tbody id="grp_ga"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Creative Content &amp; Ad Creative</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
+        <tbody id="grp_creative"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Web Dev</h2>
+      <label class="field">Site tier</label>
+      <select id="f_webdev_tier"></select>
+      <label class="field" id="f_webdev_price_label">Quoted price — one-off (editable)</label>
+      <input type="number" id="f_webdev_price" placeholder="0">
+      <div class="note" id="f_webdev_note"></div>
+      <div class="note" id="f_webdev_cloudflare_note"></div>
+      <div class="webdev-free-row">
+        <input type="checkbox" id="free_webdev" class="free-chk" onchange="recalc()">
+        <label for="free_webdev">Give web dev away as a freebie/bonus</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>AO — Automated Operations</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
+        <tbody id="grp_ao"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>SS — Systems &amp; Software (manual)</h2>
+      <div id="grp_ss"></div>
+      <button class="add-row-btn" onclick="addSSRow()">+ Add custom SS line</button>
+      <div class="note">Yuvi × 2–3, value-adjusted. Confirm IP assignment before quoting if Gray Scale-bound.</div>
+    </section>
+
+    <section>
+      <h2>Gray Scale Products (self-serve)</h2>
+      <div class="toggle-row">
+        <input type="checkbox" id="f_existing_client" onchange="recalc()">
+        <label for="f_existing_client">Existing signed GH retainer client (auto 20% off Gray Scale)</label>
+      </div>
+      <div id="grp_grayscale" style="margin-top:8px;"></div>
+      <button class="add-row-btn" onclick="addGSRow()">+ Add Gray Scale product</button>
+    </section>
+
+    <section style="background:#fbf2f2; margin-left:-20px; margin-right:-20px; padding-left:20px; padding-right:20px;">
+      <h2 style="color:#a33;">Part 2 — Existing Clients Only (Internal)</h2>
+      <div class="note" style="margin-top:0; margin-bottom:8px;">Reference pricing for signed clients only. Never surface to a new prospect — confirm scope manually before quoting.</div>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
+        <tbody id="grp_part2"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Freebies, Bonuses &amp; Upsells</h2>
+      <div class="note" style="margin-top:0;">Standard no-cost extras below, plus any item marked "Free?" above — everything lands together in one callout on the quote, with its listed price counted as perceived value.</div>
+      <div id="grp_freebies" style="margin-top:8px;"></div>
+      <label class="field">Freebie context note (optional)</label>
+      <input type="text" id="f_freebie_note" placeholder="e.g. for the first 90 days">
+    </section>
+
+    <section>
+      <h2>Terms &amp; Adjustments</h2>
+      <div class="toggle-row" style="margin-top:0;">
+        <input type="checkbox" id="f_adspend_toggle" onchange="recalc()">
+        <label for="f_adspend_toggle">Include recommended ad spend (skip if not running ads for this client)</label>
+      </div>
+      <label class="field">Recommended ad spend range (shown to client, not calculated)</label>
+      <input type="text" id="f_adspend" placeholder="$2,000–4,000/mo">
+      <div class="radio-inline" style="margin-top:10px;">
+        <label><input type="radio" name="setupbilling" value="split" checked> Setup split over 3mo</label>
+        <label><input type="radio" name="setupbilling" value="upfront"> Setup billed upfront</label>
+      </div>
+      <label class="field">Warm-lead discount on setup only (%)</label>
+      <input type="number" id="f_warmlead" value="0" min="0" max="100">
+      <div class="toggle-row">
+        <input type="checkbox" id="f_gst">
+        <label for="f_gst">Show totals GST-inclusive (+15%)</label>
+      </div>
+    </section>
+
+    <button class="print-btn" onclick="createChildDocument()">Create Document</button>
+    <div class="note">Downloads a standalone client-facing copy with only the items you've checked above (freebies baked in, Part 2 never included). The client opens it, toggles within your curated menu, and hits "Save PDF" to send back their chosen package.</div>
+    <div class="note" id="create_status" style="display:none; color: var(--dark); font-weight:500;"></div>
+  </div>
+
+  <!-- ============ LIVE QUOTE PREVIEW / PRINT OUTPUT ============ -->
+  <div class="preview-wrap">
+   <div class="pages-col">
+    <div class="page">
+      <div class="page-body">
+        <div class="brand">
+          <div>
+            <div class="brand-name"><span class="wm-gray">Gray</span><span class="wm-horizon">Horizon</span></div>
+            <div class="brand-tag">Big Business Thinking, Built For NZ</div>
+          </div>
+          <div class="brand-meta">
+            <strong id="p_tier">Growth Partner Quote</strong> — <span id="p_contact">Client Name</span><br>
+            <span id="p_company">Client Company</span> · <span id="p_date">Month Year</span>
+          </div>
+        </div>
+
+        <h1 class="doc-title" id="p_title">Growth Partner Quote <em>— Client Name</em></h1>
+        <div class="doc-sub"><span id="p_company2">Client Company</span> · <span id="p_date2">Month Year</span></div>
+
+        <div class="intro" id="p_intro_wrap" style="display:none;">
+          <span id="p_intro"></span>
+        </div>
+
+        <div class="section-label">Investment Summary</div>
+        <div class="invest-grid" id="p_invest_grid">
+          <div class="invest-card">
+            <div class="price-label">One-Time Setup</div>
+            <div class="price" id="p_setup_total">$0</div>
+            <div class="price-desc" id="p_setup_desc">Billed upfront</div>
+          </div>
+          <div class="invest-card">
+            <div class="price-label">Monthly Retainer</div>
+            <div class="price" id="p_monthly_total">$0/mo</div>
+            <div class="price-desc">Marketing modules, billed monthly</div>
+          </div>
+          <div class="invest-card" id="p_adspend_card">
+            <div class="price-label">Recommended Ad Spend</div>
+            <div class="price" id="p_adspend">—</div>
+            <div class="price-desc">Paid directly to Meta/Google</div>
+          </div>
+        </div>
+
+        <div class="section-label">What's Included</div>
+        <div id="p_items_wrap">
+          <table class="items-table" id="p_items_table">
+            <tr><th>Deliverable</th><th>Cadence</th><th>Price</th></tr>
+          </table>
+          <div class="discount-line" id="p_discount_line"></div>
+        </div>
+        <div class="empty-hint" id="p_empty_hint">No modules selected yet — check items on the left to build this quote.</div>
+
+        <div id="p_grayscale_wrap" style="display:none;">
+          <div class="section-label">Gray Scale Products</div>
+          <div class="section-note" id="p_grayscale_note" style="display:none;"></div>
+          <table class="items-table" id="p_grayscale_table">
+            <tr><th>Product</th><th>Cadence</th><th>Price</th></tr>
+          </table>
+        </div>
+
+        <div class="callout" id="p_freebie_wrap" style="display:none;">
+          <strong id="p_freebie_heading">Included at no additional cost:</strong> <span id="p_freebie_list"></span>
+          <div class="value-total" id="p_freebie_value" style="display:none;"></div>
+        </div>
+
+        <div class="incl-note">
+          <strong>Always included:</strong> monthly strategy session, GH-HQ portal access, Quarterly Business Review, reporting rhythm and priority response (Retained Advisory). Ads Management includes retargeting.
+        </div>
+
+        <div class="terms" id="p_terms"></div>
+
+        <div class="scroll-note">Please scroll for additional information<div class="chevron">⌄</div></div>
+      </div>
+
+      <div class="page-footer">
+        <span>Gray Horizon · grayhorizon.nz</span>
+        <span>Prepared by <span id="p_preparedby">—</span></span>
+      </div>
+    </div>
+
+    <div class="page page-break">
+      <div class="page-body">
+        <div class="brand">
+          <div>
+            <div class="brand-name"><span class="wm-gray">Gray</span><span class="wm-horizon">Horizon</span></div>
+            <div class="brand-tag">Big Business Thinking, Built For NZ</div>
+          </div>
+          <div class="brand-meta">
+            <strong>Total Cost Breakdown</strong> — <span id="p2_contact">Client Name</span><br>
+            <span id="p2_company">Client Company</span> · <span id="p2_date">Month Year</span>
+          </div>
+        </div>
+
+        <h1 class="doc-title">Total Cost Breakdown</h1>
+        <div class="doc-sub">Your one-time setup and monthly retainer, combined for month one — then monthly retainer only from month two onward</div>
+
+        <div class="section-label">Combined Monthly Cost</div>
+        <table class="items-table" id="p2_items_table">
+          <tr><th>Item</th><th>Cadence</th><th>Price</th></tr>
+        </table>
+
+        <div class="invest-grid" style="margin-top:16px;">
+          <div class="invest-card">
+            <div class="price-label">First Month Payment</div>
+            <div class="price" id="p2_first_month">$0</div>
+            <div class="price-desc">Setup + first month retainer, billed together</div>
+          </div>
+          <div class="invest-card">
+            <div class="price-label">Monthly From Month 2</div>
+            <div class="price" id="p2_monthly2">$0/mo</div>
+            <div class="price-desc">Retainer only, ongoing</div>
+          </div>
+        </div>
+
+        <div class="callout" id="p2_breakdown_text" style="margin-top:14px;"></div>
+
+        <div class="section-label">What This Includes</div>
+        <div id="p2_includes_wrap"></div>
+      </div>
+
+      <div class="page-footer">
+        <span>Gray Horizon · grayhorizon.nz</span>
+        <span>Prepared by <span id="p_preparedby2">—</span></span>
+      </div>
+    </div>
+   </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// DATA — fetched live from /api/apexus-pricing (GrayPortal's own
+// serviceModules/serviceItems + grayscale_products tables), not
+// hardcoded here anymore. See loadCatalogueAndRender() at the
+// bottom of this script for the fetch + UI-build sequence.
+// FREEBIES stays a static list — there's no live "freebies" table,
+// these are standing relationship-builder offers Max maintains here.
+// ============================================================
+let GS_ITEMS = [];
+let GA_ITEMS = [];
+let CREATIVE_ITEMS = [];
+let WEBDEV_TIERS = [{id:'wd0', label:'— none —', min:0, max:0, note:''}];
+let AO_ITEMS = [];
+let PART2_ITEMS = [];
+let GRAYSCALE_CATALOGUE = []; // [{name, monthly}] from the live grayscale_products table
+let WEBDEV_CLOUDFLARE_NOTE = '';
+
+const FREEBIES = [
+  {id:'roadmap',  name:'12-Month Growth Roadmap', value:850},
+  {id:'partner',  name:'Partnership Management',   value:650},
+  {id:'compA',    name:'Competitor Launch Analysis', value:400},
+  {id:'audience', name:'Audience Insights Report', value:450},
+  {id:'audit',    name:'Full Technical Audit',      value:550},
+];
+
+// Ids match the live service_items catalogue (gs-*/ga-*) — see
+// /pricing or gh_pricing_framework_v5.md §3 for the source list.
+const PACKAGES = {
+  foundation: { ga:['ga-google-ads-mgmt','ga-website-mgmt'], gs:['gs-tracking-infra','gs-tracking-dashboard'] },
+  growth:     { ga:['ga-google-ads-mgmt','ga-meta-ads-mgmt','ga-website-mgmt','ga-newsletter-infra'], gs:['gs-competitor-analysis','gs-channel-strategy'] },
+  full:       { ga:['ga-google-ads-mgmt','ga-meta-ads-mgmt','ga-website-mgmt','ga-newsletter-infra','ga-organic-meta-mgmt','ga-creative-content-arch','ga-ad-creative-design'], gs:['gs-value-prop','gs-competitor-analysis','gs-channel-strategy','gs-messaging-framework','gs-tracking-infra','gs-tracking-dashboard'] },
+};
+
+const fmt = n => '$' + Math.round(n).toLocaleString('en-NZ');
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function formatMonthYear(yyyyMm){
+  if(!yyyyMm) return '';
+  const [yyyy, mm] = yyyyMm.split('-');
+  return `${MONTH_NAMES[parseInt(mm,10)-1]} ${yyyy}`;
+}
+
+// ============================================================
+// BUILD BUILDER UI — two-column (one-off / recurring) admin table
+// ============================================================
+function renderAdminRow(tbody, item, group){
+  const tr = document.createElement('tr');
+  const oneOff = item.setup ? fmt(item.setup) : '<span class="dash">—</span>';
+  const recurring = item.monthly ? `${fmt(item.monthly)}/mo` : '<span class="dash">—</span>';
+  tr.innerHTML = `
+    <td><input type="checkbox" id="chk_${item.id}" data-group="${group}" data-id="${item.id}" onchange="enforceTdiDependency(); recalc();"></td>
+    <td class="name-cell"><label for="chk_${item.id}">${item.name}${item.r ? '<span class="r-tag">(R)</span>' : ''}</label></td>
+    <td class="num price-cell">${oneOff}</td>
+    <td class="num price-cell">${recurring}</td>
+    <td class="ctr"><input type="checkbox" id="free_${item.id}" class="free-chk" title="Mark as freebie/bonus" onchange="recalc()"></td>
+  `;
+  tbody.appendChild(tr);
+  if(item.id === 'gs-tracking-infra'){
+    const warnRow = document.createElement('tr');
+    warnRow.innerHTML = `<td colspan="5" style="padding:0;border:none;"><div class="callout-warn" id="tdi_dep_warning"><strong>'Tracking &amp; Data Infrastructure'</strong> is a required setup for Google Ads Management and Meta Ads Management. If the client already has Google Tag and Meta Pixel tracking, confirm before removing it.</div></td>`;
+    tbody.appendChild(warnRow);
+  }
+}
+
+function toggleCreativeChoice(id){
+  const box = document.getElementById(`chk_${id}`);
+  document.getElementById(`choice_${id}`).style.display = box.checked ? 'table-row' : 'none';
+}
+
+function enforceTdiDependency(){
+  const tdi = document.getElementById('chk_gs-tracking-infra');
+  const gam = document.getElementById('chk_ga-google-ads-mgmt');
+  const mam = document.getElementById('chk_ga-meta-ads-mgmt');
+  const warn = document.getElementById('tdi_dep_warning');
+  if(!tdi || !warn) return;
+  const needsTdi = (gam && gam.checked) || (mam && mam.checked);
+  if(needsTdi && !tdi.checked){
+    tdi.checked = true;
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+function renderCatalogueUI(){
+  const gsWrap = document.getElementById('grp_gs');
+  gsWrap.innerHTML = '';
+  GS_ITEMS.forEach(i => renderAdminRow(gsWrap, i, 'gs'));
+
+  const gaWrap = document.getElementById('grp_ga');
+  gaWrap.innerHTML = '';
+  GA_ITEMS.forEach(i => renderAdminRow(gaWrap, i, 'ga'));
+
+  const aoWrap = document.getElementById('grp_ao');
+  aoWrap.innerHTML = '';
+  AO_ITEMS.forEach(i => renderAdminRow(aoWrap, i, 'ao'));
+
+  const part2Wrap = document.getElementById('grp_part2');
+  part2Wrap.innerHTML = '';
+  PART2_ITEMS.forEach(i => renderAdminRow(part2Wrap, i, 'part2'));
+
+  const creativeWrap = document.getElementById('grp_creative');
+  creativeWrap.innerHTML = '';
+  CREATIVE_ITEMS.forEach(item => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="checkbox" id="chk_${item.id}" data-group="creative" data-id="${item.id}" onchange="toggleCreativeChoice('${item.id}'); recalc();"></td>
+    <td class="name-cell"><label for="chk_${item.id}">${item.name}<span class="r-tag">(R)</span></label></td>
+    <td class="num price-cell"><span class="dash">—</span></td>
+    <td class="num price-cell">${fmt(item.suppliedMonthly)}–${fmt(item.scratchMonthly)}/mo</td>
+    <td class="ctr"><input type="checkbox" id="free_${item.id}" class="free-chk" title="Mark as freebie/bonus" onchange="recalc()"></td>
+  `;
+  creativeWrap.appendChild(tr);
+  const choiceRow = document.createElement('tr');
+  choiceRow.className = 'sub-choice-row';
+  choiceRow.id = `choice_${item.id}`;
+  choiceRow.style.display = 'none';
+  choiceRow.innerHTML = `
+    <td colspan="5">
+      <div class="sub-choice">
+        <label><input type="radio" name="mode_${item.id}" value="supplied" checked onchange="recalc()"> Client-supplied (${fmt(item.suppliedMonthly)}/mo)</label>
+        <label><input type="radio" name="mode_${item.id}" value="scratch" onchange="recalc()"> From scratch (${fmt(item.scratchMonthly)}/mo)</label>
+      </div>
+    </td>
+  `;
+  creativeWrap.appendChild(choiceRow);
+});
+
+  const webdevSelect = document.getElementById('f_webdev_tier');
+  webdevSelect.innerHTML = '';
+  WEBDEV_TIERS.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.label;
+    webdevSelect.appendChild(opt);
+  });
+  const webdevCloudflareNote = document.getElementById('f_webdev_cloudflare_note');
+  if(webdevCloudflareNote) webdevCloudflareNote.textContent = WEBDEV_CLOUDFLARE_NOTE ? `Included: ${WEBDEV_CLOUDFLARE_NOTE}` : '';
+
+  const freebieWrap = document.getElementById('grp_freebies');
+  freebieWrap.innerHTML = '';
+  FREEBIES.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'gs-row';
+    row.style.alignItems = 'center';
+    row.innerHTML = `
+      <input type="checkbox" id="chk_${f.id}" data-group="freebie" data-id="${f.id}" onchange="recalc()" style="flex:0 0 auto;">
+      <span style="flex:1; font-size:11.5px;">${f.name} (${fmt(f.value)} value)</span>
+    `;
+    freebieWrap.appendChild(row);
+  });
+
+  // Prepopulate the Gray Scale section with the live catalogue (editable/
+  // removable like any manually-added row — see addGSRow below).
+  document.querySelectorAll('#grp_grayscale .gs-row').forEach(r => r.remove());
+  GRAYSCALE_CATALOGUE.forEach(p => addGSRow(p.name, p.monthly));
+}
+
+// Event listeners wired once (outside renderCatalogueUI, which only
+// rebuilds the <option> list) rather than re-attached on every reload.
+document.getElementById('f_webdev_tier').addEventListener('change', () => {
+  const webdevSelect = document.getElementById('f_webdev_tier');
+  const t = WEBDEV_TIERS.find(x => x.id === webdevSelect.value);
+  if(!t) return;
+  document.getElementById('f_webdev_note').textContent = t.note;
+  document.getElementById('f_webdev_price').value = t.max ? Math.round((t.min+t.max)/2) : (t.min || 0);
+  recalc();
+});
+document.getElementById('f_webdev_price').addEventListener('input', recalc);
+
+// SS custom rows
+let ssRowCount = 0;
+function addSSRow(){
+  ssRowCount++;
+  const wrap = document.getElementById('grp_ss');
+  const row = document.createElement('div');
+  row.className = 'gs-row';
+  row.id = `ss_row_${ssRowCount}`;
+  row.innerHTML = `
+    <input type="text" placeholder="e.g. Client Portal Build" oninput="recalc()">
+    <input type="number" placeholder="Price ($)" oninput="recalc()">
+    <span class="free-inline"><input type="checkbox" class="free-chk" onchange="recalc()"> Free</span>
+    <button onclick="document.getElementById('ss_row_${ssRowCount}').remove(); recalc();">✕</button>
+  `;
+  wrap.appendChild(row);
+}
+
+// Gray Scale rows — prefilled from the live grayscale_products catalogue
+// (loadCatalogueAndRender below) but still fully editable/removable, plus
+// the same "+ Add Gray Scale product" button for anything not in that
+// table yet.
+let gsRowCount = 0;
+function addGSRow(name, price){
+  gsRowCount++;
+  const wrap = document.getElementById('grp_grayscale');
+  const row = document.createElement('div');
+  row.className = 'gs-row';
+  row.id = `grayscale_row_${gsRowCount}`;
+  const nameVal = name ? name.replace(/"/g, '&quot;') : '';
+  const priceVal = price != null ? price : '';
+  row.innerHTML = `
+    <input type="text" placeholder="Product name" value="${nameVal}" oninput="recalc()">
+    <input type="number" placeholder="$/mo" value="${priceVal}" oninput="recalc()">
+    <span class="free-inline"><input type="checkbox" class="free-chk" onchange="recalc()"> Free</span>
+    <button onclick="document.getElementById('grayscale_row_${gsRowCount}').remove(); recalc();">✕</button>
+  `;
+  wrap.appendChild(row);
+}
+
+// ============================================================
+// PACKAGE PRESETS
+// ============================================================
+function applyPackage(name){
+  const pkg = PACKAGES[name];
+  if(!pkg) return;
+  [...pkg.ga, ...pkg.gs].forEach(id => {
+    const box = document.getElementById(`chk_${id}`);
+    if(box){ box.checked = true; if(box.dataset.group==='creative') toggleCreativeChoice(id); }
+  });
+  recalc();
+}
+function clearAll(){
+  document.querySelectorAll('.builder input[type="checkbox"]').forEach(b => { b.checked = false; });
+  document.querySelectorAll('.sub-choice-row').forEach(c => c.style.display = 'none');
+  document.querySelectorAll('#grp_ss .gs-row').forEach(r => r.remove());
+  // Gray Scale rows get wiped and re-seeded from the live catalogue rather
+  // than left empty — SS rows are genuinely ad hoc so those just clear.
+  document.querySelectorAll('#grp_grayscale .gs-row').forEach(r => r.remove());
+  GRAYSCALE_CATALOGUE.forEach(p => addGSRow(p.name, p.monthly));
+  recalc();
+}
+
+// ============================================================
+// DISCOUNT LOGIC (section 7 of framework)
+// ============================================================
+function recurringDiscountPct(n){ if(n<=1) return 0; if(n<=3) return 0.08; if(n<=6) return 0.12; return 0.15; }
+function onetimeDiscountPct(n){ if(n<=1) return 0; if(n<=3) return 0.05; return 0.10; }
+
+// ============================================================
+// RECALC — reads all builder state, updates the printable quote
+// ============================================================
+function recalc(){
+  let onetimeSubtotal = 0, onetimeCount = 0;
+  let monthlySubtotal = 0, monthlyCount = 0;
+  const lineItems = []; // paid items: {name, cadence, price}
+  const freebieLines = []; // {label, value}
+  let totalPerceivedValue = 0;
+
+  function isChecked(id){ return document.getElementById(id)?.checked; }
+
+  // Standard catalogue groups (setup/monthly fields)
+  function processGroup(items, tag){
+    items.forEach(item => {
+      const included = isChecked(`chk_${item.id}`);
+      const isFree = isChecked(`free_${item.id}`);
+      if(!included && !isFree) return;
+      const cadence = item.setup && item.monthly ? 'Setup + Monthly' : item.monthly ? 'Monthly' : 'One-time';
+      const priceLabel = item.setup && item.monthly ? `${fmt(item.setup)} + ${fmt(item.monthly)}/mo` : item.monthly ? `${fmt(item.monthly)}/mo` : fmt(item.setup);
+      const nameOut = tag ? `${item.name} (${tag})` : item.name;
+      if(isFree){
+        const value = (item.setup||0) + (item.monthly||0);
+        totalPerceivedValue += value;
+        freebieLines.push({label: `${nameOut} (${priceLabel} value)`});
+      } else {
+        if(item.setup) { onetimeSubtotal += item.setup; onetimeCount++; }
+        if(item.monthly) { monthlySubtotal += item.monthly; monthlyCount++; }
+        lineItems.push({name:nameOut, cadence, price:priceLabel});
+      }
+    });
+  }
+
+  processGroup(GS_ITEMS);
+  processGroup(GA_ITEMS);
+  processGroup(AO_ITEMS);
+  processGroup(PART2_ITEMS, 'Part 2');
+
+  // Creative (mode-dependent monthly price)
+  CREATIVE_ITEMS.forEach(item => {
+    const included = isChecked(`chk_${item.id}`);
+    const isFree = isChecked(`free_${item.id}`);
+    if(!included && !isFree) return;
+    const mode = document.querySelector(`input[name="mode_${item.id}"]:checked`)?.value || 'supplied';
+    const price = mode === 'scratch' ? item.scratchMonthly : item.suppliedMonthly;
+    const modeLabel = mode === 'scratch' ? 'from scratch' : 'client-supplied';
+    if(isFree){
+      totalPerceivedValue += price;
+      freebieLines.push({label: `${item.name} (${modeLabel}) (${fmt(price)}/mo value)`});
+    } else {
+      monthlySubtotal += price; monthlyCount++;
+      lineItems.push({name: `${item.name} (${modeLabel})`, cadence:'Monthly', price:`${fmt(price)}/mo`});
+    }
+  });
+
+  // Web dev
+  const wdTierId = document.getElementById('f_webdev_tier').value;
+  const wdTier = WEBDEV_TIERS.find(t => t.id === wdTierId);
+  const wdPrice = parseFloat(document.getElementById('f_webdev_price').value) || 0;
+  const wdFree = isChecked('free_webdev');
+  if(wdTier && wdTier.id !== 'wd0' && wdPrice > 0){
+    if(wdFree){
+      totalPerceivedValue += wdPrice;
+      freebieLines.push({label: `Web Dev — ${wdTier.label} (${fmt(wdPrice)} value)`});
+    } else {
+      onetimeSubtotal += wdPrice; onetimeCount++;
+      lineItems.push({name:`Web Dev — ${wdTier.label}`, cadence:'One-time', price:fmt(wdPrice)});
+    }
+  }
+
+  // SS custom rows
+  document.querySelectorAll('#grp_ss .gs-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+    const name = inputs[0].value.trim();
+    const price = parseFloat(inputs[1].value) || 0;
+    const isFree = row.querySelector('.free-chk')?.checked;
+    if(name && price > 0){
+      if(isFree){
+        totalPerceivedValue += price;
+        freebieLines.push({label: `${name} (SS) (${fmt(price)} value)`});
+      } else {
+        onetimeSubtotal += price; onetimeCount++;
+        lineItems.push({name:`${name} (SS)`, cadence:'One-time', price:fmt(price)});
+      }
+    }
+  });
+
+  // Discounts
+  const recurringPct = recurringDiscountPct(monthlyCount);
+  const onetimePct = onetimeDiscountPct(onetimeCount);
+  let monthlyTotal = monthlySubtotal * (1 - recurringPct);
+  let onetimeTotal = onetimeSubtotal * (1 - onetimePct);
+
+  // Warm-lead adjustment (setup only)
+  const warmPct = (parseFloat(document.getElementById('f_warmlead').value) || 0) / 100;
+  onetimeTotal = onetimeTotal * (1 - warmPct);
+
+  // Gray Scale (separate bucket, own 20% client discount, not part of bundle tiers)
+  const existingClient = document.getElementById('f_existing_client').checked;
+  let grayScaleMonthly = 0;
+  const grayScaleLines = [];
+  document.querySelectorAll('#grp_grayscale .gs-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+    const name = inputs[0].value.trim();
+    let price = parseFloat(inputs[1].value) || 0;
+    const isFree = row.querySelector('.free-chk')?.checked;
+    if(name && price > 0){
+      const discPrice = existingClient ? price * 0.8 : price;
+      if(isFree){
+        totalPerceivedValue += discPrice;
+        freebieLines.push({label: `${name} (Gray Scale) (${fmt(discPrice)}/mo value)`});
+      } else {
+        grayScaleMonthly += discPrice;
+        grayScaleLines.push({name, price:`${fmt(discPrice)}/mo${existingClient ? ' (20% off)' : ''}`});
+      }
+    }
+  });
+
+  // Static freebies (already no-cost catalogue extras)
+  FREEBIES.forEach(f => {
+    if(isChecked(`chk_${f.id}`)){
+      totalPerceivedValue += f.value;
+      freebieLines.push({label: `${f.name} (${fmt(f.value)} value)`});
+    }
+  });
+
+  // GST
+  const gstOn = document.getElementById('f_gst').checked;
+  const gstMult = gstOn ? 1.15 : 1;
+
+  // ---------- Write to preview ----------
+  const tierVal = document.getElementById('f_tier').value || 'Growth Partner Quote';
+  const contactVal = document.getElementById('f_contact').value || 'Client Name';
+  document.getElementById('p_tier').textContent = tierVal;
+  document.getElementById('p_contact').textContent = contactVal;
+  document.getElementById('p_company').textContent = document.getElementById('f_company').value || 'Client Company';
+  document.getElementById('p_company2').textContent = document.getElementById('f_company').value || 'Client Company';
+  const dateVal = formatMonthYear(document.getElementById('f_filedate').value) || 'Month Year';
+  document.getElementById('p_date').textContent = dateVal;
+  document.getElementById('p_date2').textContent = dateVal;
+  document.getElementById('p_title').innerHTML = `${tierVal} <em>— ${contactVal}</em>`;
+  document.getElementById('p_preparedby').textContent = document.getElementById('f_preparedby').value || 'Gray Horizon';
+
+  const introVal = document.getElementById('f_intro').value.trim();
+  document.getElementById('p_intro_wrap').style.display = introVal ? 'block' : 'none';
+  document.getElementById('p_intro').textContent = introVal;
+
+  document.getElementById('p_setup_total').textContent = fmt(onetimeTotal * gstMult);
+  const billing = document.querySelector('input[name="setupbilling"]:checked').value;
+  document.getElementById('p_setup_desc').textContent = billing === 'split'
+    ? `Split ${fmt((onetimeTotal*gstMult)/3)}/mo over first 3 months`
+    : 'Billed upfront';
+  document.getElementById('p_monthly_total').textContent = fmt(monthlyTotal * gstMult) + '/mo';
+
+  // Ad spend toggle — omit the card entirely if this client isn't running ads
+  const showAdspend = document.getElementById('f_adspend_toggle').checked;
+  document.getElementById('p_adspend_card').style.display = showAdspend ? 'block' : 'none';
+  document.getElementById('p_adspend').textContent = document.getElementById('f_adspend').value.trim() || '—';
+
+  // Items table
+  const table = document.getElementById('p_items_table');
+  table.innerHTML = '<tr><th>Deliverable</th><th>Cadence</th><th>Price</th></tr>';
+  lineItems.forEach(li => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${li.name}</td><td>${li.cadence}</td><td class="num">${li.price}</td>`;
+    table.appendChild(tr);
+  });
+  document.getElementById('p_empty_hint').style.display = lineItems.length ? 'none' : 'block';
+  document.getElementById('p_items_wrap').style.display = lineItems.length ? 'block' : 'none';
+
+  let discountText = [];
+  if(monthlyCount > 0) discountText.push(`Recurring bundle: ${monthlyCount} item${monthlyCount>1?'s':''}, ${Math.round(recurringPct*100)}% off`);
+  if(onetimeCount > 0) discountText.push(`One-time bundle: ${onetimeCount} item${onetimeCount>1?'s':''}, ${Math.round(onetimePct*100)}% off`);
+  if(warmPct > 0) discountText.push(`Warm-lead setup discount: ${Math.round(warmPct*100)}%`);
+  document.getElementById('p_discount_line').textContent = discountText.join('   ·   ');
+
+  // Gray Scale
+  const gsTable = document.getElementById('p_grayscale_table');
+  gsTable.innerHTML = '<tr><th>Product</th><th>Cadence</th><th>Price</th></tr>';
+  grayScaleLines.forEach(li => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${li.name}</td><td>Monthly</td><td class="num">${li.price}</td>`;
+    gsTable.appendChild(tr);
+  });
+  document.getElementById('p_grayscale_wrap').style.display = grayScaleLines.length ? 'block' : 'none';
+  const gsNote = document.getElementById('p_grayscale_note');
+  if(existingClient && grayScaleLines.length){
+    gsNote.style.display = 'block';
+    gsNote.textContent = `As a signed Gray Horizon retainer client, ${document.getElementById('f_company').value || 'you'} receive${document.getElementById('f_company').value ? 's' : ''} 20% off every Gray Scale product.`;
+  } else {
+    gsNote.style.display = 'none';
+  }
+
+  // Freebies (static + any item marked Free? above)
+  const freebieNote = document.getElementById('f_freebie_note').value.trim();
+  document.getElementById('p_freebie_heading').textContent = freebieNote
+    ? `Included at no additional cost, ${freebieNote}:`
+    : 'Included at no additional cost:';
+  document.getElementById('p_freebie_wrap').style.display = freebieLines.length ? 'block' : 'none';
+  document.getElementById('p_freebie_list').textContent = freebieLines.map(f => f.label).join(' · ');
+  const valueEl = document.getElementById('p_freebie_value');
+  if(totalPerceivedValue > 0){
+    valueEl.style.display = 'block';
+    valueEl.textContent = `Total perceived value: ${fmt(totalPerceivedValue)}`;
+  } else {
+    valueEl.style.display = 'none';
+  }
+
+  // Terms
+  const gstNote = gstOn ? 'Prices shown are GST-inclusive.' : 'Prices shown exclude GST (15%).';
+  document.getElementById('p_terms').textContent =
+    `${gstNote} Minimum engagement term: 3 months. Ad spend billed directly by the ad platform, separate from this quote. Pricing reviewed annually with 30 days' notice. Work beyond agreed scope billed at the standard hourly change-order rate unless re-scoped in writing.`;
+
+  // ---------- Page 2: Total Cost Breakdown ----------
+  document.getElementById('p2_contact').textContent = contactVal;
+  document.getElementById('p2_company').textContent = document.getElementById('f_company').value || 'Client Company';
+  document.getElementById('p2_date').textContent = dateVal;
+  document.getElementById('p_preparedby2').textContent = document.getElementById('f_preparedby').value || 'Gray Horizon';
+
+  const p2Table = document.getElementById('p2_items_table');
+  p2Table.innerHTML = '<tr><th>Item</th><th>Cadence</th><th>Price</th></tr>';
+  lineItems.forEach(li => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${li.name}</td><td>${li.cadence}</td><td class="num">${li.price}</td>`;
+    p2Table.appendChild(tr);
+  });
+  const setupBilled = onetimeTotal * gstMult;
+  const monthlyBilled = monthlyTotal * gstMult;
+  if(billing === 'split'){
+    const setupSlice = setupBilled / 3;
+    const firstMonth = setupSlice + monthlyBilled;
+    document.getElementById('p2_first_month').textContent = fmt(firstMonth);
+    document.getElementById('p2_monthly2').textContent = fmt(firstMonth) + '/mo';
+    document.getElementById('p2_breakdown_text').innerHTML = `${fmt(setupBilled)} setup is split ${fmt(setupSlice)}/mo over the first 3 months, alongside the ${fmt(monthlyBilled)}/mo retainer — <strong>${fmt(firstMonth)}/mo</strong> for months one to three. From month four, the setup instalment drops away and it's <strong>${fmt(monthlyBilled)}/mo</strong> — everything else stays exactly the same.`;
+  } else {
+    const firstMonth = setupBilled + monthlyBilled;
+    document.getElementById('p2_first_month').textContent = fmt(firstMonth);
+    document.getElementById('p2_monthly2').textContent = fmt(monthlyBilled) + '/mo';
+    document.getElementById('p2_breakdown_text').innerHTML = `${fmt(setupBilled)} (setup) + ${fmt(monthlyBilled)} (retainer) = <strong>${fmt(firstMonth)}</strong> in month one. Setup and retainer are billed together upfront. From month two, the one-off setup drops away and it's <strong>${fmt(monthlyBilled)}/mo</strong> — everything else stays exactly the same.`;
+  }
+
+  // Benefits list — from f_benefits textarea (one per line: "Headline: body"), fallback to default pain points
+  const benefitsRaw = document.getElementById('f_benefits').value.trim();
+  const defaultBenefits = [
+    ['No time lost learning ad platforms', "You're running a business, not an ads agency — we manage this end-to-end so none of it eats into your week."],
+    ["No guesswork with tools you don't use daily", 'This is the software Gray Horizon lives in every day. You get the results without needing to learn the toolkit yourself.'],
+    ["No wondering if it's set up right", "Tracking and campaigns are configured and monitored by us, to industry standard — so you're never left second-guessing."],
+  ];
+  const benefitLines = benefitsRaw
+    ? benefitsRaw.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+        const idx = l.indexOf(':');
+        return idx > -1 ? [l.slice(0, idx).trim(), l.slice(idx+1).trim()] : [l, ''];
+      })
+    : defaultBenefits;
+  document.getElementById('p2_includes_wrap').innerHTML = benefitLines.map(([head, body]) => `<div class="includes-item"><span class="dash">—</span><span><strong>${escapeHtml(head)}.</strong> ${escapeHtml(body)}</span></div>`).join('');
+}
+
+// ============================================================
+// CHILD DOCUMENT GENERATION
+// Bundles Max's curated menu (checked = available option, "Free?"
+// = baked-in freebie, Part 2 never included) + prefilled client
+// info into a standalone HTML file the client opens themselves.
+// ============================================================
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function sanitizeFilenamePart(str){
+  return String(str ?? '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function createChildDocument(){
+  function isChecked(id){ return document.getElementById(id)?.checked; }
+
+  const contact = document.getElementById('f_contact').value.trim() || 'Client';
+  const company = document.getElementById('f_company').value.trim() || 'Company';
+  const tier = document.getElementById('f_tier').value.trim() || 'Growth Partner Quote';
+  const preparedBy = document.getElementById('f_preparedby').value.trim() || 'Gray Horizon';
+  const intro = document.getElementById('f_intro').value.trim();
+
+  // Date — from the single document-date picker, drives both the on-page display and the filename
+  const filedateVal = document.getElementById('f_filedate').value; // "YYYY-MM"
+  const dateDisplay = formatMonthYear(filedateVal);
+  let mmYYYY;
+  if(filedateVal){
+    const [yyyy, mm] = filedateVal.split('-');
+    mmYYYY = `${mm}.${yyyy}`;
+  } else {
+    const now = new Date();
+    mmYYYY = `${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
+  }
+  const docTitleText = `${sanitizeFilenamePart(contact)} ${sanitizeFilenamePart(company)} Dynamic Quoter ${mmYYYY}`.replace(/\s+/g,' ').trim();
+  const filename = `${docTitleText}.html`;
+
+  // ---- Available catalogue subsets: checked AND not marked Free ----
+  function collectAvailable(items){
+    return items.filter(it => isChecked(`chk_${it.id}`) && !isChecked(`free_${it.id}`));
+  }
+  const availGS = collectAvailable(GS_ITEMS);
+  const availGA = collectAvailable(GA_ITEMS);
+  const availAO = collectAvailable(AO_ITEMS);
+  // Part 2 is deliberately never collected — internal-only, never reaches a client document.
+  const availCreative = CREATIVE_ITEMS
+    .filter(it => isChecked(`chk_${it.id}`) && !isChecked(`free_${it.id}`))
+    .map(it => ({...it, defaultMode: document.querySelector(`input[name="mode_${it.id}"]:checked`)?.value || 'supplied'}));
+
+  let availWebdev = null;
+  const wdTierId = document.getElementById('f_webdev_tier').value;
+  const wdTier = WEBDEV_TIERS.find(t => t.id === wdTierId);
+  const wdPrice = parseFloat(document.getElementById('f_webdev_price').value) || 0;
+  if(wdTier && wdTier.id !== 'wd0' && wdPrice > 0 && !isChecked('free_webdev')){
+    availWebdev = { label: `Web Dev — ${wdTier.label}`, price: wdPrice };
+  }
+
+  const availSS = [];
+  document.querySelectorAll('#grp_ss .gs-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+    const name = inputs[0].value.trim();
+    const price = parseFloat(inputs[1].value) || 0;
+    const isFree = row.querySelector('.free-chk')?.checked;
+    if(name && price > 0 && !isFree) availSS.push({name, price});
+  });
+
+  const existingClient = document.getElementById('f_existing_client').checked;
+  const availGrayScale = [];
+  document.querySelectorAll('#grp_grayscale .gs-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+    const name = inputs[0].value.trim();
+    let price = parseFloat(inputs[1].value) || 0;
+    const isFree = row.querySelector('.free-chk')?.checked;
+    if(name && price > 0 && !isFree){
+      availGrayScale.push({name, price: existingClient ? price * 0.8 : price, discounted: existingClient});
+    }
+  });
+
+  if(availGS.length + availGA.length + availAO.length + availCreative.length + (availWebdev?1:0) + availSS.length + availGrayScale.length === 0){
+    alert('No available options are checked yet. Check at least one item above (and leave it unchecked in "Free?") before creating the client document.');
+    return;
+  }
+
+  // ---- Baked freebies (computed once here, fixed/read-only in the child) ----
+  const freebieLines = [];
+  let totalPerceivedValue = 0;
+  function collectFreebies(items, tag){
+    items.forEach(item => {
+      if(!isChecked(`free_${item.id}`)) return;
+      const priceLabel = item.setup && item.monthly ? `${fmt(item.setup)} + ${fmt(item.monthly)}/mo` : item.monthly ? `${fmt(item.monthly)}/mo` : fmt(item.setup);
+      totalPerceivedValue += (item.setup||0) + (item.monthly||0);
+      freebieLines.push(`${tag ? `${item.name} (${tag})` : item.name} (${priceLabel} value)`);
+    });
+  }
+  collectFreebies(GS_ITEMS); collectFreebies(GA_ITEMS); collectFreebies(AO_ITEMS); collectFreebies(PART2_ITEMS, 'Part 2');
+  CREATIVE_ITEMS.forEach(item => {
+    if(!isChecked(`free_${item.id}`)) return;
+    const mode = document.querySelector(`input[name="mode_${item.id}"]:checked`)?.value || 'supplied';
+    const price = mode === 'scratch' ? item.scratchMonthly : item.suppliedMonthly;
+    totalPerceivedValue += price;
+    freebieLines.push(`${item.name} (${mode === 'scratch' ? 'from scratch' : 'client-supplied'}) (${fmt(price)}/mo value)`);
+  });
+  if(isChecked('free_webdev') && wdTier && wdTier.id !== 'wd0' && wdPrice > 0){
+    totalPerceivedValue += wdPrice;
+    freebieLines.push(`Web Dev — ${wdTier.label} (${fmt(wdPrice)} value)`);
+  }
+  document.querySelectorAll('#grp_ss .gs-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+    const name = inputs[0].value.trim();
+    const price = parseFloat(inputs[1].value) || 0;
+    if(name && price > 0 && row.querySelector('.free-chk')?.checked){
+      totalPerceivedValue += price;
+      freebieLines.push(`${name} (SS) (${fmt(price)} value)`);
+    }
+  });
+  document.querySelectorAll('#grp_grayscale .gs-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+    const name = inputs[0].value.trim();
+    let price = parseFloat(inputs[1].value) || 0;
+    if(name && price > 0 && row.querySelector('.free-chk')?.checked){
+      const discPrice = existingClient ? price * 0.8 : price;
+      totalPerceivedValue += discPrice;
+      freebieLines.push(`${name} (Gray Scale) (${fmt(discPrice)}/mo value)`);
+    }
+  });
+  FREEBIES.forEach(f => {
+    if(isChecked(`chk_${f.id}`)){ totalPerceivedValue += f.value; freebieLines.push(`${f.name} (${fmt(f.value)} value)`); }
+  });
+
+  const freebieNote = document.getElementById('f_freebie_note').value.trim();
+  const freebieHeading = freebieNote ? `Included at no additional cost, ${freebieNote}:` : 'Included at no additional cost:';
+
+  // ---- Baked terms/settings (fixed, not editable by the client) ----
+  // Page 2 benefits — one per line "Headline: body", fallback to default pain-point set
+  const benefitsRaw = document.getElementById('f_benefits').value.trim();
+  const defaultBenefits = [
+    ['No time lost learning ad platforms', "You're running a business, not an ads agency — we manage this end-to-end so none of it eats into your week."],
+    ["No guesswork with tools you don't use daily", 'This is the software Gray Horizon lives in every day. You get the results without needing to learn the toolkit yourself.'],
+    ["No wondering if it's set up right", "Tracking and campaigns are configured and monitored by us, to industry standard — so you're never left second-guessing."],
+  ];
+  const benefitLines = benefitsRaw
+    ? benefitsRaw.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+        const idx = l.indexOf(':');
+        return idx > -1 ? [l.slice(0, idx).trim(), l.slice(idx+1).trim()] : [l, ''];
+      })
+    : defaultBenefits;
+
+  const meta = {
+    contact, company, tier, dateDisplay, preparedBy, intro,
+    docTitleText, filename,
+    availGS, availGA, availAO, availCreative, availWebdev, availSS, availGrayScale,
+    freebieLines, totalPerceivedValue, freebieHeading, benefitLines,
+    gstOn: document.getElementById('f_gst').checked,
+    warmPct: (parseFloat(document.getElementById('f_warmlead').value) || 0) / 100,
+    billing: document.querySelector('input[name="setupbilling"]:checked').value,
+    showAdspend: document.getElementById('f_adspend_toggle').checked,
+    adspendText: document.getElementById('f_adspend').value.trim() || '—',
+    gsNoteText: (existingClient && availGrayScale.length)
+      ? `As a signed Gray Horizon retainer client, ${company} receives 20% off every Gray Scale product.`
+      : '',
+  };
+
+  const html = buildChildHtml(meta);
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = meta.filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+
+  const status = document.getElementById('create_status');
+  status.style.display = 'block';
+  status.textContent = `Created "${meta.filename}" — check your downloads folder.`;
+}
+
+function buildChildHtml(meta){
+  const cssText = document.querySelector('style').textContent;
+
+  function categoryTableHtml(items, tbodyLabel){
+    if(!items.length) return '';
+    const rows = items.map(item => {
+      const oneOff = item.setup ? fmt(item.setup) : '<span class="dash">—</span>';
+      const recurring = item.monthly ? `${fmt(item.monthly)}/mo` : '<span class="dash">—</span>';
+      const onchange = (item.id === 'gs-tracking-infra' || item.id === 'ga-google-ads-mgmt' || item.id === 'ga-meta-ads-mgmt') ? 'enforceTdiDependency(); recalc();' : 'recalc()';
+      return `<tr>
+        <td><input type="checkbox" id="chk_${item.id}" checked onchange="${onchange}"></td>
+        <td class="name-cell"><label for="chk_${item.id}">${escapeHtml(item.name)}${item.r ? '<span class="r-tag">(R)</span>' : ''}</label></td>
+        <td class="num price-cell">${oneOff}</td>
+        <td class="num price-cell">${recurring}</td>
+      </tr>`;
+    }).join('');
+    const warningRow = items.some(it => it.id === 'gs-tracking-infra')
+      ? `<tr><td colspan="4" style="padding:0;border:none;"><div class="callout-warn" id="tdi_dep_warning"><strong>'Tracking &amp; Data Infrastructure'</strong> is a required setup for Google Ads Management and Meta Ads Management. If you already have Google Tag and Meta Pixel tracking, please contact Max.</div></td></tr>`
+      : '';
+    return `<section>
+      <h2>${escapeHtml(tbodyLabel)}</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th></tr>
+        ${rows}${warningRow}
+      </table>
+    </section>`;
+  }
+
+  const creativeRows = meta.availCreative.map(item => `
+    <tr>
+      <td><input type="checkbox" id="chk_${item.id}" checked onchange="toggleCreativeChoice('${item.id}'); recalc();"></td>
+      <td class="name-cell"><label for="chk_${item.id}">${escapeHtml(item.name)}<span class="r-tag">(R)</span></label></td>
+      <td class="num price-cell"><span class="dash">—</span></td>
+      <td class="num price-cell">${fmt(item.suppliedMonthly)}–${fmt(item.scratchMonthly)}/mo</td>
+    </tr>
+    <tr class="sub-choice-row" id="choice_${item.id}" style="display:table-row;">
+      <td colspan="4">
+        <div class="sub-choice">
+          <label><input type="radio" name="mode_${item.id}" value="supplied" ${item.defaultMode!=='scratch'?'checked':''} onchange="recalc()"> Client-supplied (${fmt(item.suppliedMonthly)}/mo)</label>
+          <label><input type="radio" name="mode_${item.id}" value="scratch" ${item.defaultMode==='scratch'?'checked':''} onchange="recalc()"> From scratch (${fmt(item.scratchMonthly)}/mo)</label>
+        </div>
+      </td>
+    </tr>`).join('');
+  const creativeSection = meta.availCreative.length ? `<section>
+      <h2>Creative &amp; Content</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th></tr>
+        ${creativeRows}
+      </table>
+    </section>` : '';
+
+  const webdevSection = meta.availWebdev ? `<section>
+      <h2>Website</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th></tr>
+        <tr>
+          <td><input type="checkbox" id="chk_webdev" checked onchange="recalc()"></td>
+          <td class="name-cell"><label for="chk_webdev">${escapeHtml(meta.availWebdev.label)}</label></td>
+          <td class="num price-cell">${fmt(meta.availWebdev.price)}</td>
+          <td class="num price-cell"><span class="dash">—</span></td>
+        </tr>
+      </table>
+    </section>` : '';
+
+  const ssSection = meta.availSS.length ? `<section>
+      <h2>Custom Systems</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th></tr>
+        ${meta.availSS.map((item,i) => `<tr>
+          <td><input type="checkbox" id="chk_ss_${i}" checked onchange="recalc()"></td>
+          <td class="name-cell"><label for="chk_ss_${i}">${escapeHtml(item.name)}</label></td>
+          <td class="num price-cell">${fmt(item.price)}</td>
+          <td class="num price-cell"><span class="dash">—</span></td>
+        </tr>`).join('')}
+      </table>
+    </section>` : '';
+
+  const grayscaleSection = meta.availGrayScale.length ? `<section>
+      <h2>Gray Scale Products</h2>
+      <table class="admin-table">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th></tr>
+        ${meta.availGrayScale.map((item,i) => `<tr>
+          <td><input type="checkbox" id="chk_gs_${i}" checked onchange="recalc()"></td>
+          <td class="name-cell"><label for="chk_gs_${i}">${escapeHtml(item.name)}${item.discounted ? ' <span class="r-tag">(20% off)</span>' : ''}</label></td>
+          <td class="num price-cell"><span class="dash">—</span></td>
+          <td class="num price-cell">${fmt(item.price)}/mo</td>
+        </tr>`).join('')}
+      </table>
+    </section>` : '';
+
+  const contactEsc = escapeHtml(meta.contact);
+  const companyEsc = escapeHtml(meta.company);
+  const tierEsc = escapeHtml(meta.tier);
+  const dateEsc = escapeHtml(meta.dateDisplay || 'Month Year');
+  const preparedByEsc = escapeHtml(meta.preparedBy);
+  const introEsc = escapeHtml(meta.intro);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(meta.docTitleText)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>${cssText}</style>
+</head>
+<body>
+<div class="app">
+  <div class="builder">
+    <h1>Your Gray Horizon Quote</h1>
+    <div class="sub">PREPARED FOR ${contactEsc} · ${companyEsc}</div>
+    <div class="note" style="margin-bottom:14px;">Tick the items you'd like included below — pricing and bundle discounts update live on the right. When you're happy with your package, hit "Save PDF" and send it back to Gray Horizon.</div>
+    ${categoryTableHtml(meta.availGS, 'Strategy & Foundations')}
+    ${categoryTableHtml(meta.availGA, 'Growth & Acquisition')}
+    ${creativeSection}
+    ${webdevSection}
+    ${categoryTableHtml(meta.availAO, 'Automation & Diagnostics')}
+    ${ssSection}
+    ${grayscaleSection}
+    <button class="print-btn" onclick="window.print()">Save PDF</button>
+    <div class="note">Exports the quote panel at right as one A4 page. Use your browser's Print → Save as PDF — the filename will default to "${escapeHtml(meta.docTitleText)}".</div>
+  </div>
+
+  <div class="preview-wrap">
+   <div class="pages-col">
+    <div class="page">
+      <div class="page-body">
+        <div class="brand">
+          <div>
+            <div class="brand-name"><span class="wm-gray">Gray</span><span class="wm-horizon">Horizon</span></div>
+            <div class="brand-tag">Big Business Thinking, Built For NZ</div>
+          </div>
+          <div class="brand-meta">
+            <strong id="p_tier">${tierEsc}</strong> — <span id="p_contact">${contactEsc}</span><br>
+            <span id="p_company">${companyEsc}</span> · <span id="p_date">${dateEsc}</span>
+          </div>
+        </div>
+
+        <h1 class="doc-title" id="p_title">${tierEsc} <em>— ${contactEsc}</em></h1>
+        <div class="doc-sub"><span id="p_company2">${companyEsc}</span> · <span id="p_date2">${dateEsc}</span></div>
+
+        ${meta.intro ? `<div class="intro" id="p_intro_wrap"><span id="p_intro">${introEsc}</span></div>` : ''}
+
+        <div class="section-label">Investment Summary</div>
+        <div class="invest-grid" id="p_invest_grid">
+          <div class="invest-card">
+            <div class="price-label">One-Time Setup</div>
+            <div class="price" id="p_setup_total">$0</div>
+            <div class="price-desc" id="p_setup_desc">Billed upfront</div>
+          </div>
+          <div class="invest-card">
+            <div class="price-label">Monthly Retainer</div>
+            <div class="price" id="p_monthly_total">$0/mo</div>
+            <div class="price-desc">Marketing modules, billed monthly</div>
+          </div>
+          <div class="invest-card" id="p_adspend_card" style="display:${meta.showAdspend ? 'block':'none'};">
+            <div class="price-label">Recommended Ad Spend</div>
+            <div class="price" id="p_adspend">${escapeHtml(meta.adspendText)}</div>
+            <div class="price-desc">Paid directly to Meta/Google</div>
+          </div>
+        </div>
+
+        <div class="section-label">What's Included</div>
+        <div id="p_items_wrap">
+          <table class="items-table" id="p_items_table">
+            <tr><th>Deliverable</th><th>Cadence</th><th>Price</th></tr>
+          </table>
+          <div class="discount-line" id="p_discount_line"></div>
+        </div>
+        <div class="empty-hint" id="p_empty_hint" style="display:none;">No items selected — tick at least one option on the left to build your package.</div>
+
+        <div id="p_grayscale_wrap" style="display:none;">
+          <div class="section-label">Gray Scale Products</div>
+          <div class="section-note" id="p_grayscale_note" style="display:${meta.gsNoteText ? 'block':'none'};">${escapeHtml(meta.gsNoteText)}</div>
+          <table class="items-table" id="p_grayscale_table">
+            <tr><th>Product</th><th>Cadence</th><th>Price</th></tr>
+          </table>
+        </div>
+
+        <div class="callout" id="p_freebie_wrap" style="display:${meta.freebieLines.length ? 'block':'none'};">
+          <strong id="p_freebie_heading">${escapeHtml(meta.freebieHeading)}</strong> <span id="p_freebie_list">${escapeHtml(meta.freebieLines.join(' · '))}</span>
+          <div class="value-total" id="p_freebie_value" style="display:${meta.totalPerceivedValue > 0 ? 'block':'none'};">Total perceived value: ${fmt(meta.totalPerceivedValue)}</div>
+        </div>
+
+        <div class="incl-note">
+          <strong>Always included:</strong> monthly strategy session, GH-HQ portal access, Quarterly Business Review, reporting rhythm and priority response (Retained Advisory). Ads Management includes retargeting.
+        </div>
+
+        <div class="terms" id="p_terms">${meta.gstOn ? 'Prices shown are GST-inclusive.' : 'Prices shown exclude GST (15%).'} Minimum engagement term: 3 months. Ad spend billed directly by the ad platform, separate from this quote. Pricing reviewed annually with 30 days' notice. Work beyond agreed scope billed at the standard hourly change-order rate unless re-scoped in writing.</div>
+
+        <div class="scroll-note">Please scroll for additional information<div class="chevron">⌄</div></div>
+      </div>
+
+      <div class="page-footer">
+        <span>Gray Horizon · grayhorizon.nz</span>
+        <span>Prepared by <span id="p_preparedby">${preparedByEsc}</span></span>
+      </div>
+    </div>
+
+    <div class="page page-break">
+      <div class="page-body">
+        <div class="brand">
+          <div>
+            <div class="brand-name"><span class="wm-gray">Gray</span><span class="wm-horizon">Horizon</span></div>
+            <div class="brand-tag">Big Business Thinking, Built For NZ</div>
+          </div>
+          <div class="brand-meta">
+            <strong>Total Cost Breakdown</strong> — ${contactEsc}<br>
+            ${companyEsc} · ${dateEsc}
+          </div>
+        </div>
+
+        <h1 class="doc-title">Total Cost Breakdown</h1>
+        <div class="doc-sub">Your one-time setup and monthly retainer, combined for month one — then monthly retainer only from month two onward</div>
+
+        <div class="section-label">Combined Monthly Cost</div>
+        <table class="items-table" id="p2_items_table">
+          <tr><th>Item</th><th>Cadence</th><th>Price</th></tr>
+        </table>
+
+        <div class="invest-grid" style="margin-top:16px;">
+          <div class="invest-card">
+            <div class="price-label">First Month Payment</div>
+            <div class="price" id="p2_first_month">$0</div>
+            <div class="price-desc">Setup + first month retainer, billed together</div>
+          </div>
+          <div class="invest-card">
+            <div class="price-label">Monthly From Month 2</div>
+            <div class="price" id="p2_monthly2">$0/mo</div>
+            <div class="price-desc">Retainer only, ongoing</div>
+          </div>
+        </div>
+
+        <div class="callout" id="p2_breakdown_text" style="margin-top:14px;"></div>
+
+        <div class="section-label">What This Includes</div>
+        <div id="p2_includes_wrap">${meta.benefitLines.map(([head, body]) => `<div class="includes-item"><span class="dash">—</span><span><strong>${escapeHtml(head)}.</strong> ${escapeHtml(body)}</span></div>`).join('')}</div>
+      </div>
+
+      <div class="page-footer">
+        <span>Gray Horizon · grayhorizon.nz</span>
+        <span>Prepared by <span id="p_preparedby2">${preparedByEsc}</span></span>
+      </div>
+    </div>
+   </div>
+  </div>
+</div>
+
+<script>
+const AVAIL_GS = ${JSON.stringify(meta.availGS)};
+const AVAIL_GA = ${JSON.stringify(meta.availGA)};
+const AVAIL_AO = ${JSON.stringify(meta.availAO)};
+const AVAIL_CREATIVE = ${JSON.stringify(meta.availCreative)};
+const AVAIL_WEBDEV = ${JSON.stringify(meta.availWebdev)};
+const AVAIL_SS = ${JSON.stringify(meta.availSS)};
+const AVAIL_GRAYSCALE = ${JSON.stringify(meta.availGrayScale)};
+const FIXED_WARM_PCT = ${meta.warmPct};
+const FIXED_GST_ON = ${meta.gstOn ? 'true' : 'false'};
+const FIXED_BILLING = ${JSON.stringify(meta.billing)};
+
+const fmt = n => '$' + Math.round(n).toLocaleString('en-NZ');
+function recurringDiscountPct(n){ if(n<=1) return 0; if(n<=3) return 0.08; if(n<=6) return 0.12; return 0.15; }
+function onetimeDiscountPct(n){ if(n<=1) return 0; if(n<=3) return 0.05; return 0.10; }
+function toggleCreativeChoice(id){
+  const box = document.getElementById('chk_' + id);
+  document.getElementById('choice_' + id).style.display = box.checked ? 'table-row' : 'none';
+}
+
+function enforceTdiDependency(){
+  const tdi = document.getElementById('chk_gs-tracking-infra');
+  const gam = document.getElementById('chk_ga-google-ads-mgmt');
+  const mam = document.getElementById('chk_ga-meta-ads-mgmt');
+  const warn = document.getElementById('tdi_dep_warning');
+  if(!tdi || !warn) return;
+  const needsTdi = (gam && gam.checked) || (mam && mam.checked);
+  if(needsTdi && !tdi.checked){
+    tdi.checked = true;
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+function recalc(){
+  let onetimeSubtotal = 0, onetimeCount = 0, monthlySubtotal = 0, monthlyCount = 0;
+  const lineItems = [];
+  function isChecked(id){ return document.getElementById(id)?.checked; }
+
+  [...AVAIL_GS, ...AVAIL_GA, ...AVAIL_AO].forEach(item => {
+    if(!isChecked('chk_' + item.id)) return;
+    const cadence = item.setup && item.monthly ? 'Setup + Monthly' : item.monthly ? 'Monthly' : 'One-time';
+    const priceLabel = item.setup && item.monthly ? \`\${fmt(item.setup)} + \${fmt(item.monthly)}/mo\` : item.monthly ? \`\${fmt(item.monthly)}/mo\` : fmt(item.setup);
+    if(item.setup){ onetimeSubtotal += item.setup; onetimeCount++; }
+    if(item.monthly){ monthlySubtotal += item.monthly; monthlyCount++; }
+    lineItems.push({name:item.name, cadence, price:priceLabel});
+  });
+
+  AVAIL_CREATIVE.forEach(item => {
+    if(!isChecked('chk_' + item.id)) return;
+    const mode = document.querySelector(\`input[name="mode_\${item.id}"]:checked\`)?.value || item.defaultMode || 'supplied';
+    const price = mode === 'scratch' ? item.scratchMonthly : item.suppliedMonthly;
+    monthlySubtotal += price; monthlyCount++;
+    lineItems.push({name: \`\${item.name} (\${mode === 'scratch' ? 'from scratch' : 'client-supplied'})\`, cadence:'Monthly', price:\`\${fmt(price)}/mo\`});
+  });
+
+  if(AVAIL_WEBDEV && isChecked('chk_webdev')){
+    onetimeSubtotal += AVAIL_WEBDEV.price; onetimeCount++;
+    lineItems.push({name:AVAIL_WEBDEV.label, cadence:'One-time', price:fmt(AVAIL_WEBDEV.price)});
+  }
+
+  AVAIL_SS.forEach((item, i) => {
+    if(!isChecked('chk_ss_' + i)) return;
+    onetimeSubtotal += item.price; onetimeCount++;
+    lineItems.push({name: \`\${item.name} (Custom)\`, cadence:'One-time', price:fmt(item.price)});
+  });
+
+  const grayScaleLines = [];
+  AVAIL_GRAYSCALE.forEach((item, i) => {
+    if(!isChecked('chk_gs_' + i)) return;
+    grayScaleLines.push({name:item.name, price: \`\${fmt(item.price)}/mo\${item.discounted ? ' (20% off)' : ''}\`});
+  });
+
+  const recurringPct = recurringDiscountPct(monthlyCount);
+  const onetimePct = onetimeDiscountPct(onetimeCount);
+  const monthlyTotal = monthlySubtotal * (1 - recurringPct);
+  let onetimeTotal = onetimeSubtotal * (1 - onetimePct);
+  onetimeTotal = onetimeTotal * (1 - FIXED_WARM_PCT);
+  const gstMult = FIXED_GST_ON ? 1.15 : 1;
+
+  document.getElementById('p_setup_total').textContent = fmt(onetimeTotal * gstMult);
+  document.getElementById('p_setup_desc').textContent = FIXED_BILLING === 'split'
+    ? \`Split \${fmt((onetimeTotal*gstMult)/3)}/mo over first 3 months\`
+    : 'Billed upfront';
+  document.getElementById('p_monthly_total').textContent = fmt(monthlyTotal * gstMult) + '/mo';
+
+  const table = document.getElementById('p_items_table');
+  table.innerHTML = '<tr><th>Deliverable</th><th>Cadence</th><th>Price</th></tr>';
+  lineItems.forEach(li => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = \`<td>\${li.name}</td><td>\${li.cadence}</td><td class="num">\${li.price}</td>\`;
+    table.appendChild(tr);
+  });
+  document.getElementById('p_empty_hint').style.display = lineItems.length ? 'none' : 'block';
+  document.getElementById('p_items_wrap').style.display = lineItems.length ? 'block' : 'none';
+
+  let discountText = [];
+  if(monthlyCount > 0) discountText.push(\`Recurring bundle: \${monthlyCount} item\${monthlyCount>1?'s':''}, \${Math.round(recurringPct*100)}% off\`);
+  if(onetimeCount > 0) discountText.push(\`One-time bundle: \${onetimeCount} item\${onetimeCount>1?'s':''}, \${Math.round(onetimePct*100)}% off\`);
+  document.getElementById('p_discount_line').textContent = discountText.join('   ·   ');
+
+  const gsTable = document.getElementById('p_grayscale_table');
+  gsTable.innerHTML = '<tr><th>Product</th><th>Cadence</th><th>Price</th></tr>';
+  grayScaleLines.forEach(li => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = \`<td>\${li.name}</td><td>Monthly</td><td class="num">\${li.price}</td>\`;
+    gsTable.appendChild(tr);
+  });
+  document.getElementById('p_grayscale_wrap').style.display = grayScaleLines.length ? 'block' : 'none';
+
+  // Page 2 — Total Cost Breakdown
+  const p2Table = document.getElementById('p2_items_table');
+  if(p2Table){
+    p2Table.innerHTML = '<tr><th>Item</th><th>Cadence</th><th>Price</th></tr>';
+    lineItems.forEach(li => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = \`<td>\${li.name}</td><td>\${li.cadence}</td><td class="num">\${li.price}</td>\`;
+      p2Table.appendChild(tr);
+    });
+  }
+  const setupBilled = onetimeTotal * gstMult;
+  const monthlyBilled = monthlyTotal * gstMult;
+  const p2First = document.getElementById('p2_first_month');
+  const p2Monthly2 = document.getElementById('p2_monthly2');
+  const p2Breakdown = document.getElementById('p2_breakdown_text');
+  if(FIXED_BILLING === 'split'){
+    const setupSlice = setupBilled / 3;
+    const firstMonth = setupSlice + monthlyBilled;
+    if(p2First) p2First.textContent = fmt(firstMonth);
+    if(p2Monthly2) p2Monthly2.textContent = fmt(firstMonth) + '/mo';
+    if(p2Breakdown){
+      p2Breakdown.innerHTML = \`\${fmt(setupBilled)} setup is split \${fmt(setupSlice)}/mo over the first 3 months, alongside the \${fmt(monthlyBilled)}/mo retainer — <strong>\${fmt(firstMonth)}/mo</strong> for months one to three. From month four, the setup instalment drops away and it's <strong>\${fmt(monthlyBilled)}/mo</strong> — everything else stays exactly the same.\`;
+    }
+  } else {
+    const firstMonth = setupBilled + monthlyBilled;
+    if(p2First) p2First.textContent = fmt(firstMonth);
+    if(p2Monthly2) p2Monthly2.textContent = fmt(monthlyBilled) + '/mo';
+    if(p2Breakdown){
+      p2Breakdown.innerHTML = \`\${fmt(setupBilled)} (setup) + \${fmt(monthlyBilled)} (retainer) = <strong>\${fmt(firstMonth)}</strong> in month one. Setup and retainer are billed together upfront. From month two, the one-off setup drops away and it's <strong>\${fmt(monthlyBilled)}/mo</strong> — everything else stays exactly the same.\`;
+    }
+  }
+}
+
+enforceTdiDependency();
+recalc();
+<\/script>
+</body>
+</html>
+`;
+}
+
+// ============================================================
+// LOAD LIVE CATALOGUE — replaces the old hardcoded data block.
+// Fetches /api/apexus-pricing (same-origin, admin session cookie
+// travels automatically since this file is loaded inside GrayPortal's
+// own iframe), builds the catalogue UI once data is in, then runs an
+// initial recalc() so the preview isn't blank while that resolves.
+// ============================================================
+async function loadCatalogueAndRender(){
+  try {
+    const res = await fetch('/api/apexus-pricing', { credentials: 'same-origin' });
+    if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const data = await res.json();
+    GS_ITEMS = data.gs || [];
+    GA_ITEMS = data.ga || [];
+    CREATIVE_ITEMS = data.creative || [];
+    WEBDEV_TIERS = data.webdev && data.webdev.length ? data.webdev : WEBDEV_TIERS;
+    WEBDEV_CLOUDFLARE_NOTE = data.cloudflareNote || '';
+    AO_ITEMS = data.ao || [];
+    PART2_ITEMS = data.part2 || [];
+    GRAYSCALE_CATALOGUE = (data.grayscale || []).filter(p => p.name);
+  } catch(err) {
+    console.error('Failed to load live pricing catalogue for Apexus', err);
+    const note = document.querySelector('.builder .note');
+    if(note){
+      const warn = document.createElement('div');
+      warn.className = 'callout-warn';
+      warn.style.display = 'block';
+      warn.textContent = "Couldn't load live pricing from GrayPortal — showing an empty catalogue. Check items manually or reload.";
+      note.parentElement.insertBefore(warn, note);
+    }
+  }
+  renderCatalogueUI();
+  recalc();
+}
+loadCatalogueAndRender();
+</script>
+</body>
+</html>

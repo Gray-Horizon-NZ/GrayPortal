@@ -19,6 +19,7 @@ import {
   Bot,
   Megaphone,
   LayoutGrid,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
@@ -120,6 +121,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(callerRole === "admin"
       ? [{ href: "/grayscale-products", label: "GrayScale", icon: navIcon(LayoutGrid), group: "Finance" }]
       : []),
+    ...(callerRole === "admin" ? [{ href: "/apexus", label: "Apexus", icon: navIcon(Calculator), group: "Finance" }] : []),
     ...(callerRole === "admin"
       ? [
           { href: "/reminders", label: "Reminders", icon: navIcon(Clock), group: "System" },

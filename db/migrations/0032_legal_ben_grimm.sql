@@ -1,0 +1,1 @@
+ALTER TABLE "grayscale_products" ADD COLUMN "monthly_price_nzd" numeric(10, 2);
