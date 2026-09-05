@@ -1,21 +1,19 @@
 import { getPortalHome, getPortalEmbeds } from "@/lib/dal/portal";
 
 export default async function PortalPerformancePage() {
-  const [{ enabledFeatureKeys, metricsSnapshots, healthChannels, activityFeed }, { lookerStudioUrl }] = await Promise.all([
+  const [{ enabledFeatureKeys, healthChannels, activityFeed }, { lookerStudioUrl }] = await Promise.all([
     getPortalHome(),
     getPortalEmbeds(),
   ]);
   const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
-  const latest = metricsSnapshots[0];
-  const previous = metricsSnapshots[1];
 
-  const nothingEnabled = !has("reporting") && !has("performance") && !has("campaign_health") && !has("activity_feed");
+  const nothingEnabled = !has("reporting") && !has("campaign_health") && !has("activity_feed");
 
   return (
     <div>
       <div className="ghp-page-head">
         <h1>Performance</h1>
-        <div className="ghp-sub">Reporting, performance snapshot and campaign health</div>
+        <div className="ghp-sub">Reporting and campaign health</div>
       </div>
 
       {nothingEnabled && <p className="ghp-empty">No performance sections are enabled for your account yet.</p>}
@@ -34,46 +32,6 @@ export default async function PortalPerformancePage() {
               <br />
               Ask Gray Horizon to add one.
             </div>
-          )}
-        </div>
-      )}
-
-      {has("performance") && (
-        <div className="ghp-panel-block">
-          <div className="ghp-panel-head">
-            <div className="ghp-t">Performance snapshot</div>
-            <div className="ghp-n">{latest?.periodLabel ?? "no data yet"}</div>
-          </div>
-          {latest ? (
-            <div className="ghp-stat-row" style={{ padding: 18, margin: 0 }}>
-              <div className="ghp-stat">
-                <div className="ghp-l">Ad spend</div>
-                <div className="ghp-v">{latest.adSpend ? `$${Number(latest.adSpend).toLocaleString("en-NZ")}` : "—"}</div>
-              </div>
-              <div className="ghp-stat">
-                <div className="ghp-l">Leads</div>
-                <div className="ghp-v">{latest.leadsGenerated ?? "—"}</div>
-              </div>
-              <div className="ghp-stat">
-                <div className="ghp-l">Cost / lead</div>
-                <div className="ghp-v ghp-brass">
-                  {latest.adSpend && latest.leadsGenerated ? `$${(Number(latest.adSpend) / latest.leadsGenerated).toFixed(2)}` : "—"}
-                </div>
-              </div>
-              <div className="ghp-stat">
-                <div className="ghp-l">ROAS</div>
-                <div className="ghp-v">
-                  {latest.roas ? `${latest.roas}×` : "—"}
-                  {previous?.roas && latest.roas && (
-                    <span style={{ fontSize: 10, color: "var(--ghp-text-dim)", marginLeft: 6 }}>
-                      {Number(latest.roas) >= Number(previous.roas) ? "↑" : "↓"} vs last period
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="ghp-empty">No performance data logged yet.</p>
           )}
         </div>
       )}

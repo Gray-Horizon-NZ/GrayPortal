@@ -95,11 +95,11 @@ export default async function PortalLayout({ children }: { children: React.React
     ...(has("performance") || has("campaign_health") || has("activity_feed") || has("reporting")
       ? [{ href: "/portal/performance", label: "Performance", icon: navIcon(TrendingUp) }]
       : []),
-    ...(has("documents") || has("drive")
+    ...(has("documents") || has("drive") || has("tool_stack") || has("meeting_summaries")
       ? [{ href: "/portal/files", label: "Files", icon: navIcon(FolderOpen) }]
       : []),
     ...(has("grayscale_page") ? [{ href: "/portal/grayscale", label: "GrayScale", icon: navIcon(LayoutGrid) }] : []),
-    ...(has("tool_stack") || has("invoices") || has("referrals") || has("meeting_summaries")
+    ...(has("invoices") || has("referrals")
       ? [{ href: "/portal/account", label: "Account", icon: navIcon(UserCircle) }]
       : []),
   ];

@@ -55,12 +55,12 @@ export default async function PortalHomePage() {
     ...(has("performance") || has("campaign_health") || has("activity_feed") || has("reporting")
       ? [{ key: "performance", href: "/portal/performance", label: "Performance", value: latest?.roas ? `${latest.roas}×` : "—", meta: "ROAS · latest period" }]
       : []),
-    ...(has("documents") || has("drive")
+    ...(has("documents") || has("drive") || has("tool_stack") || has("meeting_summaries")
       ? [{ key: "files", href: "/portal/files", label: "Files", value: "→", meta: "documents & drive" }]
       : []),
     ...(has("invoices") ? [{ key: "invoices", href: "/portal/account", label: "Invoices", value: "→", meta: "billing history" }] : []),
     ...(has("grayscale_page") ? [{ key: "grayscale", href: "/portal/grayscale", label: "GrayScale", value: "→", meta: "product catalogue" }] : []),
-    ...(has("tool_stack") || has("referrals") || has("meeting_summaries") || has("account_team")
+    ...(has("referrals") || has("account_team")
       ? [
           {
             key: "account",
