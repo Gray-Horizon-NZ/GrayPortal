@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SubmitButton from "@/components/ui/SubmitButton";
+import EmailsModal from "../EmailsModal";
 import {
   addClientTeamMemberAction,
   deleteClientTeamMemberAction,
@@ -156,9 +157,12 @@ export default function TeamTab({
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <p className="gh-eyebrow">Emails</p>
-          <Link href="/email-triage/clients" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-            View all in Email Triage →
-          </Link>
+          <div style={{ display: "flex", gap: "var(--gh-space-3)", alignItems: "center" }}>
+            <EmailsModal clientId={client.id} />
+            <Link href="/email-triage/clients" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+              View all in Email Triage →
+            </Link>
+          </div>
         </div>
         {recentEmails.map((e) => (
           <div key={e.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", fontSize: "var(--gh-text-sm)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>

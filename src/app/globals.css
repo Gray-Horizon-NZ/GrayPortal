@@ -834,6 +834,12 @@ textarea {
   overflow-y: auto;
 }
 
+/* Wider variant for content-heavy popups (an email list, a full message)
+   where the 440px default reads as a cramped confirm dialog. */
+.gh-modal--wide {
+  max-width: 720px;
+}
+
 /* ---------------------------------------------------------------------
    App shell — shared sidebar + content frame (AppShell / MobileNav)
    --------------------------------------------------------------------- */

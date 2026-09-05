@@ -87,6 +87,59 @@ function headerValue(headers: gmail_v1.Schema$MessagePartHeader[] | undefined, n
   return headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? null;
 }
 
+function fromBase64Url(input: string): string {
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(padded, "base64").toString("utf-8");
+}
+
+/** Depth-first search for the first part of a given MIME type — prefers a
+ * part actually holding body data over a multipart container of the same
+ * declared type. */
+function findPart(part: gmail_v1.Schema$MessagePart | undefined, mimeType: string): gmail_v1.Schema$MessagePart | null {
+  if (!part) return null;
+  if (part.mimeType === mimeType && part.body?.data) return part;
+  for (const child of part.parts ?? []) {
+    const found = findPart(child, mimeType);
+    if (found) return found;
+  }
+  return null;
+}
+
+export type GmailMessageBody = { html: string | null; text: string | null };
+
+/**
+ * Fetches one message's actual body content, on demand — nothing in the
+ * regular sync path (fetchInboundMessages above) ever stores more than a
+ * snippet, so this is the only place a full email body is read. Same
+ * fail-soft shape as the rest of this file: no connection or any API error
+ * returns null rather than throwing, since the caller (a "view this email"
+ * click) should degrade to an error message, not crash the page.
+ */
+export async function getGmailMessage(gmailMessageId: string): Promise<GmailMessageBody | null> {
+  try {
+    const auth = await authedClient();
+    if (!auth) return null;
+    const gmail = google.gmail({ version: "v1", auth });
+
+    const { data } = await gmail.users.messages.get({ userId: "me", id: gmailMessageId, format: "full" });
+    const payload = data.payload;
+    if (!payload) return null;
+
+    // A non-multipart message carries its body directly on the top-level
+    // payload rather than in a parts[] array.
+    const htmlPart = findPart(payload, "text/html") ?? (payload.mimeType === "text/html" ? payload : null);
+    const textPart = findPart(payload, "text/plain") ?? (payload.mimeType === "text/plain" ? payload : null);
+
+    return {
+      html: htmlPart?.body?.data ? fromBase64Url(htmlPart.body.data) : null,
+      text: textPart?.body?.data ? fromBase64Url(textPart.body.data) : null,
+    };
+  } catch (err) {
+    console.error("getGmailMessage failed", err);
+    return null;
+  }
+}
+
 function parseAddresses(raw: string | null): string[] {
   if (!raw) return [];
   return raw

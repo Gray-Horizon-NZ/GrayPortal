@@ -18,7 +18,7 @@ import { addClientMetricsSnapshot, softDeleteClientMetricsSnapshot } from "@/lib
 import { addClientTeamMember, softDeleteClientTeamMember } from "@/lib/dal/clientTeam";
 import { addClientHealthChannel, softDeleteClientHealthChannel } from "@/lib/dal/clientHealthChannels";
 import { addClientActivityFeedEntry, softDeleteClientActivityFeedEntry } from "@/lib/dal/clientActivityFeed";
-import { addContactEmailAlias } from "@/lib/dal/emails";
+import { addContactEmailAlias, listAllEmailsForClient, getEmailBody } from "@/lib/dal/emails";
 import { sendOnboardingInvite } from "@/lib/dal/onboardingInvites";
 import { approvePortalAccessRequest, denyPortalAccessRequest } from "@/lib/dal/portalAccessRequests";
 import { updateCompany } from "@/lib/dal/companies";
@@ -37,6 +37,14 @@ export async function createClientAction(formData: FormData) {
 
 export async function listGoogleTasklistsAction() {
   return listGoogleTasklistsForAdmin();
+}
+
+export async function getClientEmailsAction(clientId: string) {
+  return listAllEmailsForClient(clientId);
+}
+
+export async function getEmailBodyAction(emailId: string) {
+  return getEmailBody(emailId);
 }
 
 export async function createGoogleTasklistAction(title: string) {

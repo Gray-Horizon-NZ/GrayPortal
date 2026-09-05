@@ -14,7 +14,7 @@ import { and, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
-import { sendGmail, fetchInboundMessages } from "@/lib/google/gmailAdapter";
+import { sendGmail, fetchInboundMessages, getGmailMessage } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, ctaButtonHtml, appUrl } from "@/lib/email/chrome";
 import { z } from "zod";
 
@@ -468,5 +468,57 @@ export async function listEmailsForClient(clientId: string, limit = 10) {
     assertRole(caller, "admin");
     const rows = await clientEmailsQuery(tx, clientId);
     return rows.slice(0, limit);
+  });
+}
+
+/** Every matched email for one client, unpaginated — the "view all emails"
+ * popup on the client detail page, as opposed to listEmailsForClient's
+ * inline few-item preview. */
+export async function listAllEmailsForClient(clientId: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return clientEmailsQuery(tx, clientId);
+  });
+}
+
+/**
+ * Full content of one matched client email, fetched live from Gmail by
+ * gmailMessageId — nothing beyond the snippet is ever stored (see the emails
+ * table). Scoped through the same client-correspondence join as
+ * clientEmailsQuery rather than a bare `emails` table lookup, so this can't
+ * be used to read an arbitrary Gmail message that isn't matched client mail.
+ * Returns null if the row doesn't exist in that scope, or if Gmail
+ * couldn't be reached (disconnected, message removed, etc.) — the caller
+ * shows a "couldn't load" state rather than an error page either way.
+ */
+export async function getEmailBody(emailId: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const [row] = await tx
+      .select({
+        id: emails.id,
+        gmailMessageId: emails.gmailMessageId,
+        direction: emails.direction,
+        fromAddress: emails.fromAddress,
+        toAddresses: emails.toAddresses,
+        subject: emails.subject,
+        sentAt: emails.sentAt,
+      })
+      .from(emails)
+      .innerJoin(contacts, eq(emails.contactId, contacts.id))
+      .innerJoin(companies, eq(contacts.companyId, companies.id))
+      .innerJoin(clients, eq(clients.companyId, companies.id))
+      .where(and(eq(emails.id, emailId), isNull(emails.deletedAt), isNull(contacts.deletedAt), isNull(companies.deletedAt), isNull(clients.deletedAt)))
+      .limit(1);
+    if (!row) return null;
+
+    const body = await getGmailMessage(row.gmailMessageId);
+    if (!body) return null;
+
+    return {
+      ...row,
+      html: body.html ? sanitizeEmailHtml(body.html) : null,
+      text: body.text,
+    };
   });
 }
