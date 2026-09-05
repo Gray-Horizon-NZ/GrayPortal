@@ -49,6 +49,33 @@
   --ghp-space-4: 16px;
   --ghp-space-6: 24px;
 
+  /* The portal-preview's task list (TaskListPreview.tsx/TaskRowEditable.tsx)
+     deliberately reuses the admin Master Task View's shared components
+     (.gh-input, .gh-btn-secondary, TaskCheckRow's plain checkbox) instead of
+     duplicating them — those read the admin app's always-dark --gh-* tokens
+     from tokens.css, which never follow this portal's own light/dark toggle.
+     Redirecting the handful they actually use to this scope's already
+     theme-aware --ghp-* equivalents means anything reused from the admin
+     app inside .ghp-root switches with data-portal-theme automatically,
+     instead of rendering in the admin's dark theme regardless of it. */
+  --gh-surface: var(--ghp-panel);
+  --gh-surface-raised: var(--ghp-panel-2);
+  --gh-surface-hover: var(--ghp-panel-2);
+  --gh-surface-popover: var(--ghp-panel-2);
+  --gh-border: var(--ghp-line);
+  --gh-border-strong: var(--ghp-line);
+  --gh-text-primary: var(--ghp-text);
+  --gh-text-emphasis: var(--ghp-text);
+  --gh-text-muted: var(--ghp-text-dim);
+  --gh-black: var(--ghp-ink);
+  --gh-accent: var(--ghp-brass);
+  --gh-accent-dim: var(--ghp-panel-2);
+  --gh-accent-contrast: var(--ghp-ink);
+  --gh-focus-ring: var(--ghp-brass);
+  --gh-danger: var(--ghp-danger);
+  --gh-success: var(--ghp-good);
+  --gh-warning: var(--ghp-warn);
+
   /* Faint hairline grid across the whole shell, matching the GrayScale
      hero's own background (grayhorizon.nz/grayscale) — gray, not gold:
      gold stays reserved for highlights (nav active state, CTAs, values),

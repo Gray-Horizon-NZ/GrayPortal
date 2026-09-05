@@ -436,7 +436,7 @@ textarea {
   inset: 0;
   background: var(--gh-surface-raised);
   border: 1px solid var(--gh-border-strong);
-  border-radius: var(--gh-radius-full);
+  border-radius: 4px;
   cursor: pointer;
   transition: background var(--gh-transition), border-color var(--gh-transition);
 }
@@ -449,7 +449,7 @@ textarea {
   left: 2px;
   top: 2px;
   background: var(--gh-text-muted);
-  border-radius: var(--gh-radius-full);
+  border-radius: 2px;
   transition: transform var(--gh-transition), background var(--gh-transition);
 }
 
