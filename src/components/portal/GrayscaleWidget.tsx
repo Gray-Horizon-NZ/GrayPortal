@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { submitGrayscaleRequestAction } from "@/app/(portal)/portal/actions";
 
-type GrayscaleProduct = { name: string; category: string | null; description: string | null };
+export type GrayscaleProduct = { name: string; category: string | null; description: string | null };
 
 /**
  * Dashboard widget (Open-Work-Brief.md §1.5) — a collapsed promo card that
