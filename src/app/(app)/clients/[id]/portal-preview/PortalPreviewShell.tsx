@@ -29,13 +29,12 @@ const STATUS_TAG: Record<string, string> = {
   DELETED: "ghp-danger",
 };
 
-type Tab = "dashboard" | "work" | "performance" | "files" | "invoices" | "grayscale" | "account";
+type Tab = "dashboard" | "work" | "performance" | "files" | "grayscale" | "account";
 const TAB_LABEL: Record<Tab, string> = {
   dashboard: "Dashboard",
   work: "Work",
   performance: "Performance",
   files: "Files",
-  invoices: "Invoices",
   grayscale: "GrayScale",
   account: "Account",
 };
@@ -98,9 +97,8 @@ export default function PortalPreviewShell({
     ...(has("tasks") || has("roadmap") || has("ideation") || has("deliverables") ? (["work"] as const) : []),
     ...(has("performance") || has("campaign_health") || has("activity_feed") || has("reporting") ? (["performance"] as const) : []),
     ...(has("documents") || has("drive") ? (["files"] as const) : []),
-    ...(has("invoices") ? (["invoices"] as const) : []),
     ...(has("grayscale_page") ? (["grayscale"] as const) : []),
-    ...(has("tool_stack") || has("referrals") || has("meeting_summaries") ? (["account"] as const) : []),
+    ...(has("tool_stack") || has("invoices") || has("referrals") || has("meeting_summaries") ? (["account"] as const) : []),
   ];
 
   const deliverables = tasks.filter((t) => t.dueDate);
@@ -159,6 +157,43 @@ export default function PortalPreviewShell({
                     {teamMembers.length === 0 && <p className="ghp-empty">No team members added yet.</p>}
                   </div>
                 )}
+                {has("tasks") && (
+                  <div className="ghp-panel-block">
+                    <div className="ghp-panel-head"><div className="ghp-t">Tasks</div><div className="ghp-n">{openTaskCount} open</div></div>
+                    {tasks.filter((t) => t.status !== "done").slice(0, 3).map((t) => (
+                      <div key={t.id} className="ghp-task-row">
+                        <span className={`ghp-task-check${t.status === "done" ? " ghp-good" : ""}`}>{t.status === "done" ? "✓" : ""}</span>
+                        <span className={`ghp-task-name${t.status === "done" ? " ghp-done-text" : ""}`}>{t.title}</span>
+                        {t.dueDate && <span className="ghp-task-due">Due {t.dueDate}</span>}
+                      </div>
+                    ))}
+                    {tasks.filter((t) => t.status !== "done").length === 0 && <p className="ghp-empty">No open tasks right now.</p>}
+                  </div>
+                )}
+
+                {has("referrals") && (
+                  <div className="ghp-panel-block">
+                    <div className="ghp-panel-head"><div className="ghp-t">Referrals</div><div className="ghp-n">program active</div></div>
+                    <div className="ghp-ref-hero">
+                      <div className="ghp-card"><div className="ghp-l">Total</div><div className="ghp-v">{referrals.length}</div></div>
+                      <div className="ghp-card"><div className="ghp-l">Active discount</div><div className="ghp-v">{activeDiscountPercent}%</div></div>
+                    </div>
+                  </div>
+                )}
+
+                {has("invoices") && (
+                  <div className="ghp-panel-block">
+                    <div className="ghp-panel-head"><div className="ghp-t">Latest invoices</div><div className="ghp-n">{invoices.slice(0, 3).length} shown</div></div>
+                    {invoices.slice(0, 3).map((inv) => (
+                      <div key={inv.id} className="ghp-row">
+                        <span>{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-NZ", { month: "long", year: "numeric" }) : "—"}</span>
+                        <span className="ghp-serif" style={{ fontSize: 14 }}>{inv.total ? `$${Number(inv.total).toLocaleString("en-NZ")}` : "—"}</span>
+                      </div>
+                    ))}
+                    {invoices.length === 0 && <p className="ghp-empty">No invoices yet.</p>}
+                  </div>
+                )}
+
                 <div className="ghp-panel-block">
                   <div className="ghp-panel-head"><div className="ghp-t">Appearance</div></div>
                   <div className="ghp-panel-body">
@@ -228,7 +263,7 @@ export default function PortalPreviewShell({
                           {t === "work" ? openTaskCount : t === "performance" ? (latest?.roas ? `${latest.roas}×` : "—") : t === "account" ? `${activeDiscountPercent}%` : "→"}
                         </div>
                         <div className="ghp-meta">
-                          {t === "work" ? "open tasks" : t === "performance" ? "ROAS · latest period" : t === "account" ? "active discount" : t === "files" ? "documents & drive" : t === "invoices" ? "billing history" : "product catalogue"}
+                          {t === "work" ? "open tasks" : t === "performance" ? "ROAS · latest period" : t === "account" ? "active discount" : t === "files" ? "documents & drive" : "product catalogue"}
                         </div>
                       </button>
                     ))}
@@ -391,65 +426,78 @@ export default function PortalPreviewShell({
             </div>
           )}
 
-          {tab === "invoices" && (
-            <div>
-              <div className="ghp-page-head"><h1>Invoices</h1><div className="ghp-sub">Billing history</div></div>
-              <div className="ghp-panel-block">
-                <div className="ghp-panel-head"><div className="ghp-t">Invoices</div><div className="ghp-n">{outstandingInvoices.length} outstanding</div></div>
-                {invoices.length > 0 ? (
-                  <table className="ghp-table">
-                    <thead><tr><th>Invoice</th><th>Status</th><th className="ghp-r">Amount</th></tr></thead>
-                    <tbody>
-                      {invoices.map((inv) => (
-                        <tr key={inv.id}>
-                          <td><div className="ghp-proj-name">{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-NZ", { month: "long", year: "numeric" }) : "—"}</div></td>
-                          <td><span className={`ghp-tag ${STATUS_TAG[inv.status] ?? ""}`}>{inv.status === "PAID" ? "Paid" : inv.dueDate ? `Due ${inv.dueDate}` : inv.status.toLowerCase()}</span></td>
-                          <td className="ghp-r"><span className="ghp-serif" style={{ fontSize: 15 }}>{inv.total ? `$${Number(inv.total).toLocaleString("en-NZ")}` : "—"}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="ghp-empty">No invoices yet.</p>
-                )}
-              </div>
-            </div>
-          )}
-
           {tab === "grayscale" && (
             <div>
               <div className="ghp-page-head"><h1>GrayScale</h1><div className="ghp-sub">Product catalogue</div></div>
               <div className="ghp-panel-block">
-                <div className="ghp-panel-head"><div className="ghp-t">GrayScale catalogue</div></div>
-                <div className="ghp-gs-grid">
-                  <div className="ghp-gs-tile">
-                    <div className="ghp-n">Coming soon</div>
-                    <div className="ghp-s">Ask Gray Horizon about what&apos;s available for your account.</div>
+                <div className="ghp-panel-head"><div className="ghp-t">GrayScale catalogue</div><div className="ghp-n">{grayscaleProducts.length} products</div></div>
+                {grayscaleProducts.length > 0 ? (
+                  <div className="ghp-gs-grid">
+                    {grayscaleProducts.map((p) => (
+                      <div key={p.name} className="ghp-gs-tile">
+                        <div className="ghp-n">{p.name}</div>
+                        {p.category && (
+                          <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ghp-brass)", marginTop: 4 }}>{p.category}</div>
+                        )}
+                        {p.description && <div className="ghp-s">{p.description}</div>}
+                      </div>
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="ghp-gs-grid">
+                    <div className="ghp-gs-tile">
+                      <div className="ghp-n">Coming soon</div>
+                      <div className="ghp-s">Ask Gray Horizon about what&apos;s available for your account.</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {tab === "account" && (
             <div>
-              <div className="ghp-page-head"><h1>Account</h1><div className="ghp-sub">Tool stack, referrals and meeting summaries</div></div>
+              <div className="ghp-page-head"><h1>Account</h1><div className="ghp-sub">Tool stack, invoices, referrals and meeting summaries</div></div>
               <div className="ghp-widget-grid">
-                {has("tool_stack") && (
-                  <div className="ghp-panel-block">
-                    <div className="ghp-panel-head"><div className="ghp-t">Tool stack</div><div className="ghp-n">{tools.length} connected</div></div>
-                    {tools.map((t) => (
-                      <div key={t.id} className="ghp-row">
-                        <div>
-                          <div style={{ fontWeight: 500 }}>{t.toolName}</div>
-                          {t.category && <div style={{ fontSize: 11, color: "var(--ghp-text-dim)" }}>{t.category}</div>}
+                <div>
+                  {has("tool_stack") && (
+                    <div className="ghp-panel-block">
+                      <div className="ghp-panel-head"><div className="ghp-t">Tool stack</div><div className="ghp-n">{tools.length} connected</div></div>
+                      {tools.map((t) => (
+                        <div key={t.id} className="ghp-row">
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{t.toolName}</div>
+                            {t.category && <div style={{ fontSize: 11, color: "var(--ghp-text-dim)" }}>{t.category}</div>}
+                          </div>
+                          <span className={`ghp-tag ${t.status === "current" ? "ghp-good" : "ghp-warn"}`}>{t.status}</span>
                         </div>
-                        <span className={`ghp-tag ${t.status === "current" ? "ghp-good" : "ghp-warn"}`}>{t.status}</span>
-                      </div>
-                    ))}
-                    {tools.length === 0 && <p className="ghp-empty">No tools logged yet.</p>}
-                  </div>
-                )}
+                      ))}
+                      {tools.length === 0 && <p className="ghp-empty">No tools logged yet.</p>}
+                    </div>
+                  )}
+
+                  {has("invoices") && (
+                    <div className="ghp-panel-block">
+                      <div className="ghp-panel-head"><div className="ghp-t">Invoices</div><div className="ghp-n">{outstandingInvoices.length} outstanding</div></div>
+                      {invoices.length > 0 ? (
+                        <table className="ghp-table">
+                          <thead><tr><th>Invoice</th><th>Status</th><th className="ghp-r">Amount</th></tr></thead>
+                          <tbody>
+                            {invoices.map((inv) => (
+                              <tr key={inv.id}>
+                                <td><div className="ghp-proj-name">{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-NZ", { month: "long", year: "numeric" }) : "—"}</div></td>
+                                <td><span className={`ghp-tag ${STATUS_TAG[inv.status] ?? ""}`}>{inv.status === "PAID" ? "Paid" : inv.dueDate ? `Due ${inv.dueDate}` : inv.status.toLowerCase()}</span></td>
+                                <td className="ghp-r"><span className="ghp-serif" style={{ fontSize: 15 }}>{inv.total ? `$${Number(inv.total).toLocaleString("en-NZ")}` : "—"}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="ghp-empty">No invoices yet.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div>
                   {has("referrals") && (
                     <div className="ghp-panel-block">
