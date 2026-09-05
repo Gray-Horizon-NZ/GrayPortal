@@ -46,7 +46,7 @@ function rangeLow(text: string | null): number | null {
 
 function toLineItem(item: Item) {
   let setup = num(item.currentSetupPrice);
-  let monthly = num(item.currentMonthlyPrice);
+  const monthly = num(item.currentMonthlyPrice);
   if (setup === null && monthly === null) {
     setup = rangeLow(item.priceText);
   }
