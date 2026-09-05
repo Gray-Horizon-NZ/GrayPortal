@@ -94,6 +94,7 @@ export async function GET() {
     const cloudflareItem = allItems.find((it) => it.id === WEBDEV_CLOUDFLARE_ID);
 
     const grayscale = grayscaleProducts.map((p) => ({
+      id: `gsx-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`,
       name: p.name,
       monthly: num(p.monthlyPriceNzd),
     }));

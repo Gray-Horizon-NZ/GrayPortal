@@ -26,21 +26,6 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
-// /apexus embeds the Apexus quote-builder tool (public/apexus/quote-builder.html)
-// in an same-origin <iframe> — the blanket frame-ancestors 'none' / X-Frame-Options:
-// DENY above blocks that outright (browsers refuse to render a framed
-// document that forbids framing, even same-origin). This narrower policy
-// only relaxes the frame-ancestors/X-Frame-Options directives, scoped to
-// this one admin-only path, and only to 'self' — nothing outside
-// app.grayhorizon.nz can frame it either way.
-const apexusHeaders = securityHeaders.map((h) =>
-  h.key === "Content-Security-Policy"
-    ? { ...h, value: h.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") }
-    : h.key === "X-Frame-Options"
-      ? { ...h, value: "SAMEORIGIN" }
-      : h
-);
-
 const nextConfig: NextConfig = {
   // Default Server Action body limit is 1MB — the Vault MOP upload accepts
   // hand-prepared ZIPs well beyond that (see dal/mop.ts's 200MB cap).
@@ -52,11 +37,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/apexus/:path*",
-        headers: apexusHeaders,
-      },
-      {
-        source: "/:path((?!apexus).*)",
+        source: "/(.*)",
         headers: securityHeaders,
       },
     ];

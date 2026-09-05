@@ -556,8 +556,13 @@
         <input type="checkbox" id="f_existing_client" onchange="recalc()">
         <label for="f_existing_client">Existing signed GH retainer client (auto 20% off Gray Scale)</label>
       </div>
+      <table class="admin-table" style="margin-top:8px;">
+        <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
+        <tbody id="grp_grayscale_catalogue"></tbody>
+      </table>
+      <div class="note" style="margin-top:0;">Same as every catalogue above — unchecked by default, tick to include in this quote.</div>
       <div id="grp_grayscale" style="margin-top:8px;"></div>
-      <button class="add-row-btn" onclick="addGSRow()">+ Add Gray Scale product</button>
+      <button class="add-row-btn" onclick="addGSRow()">+ Add a one-off Gray Scale product (not in the catalogue above)</button>
     </section>
 
     <section style="background:#fbf2f2; margin-left:-20px; margin-right:-20px; padding-left:20px; padding-right:20px;">
@@ -883,10 +888,15 @@ function renderCatalogueUI(){
     freebieWrap.appendChild(row);
   });
 
-  // Prepopulate the Gray Scale section with the live catalogue (editable/
-  // removable like any manually-added row — see addGSRow below).
-  document.querySelectorAll('#grp_grayscale .gs-row').forEach(r => r.remove());
-  GRAYSCALE_CATALOGUE.forEach(p => addGSRow(p.name, p.monthly));
+  // Gray Scale catalogue — same checkbox+free pattern as GS/GA/AO above,
+  // unchecked by default. Reuses renderAdminRow as-is (setup:null hides the
+  // one-off column, r:true just adds the "(R)" tag — these are always
+  // monthly-only). NOT auto-included: a row existing here is not the same
+  // as a row being checked, unlike the old manual-row-only design this
+  // replaced, where adding a row *was* including it.
+  const grayscaleCatalogueWrap = document.getElementById('grp_grayscale_catalogue');
+  grayscaleCatalogueWrap.innerHTML = '';
+  GRAYSCALE_CATALOGUE.forEach(item => renderAdminRow(grayscaleCatalogueWrap, { ...item, setup: null, r: true }, 'grayscale'));
 }
 
 // Event listeners wired once (outside renderCatalogueUI, which only
@@ -955,11 +965,7 @@ function applyPackage(name){
 function clearAll(){
   document.querySelectorAll('.builder input[type="checkbox"]').forEach(b => { b.checked = false; });
   document.querySelectorAll('.sub-choice-row').forEach(c => c.style.display = 'none');
-  document.querySelectorAll('#grp_ss .gs-row').forEach(r => r.remove());
-  // Gray Scale rows get wiped and re-seeded from the live catalogue rather
-  // than left empty — SS rows are genuinely ad hoc so those just clear.
-  document.querySelectorAll('#grp_grayscale .gs-row').forEach(r => r.remove());
-  GRAYSCALE_CATALOGUE.forEach(p => addGSRow(p.name, p.monthly));
+  document.querySelectorAll('#grp_ss .gs-row, #grp_grayscale .gs-row').forEach(r => r.remove());
   recalc();
 }
 
@@ -1070,6 +1076,24 @@ function recalc(){
   const existingClient = document.getElementById('f_existing_client').checked;
   let grayScaleMonthly = 0;
   const grayScaleLines = [];
+
+  // Live catalogue — checkbox-driven, same pattern as GS/GA/AO (unchecked
+  // by default, not auto-included just because the row exists).
+  GRAYSCALE_CATALOGUE.forEach(item => {
+    const included = isChecked(`chk_${item.id}`);
+    const isFree = isChecked(`free_${item.id}`);
+    if(!included && !isFree) return;
+    const discPrice = existingClient ? item.monthly * 0.8 : item.monthly;
+    if(isFree){
+      totalPerceivedValue += discPrice;
+      freebieLines.push({label: `${item.name} (Gray Scale) (${fmt(discPrice)}/mo value)`});
+    } else {
+      grayScaleMonthly += discPrice;
+      grayScaleLines.push({name: item.name, price:`${fmt(discPrice)}/mo${existingClient ? ' (20% off)' : ''}`});
+    }
+  });
+
+  // Ad hoc rows — one-off products not in the live catalogue above.
   document.querySelectorAll('#grp_grayscale .gs-row').forEach(row => {
     const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
     const name = inputs[0].value.trim();
@@ -1293,6 +1317,11 @@ function createChildDocument(){
 
   const existingClient = document.getElementById('f_existing_client').checked;
   const availGrayScale = [];
+  GRAYSCALE_CATALOGUE.forEach(item => {
+    if(isChecked(`chk_${item.id}`) && !isChecked(`free_${item.id}`)){
+      availGrayScale.push({name: item.name, price: existingClient ? item.monthly * 0.8 : item.monthly, discounted: existingClient});
+    }
+  });
   document.querySelectorAll('#grp_grayscale .gs-row').forEach(row => {
     const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
     const name = inputs[0].value.trim();
@@ -1339,6 +1368,12 @@ function createChildDocument(){
       totalPerceivedValue += price;
       freebieLines.push(`${name} (SS) (${fmt(price)} value)`);
     }
+  });
+  GRAYSCALE_CATALOGUE.forEach(item => {
+    if(!isChecked(`free_${item.id}`)) return;
+    const discPrice = existingClient ? item.monthly * 0.8 : item.monthly;
+    totalPerceivedValue += discPrice;
+    freebieLines.push(`${item.name} (Gray Scale) (${fmt(discPrice)}/mo value)`);
   });
   document.querySelectorAll('#grp_grayscale .gs-row').forEach(row => {
     const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
