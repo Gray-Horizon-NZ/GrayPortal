@@ -33,7 +33,14 @@ import "../../../../(portal)/portal-theme.css";
  */
 export default async function ClientPortalPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [data, grayscaleProducts] = await Promise.all([getClientPortalPreviewData(id), listGrayscaleProducts()]);
+  const [data, grayscaleProducts] = await Promise.all([
+    getClientPortalPreviewData(id),
+    // Fails soft, not the whole preview — same reasoning as portal/page.tsx.
+    listGrayscaleProducts().catch((err) => {
+      console.error("listGrayscaleProducts failed, hiding the GrayScale widget", err);
+      return [];
+    }),
+  ]);
   if (!data) notFound();
   const {
     client,

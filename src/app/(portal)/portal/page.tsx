@@ -23,7 +23,17 @@ export default async function PortalHomePage() {
     },
     allInvoices,
     grayscaleProducts,
-  ] = await Promise.all([getPortalHome(), listPortalInvoices(), listGrayscaleProducts()]);
+  ] = await Promise.all([
+    getPortalHome(),
+    listPortalInvoices(),
+    // Fails soft, not the whole dashboard — grayscale_products is a brand
+    // new table and this page must keep working the moment it's missing,
+    // mid-migration, or otherwise unreachable for any reason.
+    listGrayscaleProducts().catch((err) => {
+      console.error("listGrayscaleProducts failed, hiding the GrayScale widget", err);
+      return [];
+    }),
+  ]);
 
   const has = (key: string) => enabledFeatureKeys.includes(key as (typeof enabledFeatureKeys)[number]);
   const status = client ? paymentStatus(client.nextPaymentDate) : null;
