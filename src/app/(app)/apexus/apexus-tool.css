@@ -1,0 +1,699 @@
+/* Apexus quote builder, re-themed to live inside GrayPortal's own app
+ * shell instead of as a standalone document. Everything here is scoped
+ * under .apexus-tool so it can't leak into the rest of the app.
+ *
+ * Two deliberately different palettes in this one file:
+ * 1. The BUILDER CHROME (left panel: catalogue checkboxes, form fields,
+ *    buttons) — re-themed to GrayPortal's own dark/gold tokens so it
+ *    reads as part of the app, not a foreign embed.
+ * 2. The PRINTABLE QUOTE PAGES (.page and everything inside it) — kept
+ *    in their original light, Gray Horizon-branded look, on purpose.
+ *    This is a live preview of the actual client-facing document; making
+ *    it dark to match the app chrome would misrepresent what gets
+ *    printed/exported, the same reason a light-mode "page" stays white
+ *    inside a dark-themed document editor. Achieved by re-declaring the
+ *    tool's original --black/--dark/--mid/--light/--white/--line
+ *    variables back to their original hex values, scoped to .apexus-tool
+ *    .page — everything under .page still references those exact
+ *    variable names, just shadowed locally.
+ */
+
+.apexus-tool {
+  background: var(--gh-bg);
+  font-family: var(--gh-font-body);
+  color: var(--gh-text-primary);
+  padding: var(--gh-space-6) 0;
+}
+
+.apexus-tool .app {
+  display: flex;
+  gap: var(--gh-space-6);
+  align-items: flex-start;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.apexus-tool .builder {
+  flex: 0 0 500px;
+  background: var(--gh-surface-raised);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  padding: var(--gh-space-4) var(--gh-space-6) var(--gh-space-8);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  position: sticky;
+  top: var(--gh-space-6);
+}
+.apexus-tool .preview-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.apexus-tool .builder h1 {
+  font-family: var(--gh-font-display);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--gh-text-emphasis);
+  margin-bottom: 2px;
+}
+.apexus-tool .builder .sub {
+  font-size: var(--gh-text-micro);
+  letter-spacing: var(--gh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+  margin-bottom: var(--gh-space-4);
+}
+.apexus-tool .builder section {
+  margin-bottom: var(--gh-space-4);
+  padding-bottom: var(--gh-space-4);
+  border-bottom: 1px solid var(--gh-border);
+}
+.apexus-tool .builder section:last-of-type {
+  border-bottom: none;
+}
+.apexus-tool .builder h2 {
+  font-size: var(--gh-text-micro);
+  letter-spacing: var(--gh-tracking-wider);
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+  font-weight: 500;
+  margin-bottom: var(--gh-space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+}
+.apexus-tool .builder h2::before {
+  content: "";
+  width: 16px;
+  height: 1px;
+  background: var(--gh-border-strong);
+  flex: 0 0 auto;
+}
+.apexus-tool .builder label.field {
+  display: block;
+  font-size: var(--gh-text-micro);
+  color: var(--gh-text-muted);
+  margin-bottom: 3px;
+  margin-top: var(--gh-space-2);
+}
+.apexus-tool .builder label.field:first-child {
+  margin-top: 0;
+}
+.apexus-tool .builder input[type="text"],
+.apexus-tool .builder input[type="number"],
+.apexus-tool .builder input[type="month"],
+.apexus-tool .builder textarea,
+.apexus-tool .builder select {
+  width: 100%;
+  font-family: var(--gh-font-body);
+  font-size: var(--gh-text-xs);
+  padding: 6px 8px;
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  color: var(--gh-text-primary);
+  background: var(--gh-surface);
+}
+.apexus-tool .builder input:focus,
+.apexus-tool .builder textarea:focus,
+.apexus-tool .builder select:focus {
+  outline: 1px solid var(--gh-focus-ring);
+  outline-offset: 1px;
+}
+.apexus-tool .builder textarea {
+  resize: vertical;
+  min-height: 44px;
+}
+
+.apexus-tool .pkg-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.apexus-tool .pkg-btn {
+  flex: 1;
+  font-size: var(--gh-text-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 9px 4px;
+  border: 1px solid var(--gh-accent);
+  background: var(--gh-accent);
+  color: var(--gh-accent-contrast);
+  border-radius: var(--gh-radius);
+  cursor: pointer;
+  text-align: center;
+  transition: filter var(--gh-duration-fast) var(--gh-ease);
+}
+.apexus-tool .pkg-btn:hover {
+  filter: brightness(1.1);
+}
+.apexus-tool .clear-btn {
+  width: 100%;
+  margin-top: 6px;
+  font-size: var(--gh-text-micro);
+  padding: 6px 4px;
+  border: 1px solid var(--gh-border);
+  background: transparent;
+  color: var(--gh-text-muted);
+  border-radius: var(--gh-radius);
+  cursor: pointer;
+}
+.apexus-tool .clear-btn:hover {
+  border-color: var(--gh-border-strong);
+  color: var(--gh-text-primary);
+}
+
+.apexus-tool table.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--gh-text-micro);
+  margin-bottom: 4px;
+}
+.apexus-tool table.admin-table th {
+  text-align: left;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--gh-border);
+  font-weight: 500;
+}
+.apexus-tool table.admin-table th.num,
+.apexus-tool table.admin-table td.num {
+  text-align: right;
+}
+.apexus-tool table.admin-table th.ctr,
+.apexus-tool table.admin-table td.ctr {
+  text-align: center;
+}
+.apexus-tool table.admin-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--gh-border);
+  vertical-align: middle;
+}
+.apexus-tool table.admin-table td.name-cell {
+  color: var(--gh-text-primary);
+}
+.apexus-tool table.admin-table .r-tag {
+  font-family: var(--gh-font-display);
+  font-style: italic;
+  font-size: var(--gh-text-micro);
+  color: var(--gh-text-muted);
+  margin-left: 3px;
+}
+.apexus-tool table.admin-table .price-cell {
+  color: var(--gh-text-muted);
+  white-space: nowrap;
+}
+.apexus-tool table.admin-table .dash {
+  color: var(--gh-mid);
+}
+.apexus-tool tr.sub-choice-row td {
+  padding-top: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gh-border);
+}
+.apexus-tool .sub-choice {
+  font-size: var(--gh-text-micro);
+  color: var(--gh-text-muted);
+  padding-left: 20px;
+}
+.apexus-tool .sub-choice label {
+  margin-right: 12px;
+  cursor: pointer;
+}
+.apexus-tool .sub-choice input {
+  margin-right: 3px;
+}
+.apexus-tool .free-chk {
+  accent-color: var(--gh-accent);
+}
+
+.apexus-tool .gs-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.apexus-tool .gs-row input[type="text"] {
+  flex: 2;
+}
+.apexus-tool .gs-row input[type="number"] {
+  flex: 1;
+}
+.apexus-tool .gs-row .free-inline {
+  font-size: 9px;
+  color: var(--gh-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.apexus-tool .gs-row button {
+  flex: 0 0 auto;
+  border: 1px solid var(--gh-danger);
+  background: transparent;
+  color: var(--gh-danger);
+  border-radius: var(--gh-radius);
+  font-size: var(--gh-text-xs);
+  padding: 0 8px;
+  cursor: pointer;
+}
+.apexus-tool .add-row-btn {
+  font-size: var(--gh-text-xs);
+  color: var(--gh-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+
+.apexus-tool .toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  font-size: var(--gh-text-xs);
+  margin-top: var(--gh-space-2);
+}
+.apexus-tool .radio-inline label {
+  font-size: var(--gh-text-xs);
+  margin-right: 14px;
+}
+.apexus-tool .radio-inline input {
+  margin-right: 4px;
+}
+
+.apexus-tool .webdev-free-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--gh-space-2);
+  font-size: var(--gh-text-xs);
+}
+
+.apexus-tool .print-btn {
+  width: 100%;
+  margin-top: var(--gh-space-3);
+  padding: 13px;
+  background: var(--gh-accent);
+  color: var(--gh-accent-contrast);
+  font-family: var(--gh-font-body);
+  font-weight: 500;
+  font-size: var(--gh-text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--gh-radius);
+  cursor: pointer;
+  transition: filter var(--gh-duration-fast) var(--gh-ease);
+}
+.apexus-tool .print-btn:hover {
+  filter: brightness(1.1);
+}
+.apexus-tool .note {
+  font-size: 9.5px;
+  color: var(--gh-text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* TDI dependency warning — lives inside the builder's own admin-table,
+   so it gets the dark-chrome treatment too, using the app's own danger
+   token rather than the original's light-pink callout. */
+.apexus-tool .callout-warn {
+  background: color-mix(in srgb, var(--gh-danger) 15%, transparent);
+  border: 1px solid var(--gh-danger);
+  border-left: 3px solid var(--gh-danger);
+  padding: 10px 14px;
+  font-size: var(--gh-text-micro);
+  color: var(--gh-text-primary);
+  margin-top: 6px;
+  margin-bottom: 4px;
+  line-height: 1.5;
+  display: none;
+}
+.apexus-tool .callout-warn strong {
+  color: var(--gh-danger);
+  font-weight: 500;
+}
+
+.apexus-tool .pages-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gh-space-6);
+}
+
+/* ============================================================
+ * PRINTABLE QUOTE PAGES — deliberately NOT re-themed. This is a live
+ * preview of the actual client-facing document (and the same markup the
+ * exported child document embeds via CHILD_DOCUMENT_CSS in
+ * quote-builder.js), so it keeps its original Gray Horizon site
+ * branding regardless of GrayPortal's own dark theme — exactly the way
+ * a "page" stays white in a dark-mode document editor.
+ * ============================================================ */
+.apexus-tool .page {
+  --black: #1c1c1c;
+  --dark: #333333;
+  --mid: #6b6b6b;
+  --light: #f4f4f4;
+  --white: #ffffff;
+  --line: #e2e2e2;
+  --serif: "Cormorant Garamond", Georgia, serif;
+  --sans: "DM Sans", sans-serif;
+
+  width: 210mm;
+  min-height: 297mm;
+  background: var(--white);
+  box-shadow: 0 0 0 1px var(--line), 0 8px 30px rgba(0, 0, 0, 0.35);
+  padding: 16mm 16mm 14mm;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--black);
+}
+.apexus-tool .page::after {
+  content: "A4 PAGE BREAK — trim content above this line if it appears";
+  position: absolute;
+  top: 297mm;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #c0392b;
+  color: #c0392b;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+.apexus-tool .page-body {
+  flex: 1 0 auto;
+}
+
+.apexus-tool .brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--black);
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.apexus-tool .brand-name {
+  font-size: 22px;
+}
+.apexus-tool .brand-name .wm-gray {
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--black);
+  letter-spacing: 0.04em;
+}
+.apexus-tool .brand-name .wm-horizon {
+  font-family: var(--sans);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--mid);
+  letter-spacing: 0.1em;
+  margin-left: 6px;
+  font-size: 0.62em;
+}
+.apexus-tool .brand-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  color: var(--mid);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.apexus-tool .brand-meta {
+  text-align: right;
+  font-size: 10.5px;
+  color: var(--mid);
+}
+.apexus-tool .brand-meta strong {
+  color: var(--black);
+  font-weight: 500;
+}
+
+.apexus-tool h1.doc-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 27px;
+  color: var(--black);
+  margin-bottom: 4px;
+  line-height: 1.15;
+}
+.apexus-tool h1.doc-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--mid);
+}
+.apexus-tool .doc-sub {
+  font-size: 12px;
+  color: var(--mid);
+  margin-bottom: 16px;
+}
+.apexus-tool .intro {
+  background: var(--light);
+  border-left: 2px solid var(--black);
+  padding: 12px 16px;
+  font-size: 11.5px;
+  color: var(--dark);
+  margin-bottom: 20px;
+}
+
+.apexus-tool .section-label {
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mid);
+  font-weight: 500;
+  margin-bottom: 9px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.apexus-tool .section-label::before {
+  content: "";
+  width: 20px;
+  height: 1px;
+  background: var(--mid);
+  flex: 0 0 auto;
+}
+.apexus-tool .section-label:first-of-type {
+  margin-top: 0;
+}
+.apexus-tool .section-note {
+  font-size: 9.5px;
+  color: var(--mid);
+  margin-top: -5px;
+  margin-bottom: 8px;
+  margin-left: 32px;
+}
+
+.apexus-tool .invest-grid {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.apexus-tool .invest-card {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--black);
+  padding: 14px 14px 11px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.apexus-tool .invest-card .price {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--black);
+  margin-bottom: 4px;
+}
+.apexus-tool .invest-card .price-label {
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mid);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.apexus-tool .invest-card .price-desc {
+  font-size: 9.5px;
+  color: var(--mid);
+}
+
+.apexus-tool table.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+  margin-bottom: 4px;
+}
+.apexus-tool table.items-table th {
+  background: var(--black);
+  color: #fff;
+  text-align: left;
+  padding: 7px 9px;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.apexus-tool table.items-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line);
+  color: var(--dark);
+}
+.apexus-tool table.items-table tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.apexus-tool table.items-table tr:nth-child(even) td {
+  background: var(--light);
+}
+.apexus-tool table.items-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+.apexus-tool .discount-line {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  font-size: 9.5px;
+  color: var(--mid);
+  padding: 4px 9px 10px;
+}
+
+.apexus-tool .callout {
+  background: var(--light);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--black);
+  padding: 11px 15px;
+  font-size: 10.5px;
+  color: var(--dark);
+  margin-top: 12px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.apexus-tool .callout strong {
+  color: var(--black);
+  font-weight: 500;
+}
+.apexus-tool .callout .value-total {
+  margin-top: 7px;
+  font-weight: 500;
+  color: var(--black);
+  font-family: var(--serif);
+  font-size: 13px;
+}
+
+.apexus-tool .incl-note {
+  font-size: 9.5px;
+  color: var(--mid);
+  margin-top: 11px;
+  line-height: 1.6;
+}
+.apexus-tool .incl-note strong {
+  color: var(--dark);
+  font-weight: 500;
+}
+
+.apexus-tool .terms {
+  font-size: 8.5px;
+  color: var(--mid);
+  margin-top: 15px;
+  line-height: 1.6;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.apexus-tool .page-footer {
+  margin-top: auto;
+  padding-top: 9px;
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+  color: var(--mid);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+}
+
+.apexus-tool .empty-hint {
+  font-size: 11px;
+  color: var(--mid);
+  font-style: italic;
+  padding: 10px 0;
+}
+
+.apexus-tool .scroll-note {
+  text-align: center;
+  margin-top: 30px;
+  font-size: 8.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--mid);
+}
+.apexus-tool .scroll-note .chevron {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--mid);
+}
+
+.apexus-tool .includes-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--dark);
+  line-height: 1.55;
+}
+.apexus-tool .includes-item:last-child {
+  border-bottom: none;
+}
+.apexus-tool .includes-item .dash {
+  color: var(--mid);
+  flex: 0 0 auto;
+}
+.apexus-tool .includes-item strong {
+  color: var(--black);
+  font-weight: 500;
+}
+
+@media print {
+  .apexus-tool {
+    background: #fff;
+    padding: 0;
+  }
+  .apexus-tool .app {
+    padding: 0;
+    max-width: none;
+    display: block;
+  }
+  .apexus-tool .builder,
+  .apexus-tool .page::after {
+    display: none !important;
+  }
+  .apexus-tool .preview-wrap {
+    display: block;
+  }
+  .apexus-tool .pages-col {
+    display: block;
+  }
+  .apexus-tool .page {
+    box-shadow: none;
+    margin: 0;
+  }
+  .apexus-tool .page.page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+}

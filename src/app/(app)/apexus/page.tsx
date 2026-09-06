@@ -1,13 +1,20 @@
-import { redirect } from "next/navigation";
+import ApexusBuilder from "./ApexusBuilder";
 
-// No iframe — a same-origin iframe here fought the app's own blanket
-// frame-ancestors 'none' / X-Frame-Options: DENY security headers (every
-// route gets them; relaxing them just for this one path adds a
-// special-cased security exception, and even with that fix in place a
-// fronting CDN can keep serving a stale cached "blocked" response for a
-// static asset regardless). A real HTTP redirect to the tool's own static
-// page sidesteps all of that — it's a full page load either way, and this
-// is exactly the URL that already works when opened directly.
 export default function ApexusPage() {
-  redirect("/apexus/quote-builder.html");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
+      <div>
+        <p className="gh-eyebrow">Apexus</p>
+        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
+          Live Quote <em>Builder</em>
+        </h1>
+        <p className="gh-source-note" style={{ marginTop: "var(--gh-space-2)" }}>
+          Curates a package from GrayPortal&apos;s own pricing catalogue and GrayScale product list — see
+          <code> /pricing</code> and <code>/grayscale-products</code> for the live prices this reads — then exports a
+          client-facing quote document. Edit a price in either of those and it flows through here on next load.
+        </p>
+      </div>
+      <ApexusBuilder />
+    </div>
+  );
 }
