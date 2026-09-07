@@ -365,11 +365,16 @@
   --serif: "Cormorant Garamond", Georgia, serif;
   --sans: "DM Sans", sans-serif;
 
-  width: 210mm;
-  min-height: 297mm;
+  /* Deliberately smaller than true A4 (210mm/297mm) — this is a live
+     on-screen preview only, scaled down ~15% so it fits the viewport
+     alongside the builder panel and GrayPortal's own sidebar. The actual
+     exported/printed document (CHILD_DOCUMENT_CSS in quote-builder.js)
+     stays true A4 size — only this in-app preview shrinks. */
+  width: 178mm;
+  min-height: 252mm;
   background: var(--white);
   box-shadow: 0 0 0 1px var(--line), 0 8px 30px rgba(0, 0, 0, 0.35);
-  padding: 16mm 16mm 14mm;
+  padding: 14mm 14mm 12mm;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -382,7 +387,7 @@
 .apexus-tool .page::after {
   content: "A4 PAGE BREAK — trim content above this line if it appears";
   position: absolute;
-  top: 297mm;
+  top: 252mm;
   left: 0;
   right: 0;
   border-top: 1px dashed #c0392b;
