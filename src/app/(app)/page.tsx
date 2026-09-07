@@ -76,12 +76,16 @@ export default async function HomePage({
   // drive task_overdue notifications — mirrored here, not reinvented.
   const overdueTasks = tasks.filter((t) => t.status !== "done" && t.dueDate && t.dueDate < today);
   const templatesDue = recurringTemplates.filter((t) => t.nextDueDate <= today);
+  const highPriorityTasks = tasks.filter((t) => t.status !== "done" && t.priority === "high");
 
   const clientsById = new Map(clients.map((c) => [c.id, c]));
   const decliningClients = healthScores.filter((h) => h.trend === "down");
   const firstName = (caller.displayName ?? caller.email).split(" ")[0].split("@")[0];
 
   const dueItems = [
+    ...(highPriorityTasks.length > 0
+      ? [{ icon: AlertTriangle, label: `${highPriorityTasks.length} high-priority task${highPriorityTasks.length === 1 ? "" : "s"}`, href: "/tasks?view=all" }]
+      : []),
     ...(overdueTasks.length > 0
       ? [{ icon: ListChecks, label: `${overdueTasks.length} task${overdueTasks.length === 1 ? "" : "s"} overdue`, href: "/tasks?view=all" }]
       : []),

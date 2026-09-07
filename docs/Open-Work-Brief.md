@@ -40,7 +40,7 @@ The `/grayscale-products` admin page now links directly to `/apexus` ("Build a q
 **Not done this session** — no live browser verification: this session couldn't authenticate as an admin to actually click through `/apexus` in a running instance (same constraint as every prior session's manual-testing gap, §10.2/§12). Verified instead via `tsc --noEmit` (clean), `next build`'s Turbopack compile step (clean — the build's own separate full-project type-check pass hit an unrelated out-of-memory limit on this machine, not a code issue), and a Node syntax check of the tool's script block. **Whoever picks this up next should actually open `/apexus` in a real logged-in session** before trusting the wiring — the item-id repointing (§ above) in particular is exactly the kind of thing that's easy to get subtly wrong without a live check.
 
 ### 1.2 "Powered by Solus" footer
-Shipped as part of the client portal redesign — every `/portal/*` page footer reads a Solus credit line (`src/components/portal/PortalShell.tsx`). The icon is a deliberate placeholder (`SolusMark()`, a plain brass ring-and-dot SVG), not a bug — there is no real Solus wordmark/icon asset in the repo. Needs the real asset and link target from Max to swap in.
+Shipped as part of the client portal redesign — every `/portal/*` page footer reads a Solus credit line (`src/components/portal/PortalShell.tsx`). **Icon swapped 2026-09-07** — the placeholder brass ring-and-dot SVG is replaced with the real asset (`public/portal/solus-icon.svg`, sourced from `Branding/Supporting.Graphics/grayscale icons/solus.svg`). Still needs a link target from Max — the credit line isn't a link yet.
 
 ### 1.3 Tempus (replaces Calendly)
 Explicitly flagged by Max as a **later project** — leave it there. Also has a real dependency: booking needs to *write* calendar events, and the existing Google Calendar sync is one-way by deliberate prior decision. That decision needs reopening before this phase can start, not just a UI build.
@@ -277,6 +277,20 @@ See §7 (added there as items 14–16).
 
 ---
 
+## 5A. Cross-client tool/software usage analysis (idea, not scoped)
+
+**Status:** Not scoped, not started — added 2026-09-07 per Max's notes on the latest release. Flagged by Max as **just an idea, to be run past an advisor-type pass on whether it's worth pursuing before any real scoping** — not a confirmed ask like the rest of this file's numbered sections.
+
+**Ask:** Cross-reference the tools/software already tracked per-client (Tool Stack) across the whole client base, surfaced as a new view inside the existing Analysis-style reporting (a new tab, or a section of one), so it's visible which tools/software are common across clients. Max's stated motive: this is a lead-generation signal for GrayScale — a tool three clients all pay for separately is a candidate for a GrayScale module pitch — not a general-purpose reporting feature for its own sake.
+
+### 5A.1 Current state
+`toolStackItems` (`src/lib/db/schema.ts`) already has exactly the shape this needs — `clientId`, `toolName`, `category`, `status` (`current | planned`) — populated today per-client via the existing Tool Stack feature (client detail page, now living in the Delivery tab per §12's rehaul) with no cross-client rollup anywhere. There is no "Analysis" tab in the admin app today — this would be new nav surface, not an extension of an existing page.
+
+### 5A.2 Open question for Max
+Whether this is worth building at all is the actual open question — not a design detail. Before scoping: is the underlying premise (clients' self-reported tool names are consistent/normalized enough — e.g. "Xero" vs. "xero" vs. "Xero accounting" — to group meaningfully without a cleanup pass first) worth checking, and does Max want this run past whatever he means by "advisor agent" before a session picks it up as real work.
+
+---
+
 ## 6. Deferred, not scheduled
 
 Ideas deliberately deferred rather than scheduled — don't build without Max explicitly prioritizing:
@@ -294,7 +308,7 @@ Ideas deliberately deferred rather than scheduled — don't build without Max ex
 **GrayScale:**
 1. ~~Confirm "GrayScale" is the umbrella term for Apexus / Solus branding / Tempus / suggested-moves, or something else entirely.~~ **Resolved 2026-09-06: yes, correct umbrella term.**
 2. ~~Apexus — a calculator over the existing pricing catalogue, or an external tool to integrate?~~ **Settled 2026-09-06 — built, see §1.1.** Neither option as posed: Max had an existing standalone tool, now embedded as-is. The $220/mo branded GrayScale "Apexus" product on the live marketing site is a separate, still-unscoped thing this doesn't resolve.
-3. Solus — real wordmark/icon asset and link target, to replace the current placeholder.
+3. Solus — real icon asset **swapped in 2026-09-07** (§1.2). Link target still open — where should the footer credit actually point?
 4. Tempus — scope/timing, given the two-way Calendar sync dependency it reopens (§1.3: sync is currently one-way by deliberate prior decision; a real booking tool needs to *write* events, so that decision needs reopening before build). **Not answered — Max flagged the question itself as unclear 2026-09-06, then the same session confirmed a scheduling feature isn't a current priority anyway** (see §13). Stays fully deferred per §1.3/§6 — no need to chase this until Max actually prioritizes Tempus.
 
 **Email marketing:**
@@ -468,3 +482,24 @@ Picked up as a documentation-pruning pass (this file had accumulated deferred it
 Also a cosmetic experiment (not yet confirmed by Max): the tool's text/button color swapped from near-black to GrayPortal's gold accent, to see how it reads.
 
 Two things need Max to run by hand before any of this actually works in prod: migration `0032_legal_ben_grimm.sql` (Neon SQL editor) and then `scripts/backfill-grayscale-pricing.mjs` (this session's tool-use classifier still blocks running it directly, per §9.4's established pattern). No live browser verification happened this session — see §1.1's closing note for exactly what was checked instead and what still needs a real logged-in click-through.
+
+---
+
+## 14. Session handoff — 2026-09-07
+
+Picked up a short list of small polish/idea notes Max wrote after the previous session's release. Built the self-contained ones same day; deferred the two that need Max's own input on the target layout.
+
+**Built:**
+- **High-priority task alerts on the dashboard.** New `tasks.priority` enum column (`normal | high`, migration `0034_eager_solo.sql` — **needs applying by hand in Neon's SQL editor**, same as every migration in this repo), a tier above `starred` per Max's ask. Toggled via a new `AlertTriangle` marker button next to the star on `TaskRow`/`TaskCheckRow` (`toggleTaskPriorityAction`, `src/app/(app)/tasks/actions.ts`). The dashboard's existing "Due / Needs attention" panel (`src/app/(app)/page.tsx`) — already the app's established "surface things needing action" pattern, not a new widget — now leads with an open high-priority-task count when any exist, linking to `/tasks?view=all`, ahead of overdue tasks/deals/invoices.
+- **Looker Studio embed height.** `.ghp-reporting-frame` (`portal-theme.css`) was `82vh`/`min-height: 700px`, forcing a scroll to see the bottom of any embedded report even after Max resized the reports themselves to fit one screen. Now a fixed `640px` (`480px` on narrow viewports) to match.
+- **Solus footer icon.** The placeholder brass ring-and-dot SVG in `PortalShell.tsx` is swapped for the real asset (`public/portal/solus-icon.svg`, sourced from `Branding/Supporting.Graphics/grayscale icons/solus.svg`). Link target for the credit line is still open (§7 item 3).
+- **Client portal colour tokens aligned to the app-wide standard.** Per Max ("yes — the universal portal pattern"): the portal's dark theme (`portal-theme.css`'s `.ghp-root[data-portal-theme="dark"]`) now aliases its background/border/text/accent/status tokens directly to `tokens.css`'s `--gh-*` values (already loaded document-wide via the root layout) instead of an independently-drifting second set of near-identical hex values — one gold, one near-black, across the whole product instead of two. The light theme (portal-only — the admin app has no light mode to inherit from) keeps its own darkened companions of the same hues, retinted to match. `--ghp-radius` (6px, rounded) and `--ghp-chart-1` (the dataviz-validated chart blue) were deliberately left alone — geometry and data-encoding colour were never part of this ask.
+- **Brand Guidelines tab.** New admin-only nav item (`/brand-guidelines`, System group) — the actual guidebook (`Branding/Gray Horizon Branding GuideBook 2026 v2.0.html`) is copied wholesale into `public/brand-guidebook.html` (self-contained, no edits to its content) with `id` attributes added to its 6 numbered sections plus the cover, and a mini-tab bar (`GuidebookViewer.tsx`) jumps one mounted iframe between them via `contentWindow.location.hash` — no reload/refetch per click.
+
+**Logged, not built:**
+- §5A above — cross-client tool/software usage analysis. Idea only, per Max — needs his own call on whether it's worth pursuing before any scoping.
+- **Client portal dashboard rearrange** — Max wants to settle the target layout separately; not touched this session.
+
+**Deploy notes:**
+- `db/migrations/0034_eager_solo.sql` (`CREATE TYPE task_priority`, `ALTER TABLE tasks ADD COLUMN priority`) needs applying by hand in Neon before the priority marker/dashboard alert will work — same handoff as every migration in this repo.
+- Verified via `tsc --noEmit` (clean, aside from the two pre-existing unrelated failures already on record — the stale `.next/types` portal-preview/inbox references and `tests/dal/requireClientScope.test.ts`), `eslint` (clean on every touched file), and a full `next build` (exit 0, `/brand-guidelines` compiles). No live browser click-through this session.

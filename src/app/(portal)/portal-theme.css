@@ -5,17 +5,30 @@
  * here can leak into the rest of the app even if this stylesheet were ever
  * loaded on the same page as globals.css. */
 
+/* 2026-09-07 — dark theme (the portal's default) now aliases the
+   background/border/text/accent/status roles straight to the app-wide
+   standard tokens (tokens.css's --gh-* — already loaded document-wide via
+   the root layout's globals.css import, so these vars are always present
+   here) instead of a second, independently-drifting set of hex values.
+   Per Max: one consistent "universal" colour system across admin and
+   client portal, not two golds/two near-blacks. Only the neutral/status
+   scale for the LIGHT theme stays portal-specific below — tokens.css has
+   no light-mode palette to inherit from, since the admin app is dark-only
+   and the light/dark toggle is a portal-only feature. --ghp-radius (6px)
+   and --ghp-chart-1 (the dataviz skill's validated chart blue) are
+   deliberately untouched — geometry and data-encoding colour were never
+   part of this ask. */
 .ghp-root[data-portal-theme="dark"] {
-  --ghp-ink: #1c1c1c;
-  --ghp-panel: #232320;
-  --ghp-panel-2: #292925;
-  --ghp-line: #3a3a34;
-  --ghp-text: #e9e6da;
-  --ghp-text-dim: #8f8c80;
-  --ghp-brass: #c9a34f;
-  --ghp-good: #8fae6c;
-  --ghp-warn: #c98a4f;
-  --ghp-danger: #c1613f;
+  --ghp-ink: var(--gh-black);
+  --ghp-panel: var(--gh-900);
+  --ghp-panel-2: var(--gh-800);
+  --ghp-line: var(--gh-dark);
+  --ghp-text: var(--gh-light);
+  --ghp-text-dim: var(--gh-400);
+  --ghp-brass: var(--gh-accent);
+  --ghp-good: var(--gh-success);
+  --ghp-warn: var(--gh-warning);
+  --ghp-danger: var(--gh-danger);
   /* dataviz skill's validated sequential/categorical-slot-1 blue (dark step) — data-encoding charts use this, never brass */
   --ghp-chart-1: #3987e5;
   /* Faint background grid (2026-08-28, matching the GrayScale hero's own
@@ -30,10 +43,14 @@
   --ghp-line: #e0dbca;
   --ghp-text: #1c1c1c;
   --ghp-text-dim: #8a8776;
-  --ghp-brass: #a2843f;
-  --ghp-good: #5c7a3f;
-  --ghp-warn: #a2703a;
-  --ghp-danger: #a2432a;
+  /* Darkened companions of the standard --gh-accent/success/warning/danger
+     hues above (same ~0.8x relationship the old hand-tuned light values
+     used), since a light background needs a darker tone than tokens.css's
+     dark-mode-only values to hold contrast. */
+  --ghp-brass: #9b8353;
+  --ghp-good: #668469;
+  --ghp-warn: #976637;
+  --ghp-danger: #9a5e42;
   --ghp-chart-1: #2a78d6;
   --ghp-grid-line: rgba(0, 0, 0, 0.035);
 }
@@ -327,8 +344,12 @@
    real estate to be readable, not a half-width column shared with other
    panels. Height scales with the viewport but keeps a tall floor so it
    doesn't shrink to uselessness on a short window. */
-.ghp-reporting-frame { width: 100%; height: 82vh; min-height: 700px; border: none; display: block; }
-@media (max-width: 900px) { .ghp-reporting-frame { height: 70vh; min-height: 480px; } }
+/* Fixed to a 720p-ish embed height (Max resized the Looker Studio reports
+   to fit one screen on that end) rather than a viewport-relative height —
+   the previous 82vh/700px-min made every report scroll to see the bottom
+   of the page even after the report itself was shrunk. */
+.ghp-reporting-frame { width: 100%; height: 640px; border: none; display: block; }
+@media (max-width: 900px) { .ghp-reporting-frame { height: 480px; } }
 
 .ghp-theme-toggle { display: flex; border: 1px solid var(--ghp-line); border-radius: 20px; overflow: hidden; width: fit-content; }
 .ghp-theme-toggle button { border: none; background: transparent; color: var(--ghp-text-dim); font-size: 12px; padding: 8px 20px; cursor: pointer; font-family: var(--ghp-font-body), sans-serif; }

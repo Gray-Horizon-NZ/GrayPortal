@@ -10,6 +10,7 @@ type Task = {
   status: "not_started" | "in_progress" | "done" | "ongoing";
   dueDate: string | null;
   starred?: boolean;
+  priority?: "normal" | "high";
   clientId?: string | null;
   internalList?: string | null;
   dealId?: string | null;

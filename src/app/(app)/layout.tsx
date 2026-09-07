@@ -20,6 +20,7 @@ import {
   Megaphone,
   LayoutGrid,
   Calculator,
+  Palette,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
@@ -126,6 +127,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? [
           { href: "/reminders", label: "Reminders", icon: navIcon(Clock), group: "System" },
           { href: "/vault", label: "Vault", icon: navIcon(ShieldCheck), group: "System" },
+          { href: "/brand-guidelines", label: "Brand Guidelines", icon: navIcon(Palette), group: "System" },
           { href: "/settings", label: "Settings", icon: navIcon(SettingsIcon), group: "System" },
         ]
       : []),

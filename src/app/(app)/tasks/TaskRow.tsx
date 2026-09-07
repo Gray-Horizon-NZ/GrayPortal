@@ -1,8 +1,8 @@
 "use client";
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Star } from "lucide-react";
-import { setTaskStatusAction, assignTaskAction, toggleTaskStarAction } from "./actions";
+import { Star, AlertTriangle } from "lucide-react";
+import { setTaskStatusAction, assignTaskAction, toggleTaskStarAction, toggleTaskPriorityAction } from "./actions";
 
 type Task = {
   id: string;
@@ -16,6 +16,7 @@ type Task = {
   dealId?: string | null;
   dealCompanyName?: string | null;
   starred?: boolean;
+  priority?: "normal" | "high";
   internalList?: string | null;
 };
 
@@ -31,6 +32,7 @@ const INTERNAL_LIST_LABELS: Record<string, string> = {
 
 export default function TaskRow({ task, assignees = [] }: { task: Task; assignees?: Assignee[] }) {
   const [starred, setStarred] = useState(task.starred ?? false);
+  const [highPriority, setHighPriority] = useState((task.priority ?? "normal") === "high");
   const [, startTransition] = useTransition();
 
   return (
@@ -53,6 +55,25 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
             strokeWidth={1.75}
             fill={starred ? "var(--gh-accent)" : "none"}
             color={starred ? "var(--gh-accent)" : "var(--gh-text-muted)"}
+          />
+        </button>
+        <button
+          type="button"
+          aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
+          onClick={() => {
+            const next = !highPriority;
+            setHighPriority(next);
+            startTransition(() => {
+              toggleTaskPriorityAction(task.id, next ? "high" : "normal");
+            });
+          }}
+          style={{ background: "none", border: "none", padding: 0, marginTop: 2, cursor: "pointer", display: "flex", lineHeight: 0 }}
+        >
+          <AlertTriangle
+            size={14}
+            strokeWidth={1.75}
+            fill={highPriority ? "var(--gh-danger)" : "none"}
+            color={highPriority ? "var(--gh-danger)" : "var(--gh-text-muted)"}
           />
         </button>
         <div>
@@ -92,6 +113,11 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
             {task.starred && (
               <span className="gh-badge" data-status="accent" style={{ fontSize: "var(--gh-text-micro)" }}>
                 Starred
+              </span>
+            )}
+            {task.priority === "high" && (
+              <span className="gh-badge" data-status="danger" style={{ fontSize: "var(--gh-text-micro)" }}>
+                High priority
               </span>
             )}
             {task.syncState === "failed" && (

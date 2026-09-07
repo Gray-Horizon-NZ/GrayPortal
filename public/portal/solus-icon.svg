@@ -1,0 +1,14 @@
+<svg width="140" height="170" viewBox="0 0 140 170" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Solus icon</title>
+<defs><style>
+.badge{fill:#141311;stroke:#C9A227;stroke-width:1;}
+.ring{fill:none;stroke:#C9A227;stroke-width:0.6;opacity:0.55;}
+.g{fill:none;stroke:#D9BC5C;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.lbl{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:15px;fill:#B7A15A;letter-spacing:0.5px;text-anchor:middle;}
+</style></defs>
+<circle class="badge" cx="70" cy="68" r="54"/>
+<circle class="ring" cx="70" cy="68" r="47"/>
+<circle class="g" cx="70" cy="68" r="16"/>
+<path class="g" d="M70 40 V32 M70 104 V96 M42 68 H34 M106 68 H98 M50 48 L44 42 M90 48 L96 42 M50 88 L44 94 M90 88 L96 94"/>
+<text class="lbl" x="70" y="150">Solus</text>
+</svg>

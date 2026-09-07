@@ -155,6 +155,14 @@ export async function toggleTaskStar(id: string, starred: boolean) {
   });
 }
 
+export const TaskPriority = z.enum(["normal", "high"]);
+
+export async function toggleTaskPriority(id: string, priority: "normal" | "high") {
+  return withCaller(async (caller, tx) => {
+    return auditedUpdate(tx, tasks, eq(tasks.id, id), id, { priority }, { caller, entityType: "task" });
+  });
+}
+
 export const CreateTaskInput = z.object({
   clientId: z.string().uuid().optional(),
   // A prospect (pipeline deal) task — orthogonal to clientId/internalList.

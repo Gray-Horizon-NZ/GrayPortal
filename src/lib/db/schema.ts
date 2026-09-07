@@ -41,6 +41,10 @@ export const taskStatusEnum = pgEnum("task_status", [
 // no default: the common case is a task that's on nobody's roadmap at all.
 // Only meaningful for tasks with a clientId set.
 export const taskFunnelStageEnum = pgEnum("task_funnel_stage", ["next", "doing", "done"]);
+// A tier above `starred` — starred is a cross-client highlight list,
+// priority is urgency. Only "high" surfaces on the dashboard Alerts widget;
+// "normal" is the default and never shown there.
+export const taskPriorityEnum = pgEnum("task_priority", ["normal", "high"]);
 // Phase 8 extends this lifecycle from Phase 2's original 4 generic states
 // to the named states the brief specifies — "converted" and
 // "discount_applied" are two distinct events (a referred lead becoming a
@@ -386,6 +390,7 @@ export const tasks = pgTable("tasks", {
   // starred task keeps showing in its own client's column AND in the
   // Starred view, not one or the other.
   starred: boolean("starred").notNull().default(false),
+  priority: taskPriorityEnum("priority").notNull().default("normal"),
   // Only meaningful when clientId is null (an internal, non-client task) —
   // which of the two internal Master Task View columns it belongs to.
   // Text + app-layer validation (INTERNAL_LIST_KEYS in dal/tasks.ts),

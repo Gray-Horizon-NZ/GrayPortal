@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { setTaskStatus, assignTask, createTask, toggleTaskStar, updateTask, deleteTask, type InternalListKey } from "@/lib/dal/tasks";
+import { setTaskStatus, assignTask, createTask, toggleTaskStar, toggleTaskPriority, updateTask, deleteTask, type InternalListKey } from "@/lib/dal/tasks";
 import type { z } from "zod";
 import { TaskStatus } from "@/lib/dal/tasks";
 
@@ -19,6 +19,12 @@ export async function assignTaskAction(id: string, assigneeUserId: string | null
 export async function toggleTaskStarAction(id: string, starred: boolean) {
   await toggleTaskStar(id, starred);
   revalidatePath("/tasks");
+}
+
+export async function toggleTaskPriorityAction(id: string, priority: "normal" | "high") {
+  await toggleTaskPriority(id, priority);
+  revalidatePath("/tasks");
+  revalidatePath("/");
 }
 
 /**
