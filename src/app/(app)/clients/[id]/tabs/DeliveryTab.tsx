@@ -1,7 +1,7 @@
 import SubmitButton from "@/components/ui/SubmitButton";
 import {
   uploadDocumentAction,
-  renameDocumentAction,
+  updateDocumentAction,
   deleteDocumentAction,
   updateClientEmbedsAction,
   createToolStackItemAction,
@@ -35,7 +35,10 @@ export default function DeliveryTab({
         {documents.map((d) => (
           <div key={d.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
             <div className="gh-item-row" style={{ border: "none", padding: 0 }}>
-              <span>{d.title ?? d.docType}</span>
+              <span>
+                {d.title ?? d.docType} <span className="gh-badge">{d.docType}</span>{" "}
+                {d.documentDate && <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>{d.documentDate}</span>}
+              </span>
               <div className="gh-item-row-actions">
                 {d.externalUrl ? (
                   <a href={`/api/documents/${d.id}/download`} target="_blank" rel="noreferrer" className="gh-link-btn">Open link ↗</a>
@@ -48,13 +51,20 @@ export default function DeliveryTab({
               </div>
             </div>
             <details>
-              <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Rename</summary>
+              <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Edit</summary>
               <form
-                action={renameDocumentAction.bind(null, d.id, client.id)}
-                style={{ display: "flex", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
+                action={updateDocumentAction.bind(null, d.id, client.id)}
+                style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
               >
-                <input className="gh-input" name="title" defaultValue={d.title ?? ""} required style={{ flex: 1 }} />
-                <SubmitButton style={{ fontSize: "var(--gh-text-micro)" }}>Save</SubmitButton>
+                <input className="gh-input" name="title" defaultValue={d.title ?? ""} required />
+                <select className="gh-input" name="docType" defaultValue={d.docType}>
+                  <option value="proposal">Proposal</option>
+                  <option value="contract">Contract</option>
+                  <option value="deck">Deck</option>
+                  <option value="other">Other</option>
+                </select>
+                <input className="gh-input" name="documentDate" type="date" defaultValue={d.documentDate ?? ""} />
+                <SubmitButton style={{ fontSize: "var(--gh-text-micro)", alignSelf: "flex-start" }}>Save</SubmitButton>
               </form>
             </details>
           </div>
@@ -74,6 +84,7 @@ export default function DeliveryTab({
               <option value="deck">Deck</option>
               <option value="other">Other</option>
             </select>
+            <input className="gh-input" name="documentDate" type="date" placeholder="Document date (optional)" />
             <input className="gh-input" name="file" type="file" />
             <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", textAlign: "center" }}>— or —</p>
             <input className="gh-input" name="externalUrl" type="url" placeholder="Link a Drive/hosted PDF URL instead" />

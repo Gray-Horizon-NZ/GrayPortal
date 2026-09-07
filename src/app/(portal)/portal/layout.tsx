@@ -92,7 +92,7 @@ export default async function PortalLayout({ children }: { children: React.React
     ...(has("tasks") || has("roadmap") || has("ideation") || has("deliverables")
       ? [{ href: "/portal/work", label: "Work", icon: navIcon(Briefcase) }]
       : []),
-    ...(has("performance") || has("campaign_health") || has("activity_feed") || has("reporting")
+    ...(has("campaign_health") || has("activity_feed") || has("reporting")
       ? [{ href: "/portal/performance", label: "Performance", icon: navIcon(TrendingUp) }]
       : []),
     ...(has("documents") || has("drive") || has("tool_stack") || has("meeting_summaries")

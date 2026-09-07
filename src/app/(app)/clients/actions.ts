@@ -10,7 +10,7 @@ import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib
 import { createDeal, type DealInputT } from "@/lib/dal/deals";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
-import { uploadDocument, linkDocument, renameDocument, deleteDocument, DocType } from "@/lib/dal/documents";
+import { uploadDocument, linkDocument, updateDocument, deleteDocument, DocType } from "@/lib/dal/documents";
 import type { z } from "zod";
 import { ReferralStatus } from "@/lib/dal/referrals";
 import { createIdeationItem, softDeleteIdeationItem } from "@/lib/dal/ideation";
@@ -18,7 +18,6 @@ import { createRoadmapItem, updateRoadmapItem, softDeleteRoadmapItem, RoadmapSta
 import { createMeetingSummary, softDeleteMeetingSummary } from "@/lib/dal/meetingSummaries";
 import { createToolStackItem, softDeleteToolStackItem } from "@/lib/dal/toolStack";
 import { addClientService, removeClientService, updateClientServicePrice } from "@/lib/dal/clientServices";
-import { addClientMetricsSnapshot, softDeleteClientMetricsSnapshot } from "@/lib/dal/clientMetrics";
 import { addClientTeamMember, softDeleteClientTeamMember } from "@/lib/dal/clientTeam";
 import { addClientHealthChannel, softDeleteClientHealthChannel } from "@/lib/dal/clientHealthChannels";
 import { addClientActivityFeedEntry, softDeleteClientActivityFeedEntry } from "@/lib/dal/clientActivityFeed";
@@ -313,22 +312,6 @@ export async function updateClientDiscountAction(clientId: string, formData: For
   revalidatePath("/portal");
 }
 
-export async function addClientMetricsSnapshotAction(clientId: string, formData: FormData) {
-  await addClientMetricsSnapshot({
-    clientId,
-    periodLabel: String(formData.get("periodLabel") ?? ""),
-    adSpend: String(formData.get("adSpend") ?? "") || undefined,
-    leadsGenerated: formData.get("leadsGenerated") ? Number(formData.get("leadsGenerated")) : undefined,
-    roas: String(formData.get("roas") ?? "") || undefined,
-  });
-  revalidatePath(`/clients/${clientId}`);
-}
-
-export async function deleteClientMetricsSnapshotAction(id: string, clientId: string) {
-  await softDeleteClientMetricsSnapshot(id);
-  revalidatePath(`/clients/${clientId}`);
-}
-
 export async function addClientTeamMemberAction(clientId: string, formData: FormData) {
   await addClientTeamMember({
     clientId,
@@ -405,20 +388,25 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
   const externalUrl = String(formData.get("externalUrl") ?? "").trim();
   const file = formData.get("file");
   const title = String(formData.get("title") ?? "").trim();
+  const documentDate = String(formData.get("documentDate") ?? "") || undefined;
   if (!title) throw new Error("A document name is required");
 
   if (externalUrl) {
-    await linkDocument({ clientId, companyId, docType, title }, externalUrl);
+    await linkDocument({ clientId, companyId, docType, title, documentDate }, externalUrl);
   } else if (file instanceof File && file.size > 0) {
-    await uploadDocument({ clientId, companyId, docType, title }, file);
+    await uploadDocument({ clientId, companyId, docType, title, documentDate }, file);
   } else {
     throw new Error("A file or a URL is required");
   }
   revalidatePath(`/clients/${clientId}`);
 }
 
-export async function renameDocumentAction(id: string, clientId: string, formData: FormData) {
-  await renameDocument(id, String(formData.get("title") ?? ""));
+export async function updateDocumentAction(id: string, clientId: string, formData: FormData) {
+  await updateDocument(id, {
+    title: String(formData.get("title") ?? ""),
+    docType: DocType.parse(formData.get("docType")),
+    documentDate: String(formData.get("documentDate") ?? "") || undefined,
+  });
   revalidatePath(`/clients/${clientId}`);
 }
 

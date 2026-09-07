@@ -8,8 +8,6 @@ import {
   deleteMeetingSummaryAction,
   addClientHealthChannelAction,
   deleteClientHealthChannelAction,
-  addClientMetricsSnapshotAction,
-  deleteClientMetricsSnapshotAction,
   addClientContactEmailAliasAction,
   addClientActivityFeedEntryAction,
   deleteClientActivityFeedEntryAction,
@@ -19,7 +17,6 @@ import type {
   TeamMember,
   MeetingSummary,
   HealthChannel,
-  MetricsSnapshot,
   EmailRow,
   ActivityFeedEntry,
   CompanyDetailData,
@@ -30,7 +27,6 @@ export default function TeamTab({
   teamMembers,
   meetings,
   healthChannels,
-  metricsSnapshots,
   recentEmails,
   companyData,
   activityFeed,
@@ -39,7 +35,6 @@ export default function TeamTab({
   teamMembers: TeamMember[];
   meetings: MeetingSummary[];
   healthChannels: HealthChannel[];
-  metricsSnapshots: MetricsSnapshot[];
   recentEmails: EmailRow[];
   companyData: CompanyDetailData | null;
   activityFeed: ActivityFeedEntry[];
@@ -122,33 +117,6 @@ export default function TeamTab({
               </select>
               <input className="gh-input" name="statusLabel" placeholder="Status label (e.g. Active, Paused, Live)" required />
               <SubmitButton>Add channel</SubmitButton>
-            </form>
-          </details>
-        </div>
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Performance snapshots</p>
-        {metricsSnapshots.map((m) => (
-          <div key={m.id} className="gh-item-row">
-            <span>
-              {m.periodLabel} — Ad spend ${m.adSpend ?? "—"} · Leads {m.leadsGenerated ?? "—"} · ROAS {m.roas ?? "—"}×
-            </span>
-            <form action={deleteClientMetricsSnapshotAction.bind(null, m.id, client.id)}>
-              <SubmitButton className="gh-link-btn gh-link-btn--danger">Remove</SubmitButton>
-            </form>
-          </div>
-        ))}
-        {metricsSnapshots.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No snapshots logged yet.</p>}
-        <div className="gh-add-form">
-          <details>
-            <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>+ Add snapshot</summary>
-            <form action={addClientMetricsSnapshotAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
-              <input className="gh-input" name="periodLabel" placeholder="Period (e.g. Aug 2026)" required />
-              <input className="gh-input" name="adSpend" placeholder="Ad spend" />
-              <input className="gh-input" name="leadsGenerated" placeholder="Leads generated" type="number" />
-              <input className="gh-input" name="roas" placeholder="ROAS (e.g. 6.4)" />
-              <SubmitButton>Add snapshot</SubmitButton>
             </form>
           </details>
         </div>

@@ -3,8 +3,8 @@ import { getPortalHome, listPortalInvoices, listPortalRoadmap, listPortalRoadmap
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { paymentStatus } from "@/lib/paymentStatus";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
-import AdSpendBars from "@/components/portal/charts/AdSpendBars";
 import RoadmapWidget from "@/components/portal/RoadmapWidget";
+import PortalTaskList from "@/components/portal/PortalTaskList";
 import DashboardReadySignal from "@/components/ui/DashboardReadySignal";
 
 export default async function PortalHomePage() {
@@ -15,7 +15,6 @@ export default async function PortalHomePage() {
       enabledFeatureKeys,
       tasksPreview,
       referralStats,
-      metricsSnapshots,
       teamMembers,
       healthChannels,
       isAdminPreview,
@@ -42,16 +41,12 @@ export default async function PortalHomePage() {
   const status = client ? paymentStatus(client.nextPaymentDate) : null;
   const latestInvoices = allInvoices.slice(0, 3);
 
-  const spendData = [...metricsSnapshots].reverse().map((s) => ({ label: s.periodLabel, value: Number(s.adSpend ?? 0) }));
-  const latest = metricsSnapshots[0];
-  const costPerLead = latest?.adSpend && latest?.leadsGenerated ? Number(latest.adSpend) / latest.leadsGenerated : null;
-
   const shortcuts: { key: string; href: string; label: string; value: string; meta: string }[] = [
     ...(has("tasks") || has("roadmap") || has("ideation") || has("deliverables")
       ? [{ key: "work", href: "/portal/work", label: "Work", value: String(openTaskCount), meta: "open tasks" }]
       : []),
-    ...(has("performance") || has("campaign_health") || has("activity_feed") || has("reporting")
-      ? [{ key: "performance", href: "/portal/performance", label: "Performance", value: latest?.roas ? `${latest.roas}×` : "—", meta: "ROAS · latest period" }]
+    ...(has("campaign_health") || has("activity_feed") || has("reporting")
+      ? [{ key: "performance", href: "/portal/performance", label: "Performance", value: "→", meta: "reporting & campaign health" }]
       : []),
     ...(has("documents") || has("drive") || has("tool_stack") || has("meeting_summaries")
       ? [{ key: "files", href: "/portal/files", label: "Files", value: "→", meta: "documents & drive" }]
@@ -108,24 +103,7 @@ export default async function PortalHomePage() {
           </div>
         )}
 
-        {has("tasks") && (
-          <div className="ghp-panel-block">
-            <div className="ghp-panel-head">
-              <div className="ghp-t">Tasks</div>
-              <div className="ghp-n">{openTaskCount} open</div>
-            </div>
-            {tasksPreview.map((t) => (
-              <div key={t.id} className="ghp-task-row">
-                <span className={`ghp-task-check${t.status === "done" ? " ghp-good" : ""}`}>
-                  {t.status === "done" ? "✓" : ""}
-                </span>
-                <span className={`ghp-task-name${t.status === "done" ? " ghp-done-text" : ""}`}>{t.title}</span>
-                {t.dueDate && <span className="ghp-task-due">Due {t.dueDate}</span>}
-              </div>
-            ))}
-            {tasksPreview.length === 0 && <p className="ghp-empty">No open tasks right now.</p>}
-          </div>
-        )}
+        {has("tasks") && <PortalTaskList tasks={tasksPreview} openTaskCount={openTaskCount} />}
 
         {has("referrals") && (
           <div className="ghp-panel-block">
@@ -165,78 +143,28 @@ export default async function PortalHomePage() {
         )}
 
         {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} previewOnly={isAdminPreview} />}
+
+        {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} compact workHref="/portal/work" />}
+
+        {healthChannels.length > 0 && (
+          <div className="ghp-panel-block">
+            <div className="ghp-panel-head">
+              <div className="ghp-t">Campaign health</div>
+              <div className="ghp-n">{healthChannels.length} tracked</div>
+            </div>
+            {healthChannels.map((c) => (
+              <div key={c.id} className="ghp-health-row">
+                <div>
+                  <div className="ghp-health-name">{c.channelName}</div>
+                </div>
+                <span className={`ghp-tag ${c.status === "ok" ? "ghp-good" : c.status === "warn" ? "ghp-warn" : "ghp-danger"}`}>
+                  {c.statusLabel}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {(spendData.length > 0 || has("roadmap")) && (
-        <>
-          <div className="ghp-page-head" style={{ marginTop: 8 }}>
-            <h1 style={{ fontSize: 18 }}>At a glance</h1>
-          </div>
-          <div className="ghp-widget-grid">
-            {spendData.length > 0 && (
-              <div className="ghp-panel-block">
-                <div className="ghp-panel-head">
-                  <div className="ghp-t">Monthly investment</div>
-                  <div className="ghp-n">last {spendData.length} period{spendData.length === 1 ? "" : "s"}</div>
-                </div>
-                <div className="ghp-panel-body">
-                  <AdSpendBars data={spendData} />
-                </div>
-              </div>
-            )}
-            {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} compact workHref="/portal/work" />}
-          </div>
-        </>
-      )}
-
-      {(latest || healthChannels.length > 0) && (
-        <div className="ghp-widget-grid">
-          {latest && (
-            <div className="ghp-panel-block">
-              <div className="ghp-panel-head">
-                <div className="ghp-t">Performance snapshot</div>
-                <div className="ghp-n">{latest.periodLabel}</div>
-              </div>
-              <div className="ghp-stat-row" style={{ padding: 18, margin: 0 }}>
-                <div className="ghp-stat">
-                  <div className="ghp-l">Ad spend</div>
-                  <div className="ghp-v">{latest.adSpend ? `$${Number(latest.adSpend).toLocaleString("en-NZ")}` : "—"}</div>
-                </div>
-                <div className="ghp-stat">
-                  <div className="ghp-l">Leads</div>
-                  <div className="ghp-v">{latest.leadsGenerated ?? "—"}</div>
-                </div>
-                <div className="ghp-stat">
-                  <div className="ghp-l">Cost / lead</div>
-                  <div className="ghp-v ghp-brass">{costPerLead ? `$${costPerLead.toFixed(2)}` : "—"}</div>
-                </div>
-                <div className="ghp-stat">
-                  <div className="ghp-l">ROAS</div>
-                  <div className="ghp-v">{latest.roas ? `${latest.roas}×` : "—"}</div>
-                </div>
-              </div>
-            </div>
-          )}
-          {healthChannels.length > 0 && (
-            <div className="ghp-panel-block">
-              <div className="ghp-panel-head">
-                <div className="ghp-t">Campaign health</div>
-                <div className="ghp-n">{healthChannels.length} tracked</div>
-              </div>
-              {healthChannels.map((c) => (
-                <div key={c.id} className="ghp-health-row">
-                  <div>
-                    <div className="ghp-health-name">{c.channelName}</div>
-                  </div>
-                  <span className={`ghp-tag ${c.status === "ok" ? "ghp-good" : c.status === "warn" ? "ghp-warn" : "ghp-danger"}`}>
-                    {c.statusLabel}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {shortcuts.length > 0 && (
         <>

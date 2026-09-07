@@ -10,7 +10,6 @@ import { listMeetingSummaries } from "@/lib/dal/meetingSummaries";
 import { listToolStackItems } from "@/lib/dal/toolStack";
 import { listClientServices, getActiveMonthlyTotal } from "@/lib/dal/clientServices";
 import { listServiceItems } from "@/lib/dal/pricing";
-import { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
 import { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
@@ -82,7 +81,6 @@ export default async function ClientDetailPage({
     clientServices,
     serviceCatalogue,
     activeMonthlyTotal,
-    metricsSnapshots,
     teamMembers,
     healthChannels,
     activityFeed,
@@ -100,7 +98,6 @@ export default async function ClientDetailPage({
     listClientServices(client.id),
     listServiceItems(),
     getActiveMonthlyTotal(client.id),
-    listClientMetricsSnapshots(client.id),
     listClientTeamMembers(client.id),
     listClientHealthChannels(client.id),
     listClientActivityFeed(client.id),
@@ -232,7 +229,6 @@ export default async function ClientDetailPage({
                 teamMembers={teamMembers}
                 meetings={meetings}
                 healthChannels={healthChannels}
-                metricsSnapshots={metricsSnapshots}
                 recentEmails={recentEmails}
                 companyData={companyData}
                 activityFeed={activityFeed}

@@ -10,7 +10,6 @@ import {
   roadmapItems,
   meetingSummaries,
   toolStackItems,
-  clientMetricsSnapshots,
   clientTeamMembers,
   clientHealthChannels,
   clientActivityFeed,
@@ -53,7 +52,6 @@ async function getHomeWidgetPreviews(
     roadmapRows,
     referralRows,
     discountRows,
-    metricsRows,
     teamRows,
     healthRows,
     deliverableRows,
@@ -62,7 +60,7 @@ async function getHomeWidgetPreviews(
   ] = await Promise.all([
     has("tasks")
       ? tx
-          .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate })
+          .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate, starred: tasks.starred })
           .from(tasks)
           .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)))
       : Promise.resolve([]),
@@ -90,14 +88,6 @@ async function getHomeWidgetPreviews(
           .select()
           .from(referralDiscounts)
           .where(and(eq(referralDiscounts.clientId, clientId), isNull(referralDiscounts.deletedAt)))
-      : Promise.resolve([]),
-    has("performance")
-      ? tx
-          .select()
-          .from(clientMetricsSnapshots)
-          .where(and(eq(clientMetricsSnapshots.clientId, clientId), isNull(clientMetricsSnapshots.deletedAt)))
-          .orderBy(desc(clientMetricsSnapshots.createdAt))
-          .limit(6)
       : Promise.resolve([]),
     has("account_team")
       ? tx
@@ -154,13 +144,12 @@ async function getHomeWidgetPreviews(
   );
 
   return {
-    tasksPreview: taskRows.filter((t) => t.status !== "done").slice(0, 3),
+    tasksPreview: taskRows.filter((t) => t.status !== "done").slice(0, 10),
     documentsPreview: documentRows.slice(0, 3),
     roadmapPreview: roadmapRows.slice(0, 2),
     referralStats: has("referrals")
       ? { totalReferrals: referralRows.length, activeDiscountPercent }
       : null,
-    metricsSnapshots: metricsRows,
     teamMembers: teamRows,
     healthChannels: healthRows,
     deliverables: deliverableRows

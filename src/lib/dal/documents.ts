@@ -16,6 +16,7 @@ export const DocumentInput = z.object({
   dealId: z.string().uuid().optional(),
   docType: DocType,
   title: z.string().min(1),
+  documentDate: z.string().optional(),
 });
 export type DocumentInputT = z.infer<typeof DocumentInput>;
 
@@ -83,16 +84,22 @@ export async function linkDocument(input: DocumentInputT, externalUrl: string) {
   });
 }
 
-export async function renameDocument(id: string, title: string) {
-  const trimmed = title.trim();
-  if (!trimmed) throw new Error("A document name is required");
+export const DocumentUpdateInput = z.object({
+  title: z.string().min(1),
+  docType: DocType,
+  documentDate: z.string().optional(),
+});
+export type DocumentUpdateInputT = z.infer<typeof DocumentUpdateInput>;
+
+export async function updateDocument(id: string, input: DocumentUpdateInputT) {
+  const data = DocumentUpdateInput.parse(input);
   return withCaller(async (caller, tx) => {
     return auditedUpdate(
       tx,
       documents,
       eq(documents.id, id),
       id,
-      { title: trimmed },
+      { title: data.title.trim(), docType: data.docType, documentDate: data.documentDate || null },
       { caller, entityType: "document" }
     );
   });

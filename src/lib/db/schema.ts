@@ -418,6 +418,10 @@ export const documents = pgTable(
     // other "Other" document; a real filename only ever existed for
     // uploads (fileRef), and even that was never surfaced in the UI.
     title: text("title"),
+    // Distinct from the row's own createdAt (when it was added to
+    // GrayPortal) — this is a document-facing date (e.g. contract signed
+    // date, proposal date), admin-set, optional, shown to the client.
+    documentDate: date("document_date"),
     uploadedBy: uuid("uploaded_by").references(() => users.id),
     ...softDelete,
   },

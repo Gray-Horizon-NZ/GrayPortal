@@ -7,7 +7,6 @@ import type { listMeetingSummaries } from "@/lib/dal/meetingSummaries";
 import type { listToolStackItems } from "@/lib/dal/toolStack";
 import type { listClientServices } from "@/lib/dal/clientServices";
 import type { listServiceItems } from "@/lib/dal/pricing";
-import type { listClientMetricsSnapshots } from "@/lib/dal/clientMetrics";
 import type { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import type { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
 import type { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
@@ -35,7 +34,6 @@ export type MeetingSummary = Awaited<ReturnType<typeof listMeetingSummaries>>[nu
 export type ToolStackItem = Awaited<ReturnType<typeof listToolStackItems>>[number];
 export type ClientServiceItem = Awaited<ReturnType<typeof listClientServices>>[number];
 export type ServiceCatalogueItem = Awaited<ReturnType<typeof listServiceItems>>[number];
-export type MetricsSnapshot = Awaited<ReturnType<typeof listClientMetricsSnapshots>>[number];
 export type TeamMember = Awaited<ReturnType<typeof listClientTeamMembers>>[number];
 export type HealthChannel = Awaited<ReturnType<typeof listClientHealthChannels>>[number];
 export type ActivityFeedEntry = Awaited<ReturnType<typeof listClientActivityFeed>>[number];
