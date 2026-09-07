@@ -231,7 +231,7 @@ export async function getPortalShellContext() {
     }
 
     const [identity] = await tx
-      .select({ name: clients.name, createdAt: clients.createdAt })
+      .select({ name: clients.name, createdAt: clients.createdAt, logoUrl: clients.logoUrl })
       .from(clients)
       .where(and(eq(clients.id, effectiveClientId), isNull(clients.deletedAt)))
       .limit(1);
@@ -350,6 +350,17 @@ export async function listPortalReferrals() {
       .select()
       .from(referrals)
       .where(and(eq(referrals.clientId, clientId), isNull(referrals.deletedAt)));
+  });
+}
+
+export async function listPortalTeamMembers() {
+  return withCaller(async (caller, tx) => {
+    const clientId = requireClientScope(caller);
+    return tx
+      .select()
+      .from(clientTeamMembers)
+      .where(and(eq(clientTeamMembers.clientId, clientId), isNull(clientTeamMembers.deletedAt)))
+      .orderBy(asc(clientTeamMembers.sortOrder));
   });
 }
 

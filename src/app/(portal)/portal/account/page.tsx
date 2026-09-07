@@ -3,6 +3,7 @@ import {
   listPortalReferrals,
   getReferralStats,
   listPortalInvoices,
+  listPortalTeamMembers,
 } from "@/lib/dal/portal";
 import { submitPortalReferralAction } from "../referrals/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -21,10 +22,11 @@ export default async function PortalAccountPage() {
   const { isAdminPreview, enabledFeatureKeys: enabled } = await getPortalPageContext();
   const has = (key: string) => enabled.includes(key as (typeof enabled)[number]);
 
-  const [invoices, referrals, referralStats] = await Promise.all([
+  const [invoices, referrals, referralStats, teamMembers] = await Promise.all([
     has("invoices") ? listPortalInvoices() : Promise.resolve([]),
     has("referrals") ? listPortalReferrals() : Promise.resolve([]),
     has("referrals") ? getReferralStats() : Promise.resolve(null),
+    has("account_team") ? listPortalTeamMembers() : Promise.resolve([]),
   ]);
   const outstandingInvoices = invoices.filter((i) => i.status === "AUTHORISED" || i.status === "SUBMITTED");
 
@@ -32,7 +34,7 @@ export default async function PortalAccountPage() {
     <div>
       <div className="ghp-page-head">
         <h1>Account</h1>
-        <div className="ghp-sub">Invoices, referrals and appearance</div>
+        <div className="ghp-sub">Your team, invoices, referrals and appearance</div>
       </div>
 
       <div className="ghp-widget-grid">
@@ -94,6 +96,25 @@ export default async function PortalAccountPage() {
         </div>
 
         <div>
+          {has("account_team") && (
+            <div className="ghp-panel-block">
+              <div className="ghp-panel-head">
+                <div className="ghp-t">Account team</div>
+                <div className="ghp-n">{teamMembers.length} {teamMembers.length === 1 ? "person" : "people"}</div>
+              </div>
+              {teamMembers.map((m) => (
+                <div key={m.id} className="ghp-team-row">
+                  <div className="ghp-team-av">{m.name.trim()[0]?.toUpperCase() ?? "?"}</div>
+                  <div>
+                    <div className="ghp-team-name">{m.name}</div>
+                    {m.role && <div className="ghp-team-role">{m.role}</div>}
+                  </div>
+                </div>
+              ))}
+              {teamMembers.length === 0 && <p className="ghp-empty">No team members added yet.</p>}
+            </div>
+          )}
+
           {has("referrals") && (
             <div className="ghp-panel-block">
               <div className="ghp-panel-head">

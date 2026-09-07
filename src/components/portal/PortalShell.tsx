@@ -12,6 +12,7 @@ import { PORTAL_THEME_INIT_SCRIPT } from "./themeScript";
 export default function PortalShell({
   clientName,
   clientSince,
+  clientLogoUrl,
   navItems,
   logoutSlot,
   previewBanner,
@@ -19,6 +20,7 @@ export default function PortalShell({
 }: {
   clientName: string;
   clientSince: string | null;
+  clientLogoUrl?: string | null;
   navItems: PortalNavItem[];
   logoutSlot: React.ReactNode;
   previewBanner?: React.ReactNode;
@@ -31,7 +33,13 @@ export default function PortalShell({
       <div className="ghp-shell">
         <aside className="ghp-aside">
           <div>
-            <div className="ghp-brand">Gray Horizon</div>
+            <div className="ghp-brand">
+              {clientLogoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- external signed Storage URL, not a local asset
+                <img src={clientLogoUrl} alt={`${clientName} logo`} className="ghp-brand-logo" />
+              )}
+              Gray Horizon
+            </div>
             <PortalNav items={navItems} />
           </div>
           <div className="ghp-side-foot">

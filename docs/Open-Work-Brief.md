@@ -48,6 +48,8 @@ Explicitly flagged by Max as a **later project** — leave it there. Also has a 
 ### 1.4 Suggested moves (last-contacted / client patterns)
 Explicitly flagged by Max as a **later big project**. Same shape as the already-built AI Task Planner but for relationship/contact-timing signals rather than tasks. Treat as deferred, not scheduled, until Max prioritizes it.
 
+**Added 2026-09-06 — data-capture note, not a build item:** whenever this gets scoped, it's only as good as the historical signal it has to reason over (contact frequency, response patterns, health-score trend, task/email activity over time) — not a cold start. Worth treating data-capture completeness as ongoing groundwork *now*, independent of when the feature itself gets built: every field left sparse or manual-only today (e.g. `client_metrics_snapshots`' manual-entry-only performance data, §6) is history this feature won't have later, and that history can't be backfilled once the gap has passed. See §16 for the fuller version of this argument.
+
 **Discovery, 2026-08-28** (found while fact-checking a discount figure for the onboarding wizard's GrayScale step — see §10.3): GrayScale is considerably less "unscoped" than this section implies. `OS/website/grayhorizon-website/grayscale/index.html` — the actual live marketing page — has a full real product catalogue with real pricing, structured JSON-LD and all: **Osseus** ($250/mo, the platform/CRM every other module plugs into), **Fidelis** ($340/mo, FMA-compliant advisor onboarding), **Apexus** ($220/mo, live quote calculator + e-signature — a separate branded GrayScale product from the internal quote-builder tool at §1.1, not the same thing; §1.1's build is Max's own internal proposal-drafting tool, unrelated to whether the client-facing Apexus product ever gets built), **Aurum** ($240/mo, AI lead scoring), **Meridian** ($195/mo, revenue dashboards), **Stratum** ($420/mo, document-to-structured-data), **Memoria** ($380/mo, AI knowledge base), **Tempus** ($420/mo, bookings/scheduling), **Solus** ($190/mo, per-client branded portals — also answers what "Powered by Solus" in §1.2 actually refers to). The site also documents a real bundle discount: "10% off attached modules at 1–2 · 20% off at 3+" (i.e. buying multiple GrayScale modules alongside Osseus) — this is **not** the same thing as a "Gray Horizon client discount on GrayScale," which remains unconfirmed (see §10.3). Worth a real scoping pass against this live catalogue rather than treating §1 as a blank slate.
 
 ### 1.5 GrayScale request widget (client portal) — **built**
@@ -503,3 +505,37 @@ Picked up a short list of small polish/idea notes Max wrote after the previous s
 **Deploy notes:**
 - `db/migrations/0034_eager_solo.sql` (`CREATE TYPE task_priority`, `ALTER TABLE tasks ADD COLUMN priority`) needs applying by hand in Neon before the priority marker/dashboard alert will work — same handoff as every migration in this repo.
 - Verified via `tsc --noEmit` (clean, aside from the two pre-existing unrelated failures already on record — the stale `.next/types` portal-preview/inbox references and `tests/dal/requireClientScope.test.ts`), `eslint` (clean on every touched file), and a full `next build` (exit 0, `/brand-guidelines` compiles). No live browser click-through this session.
+
+---
+
+## 15. Error observability & monitoring
+
+**Status:** Not scoped, not started — added 2026-09-06, flagged during a review of whether GrayPortal is ready to carry real operations (not just R&D).
+**Ask:** Automated visibility when something breaks in production. Today the only way anyone learns the portal errored is a client noticing and saying something, or Max stumbling onto it — there is no error-tracking dependency anywhere in `package.json` (checked: no Sentry/Datadog/LogRocket/equivalent), and the `audit_log` table (`Master-Brief.md` §3) captures business *mutations*, not unhandled exceptions or crashes — a different thing entirely that nothing currently watches.
+
+### 14.1 Why this matters more now than it did during R&D
+Per the app's own stated principle ("security is structural, not a checklist" — `Master-Brief.md` §3), production error visibility should be structural too, not something discovered via a client complaint. Two failure classes are invisible today with no way to be alerted before someone reports them by hand:
+- **Unhandled exceptions in server actions/API routes** — a bug in a rarely-hit code path just fails silently for whoever hit it, no record anywhere.
+- **Cron routes failing or hanging** (`api/cron/run-email-campaigns`, `api/cron/run-recurring-templates`) — e.g. a campaign stuck permanently in `sending` status, or a recurring task template silently not firing, with nothing surfacing that until someone notices the downstream absence.
+
+### 14.2 Likely shape (not decided — the obvious fit, same as this doc's other "likely path" notes)
+- A dedicated error-tracking service with first-class Next.js App Router support (Sentry's free tier is the obvious default) wired into API routes, server actions, and cron routes at minimum; client-side capture is a nice-to-have, not the priority.
+- At minimum, alert Max on (a) any unhandled server-side exception and (b) any cron run that errors or exceeds its expected runtime — reusing the existing `sendEmail`/`wrapEmailHtml` path is the cheapest route, consistent with how the rest of the app already sends operational email, rather than standing up a separate alerting channel.
+- Probably no MCP tool surface needed — this is read-only ops visibility for Max, not a business-data capability that needs a write-risk tier the way `Master-Brief.md` §3's rule applies to new client-data mutations.
+
+### 14.3 Open questions
+- Free-tier/self-hosted vs. paid tool — depends on realistic error volume, unknown until instrumented.
+- Alert channel: email (reuses existing infra, no new dependency) vs. something with faster attention-grabbing (SMS/Slack) for anything client-facing-down severity.
+
+---
+
+## 16. Client data capture completeness (groundwork for future AI-suggested actions)
+
+**Status:** Not scoped as a build item — added 2026-09-06. This is a *posture*, not a feature: bias new and existing data capture toward completeness now, because the payoff isn't the software, it's the history behind it.
+**Context:** Raised alongside a review of GrayPortal as a competitive asset. The system's durable advantage isn't the codebase — a competitor could eventually build similar software — it's the accumulated first-party operational data (client health trends, task velocity, email engagement, pipeline patterns) that only builds up by actually running the real thing over time, and that a later feature like §1.4's "Suggested moves" (or any future AI-suggestive layer over client records) would need clean history for, not a cold start.
+
+### 16.1 The concrete gap this flags
+`client_metrics_snapshots` performance data is manual-entry-only, permanently, by deliberate decision (§6) — a real, already-identified half-captured signal. Not being reopened as a build item here (that decision stands, Looker Studio has no API to read report values out of an embed per §6's own note), but flagged explicitly as an example of the pattern to watch for elsewhere: any client-relationship signal that's sparse, manual-only, or not captured at all today is history a future suggestive-AI layer won't have when it's eventually built, and can't be backfilled retroactively once the gap has passed.
+
+### 16.2 What this actually asks of future scoping sessions
+Not a specific build item — a standing question to ask when scoping *any* new client-facing feature from here on: "does this naturally produce a structured, queryable signal (timestamps, statuses, counts) as a side effect of normal use, or does it just produce free-text/manual notes that won't be usable as training/reasoning signal later?" Prefer the former where the two are equally easy to build. No schema changes, no new tables implied by this section alone — it's a lens for future work, not a task.

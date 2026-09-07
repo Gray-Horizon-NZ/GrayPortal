@@ -7,7 +7,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
-import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, ctaButtonHtml, MUTED } from "@/lib/email/chrome";
+import { wrapEmailHtml, wrapPortalInviteEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
 import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 
@@ -89,15 +89,6 @@ export async function sendOnboardingCompletionEmail(tx: Tx, clientId: string, cl
   }
 }
 
-function inviteCtaHtml(link: string): string {
-  return `
-    ${ctaButtonHtml("Set up your portal", link)}
-    <p style="margin:12px 0 0; font-size:13px; color:${MUTED};">
-      Or copy this link: ${link}
-    </p>
-  `;
-}
-
 export const SendOnboardingInviteInput = z.object({
   clientId: z.string().uuid(),
   toEmail: z.string().email(),
@@ -162,6 +153,9 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
 
+    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, data.clientId)).limit(1);
+    if (!client) throw new Error("Client not found");
+
     const attached = await getAttachedOnboardingDocumentNames(tx, data.clientId);
     const missing: string[] = ONBOARDING_DOCUMENT_NAMES.filter((name) => !attached.includes(name));
     if (!(await clientHasRoadmapItems(tx, data.clientId))) {
@@ -198,8 +192,13 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
     );
 
     const link = `${data.appOrigin}/onboard/${raw}`;
-    const messageHtml = sanitizeEmailHtml(data.bodyHtml) + inviteCtaHtml(link);
-    const html = wrapEmailHtml(messageHtml);
+    const introHtml = sanitizeEmailHtml(data.bodyHtml);
+    const html = wrapPortalInviteEmailHtml({
+      clientName: client.name,
+      introHtml,
+      ctaHref: link,
+      expiresInDays: Math.round(INVITE_TTL_MS / (24 * 60 * 60 * 1000)),
+    });
 
     // Deliberately bypasses sendEmail (src/lib/dal/emails.ts): that function
     // requires exactly one of contactId/dealId and the emails table has no
@@ -209,7 +208,7 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
     const sent = await sendGmail({
       to: data.toEmail,
       subject: data.subject,
-      bodyText: stripHtmlToText(messageHtml),
+      bodyText: `${stripHtmlToText(introHtml)}\n\nSetup your portal: ${link}`,
       bodyHtml: html,
     });
     if (!sent) throw new Error("Gmail is not connected — could not send the invite");

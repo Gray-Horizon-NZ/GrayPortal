@@ -15,7 +15,6 @@ export default async function PortalHomePage() {
       enabledFeatureKeys,
       tasksPreview,
       referralStats,
-      teamMembers,
       healthChannels,
       isAdminPreview,
     },
@@ -84,26 +83,9 @@ export default async function PortalHomePage() {
       )}
 
       <div className="ghp-widget-grid">
-        {has("account_team") && (
-          <div className="ghp-panel-block">
-            <div className="ghp-panel-head">
-              <div className="ghp-t">Account team</div>
-              <div className="ghp-n">{teamMembers.length} {teamMembers.length === 1 ? "person" : "people"}</div>
-            </div>
-            {teamMembers.map((m) => (
-              <div key={m.id} className="ghp-team-row">
-                <div className="ghp-team-av">{m.name.trim()[0]?.toUpperCase() ?? "?"}</div>
-                <div>
-                  <div className="ghp-team-name">{m.name}</div>
-                  {m.role && <div className="ghp-team-role">{m.role}</div>}
-                </div>
-              </div>
-            ))}
-            {teamMembers.length === 0 && <p className="ghp-empty">No team members added yet.</p>}
-          </div>
-        )}
-
         {has("tasks") && <PortalTaskList tasks={tasksPreview} openTaskCount={openTaskCount} />}
+
+        {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} compact workHref="/portal/work" />}
 
         {has("referrals") && (
           <div className="ghp-panel-block">
@@ -121,6 +103,25 @@ export default async function PortalHomePage() {
                 <div className="ghp-v">{referralStats?.activeDiscountPercent ?? 0}%</div>
               </div>
             </div>
+          </div>
+        )}
+
+        {healthChannels.length > 0 && (
+          <div className="ghp-panel-block">
+            <div className="ghp-panel-head">
+              <div className="ghp-t">Campaign health</div>
+              <div className="ghp-n">{healthChannels.length} tracked</div>
+            </div>
+            {healthChannels.map((c) => (
+              <div key={c.id} className="ghp-health-row">
+                <div>
+                  <div className="ghp-health-name">{c.channelName}</div>
+                </div>
+                <span className={`ghp-tag ${c.status === "ok" ? "ghp-good" : c.status === "warn" ? "ghp-warn" : "ghp-danger"}`}>
+                  {c.statusLabel}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -143,27 +144,6 @@ export default async function PortalHomePage() {
         )}
 
         {has("grayscale_page") && <GrayscaleWidget products={grayscaleProducts} previewOnly={isAdminPreview} />}
-
-        {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} compact workHref="/portal/work" />}
-
-        {healthChannels.length > 0 && (
-          <div className="ghp-panel-block">
-            <div className="ghp-panel-head">
-              <div className="ghp-t">Campaign health</div>
-              <div className="ghp-n">{healthChannels.length} tracked</div>
-            </div>
-            {healthChannels.map((c) => (
-              <div key={c.id} className="ghp-health-row">
-                <div>
-                  <div className="ghp-health-name">{c.channelName}</div>
-                </div>
-                <span className={`ghp-tag ${c.status === "ok" ? "ghp-good" : c.status === "warn" ? "ghp-warn" : "ghp-danger"}`}>
-                  {c.statusLabel}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {shortcuts.length > 0 && (

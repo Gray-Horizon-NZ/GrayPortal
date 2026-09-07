@@ -30,12 +30,17 @@ export const ONBOARDING_TASK_TEMPLATE: { title: string; dueInDays: number }[] = 
 // edit step before sending, not automatic the instant onboardClient()
 // runs"). Plain constants, not a DB-backed emailTemplates row: this is a
 // one-off admin-composed message, not a reusable campaign template (§2.9's
-// "no visual template builder" posture). The link itself is appended
-// separately by sendOnboardingInvite — never part of this editable body.
+// "no visual template builder" posture). Only this intro paragraph is
+// editable — the heading, "what's inside" rows, and CTA are fixed chrome
+// baked into wrapPortalInviteEmailHtml (chrome.ts), same as the link itself
+// being appended separately by sendOnboardingInvite, never part of this body.
+// Copy matches "Concept 1 — minimal classic, expanded"
+// (Downloads/gray-portal-invite-emails-revised.html), Max's pick over the
+// two-column-hero alternative.
 export function defaultOnboardingInviteEmail(clientName: string): { subject: string; body: string } {
   return {
-    subject: `Welcome to Gray Horizon, ${clientName}`,
-    body: `<p style="margin:0 0 16px; font-family:Georgia, 'Times New Roman', serif; font-size:22px; color:#1a1a1a; font-weight:600;">Welcome to Gray Horizon, ${clientName}.<span style="display:block; font-style:italic; font-weight:400; color:#6b6b6b; font-size:17px; margin-top:6px;">&rarr; Let's get your portal set up.</span></p><p style="margin:0 0 14px;">This is where everything lives from here — your documents, your roadmap, your tasks, and a live view of what we're building together. No digging through email threads for the file you need.</p><p style="margin:0 0 14px;">Setting it up takes a few minutes: confirm a few details, choose which Google account gets access, and you're in. The button below gets you started.</p>`,
+    subject: `Your ${clientName} client portal is ready`,
+    body: `<p style="margin:0;">We've set up a private space where you can see everything we're working on for ${clientName}, any time you want to check in.</p>`,
   };
 }
 

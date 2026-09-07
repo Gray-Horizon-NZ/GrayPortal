@@ -99,7 +99,7 @@ export default async function PortalLayout({ children }: { children: React.React
       ? [{ href: "/portal/files", label: "Files", icon: navIcon(FolderOpen) }]
       : []),
     ...(has("grayscale_page") ? [{ href: "/portal/grayscale", label: "GrayScale", icon: navIcon(LayoutGrid) }] : []),
-    ...(has("invoices") || has("referrals")
+    ...(has("invoices") || has("referrals") || has("account_team")
       ? [{ href: "/portal/account", label: "Account", icon: navIcon(UserCircle) }]
       : []),
   ];
@@ -114,6 +114,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <PortalShell
         clientName={identity?.name ?? callerLabel}
         clientSince={clientSince}
+        clientLogoUrl={identity?.logoUrl}
         navItems={navItems}
         logoutSlot={<LogoutButton />}
         previewBanner={
@@ -121,7 +122,7 @@ export default async function PortalLayout({ children }: { children: React.React
             <div className="ghp-preview-banner">
               <span>Previewing as {identity?.name ?? "this client"} — admin session, not a live login.</span>
               <form action={exitPortalPreviewAction}>
-                <button type="submit" style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", textDecoration: "underline", fontWeight: 600, cursor: "pointer" }}>
+                <button type="submit" style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--ghp-brass)", textDecoration: "underline", fontWeight: 600, cursor: "pointer" }}>
                   Exit preview
                 </button>
               </form>

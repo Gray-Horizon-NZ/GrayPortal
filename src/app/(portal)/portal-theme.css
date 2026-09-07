@@ -137,6 +137,7 @@
   align-items: center;
   gap: var(--ghp-space-2);
 }
+.ghp-brand-logo { width: 24px; height: 24px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
 .ghp-nav a {
   display: block;
   padding: 10px 20px;
@@ -232,15 +233,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--ghp-brass);
-  color: #161310;
+  background: var(--ghp-panel-2);
+  border: 1px solid var(--ghp-line);
+  border-left: 3px solid var(--ghp-brass);
+  color: var(--ghp-text-dim);
   font-size: 12px;
   font-weight: 500;
   padding: 10px 16px;
   border-radius: var(--ghp-radius);
   margin-bottom: 20px;
 }
-.ghp-preview-banner a { color: #161310; text-decoration: underline; font-weight: 600; }
+.ghp-preview-banner a { color: var(--ghp-brass); text-decoration: underline; font-weight: 600; }
 .ghp-panel-body { padding: 18px; }
 .ghp-empty { color: var(--ghp-text-dim); padding: 24px 18px; text-align: center; font-size: 12px; }
 
@@ -262,9 +265,9 @@
 
 .ghp-tag { font-family: var(--ghp-font-mono), monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--ghp-line); color: var(--ghp-text-dim); display: inline-block; }
 .ghp-tag.ghp-live { border-color: var(--ghp-brass); color: var(--ghp-brass); }
-.ghp-tag.ghp-good { border-color: var(--ghp-good); color: var(--ghp-good); }
-.ghp-tag.ghp-warn { border-color: var(--ghp-warn); color: var(--ghp-warn); }
-.ghp-tag.ghp-danger { border-color: var(--ghp-danger); color: var(--ghp-danger); }
+.ghp-tag.ghp-good { border-color: var(--ghp-good); color: var(--ghp-good); background: color-mix(in srgb, var(--ghp-good) 16%, transparent); }
+.ghp-tag.ghp-warn { border-color: var(--ghp-warn); color: var(--ghp-warn); background: color-mix(in srgb, var(--ghp-warn) 16%, transparent); }
+.ghp-tag.ghp-danger { border-color: var(--ghp-danger); color: var(--ghp-danger); background: color-mix(in srgb, var(--ghp-danger) 16%, transparent); }
 
 .ghp-prog { width: 70px; height: 4px; background: var(--ghp-line); border-radius: 2px; overflow: hidden; }
 /* Gray, not gold — the last remaining gold background fill in this
