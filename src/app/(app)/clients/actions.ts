@@ -245,8 +245,6 @@ export async function sendOnboardingInviteAction(clientId: string, formData: For
     await sendOnboardingInvite({
       clientId,
       toEmail: String(formData.get("email") ?? ""),
-      subject: String(formData.get("subject") ?? ""),
-      bodyHtml: String(formData.get("body") ?? ""),
       appOrigin,
     });
   } catch (err) {

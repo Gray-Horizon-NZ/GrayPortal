@@ -1,4 +1,5 @@
 import Link from "next/link";
+import EditTaskButton from "@/app/(app)/tasks/EditTaskButton";
 
 export type RoadmapPhase = {
   id: string;
@@ -34,11 +35,15 @@ export default function RoadmapWidget({
   tasks,
   compact,
   workHref,
+  clientId,
+  isAdminPreview,
 }: {
   phases: RoadmapPhase[];
   tasks: RoadmapFunnelTask[];
   compact?: boolean;
   workHref?: string;
+  clientId?: string;
+  isAdminPreview?: boolean;
 }) {
   const sortedPhases = [...phases].sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder));
   const inProgressIndex = sortedPhases.findIndex((p) => p.status === "in_progress");
@@ -51,12 +56,18 @@ export default function RoadmapWidget({
   const current = sortedPhases[currentIndex] ?? null;
   const nextPhase = currentIndex >= 0 ? sortedPhases[currentIndex + 1] : undefined;
   const total = sortedPhases.length;
-  const pct = total > 0 && currentIndex >= 0 ? Math.round(((currentIndex + 0.5) / total) * 100) : 0;
-  const dashOffset = DIAL_CIRCUMFERENCE * (1 - pct / 100);
 
   const doneTasks = tasks.filter((t) => t.funnelStage === "done");
   const nowTasks = tasks.filter((t) => t.funnelStage === "doing");
   const nextTasks = tasks.filter((t) => t.funnelStage === "next");
+
+  // Dial fill is real work done (doneTasks / all funnel-tagged tasks), not
+  // which phase we're on — Max: phase position alone reads as more complete
+  // than it is the moment a new phase starts (a fresh phase 3 of 5 showing
+  // 50% when nothing in it is done yet is misleading). Phase index still
+  // drives the "Phase X of Y" label and which phase's narrative shows.
+  const pct = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+  const dashOffset = DIAL_CIRCUMFERENCE * (1 - pct / 100);
 
   if (!current && tasks.length === 0) {
     return (
@@ -128,35 +139,21 @@ export default function RoadmapWidget({
             <div className="ghp-nnl-col">
               <div className="ghp-nnl-head"><span className="ghp-lab">Done</span></div>
               <div className="ghp-nnl-body">
-                {doneTasks.map((t) => (
-                  <div key={t.id} className="ghp-nnl-item">
-                    <div className="ghp-t">{t.title}</div>
-                  </div>
-                ))}
+                {doneTasks.map((t) => nnlItem(t, isAdminPreview, clientId))}
                 {doneTasks.length === 0 && <div className="ghp-nnl-empty">Nothing yet.</div>}
               </div>
             </div>
             <div className="ghp-nnl-col ghp-current">
               <div className="ghp-nnl-head"><span className="ghp-lab"><span className="ghp-live-dot" />Now</span></div>
               <div className="ghp-nnl-body">
-                {nowTasks.map((t) => (
-                  <div key={t.id} className="ghp-nnl-item">
-                    <div className="ghp-t">{t.title}</div>
-                    {t.dueDate && <div className="ghp-d">Due {t.dueDate}</div>}
-                  </div>
-                ))}
+                {nowTasks.map((t) => nnlItem(t, isAdminPreview, clientId))}
                 {nowTasks.length === 0 && <div className="ghp-nnl-empty">Nothing in progress right now.</div>}
               </div>
             </div>
             <div className="ghp-nnl-col">
               <div className="ghp-nnl-head"><span className="ghp-lab">Next</span></div>
               <div className="ghp-nnl-body">
-                {nextTasks.map((t) => (
-                  <div key={t.id} className="ghp-nnl-item">
-                    <div className="ghp-t">{t.title}</div>
-                    {t.dueDate && <div className="ghp-d">Due {t.dueDate}</div>}
-                  </div>
-                ))}
+                {nextTasks.map((t) => nnlItem(t, isAdminPreview, clientId))}
                 {nextTasks.length === 0 && <div className="ghp-nnl-empty">Nothing queued yet.</div>}
               </div>
             </div>
@@ -170,6 +167,30 @@ export default function RoadmapWidget({
             See full roadmap →
           </Link>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One Now/Next/Later card — plus, in admin preview only, the same
+ * EditTaskButton popup Master Task View uses (its "Roadmap stage" dropdown
+ * is exactly "move this task to a different column"). Fixes the old
+ * workflow of leaving the roadmap, hunting the task down in the
+ * (unordered) task list, and editing its funnel stage from there.
+ */
+function nnlItem(t: RoadmapFunnelTask, isAdminPreview: boolean | undefined, clientId: string | undefined) {
+  return (
+    <div key={t.id} className="ghp-nnl-item" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+      <div>
+        <div className="ghp-t">{t.title}</div>
+        {t.dueDate && <div className="ghp-d">Due {t.dueDate}</div>}
+      </div>
+      {isAdminPreview && clientId && (
+        <EditTaskButton
+          task={{ id: t.id, title: t.title, dueDate: t.dueDate, clientId, internalList: null, dealId: null, funnelStage: t.funnelStage }}
+          clientId={clientId}
+        />
       )}
     </div>
   );

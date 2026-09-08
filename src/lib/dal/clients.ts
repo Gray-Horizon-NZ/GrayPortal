@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { clients, referrals, clientFeatures, users, documents, onboardingInvites } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
@@ -175,6 +176,23 @@ const MAX_LOGO_BYTES = 5 * 1024 * 1024;
  * far-future expiry instead of documents' 5-minute one, since a logo is
  * meant to be embedded/rendered repeatedly, not gated per-view.
  */
+/**
+ * Public Firebase Storage download-token URL, not a signed URL — a client
+ * logo needs to render forever in every portal pageview, not for a bounded
+ * window, and on App Hosting/Cloud Run there's no local private key to sign
+ * with (adminApp uses applicationDefault()), so getSignedUrl() falls back to
+ * an IAM signBlob() round-trip that turned out to produce a URL GCS itself
+ * rejects with "SignatureDoesNotMatch" (confirmed by curl against a real
+ * stored logo — the upload silently "succeeded" but the URL never worked,
+ * in the admin preview or the portal). A download token sidesteps signing
+ * entirely: it's just object metadata, verified by the firebasestorage.
+ * googleapis.com REST layer, the same mechanism the Firebase client SDKs
+ * use for public downloads.
+ */
+function firebaseDownloadUrl(bucketName: string, objectPath: string, token: string): string {
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`;
+}
+
 export async function uploadClientLogo(clientId: string, file: File) {
   if (file.size > MAX_LOGO_BYTES) {
     throw new Error(`Logo exceeds ${MAX_LOGO_BYTES / (1024 * 1024)}MB limit`);
@@ -182,13 +200,14 @@ export async function uploadClientLogo(clientId: string, file: File) {
   return withCaller(async (caller, tx) => {
     const objectPath = `logos/${clientId}/${file.name}`;
     const bytes = Buffer.from(await file.arrayBuffer());
-    await adminBucket().file(objectPath).save(bytes, {
+    const token = randomUUID();
+    const bucket = adminBucket();
+    await bucket.file(objectPath).save(bytes, {
       contentType: file.type || "image/png",
       resumable: false,
+      metadata: { metadata: { firebaseStorageDownloadTokens: token } },
     });
-    const [url] = await adminBucket()
-      .file(objectPath)
-      .getSignedUrl({ action: "read", expires: "01-01-2100" });
+    const url = firebaseDownloadUrl(bucket.name, objectPath, token);
 
     return auditedUpdate(
       tx,

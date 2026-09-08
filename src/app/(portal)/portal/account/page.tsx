@@ -154,8 +154,10 @@ export default async function PortalAccountPage() {
                 <div style={{ borderTop: "1px solid var(--ghp-line)" }}>
                   {referrals.map((r) => (
                     <div key={r.id} className="ghp-row">
-                      <span>{r.referredName}</span>
-                      <span className="ghp-tag">{r.status}</span>
+                      <span className="ghp-serif">{r.referredName}</span>
+                      <span className={`ghp-tag${r.status !== "submitted" && r.status !== "declined" ? " ghp-live" : ""}`}>
+                        {r.status.replace("_", " ")}
+                      </span>
                     </div>
                   ))}
                 </div>

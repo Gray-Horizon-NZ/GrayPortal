@@ -114,6 +114,9 @@
 .ghp-root *::after {
   box-sizing: border-box;
 }
+/* Text selection reads as OS-default blue without this — one more place
+   gold should show up instead of the browser's own accent colour. */
+.ghp-root ::selection { background: var(--ghp-brass); color: var(--ghp-ink); }
 .ghp-mono { font-family: var(--ghp-font-mono), ui-monospace, monospace; }
 .ghp-serif { font-family: var(--ghp-font-display), serif; }
 
@@ -147,6 +150,11 @@
   border-left: 2px solid transparent;
 }
 .ghp-nav a:hover { color: var(--ghp-text); }
+/* GrayScale is Gray Horizon's own product upsell, not just another portal
+   section — Max: its nav label should read gold at rest, not just when
+   active, so it stands out as a distinct "thing to explore" in the list. */
+.ghp-nav a.ghp-nav-accent { color: var(--ghp-brass); }
+.ghp-nav a.ghp-nav-accent:hover { color: var(--ghp-brass); }
 .ghp-nav a.ghp-active {
   color: var(--ghp-text);
   background: var(--ghp-panel-2);
@@ -220,7 +228,8 @@
 .ghp-nnl-head .ghp-lab { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ghp-text-dim); font-weight: 600; }
 .ghp-nnl-col.ghp-current .ghp-nnl-head .ghp-lab { color: var(--ghp-brass); }
 .ghp-nnl-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
-.ghp-nnl-item { background: var(--ghp-ink); border: 1px solid var(--ghp-line); border-radius: var(--ghp-radius); padding: 8px 9px; }
+.ghp-nnl-item { background: var(--ghp-ink); border: 1px solid var(--ghp-line); border-radius: var(--ghp-radius); padding: 8px 9px; transition: border-color 0.12s; }
+.ghp-nnl-item:hover { border-color: var(--ghp-brass); }
 .ghp-nnl-item .ghp-t { font-size: 12px; font-weight: 600; }
 .ghp-nnl-item .ghp-d { font-size: 10.5px; color: var(--ghp-text-dim); margin-top: 2px; }
 .ghp-nnl-empty { color: var(--ghp-text-dim); font-size: 11px; font-style: italic; }
@@ -263,11 +272,11 @@
 .ghp-proj-name { font-weight: 500; }
 .ghp-proj-sub { color: var(--ghp-text-dim); font-size: 11px; margin-top: 2px; }
 
-.ghp-tag { font-family: var(--ghp-font-mono), monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--ghp-line); color: var(--ghp-text-dim); display: inline-block; }
-.ghp-tag.ghp-live { border-color: var(--ghp-brass); color: var(--ghp-brass); }
-.ghp-tag.ghp-good { border-color: var(--ghp-good); color: var(--ghp-good); background: color-mix(in srgb, var(--ghp-good) 16%, transparent); }
-.ghp-tag.ghp-warn { border-color: var(--ghp-warn); color: var(--ghp-warn); background: color-mix(in srgb, var(--ghp-warn) 16%, transparent); }
-.ghp-tag.ghp-danger { border-color: var(--ghp-danger); color: var(--ghp-danger); background: color-mix(in srgb, var(--ghp-danger) 16%, transparent); }
+.ghp-tag { font-family: var(--ghp-font-mono), monospace; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--ghp-line); color: var(--ghp-text-dim); display: inline-block; }
+.ghp-tag.ghp-live { border-color: var(--ghp-brass); color: var(--ghp-brass); background: color-mix(in srgb, var(--ghp-brass) 14%, transparent); }
+.ghp-tag.ghp-good { border-color: var(--ghp-good); color: var(--ghp-good); background: color-mix(in srgb, var(--ghp-good) 24%, transparent); }
+.ghp-tag.ghp-warn { border-color: var(--ghp-warn); color: var(--ghp-warn); background: color-mix(in srgb, var(--ghp-warn) 24%, transparent); }
+.ghp-tag.ghp-danger { border-color: var(--ghp-danger); color: var(--ghp-danger); background: color-mix(in srgb, var(--ghp-danger) 24%, transparent); }
 
 .ghp-prog { width: 70px; height: 4px; background: var(--ghp-line); border-radius: 2px; overflow: hidden; }
 /* Gray, not gold — the last remaining gold background fill in this
@@ -278,8 +287,9 @@
 .ghp-log-row:last-child { border: none; }
 .ghp-log-row .ghp-ts { font-family: var(--ghp-font-mono), monospace; font-size: 10px; color: var(--ghp-text-dim); white-space: nowrap; padding-top: 2px; }
 
-.ghp-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 18px; border-bottom: 1px solid var(--ghp-line); font-size: 12px; gap: var(--ghp-space-2); }
+.ghp-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 18px; border-bottom: 1px solid var(--ghp-line); font-size: 12px; gap: var(--ghp-space-2); transition: background 0.12s; }
 .ghp-row:last-child { border: none; }
+.ghp-row:hover { background: color-mix(in srgb, var(--ghp-brass) 6%, transparent); }
 .ghp-row a { color: var(--ghp-brass); text-decoration: none; font-size: 11px; }
 
 .ghp-focus-toggle {
@@ -297,10 +307,16 @@
 .ghp-focus-toggle:hover { border-color: var(--ghp-brass); color: var(--ghp-brass); }
 .ghp-focus-toggle[data-active] { background: var(--ghp-brass); border-color: var(--ghp-brass); color: var(--ghp-panel); }
 
-.ghp-task-row { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--ghp-line); }
+.ghp-task-row { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--ghp-line); transition: background 0.12s; }
 .ghp-task-row:last-child { border: none; }
+.ghp-task-row:hover { background: color-mix(in srgb, var(--ghp-brass) 6%, transparent); }
 .ghp-task-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--ghp-line); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: var(--ghp-panel); }
-.ghp-task-check.ghp-good { background: var(--ghp-good); border-color: var(--ghp-good); }
+/* Gold, not green — this is the interactive "select/complete a task" state
+   (Max: highlights/selections should read as brand gold), distinct from
+   the red/green/yellow used for campaign/toolstack/invoice status tags
+   above, which are reporting on something's real-world state, not a
+   selection. */
+.ghp-task-check.ghp-good { background: var(--ghp-brass); border-color: var(--ghp-brass); }
 .ghp-task-name { flex: 1; font-size: 12.5px; }
 .ghp-task-name.ghp-done-text { color: var(--ghp-text-dim); text-decoration: line-through; }
 .ghp-task-due { font-family: var(--ghp-font-mono), monospace; font-size: 10.5px; color: var(--ghp-text-dim); }
@@ -323,7 +339,7 @@
 .ghp-gs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 18px; }
 @media (max-width: 700px) { .ghp-gs-grid { grid-template-columns: 1fr; } }
 .ghp-gs-tile { border: 1px solid var(--ghp-line); border-radius: var(--ghp-radius); padding: 14px 16px; background: var(--ghp-panel-2); }
-.ghp-gs-tile .ghp-n { font-size: 12.5px; font-weight: 500; }
+.ghp-gs-tile .ghp-n { font-size: 12.5px; font-weight: 500; color: var(--ghp-brass); }
 .ghp-gs-tile .ghp-s { font-size: 10.5px; color: var(--ghp-text-dim); margin-top: 6px; }
 
 .ghp-idea-row { padding: 13px 18px; border-bottom: 1px solid var(--ghp-line); }
@@ -482,8 +498,7 @@
 }
 .ghp-grayscale-chip:hover { border-color: var(--ghp-brass); }
 .ghp-grayscale-chip.ghp-selected { border-color: var(--ghp-brass); background: var(--ghp-panel-2); }
-.ghp-grayscale-chip .ghp-name { font-family: var(--ghp-font-display), serif; font-style: italic; font-size: 14px; }
-.ghp-grayscale-chip.ghp-selected .ghp-name { color: var(--ghp-brass); }
+.ghp-grayscale-chip .ghp-name { font-family: var(--ghp-font-display), serif; font-style: italic; font-size: 14px; color: var(--ghp-brass); }
 .ghp-grayscale-chip .ghp-tag { font-size: 9px; color: var(--ghp-text-dim); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px; }
 
 .ghp-btn-solid {

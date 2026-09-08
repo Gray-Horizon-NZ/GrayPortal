@@ -112,7 +112,9 @@ export default async function PortalWorkPage() {
         )}
       </div>
 
-      {has("roadmap") && <RoadmapWidget phases={roadmap} tasks={roadmapTasks} />}
+      {has("roadmap") && (
+        <RoadmapWidget phases={roadmap} tasks={roadmapTasks} clientId={clientId} isAdminPreview={isAdminPreview} />
+      )}
     </div>
   );
 }

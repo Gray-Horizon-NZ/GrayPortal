@@ -98,7 +98,7 @@ export default async function PortalLayout({ children }: { children: React.React
     ...(has("documents") || has("drive") || has("tool_stack") || has("meeting_summaries")
       ? [{ href: "/portal/files", label: "Files", icon: navIcon(FolderOpen) }]
       : []),
-    ...(has("grayscale_page") ? [{ href: "/portal/grayscale", label: "GrayScale", icon: navIcon(LayoutGrid) }] : []),
+    ...(has("grayscale_page") ? [{ href: "/portal/grayscale", label: "GrayScale", icon: navIcon(LayoutGrid), accent: true }] : []),
     ...(has("invoices") || has("referrals") || has("account_team")
       ? [{ href: "/portal/account", label: "Account", icon: navIcon(UserCircle) }]
       : []),

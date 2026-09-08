@@ -22,28 +22,34 @@ function generateInviteToken(): { raw: string; hash: string } {
 }
 
 /**
- * Default subject/body for the "send/resend portal-setup invite" review-
- * and-edit form (client detail page) — pulled from the editable
- * onboarding_invite email template if one's been saved (Email Templates
- * tab), so the same copy that's edited/previewed/tested there is what
- * pre-fills every send, and a wording change only has to happen in one
- * place. Falls back to the original hardcoded copy if that template
- * hasn't been seeded yet, so nothing breaks in the meantime.
+ * The one place "what does the portal-invite email say" gets resolved —
+ * pulled from the editable onboarding_invite email template if one's been
+ * saved (Email Templates tab), falling back to the hardcoded copy in
+ * config/onboarding.ts if that template hasn't been seeded yet. Used by both
+ * the read-only preview on the client detail page and the actual send
+ * (sendOnboardingInvite below), so there is exactly one source of truth —
+ * Max: the send should never require typing/editing the message inline,
+ * only ever reflect what's configured in Email Templates.
  */
+async function resolveOnboardingInviteEmail(tx: Tx, clientName: string): Promise<{ subject: string; body: string }> {
+  const [template] = await tx
+    .select()
+    .from(emailTemplates)
+    .where(and(eq(emailTemplates.key, "onboarding_invite"), isNull(emailTemplates.deletedAt)))
+    .limit(1);
+  if (!template) {
+    const { defaultOnboardingInviteEmail } = await import("@/config/onboarding");
+    return defaultOnboardingInviteEmail(clientName);
+  }
+  const rendered = renderTemplate(template, { client_name: clientName });
+  return { subject: rendered.subject, body: rendered.htmlBody };
+}
+
+/** Read-only preview for the client detail page — same resolution as the actual send, see resolveOnboardingInviteEmail. */
 export async function getDefaultOnboardingInviteEmail(clientName: string): Promise<{ subject: string; body: string }> {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");
-    const [template] = await tx
-      .select()
-      .from(emailTemplates)
-      .where(and(eq(emailTemplates.key, "onboarding_invite"), isNull(emailTemplates.deletedAt)))
-      .limit(1);
-    if (!template) {
-      const { defaultOnboardingInviteEmail } = await import("@/config/onboarding");
-      return defaultOnboardingInviteEmail(clientName);
-    }
-    const rendered = renderTemplate(template, { client_name: clientName });
-    return { subject: rendered.subject, body: rendered.htmlBody };
+    return resolveOnboardingInviteEmail(tx, clientName);
   });
 }
 
@@ -92,8 +98,6 @@ export async function sendOnboardingCompletionEmail(tx: Tx, clientId: string, cl
 export const SendOnboardingInviteInput = z.object({
   clientId: z.string().uuid(),
   toEmail: z.string().email(),
-  subject: z.string().min(1),
-  bodyHtml: z.string().min(1),
   appOrigin: z.string().url(),
 });
 export type SendOnboardingInviteInputT = z.infer<typeof SendOnboardingInviteInput>;
@@ -137,10 +141,13 @@ async function clientHasRoadmapItems(tx: Tx, clientId: string): Promise<boolean>
  * Mints a fresh 14-day portal-setup token and emails it — the only way an
  * onboarding-wizard link gets created or resent. Calling this again for the
  * same client always wins: any existing active invite is revoked first, so
- * only the newest emailed link ever verifies. The link itself is a fixed CTA
- * appended after the admin's (freely edited, sanitized) message — never part
- * of the editable body — so an edit can't accidentally drop it.
+ * only the newest emailed link ever verifies. Subject/body always come from
+ * resolveOnboardingInviteEmail (the live Email Templates content) — there is
+ * no per-send override, so a client detail page action can't drift from
+ * what's configured centrally. The invite link itself is baked into
+ * wrapPortalInviteEmailHtml's fixed CTA, never part of the template body.
  *
+
  * Gated on all four onboarding documents (Open-Work-Brief.md §4.5) being
  * attached, and the roadmap being non-empty, first — enforced here, not just in the UI, so the rule holds
  * regardless of caller (a direct action call bypassing the client-detail
@@ -191,8 +198,9 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
       { caller, entityType: "onboarding_invite" }
     );
 
+    const { subject, body } = await resolveOnboardingInviteEmail(tx, client.name);
     const link = `${data.appOrigin}/onboard/${raw}`;
-    const introHtml = sanitizeEmailHtml(data.bodyHtml);
+    const introHtml = sanitizeEmailHtml(body);
     const html = wrapPortalInviteEmailHtml({
       clientName: client.name,
       introHtml,
@@ -207,7 +215,7 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
     // directly instead, same as campaign sends do.
     const sent = await sendGmail({
       to: data.toEmail,
-      subject: data.subject,
+      subject,
       bodyText: `${stripHtmlToText(introHtml)}\n\nSetup your portal: ${link}`,
       bodyHtml: html,
     });

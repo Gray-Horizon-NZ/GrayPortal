@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type PortalNavItem = { href: string; label: string; icon: React.ReactNode };
+export type PortalNavItem = { href: string; label: string; icon: React.ReactNode; accent?: boolean };
 
 export default function PortalNav({ items }: { items: PortalNavItem[] }) {
   const pathname = usePathname();
@@ -15,7 +15,7 @@ export default function PortalNav({ items }: { items: PortalNavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
-            className={active ? "ghp-active" : ""}
+            className={`${active ? "ghp-active" : ""}${item.accent ? " ghp-nav-accent" : ""}`}
             style={{ display: "flex", alignItems: "center", gap: "var(--ghp-space-2)" }}
           >
             {item.icon}

@@ -26,6 +26,16 @@ import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "./clients";
 import { z } from "zod";
 
 /**
+ * Client portal task ordering, Max's ask: high-priority marked tasks first,
+ * then starred, then everything else newest-first — replaces the previous
+ * unordered (DB insertion order) list, which read as random once a client
+ * had more than a handful of tasks. Shared between listPortalTasks (the
+ * Work page's full list) and getHomeWidgetPreviews' own task query (the
+ * dashboard preview) so the two never drift into different orderings.
+ */
+const PORTAL_TASK_ORDER_TIER = sql`case when ${tasks.priority} = 'high' then 0 when ${tasks.starred} then 1 else 2 end`;
+
+/**
  * Every function in this module is portal-only (role=client) and calls
  * requireClientScope before touching the database — the Phase 2 analogue of
  * withAdminScope's audited escape hatch (brief §5.3, extended per Phase 2
@@ -63,6 +73,7 @@ async function getHomeWidgetPreviews(
           .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate, starred: tasks.starred })
           .from(tasks)
           .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)))
+          .orderBy(PORTAL_TASK_ORDER_TIER, desc(tasks.createdAt))
       : Promise.resolve([]),
     has("documents")
       ? tx
@@ -329,7 +340,8 @@ export async function listPortalTasks() {
     return tx
       .select()
       .from(tasks)
-      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)));
+      .where(and(eq(tasks.clientId, clientId), isNull(tasks.deletedAt)))
+      .orderBy(PORTAL_TASK_ORDER_TIER, desc(tasks.createdAt));
   });
 }
 
@@ -443,6 +455,26 @@ export async function listPortalToolStack() {
   });
 }
 
+/**
+ * Whatever an admin pastes into "Drive folder embed URL" (DeliveryTab.tsx)
+ * is realistically whatever Drive's own Share → Copy link gives them — the
+ * normal folder view URL, which Drive itself refuses to render in an
+ * iframe (X-Frame-Options), showing "This content is blocked. Contact the
+ * site owner to fix the issue." instead of the folder (confirmed against a
+ * real stored URL: .../drive/folders/<id>). Google's actual embeddable
+ * endpoints are different, undocumented-to-most-people URLs entirely
+ * (embeddedfolderview / file .../preview) — rewritten here so a normal
+ * share link just works instead of requiring the admin to already know
+ * that.
+ */
+function normalizeDriveEmbedUrl(url: string): string {
+  const folderMatch = url.match(/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([^/?#]+)/);
+  if (folderMatch) return `https://drive.google.com/embeddedfolderview?id=${folderMatch[1]}#grid`;
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (fileMatch) return `https://drive.google.com/file/d/${fileMatch[1]}/preview`;
+  return url;
+}
+
 export async function getPortalEmbeds() {
   return withCaller(async (caller, tx) => {
     const clientId = requireClientScope(caller);
@@ -451,7 +483,8 @@ export async function getPortalEmbeds() {
       .from(clients)
       .where(and(eq(clients.id, clientId), isNull(clients.deletedAt)))
       .limit(1);
-    return client ?? { driveFolderUrl: null, lookerStudioUrl: null };
+    if (!client) return { driveFolderUrl: null, lookerStudioUrl: null };
+    return { ...client, driveFolderUrl: client.driveFolderUrl ? normalizeDriveEmbedUrl(client.driveFolderUrl) : null };
   });
 }
 

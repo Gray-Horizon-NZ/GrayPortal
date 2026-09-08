@@ -100,15 +100,22 @@ export default function AccessTab({
                     <summary style={{ fontSize: "var(--gh-text-sm)", cursor: "pointer", color: "var(--gh-accent)" }}>
                       {invite ? `Resend portal-setup invite (link expires in ${daysLeft}d)` : "Send portal-setup invite"}
                     </summary>
-                    <form
-                      action={sendOnboardingInviteAction.bind(null, client.id)}
-                      style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}
-                    >
-                      <input type="hidden" name="email" value={u.email} />
-                      <input className="gh-input" name="subject" defaultValue={defaults.subject} required />
-                      <textarea className="gh-input" name="body" defaultValue={defaults.body} rows={4} required />
-                      <SubmitButton>{invite ? "Resend invite (invalidates the previous link)" : "Send invite"}</SubmitButton>
-                    </form>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}>
+                      <div className="gh-item-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: "var(--gh-space-1)" }}>
+                        <p style={{ fontSize: "var(--gh-text-sm)", fontWeight: 500 }}>{defaults.subject}</p>
+                        <div
+                          style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}
+                          dangerouslySetInnerHTML={{ __html: defaults.body }}
+                        />
+                        <Link href="/email-templates" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
+                          Edit this in Email Templates →
+                        </Link>
+                      </div>
+                      <form action={sendOnboardingInviteAction.bind(null, client.id)}>
+                        <input type="hidden" name="email" value={u.email} />
+                        <SubmitButton>{invite ? "Resend invite (invalidates the previous link)" : "Send invite"}</SubmitButton>
+                      </form>
+                    </div>
                   </details>
                 </SendInviteGate>
               )}
