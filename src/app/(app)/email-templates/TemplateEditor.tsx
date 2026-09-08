@@ -14,11 +14,13 @@ export default function TemplateEditor({
   defaults,
   showKeyField,
   submitLabel,
+  templateKey,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   defaults?: { name?: string; subject?: string; htmlBody?: string };
   showKeyField?: boolean;
   submitLabel: string;
+  templateKey?: string;
 }) {
   const [html, setHtml] = useState(defaults?.htmlBody ?? "");
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function TemplateEditor({
     setPreviewError(null);
     startTransition(async () => {
       try {
-        setPreviewHtml(await previewEmailTemplateHtmlAction(html));
+        setPreviewHtml(await previewEmailTemplateHtmlAction(html, templateKey));
       } catch {
         setPreviewError("Couldn't render a preview");
       }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { daysUntil } from "@/lib/date";
 import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
+import { wrapPortalInviteEmailHtml, sanitizeEmailHtml, appUrl } from "@/lib/email/chrome";
 import SubmitButton from "@/components/ui/SubmitButton";
 import {
   approvePortalAccessRequestAction,
@@ -88,6 +89,12 @@ export default function AccessTab({
           const invite = onboardingInvites.find((i) => i.email === u.email);
           const daysLeft = invite ? daysUntil(invite.expiresAt) : null;
           const defaults = defaultInviteEmail;
+          const previewHtml = wrapPortalInviteEmailHtml({
+            clientName: client.name,
+            introHtml: sanitizeEmailHtml(defaults.body),
+            ctaHref: `${appUrl()}/onboard/preview-token`,
+            expiresInDays: 14,
+          });
           return (
             <div key={u.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
@@ -101,11 +108,13 @@ export default function AccessTab({
                       {invite ? `Resend portal-setup invite (link expires in ${daysLeft}d)` : "Send portal-setup invite"}
                     </summary>
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)" }}>
-                      <div className="gh-item-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: "var(--gh-space-1)" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
                         <p style={{ fontSize: "var(--gh-text-sm)", fontWeight: 500 }}>{defaults.subject}</p>
-                        <div
-                          style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}
-                          dangerouslySetInnerHTML={{ __html: defaults.body }}
+                        <iframe
+                          title="Invite email preview"
+                          sandbox=""
+                          srcDoc={previewHtml}
+                          style={{ width: "100%", height: 420, border: "1px solid var(--gh-border)", borderRadius: "var(--gh-radius)", background: "#fff" }}
                         />
                         <Link href="/email-templates" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>
                           Edit this in Email Templates →

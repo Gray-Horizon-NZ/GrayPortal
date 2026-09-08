@@ -15,7 +15,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole, type Tx } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 import { sendGmail, fetchInboundMessages, getGmailMessage } from "@/lib/google/gmailAdapter";
-import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText, ctaButtonHtml, appUrl } from "@/lib/email/chrome";
+import { wrapEmailHtml, wrapPortalInviteEmailHtml, sanitizeEmailHtml, stripHtmlToText, appUrl } from "@/lib/email/chrome";
 import { z } from "zod";
 
 const OUTBOUND_RATE_LIMIT_PER_HOUR = 30;
@@ -184,11 +184,25 @@ export function renderTemplatePreview(template: { subject: string; htmlBody: str
  * preview — runs the exact same sanitization the save path applies, so the
  * preview never shows markup that won't survive being saved. Admin-only
  * like every other template operation, even though it's read-only, since
- * it's reachable as a standalone server action from a form. */
-export async function previewTemplateHtml(html: string) {
+ * it's reachable as a standalone server action from a form. onboarding_invite
+ * previews through wrapPortalInviteEmailHtml instead of the generic
+ * wrapEmailHtml chrome — same special-case reasoning as sendTestEmailTemplate
+ * below, so the in-app preview actually matches what sendOnboardingInvite
+ * sends rather than showing the generic banner shell with half the design
+ * (wordmark/what's-inside/footer) missing. */
+export async function previewTemplateHtml(html: string, key?: string) {
   return withCaller(async (caller) => {
     assertRole(caller, "admin");
-    return wrapEmailHtml(sanitizeEmailHtml(html));
+    const introHtml = sanitizeEmailHtml(html);
+    if (key === "onboarding_invite") {
+      return wrapPortalInviteEmailHtml({
+        clientName: "[client_name]",
+        introHtml,
+        ctaHref: `${appUrl()}/onboard/preview-token`,
+        expiresInDays: 14,
+      });
+    }
+    return wrapEmailHtml(introHtml);
   });
 }
 
@@ -214,22 +228,36 @@ export async function sendTestEmailTemplate(id: string, toEmail: string) {
     if (!template) throw new Error("Template not found");
 
     const rendered = renderTemplateWithPlaceholders(template);
-    // onboarding_invite's real send (sendOnboardingInvite) appends a fixed
-    // CTA button after the editable body — deliberately never part of the
-    // stored template, so an edit can't accidentally drop it (see that
-    // function's own doc comment). A test-send of the raw template alone
-    // would then preview as button-less, which reads as a missing button
-    // rather than "appended elsewhere" — so mirror that same append here,
-    // against a placeholder link, purely for an accurate preview.
-    const previewBody =
-      template.key === "onboarding_invite"
-        ? rendered.htmlBody + ctaButtonHtml("Set up your portal", `${appUrl()}/onboard/preview-token`)
-        : rendered.htmlBody;
-    const html = wrapEmailHtml(previewBody);
+    // onboarding_invite's real send (sendOnboardingInvite) renders through
+    // wrapPortalInviteEmailHtml, not the generic wrapEmailHtml chrome — a
+    // test-send of the raw template through the generic wrap would preview
+    // as a completely different, much plainer email (no wordmark, no
+    // what's-inside rows, no footer sig, wrong CTA style), so mirror the
+    // real send's shape here against a placeholder client name/link, purely
+    // for an accurate preview.
+    if (template.key === "onboarding_invite") {
+      const introHtml = rendered.htmlBody;
+      const html = wrapPortalInviteEmailHtml({
+        clientName: "[client_name]",
+        introHtml,
+        ctaHref: `${appUrl()}/onboard/preview-token`,
+        expiresInDays: 14,
+      });
+      const sent = await sendGmail({
+        to: toEmail,
+        subject: `[Test] ${rendered.subject}`,
+        bodyText: stripHtmlToText(introHtml),
+        bodyHtml: html,
+      });
+      if (!sent) throw new Error("Gmail is not connected — could not send the test");
+      return;
+    }
+
+    const html = wrapEmailHtml(rendered.htmlBody);
     const sent = await sendGmail({
       to: toEmail,
       subject: `[Test] ${rendered.subject}`,
-      bodyText: stripHtmlToText(previewBody),
+      bodyText: stripHtmlToText(rendered.htmlBody),
       bodyHtml: html,
     });
     if (!sent) throw new Error("Gmail is not connected — could not send the test");

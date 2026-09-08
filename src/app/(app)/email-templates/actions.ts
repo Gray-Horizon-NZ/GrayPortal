@@ -26,8 +26,8 @@ export async function softDeleteEmailTemplateAction(id: string) {
   revalidatePath("/email-templates");
 }
 
-export async function previewEmailTemplateHtmlAction(html: string) {
-  return previewTemplateHtml(html);
+export async function previewEmailTemplateHtmlAction(html: string, key?: string) {
+  return previewTemplateHtml(html, key);
 }
 
 export async function sendTestEmailTemplateAction(id: string, toEmail: string) {

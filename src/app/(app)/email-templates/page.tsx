@@ -43,6 +43,7 @@ export default async function EmailTemplatesPage() {
                   action={updateEmailTemplateAction.bind(null, t.id)}
                   defaults={{ name: t.name, subject: t.subject, htmlBody: t.htmlBody }}
                   submitLabel="Save"
+                  templateKey={t.key}
                 />
               </div>
             </details>
