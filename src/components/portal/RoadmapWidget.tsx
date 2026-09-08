@@ -67,10 +67,13 @@ export default function RoadmapWidget({
   // not which phase we're on and not whole-roadmap completion either —
   // Max: phase position alone reads as more complete than it is the moment
   // a new phase starts, and a global done/total ratio doesn't tell you how
-  // far along the phase you're actually in is. A task counts toward a
-  // phase only once explicitly assigned one (EditTaskButton's "Roadmap
-  // phase" picker) — untagged funnel tasks don't skew any phase's number.
-  const currentPhaseTasks = current ? tasks.filter((t) => t.phaseId === current.id) : [];
+  // far along the phase you're actually in is. An unassigned task
+  // (phaseId null — every task predating this feature, plus any freshly
+  // funnel-tagged one) counts toward the CURRENT phase by default rather
+  // than nowhere, so the dial works immediately with no backfill; the
+  // "Roadmap phase" picker is only needed to explicitly carve a task out
+  // to a different (past/future) phase.
+  const currentPhaseTasks = current ? tasks.filter((t) => t.phaseId === current.id || t.phaseId == null) : [];
   const currentPhaseDoneTasks = currentPhaseTasks.filter((t) => t.funnelStage === "done");
   const pct = currentPhaseTasks.length > 0 ? Math.round((currentPhaseDoneTasks.length / currentPhaseTasks.length) * 100) : 0;
   const dashOffset = DIAL_CIRCUMFERENCE * (1 - pct / 100);
