@@ -244,6 +244,10 @@ export const UpdateTaskInput = z.object({
   // offers this field when one is set — but nothing here enforces that at
   // the data layer, same posture as internalList only mattering without one.
   funnelStage: TaskFunnelStage.nullable().optional(),
+  // Which roadmap_items phase this task's funnel tagging counts toward —
+  // RoadmapWidget's Focus Dial reads it to compute completion within the
+  // current phase specifically. Same omitted/null convention as funnelStage.
+  phaseId: z.string().uuid().nullable().optional(),
 });
 export type UpdateTaskInputT = z.infer<typeof UpdateTaskInput>;
 
@@ -264,6 +268,7 @@ export async function updateTask(id: string, input: UpdateTaskInputT) {
         updatedBy: caller.userId,
         ...(relisted ? { clientId: data.clientId ?? null, internalList: data.internalList ?? null, dealId: null } : {}),
         ...(data.funnelStage !== undefined ? { funnelStage: data.funnelStage } : {}),
+        ...(data.phaseId !== undefined ? { phaseId: data.phaseId } : {}),
       },
       { caller, entityType: "task" }
     );

@@ -246,6 +246,13 @@
       "when": 1788778820408,
       "tag": "0034_eager_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788841501884,
+      "tag": "0035_premium_masque",
+      "breakpoints": true
     }
   ]
 }

@@ -60,7 +60,11 @@ export async function updateTaskAction(id: string, clientId: string | null, form
     ? ((String(formData.get("funnelStage") ?? "") || null) as "next" | "doing" | "done" | null)
     : undefined;
 
-  await updateTask(id, { title, dueDate: dueDate || undefined, ...relist, funnelStage });
+  // Same "present means explicit set/clear" convention as funnelStage —
+  // only rendered when the caller passed roadmapPhases (see EditTaskButton).
+  const phaseId = formData.has("phaseId") ? String(formData.get("phaseId") ?? "") || null : undefined;
+
+  await updateTask(id, { title, dueDate: dueDate || undefined, ...relist, funnelStage, phaseId });
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   revalidatePath("/portal/work");

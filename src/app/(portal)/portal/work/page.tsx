@@ -43,7 +43,7 @@ export default async function PortalWorkPage() {
                   <SubmitButton style={{ padding: "0 12px" }}>+</SubmitButton>
                 </form>
                 {openTasks.map((t) => (
-                  <TaskRowEditable key={t.id} task={t} clientId={clientId} />
+                  <TaskRowEditable key={t.id} task={t} clientId={clientId} roadmapPhases={roadmap} />
                 ))}
                 {openTasks.length === 0 && <p className="ghp-empty">No tasks right now.</p>}
                 {doneTasks.length > 0 && (
@@ -53,7 +53,7 @@ export default async function PortalWorkPage() {
                     </summary>
                     <div style={{ display: "flex", flexDirection: "column", marginTop: 8, gap: 8 }}>
                       {doneTasks.map((t) => (
-                        <TaskRowEditable key={t.id} task={t} clientId={clientId} />
+                        <TaskRowEditable key={t.id} task={t} clientId={clientId} roadmapPhases={roadmap} />
                       ))}
                     </div>
                   </details>

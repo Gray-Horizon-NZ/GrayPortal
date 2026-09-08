@@ -13,10 +13,12 @@ type Task = {
   dealId: string | null;
   dealCompanyName?: string | null;
   funnelStage?: "next" | "doing" | "done" | null;
+  phaseId?: string | null;
 };
 
 type ClientOption = { id: string; name: string };
 type InternalListOption = { key: string; label: string };
+type RoadmapPhaseOption = { id: string; title: string };
 
 /**
  * Popup edit (name/date/list/save) — replaces an inline <details> form
@@ -24,18 +26,24 @@ type InternalListOption = { key: string; label: string };
  * inside Master Task View's columns. Same overlay pattern as
  * DayTasksPopup/MrrBreakdownButton. clientOptions/internalListOptions
  * omitted = no list picker (portal-preview's simpler per-client view,
- * where every task already shares the same client).
+ * where every task already shares the same client). roadmapPhases omitted =
+ * no phase picker (only passed where a client's phases are already in
+ * scope — RoadmapWidget's Now/Next/Later cards and the Work page's Tasks
+ * panel); the Focus Dial reads this to show completion within the CURRENT
+ * phase specifically, not a global done/total across the whole roadmap.
  */
 export default function EditTaskButton({
   task,
   clientId,
   clientOptions,
   internalListOptions,
+  roadmapPhases,
 }: {
   task: Task;
   clientId: string | null;
   clientOptions?: ClientOption[];
   internalListOptions?: InternalListOption[];
+  roadmapPhases?: RoadmapPhaseOption[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -144,6 +152,19 @@ export default function EditTaskButton({
                     <option value="next">Next</option>
                     <option value="doing">Doing</option>
                     <option value="done">Done</option>
+                  </select>
+                </label>
+              )}
+              {task.clientId && roadmapPhases && roadmapPhases.length > 0 && (
+                <label style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+                  Roadmap phase
+                  <select className="gh-input" name="phaseId" defaultValue={task.phaseId ?? ""}>
+                    <option value="">No specific phase</option>
+                    {roadmapPhases.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))}
                   </select>
                 </label>
               )}

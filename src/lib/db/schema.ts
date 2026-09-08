@@ -399,6 +399,15 @@ export const tasks = pgTable("tasks", {
   // concern that shouldn't need a migration to extend.
   internalList: text("internal_list"),
   funnelStage: taskFunnelStageEnum("funnel_stage"),
+  // Which roadmap phase (roadmap_items row) this task's funnel tagging
+  // counts toward — added so RoadmapWidget's Focus Dial can show real
+  // completion within the CURRENT phase specifically, not a global
+  // done/total ratio across every funnel-tagged task on the roadmap
+  // regardless of phase (Max: phase-relative progress reads as more
+  // meaningful than whole-roadmap progress). Only meaningful alongside a
+  // non-null funnelStage; null means "tagged for the funnel but not tied to
+  // a specific phase yet," which the dial treats as not counted either way.
+  phaseId: uuid("phase_id").references(() => roadmapItems.id),
   ...softDelete,
   ...actorColumns,
 });

@@ -16,10 +16,12 @@ type Task = {
   dealId?: string | null;
   dealCompanyName?: string | null;
   funnelStage?: "next" | "doing" | "done" | null;
+  phaseId?: string | null;
 };
 
 type ClientOption = { id: string; name: string };
 type InternalListOption = { key: string; label: string };
+type RoadmapPhaseOption = { id: string; title: string };
 
 /**
  * TaskCheckRow (status/star) plus a popup edit and a delete button —
@@ -37,11 +39,13 @@ export default function TaskRowEditable({
   clientId,
   clientOptions,
   internalListOptions,
+  roadmapPhases,
 }: {
   task: Task;
   clientId: string | null;
   clientOptions?: ClientOption[];
   internalListOptions?: InternalListOption[];
+  roadmapPhases?: RoadmapPhaseOption[];
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
@@ -58,10 +62,12 @@ export default function TaskRowEditable({
           dealId: task.dealId ?? null,
           dealCompanyName: task.dealCompanyName,
           funnelStage: task.funnelStage ?? null,
+          phaseId: task.phaseId ?? null,
         }}
         clientId={clientId}
         clientOptions={clientOptions}
         internalListOptions={internalListOptions}
+        roadmapPhases={roadmapPhases}
       />
       <form action={deleteTaskAction.bind(null, task.id, clientId)}>
         <SubmitButton

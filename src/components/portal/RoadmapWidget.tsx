@@ -15,6 +15,7 @@ export type RoadmapFunnelTask = {
   title: string;
   dueDate: string | null;
   funnelStage: "next" | "doing" | "done" | null;
+  phaseId: string | null;
 };
 
 const DIAL_RADIUS = 46;
@@ -61,12 +62,17 @@ export default function RoadmapWidget({
   const nowTasks = tasks.filter((t) => t.funnelStage === "doing");
   const nextTasks = tasks.filter((t) => t.funnelStage === "next");
 
-  // Dial fill is real work done (doneTasks / all funnel-tagged tasks), not
-  // which phase we're on — Max: phase position alone reads as more complete
-  // than it is the moment a new phase starts (a fresh phase 3 of 5 showing
-  // 50% when nothing in it is done yet is misleading). Phase index still
-  // drives the "Phase X of Y" label and which phase's narrative shows.
-  const pct = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+  // Dial fill is real work done WITHIN THE CURRENT PHASE specifically
+  // (doneTasks assigned to `current` / all tasks assigned to `current`),
+  // not which phase we're on and not whole-roadmap completion either —
+  // Max: phase position alone reads as more complete than it is the moment
+  // a new phase starts, and a global done/total ratio doesn't tell you how
+  // far along the phase you're actually in is. A task counts toward a
+  // phase only once explicitly assigned one (EditTaskButton's "Roadmap
+  // phase" picker) — untagged funnel tasks don't skew any phase's number.
+  const currentPhaseTasks = current ? tasks.filter((t) => t.phaseId === current.id) : [];
+  const currentPhaseDoneTasks = currentPhaseTasks.filter((t) => t.funnelStage === "done");
+  const pct = currentPhaseTasks.length > 0 ? Math.round((currentPhaseDoneTasks.length / currentPhaseTasks.length) * 100) : 0;
   const dashOffset = DIAL_CIRCUMFERENCE * (1 - pct / 100);
 
   if (!current && tasks.length === 0) {
@@ -139,21 +145,21 @@ export default function RoadmapWidget({
             <div className="ghp-nnl-col">
               <div className="ghp-nnl-head"><span className="ghp-lab">Done</span></div>
               <div className="ghp-nnl-body">
-                {doneTasks.map((t) => nnlItem(t, isAdminPreview, clientId))}
+                {doneTasks.map((t) => nnlItem(t, isAdminPreview, clientId, sortedPhases))}
                 {doneTasks.length === 0 && <div className="ghp-nnl-empty">Nothing yet.</div>}
               </div>
             </div>
             <div className="ghp-nnl-col ghp-current">
               <div className="ghp-nnl-head"><span className="ghp-lab"><span className="ghp-live-dot" />Now</span></div>
               <div className="ghp-nnl-body">
-                {nowTasks.map((t) => nnlItem(t, isAdminPreview, clientId))}
+                {nowTasks.map((t) => nnlItem(t, isAdminPreview, clientId, sortedPhases))}
                 {nowTasks.length === 0 && <div className="ghp-nnl-empty">Nothing in progress right now.</div>}
               </div>
             </div>
             <div className="ghp-nnl-col">
               <div className="ghp-nnl-head"><span className="ghp-lab">Next</span></div>
               <div className="ghp-nnl-body">
-                {nextTasks.map((t) => nnlItem(t, isAdminPreview, clientId))}
+                {nextTasks.map((t) => nnlItem(t, isAdminPreview, clientId, sortedPhases))}
                 {nextTasks.length === 0 && <div className="ghp-nnl-empty">Nothing queued yet.</div>}
               </div>
             </div>
@@ -175,11 +181,17 @@ export default function RoadmapWidget({
 /**
  * One Now/Next/Later card — plus, in admin preview only, the same
  * EditTaskButton popup Master Task View uses (its "Roadmap stage" dropdown
- * is exactly "move this task to a different column"). Fixes the old
- * workflow of leaving the roadmap, hunting the task down in the
- * (unordered) task list, and editing its funnel stage from there.
+ * is exactly "move this task to a different column," and its "Roadmap
+ * phase" dropdown is what the Focus Dial's per-phase % actually reads).
+ * Fixes the old workflow of leaving the roadmap, hunting the task down in
+ * the (unordered) task list, and editing it from there.
  */
-function nnlItem(t: RoadmapFunnelTask, isAdminPreview: boolean | undefined, clientId: string | undefined) {
+function nnlItem(
+  t: RoadmapFunnelTask,
+  isAdminPreview: boolean | undefined,
+  clientId: string | undefined,
+  phases: RoadmapPhase[]
+) {
   return (
     <div key={t.id} className="ghp-nnl-item" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
       <div>
@@ -188,8 +200,9 @@ function nnlItem(t: RoadmapFunnelTask, isAdminPreview: boolean | undefined, clie
       </div>
       {isAdminPreview && clientId && (
         <EditTaskButton
-          task={{ id: t.id, title: t.title, dueDate: t.dueDate, clientId, internalList: null, dealId: null, funnelStage: t.funnelStage }}
+          task={{ id: t.id, title: t.title, dueDate: t.dueDate, clientId, internalList: null, dealId: null, funnelStage: t.funnelStage, phaseId: t.phaseId }}
           clientId={clientId}
+          roadmapPhases={phases}
         />
       )}
     </div>
