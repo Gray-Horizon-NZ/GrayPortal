@@ -5,30 +5,45 @@
  * here can leak into the rest of the app even if this stylesheet were ever
  * loaded on the same page as globals.css. */
 
-/* 2026-09-07 — dark theme (the portal's default) now aliases the
-   background/border/text/accent/status roles straight to the app-wide
-   standard tokens (tokens.css's --gh-* — already loaded document-wide via
-   the root layout's globals.css import, so these vars are always present
-   here) instead of a second, independently-drifting set of hex values.
-   Per Max: one consistent "universal" colour system across admin and
-   client portal, not two golds/two near-blacks. Only the neutral/status
-   scale for the LIGHT theme stays portal-specific below — tokens.css has
-   no light-mode palette to inherit from, since the admin app is dark-only
+/* 2026-09-07 — dark theme (the portal's default) matches the app-wide
+   standard tokens (tokens.css's --gh-*) instead of a second,
+   independently-drifting set of hex values — background/border/text via a
+   live var() alias (safe: nothing later redirects those specific --gh-*
+   names back), accent/status/ink as hardcoded literal hex copies instead
+   (NOT aliased — see the circular-reference comment below on why aliasing
+   those five specifically breaks). Per Max: one consistent "universal"
+   colour system across admin and client portal, not two golds/two
+   near-blacks — the trade-off is that these five need updating by hand
+   here if tokens.css's values ever change. Only the neutral/status scale
+   for the LIGHT theme stays portal-specific below — tokens.css has no
+   light-mode palette to inherit from, since the admin app is dark-only
    and the light/dark toggle is a portal-only feature. --ghp-radius (6px)
    and --ghp-chart-1 (the dataviz skill's validated chart blue) are
    deliberately untouched — geometry and data-encoding colour were never
    part of this ask. */
 .ghp-root[data-portal-theme="dark"] {
-  --ghp-ink: var(--gh-black);
+  /* Hardcoded to match tokens.css's --gh-black/accent/success/warning/danger
+     literally, NOT aliased via var(--gh-*) — the base .ghp-root block below
+     redirects those same --gh-* names back to their --ghp-* equivalents
+     (so admin components reused inside the portal pick up portal-aware
+     colour), and aliasing in both directions on the same element is a
+     circular custom-property reference. Per spec, a cycle makes every
+     variable in it compute to nothing — not an error, just silently
+     invalid — which is exactly why brass/good/warn/danger rendered with no
+     colour at all despite the CSS otherwise being correct (found by
+     tracing why panels/borders/text worked fine — different, non-colliding
+     names on each side — while only these five didn't). --gh-900/800/dark/
+     light/400 aren't aliased back by that block, so they were never at risk. */
+  --ghp-ink: #0b0b0c;
   --ghp-panel: var(--gh-900);
   --ghp-panel-2: var(--gh-800);
   --ghp-line: var(--gh-dark);
   --ghp-text: var(--gh-light);
   --ghp-text-dim: var(--gh-400);
-  --ghp-brass: var(--gh-accent);
-  --ghp-good: var(--gh-success);
-  --ghp-warn: var(--gh-warning);
-  --ghp-danger: var(--gh-danger);
+  --ghp-brass: #c2a468;
+  --ghp-good: #7fa583;
+  --ghp-warn: #bd7f45;
+  --ghp-danger: #c17553;
   /* dataviz skill's validated sequential/categorical-slot-1 blue (dark step) — data-encoding charts use this, never brass */
   --ghp-chart-1: #3987e5;
   /* Faint background grid (2026-08-28, matching the GrayScale hero's own
