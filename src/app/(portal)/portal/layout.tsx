@@ -12,6 +12,7 @@ import { getVerifiedUid, NotOnAllowlistError } from "@/lib/dal/auth";
 import { getPortalShellContext } from "@/lib/dal/portal";
 import { exitPortalPreviewAction } from "@/app/(app)/clients/actions";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
+import PortalTour from "@/components/portal/PortalTour";
 import LogoutButton from "@/app/(app)/LogoutButton";
 import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
 import "../portal-theme.css";
@@ -38,6 +39,7 @@ export default async function PortalLayout({ children }: { children: React.React
   let enabledFeatureKeys: Awaited<ReturnType<typeof getPortalShellContext>>["enabledFeatureKeys"];
   let identity: Awaited<ReturnType<typeof getPortalShellContext>>["identity"];
   let isAdminPreview = false;
+  let isRealClient = false;
   try {
     const ctx = await getPortalShellContext();
     // A real client is let through exactly as before, regardless of
@@ -46,7 +48,7 @@ export default async function PortalLayout({ children }: { children: React.React
     // through when withCaller has already validated a preview cookie
     // against a real client (isAdminPreview) — a plain admin visiting
     // /portal with no active preview still gets redirected away.
-    const isRealClient = ctx.caller.role === "client";
+    isRealClient = ctx.caller.role === "client";
     isAdminPreview = ctx.caller.role === "admin" && ctx.caller.isAdminPreview === true;
     if (!isRealClient && !isAdminPreview) {
       redirect("/");
@@ -108,6 +110,12 @@ export default async function PortalLayout({ children }: { children: React.React
     ? new Date(identity.createdAt).toLocaleDateString("en-NZ", { month: "short", year: "numeric" })
     : null;
 
+  // Real clients only, and only until they've skipped or finished it once —
+  // an admin previewing a client's portal never sees it (markPortalTourSeen
+  // is also real-client-only, so it couldn't be dismissed from preview
+  // anyway).
+  const showTour = isRealClient && identity != null && !identity.portalTourSeenAt;
+
   return (
     <>
       <SessionBootOverlay />
@@ -117,6 +125,7 @@ export default async function PortalLayout({ children }: { children: React.React
         clientLogoUrl={identity?.logoUrl}
         navItems={navItems}
         logoutSlot={<LogoutButton />}
+        tourSlot={showTour && <PortalTour clientName={identity!.name} />}
         previewBanner={
           isAdminPreview && (
             <div className="ghp-preview-banner">

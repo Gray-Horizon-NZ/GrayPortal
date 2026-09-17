@@ -253,6 +253,13 @@
       "when": 1788841501884,
       "tag": "0035_premium_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789469509223,
+      "tag": "0036_add_portal_tour_seen_at",
+      "breakpoints": true
     }
   ]
 }

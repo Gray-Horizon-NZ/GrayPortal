@@ -1,0 +1,1 @@
+ALTER TABLE "clients" ADD COLUMN "portal_tour_seen_at" timestamp with time zone;

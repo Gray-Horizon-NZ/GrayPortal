@@ -531,6 +531,194 @@
   color: var(--ghp-text-dim);
   transition: all 0.2s;
 }
+/* ---------------------------------------------------------------------
+   First-login portal tour (PortalTour.tsx) — skippable spotlight walk
+   through the real nav/dashboard, closing on the same beam+vignette
+   treatment as the onboarding wizard's GrayScale step. Fixed-position
+   elements only, rendered inside .ghp-root (via PortalShell's tourSlot)
+   so they still read the portal's own light/dark --ghp-* tokens.
+   --------------------------------------------------------------------- */
+
+.ghp-tour-blocker { position: fixed; inset: 0; z-index: 150; }
+
+.ghp-tour-skip {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 160;
+  background: none;
+  border: none;
+  font-family: var(--ghp-font-body), sans-serif;
+  font-size: 12px;
+  color: var(--ghp-text-dim);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 4px;
+}
+.ghp-tour-skip:hover { color: var(--ghp-text); }
+
+.ghp-tour-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 155;
+  background: var(--ghp-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.ghp-tour-scrim--promo { background: var(--ghp-ink); }
+
+.ghp-tour-beam {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: -10%;
+  width: 640px;
+  height: 640px;
+  transform: translateX(-50%);
+  background: conic-gradient(from 250deg at 50% 0%, transparent 0deg, color-mix(in srgb, var(--ghp-brass) 16%, transparent) 18deg, transparent 40deg);
+  pointer-events: none;
+}
+.ghp-tour-vignette {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: radial-gradient(480px 620px at 50% 30%, transparent 0%, rgba(0, 0, 0, 0.75) 78%);
+  pointer-events: none;
+}
+
+/* One CSS-only spotlight: a huge box-shadow spread dims the whole viewport
+   while leaving this element's own box (aligned exactly over the real,
+   live target via getBoundingClientRect) transparent — the real nav link
+   or dashboard card shows through at full brightness underneath. */
+.ghp-tour-spot {
+  position: fixed;
+  z-index: 156;
+  border-radius: var(--ghp-radius);
+  pointer-events: none;
+  box-shadow: 0 0 0 3000px rgba(0, 0, 0, 0.82);
+}
+.ghp-tour-spot-ring {
+  position: fixed;
+  z-index: 157;
+  border-radius: calc(var(--ghp-radius) + 4px);
+  border: 1px solid var(--ghp-brass);
+  pointer-events: none;
+  animation: ghp-tour-pulse 2.4s ease-in-out infinite;
+}
+@keyframes ghp-tour-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+.ghp-tour-card {
+  position: fixed;
+  z-index: 160;
+  width: 300px;
+  background: var(--ghp-panel-2);
+  border: 1px solid var(--ghp-line);
+  border-radius: var(--ghp-radius);
+  padding: 22px 24px 24px;
+  animation: ghp-tour-card-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.ghp-tour-card--center {
+  position: static;
+  text-align: center;
+  max-width: 440px;
+  width: auto;
+  animation: ghp-tour-fade-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes ghp-tour-card-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ghp-tour-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ghp-tour-eyebrow {
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ghp-text-dim);
+  margin: 0 0 14px;
+  position: relative;
+  z-index: 1;
+}
+.ghp-tour-h1 {
+  font-family: var(--ghp-font-display), serif;
+  font-weight: 600;
+  font-size: 32px;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  position: relative;
+  z-index: 1;
+}
+.ghp-tour-h1 em, .ghp-tour-h2 em { font-style: italic; font-weight: 400; color: var(--ghp-brass); }
+.ghp-tour-h2 {
+  font-family: var(--ghp-font-display), serif;
+  font-weight: 600;
+  font-size: 22px;
+  margin: 0 0 10px;
+}
+.ghp-tour-sub {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ghp-text-dim);
+  margin: 0 0 32px;
+  position: relative;
+  z-index: 1;
+}
+.ghp-tour-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ghp-text-dim);
+  margin: 0 0 22px;
+}
+
+.ghp-tour-intro-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+.ghp-tour-actions { display: flex; align-items: center; justify-content: space-between; }
+
+.ghp-tour-text-btn {
+  background: none;
+  border: none;
+  font-family: var(--ghp-font-body), sans-serif;
+  font-size: 12px;
+  color: var(--ghp-text-dim);
+  cursor: pointer;
+  padding: 4px;
+}
+.ghp-tour-text-btn:hover { color: var(--ghp-text); }
+
+.ghp-tour-pill {
+  border: 1px solid var(--ghp-brass);
+  background: transparent;
+  color: var(--ghp-brass);
+  font-family: var(--ghp-font-body), sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.ghp-tour-pill:hover { background: var(--ghp-panel-2); }
+.ghp-tour-pill--promo {
+  position: relative;
+  z-index: 1;
+  padding: 12px 30px;
+  box-shadow: 0 0 28px 6px color-mix(in srgb, var(--ghp-brass) 45%, transparent);
+}
+
 .ghp-btn-solid.ghp-ready {
   /* Gold as a highlight (border + glow + text), not a fill — 2026-08-28:
      gray backgrounds everywhere, gold reserved for accents. Was a solid

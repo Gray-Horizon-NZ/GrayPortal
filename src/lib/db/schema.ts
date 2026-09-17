@@ -245,6 +245,10 @@ export const clients = pgTable("clients", {
   // column. Doesn't affect the client portal or anywhere else the client
   // shows up, only Master Task View's own column list.
   hiddenFromTaskView: boolean("hidden_from_task_view").notNull().default(false),
+  // Null until this client's portal first-login spotlight tour is skipped
+  // or finished (whichever comes first); stamped once by markPortalTourSeen
+  // so it never re-plays for this client's portal on later logins.
+  portalTourSeenAt: timestamp("portal_tour_seen_at", { withTimezone: true }),
   ...softDelete,
   ...actorColumns,
 });

@@ -153,7 +153,7 @@ export default async function PortalHomePage() {
           </div>
           <div className="ghp-shortcut-grid">
             {shortcuts.map((s) => (
-              <Link key={s.key} href={s.href} className="ghp-shortcut">
+              <Link key={s.key} href={s.href} data-tour={`shortcut-${s.key}`} className="ghp-shortcut">
                 <div className="ghp-row1">
                   <div className="ghp-l">{s.label}</div>
                   <div className="ghp-arrow">↗</div>

@@ -20,6 +20,7 @@ import {
 import { and, asc, desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { requireClientScope, requireRealClientScope } from "./session";
+import { auditedUpdate } from "./mutate";
 import type { Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "./clients";
@@ -242,7 +243,12 @@ export async function getPortalShellContext() {
     }
 
     const [identity] = await tx
-      .select({ name: clients.name, createdAt: clients.createdAt, logoUrl: clients.logoUrl })
+      .select({
+        name: clients.name,
+        createdAt: clients.createdAt,
+        logoUrl: clients.logoUrl,
+        portalTourSeenAt: clients.portalTourSeenAt,
+      })
       .from(clients)
       .where(and(eq(clients.id, effectiveClientId), isNull(clients.deletedAt)))
       .limit(1);
@@ -276,6 +282,26 @@ export async function getPortalIdentity(): Promise<{ name: string; createdAt: Da
       .where(and(eq(clients.id, clientId), isNull(clients.deletedAt)))
       .limit(1);
     return row ?? null;
+  });
+}
+
+/**
+ * Stamps this client's portal first-login tour as seen — skipped or
+ * finished, either way it never plays again. requireRealClientScope, not
+ * requireClientScope: an admin browsing via preview must never mark a real
+ * client's tour seen on their behalf.
+ */
+export async function markPortalTourSeen(): Promise<void> {
+  return withCaller(async (caller, tx) => {
+    const clientId = requireRealClientScope(caller);
+    await auditedUpdate(
+      tx,
+      clients,
+      eq(clients.id, clientId),
+      clientId,
+      { portalTourSeenAt: new Date() },
+      { caller, entityType: "client" }
+    );
   });
 }
 

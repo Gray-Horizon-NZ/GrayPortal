@@ -15,6 +15,7 @@ export default function PortalNav({ items }: { items: PortalNavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            data-tour={`nav-${item.href.split("/").pop()}`}
             className={`${active ? "ghp-active" : ""}${item.accent ? " ghp-nav-accent" : ""}`}
             style={{ display: "flex", alignItems: "center", gap: "var(--ghp-space-2)" }}
           >

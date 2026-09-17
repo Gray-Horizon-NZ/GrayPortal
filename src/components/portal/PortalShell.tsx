@@ -16,6 +16,7 @@ export default function PortalShell({
   navItems,
   logoutSlot,
   previewBanner,
+  tourSlot,
   children,
 }: {
   clientName: string;
@@ -24,6 +25,10 @@ export default function PortalShell({
   navItems: PortalNavItem[];
   logoutSlot: React.ReactNode;
   previewBanner?: React.ReactNode;
+  // Rendered inside .ghp-root (not as a sibling of it) so its fixed-position
+  // overlay can still read the portal's own --ghp-* theme tokens — same
+  // reason previewBanner lives here instead of in the layout.
+  tourSlot?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -66,6 +71,7 @@ export default function PortalShell({
           </div>
         </main>
       </div>
+      {tourSlot}
     </div>
   );
 }
