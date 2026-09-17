@@ -526,6 +526,135 @@ textarea {
   padding-top: var(--gh-space-3);
 }
 
+.gh-meeting-summary {
+  border-bottom: 1px solid var(--gh-border);
+  padding-bottom: var(--gh-space-2);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-meeting-summary:last-of-type {
+  border-bottom: none;
+}
+
+.gh-meeting-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gh-space-4);
+  padding: var(--gh-space-2) 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.gh-meeting-summary-header::-webkit-details-marker {
+  display: none;
+}
+
+.gh-meeting-summary-header::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: var(--gh-space-2);
+  color: var(--gh-text-muted);
+  transition: transform var(--gh-transition);
+}
+
+.gh-meeting-summary[open] > .gh-meeting-summary-header::before {
+  transform: rotate(90deg);
+}
+
+.gh-meeting-summary-body {
+  padding: 0 0 var(--gh-space-2);
+  color: var(--gh-text-muted);
+}
+
+.gh-prose {
+  font-size: var(--gh-text-sm);
+  line-height: 1.6;
+}
+
+.gh-prose > *:first-child {
+  margin-top: 0;
+}
+
+.gh-prose > *:last-child {
+  margin-bottom: 0;
+}
+
+.gh-prose p,
+.gh-prose ul,
+.gh-prose ol,
+.gh-prose blockquote,
+.gh-prose pre,
+.gh-prose table {
+  margin: var(--gh-space-2) 0;
+}
+
+.gh-prose h1,
+.gh-prose h2,
+.gh-prose h3,
+.gh-prose h4 {
+  color: var(--gh-text-primary);
+  margin: var(--gh-space-3) 0 var(--gh-space-1);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-prose ul,
+.gh-prose ol {
+  padding-left: var(--gh-space-5, 20px);
+}
+
+.gh-prose li {
+  margin: var(--gh-space-1) 0;
+}
+
+.gh-prose a {
+  color: var(--gh-text-primary);
+  text-decoration: underline;
+}
+
+.gh-prose code {
+  background: var(--gh-surface-raised);
+  border: 1px solid var(--gh-border);
+  padding: 1px 4px;
+  font-size: 0.9em;
+}
+
+.gh-prose pre {
+  background: var(--gh-surface-raised);
+  border: 1px solid var(--gh-border);
+  padding: var(--gh-space-3);
+  overflow-x: auto;
+}
+
+.gh-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.gh-prose blockquote {
+  border-left: 2px solid var(--gh-border-strong);
+  padding-left: var(--gh-space-3);
+  color: var(--gh-text-muted);
+}
+
+.gh-prose hr {
+  border: none;
+  border-top: 1px solid var(--gh-border);
+}
+
+.gh-prose table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.gh-prose th,
+.gh-prose td {
+  border: 1px solid var(--gh-border);
+  padding: var(--gh-space-1) var(--gh-space-2);
+  text-align: left;
+}
+
 /* ---------------------------------------------------------------------
    Motion — keyframes
    --------------------------------------------------------------------- */

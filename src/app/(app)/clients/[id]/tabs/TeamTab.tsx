@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SubmitButton from "@/components/ui/SubmitButton";
 import EmailsModal from "../EmailsModal";
+import { renderTrustedMarkdown } from "@/lib/markdown";
 import {
   addClientTeamMemberAction,
   deleteClientTeamMemberAction,
@@ -69,15 +70,18 @@ export default function TeamTab({
       <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <p className="gh-eyebrow">Meeting Summaries</p>
         {meetings.map((m) => (
-          <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)", fontSize: "var(--gh-text-sm)", borderBottom: "1px solid var(--gh-border)", paddingBottom: "var(--gh-space-2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <details key={m.id} className="gh-meeting-summary">
+            <summary className="gh-meeting-summary-header">
               <span>{m.title} — {new Date(m.occurredAt).toLocaleDateString("en-NZ")}</span>
               <form action={deleteMeetingSummaryAction.bind(null, m.id, client.id)}>
                 <SubmitButton className="gh-link-btn gh-link-btn--danger">Remove</SubmitButton>
               </form>
-            </div>
-            <p style={{ color: "var(--gh-text-muted)" }}>{m.summary}</p>
-          </div>
+            </summary>
+            <div
+              className="gh-meeting-summary-body gh-prose"
+              dangerouslySetInnerHTML={{ __html: renderTrustedMarkdown(m.summary) }}
+            />
+          </details>
         ))}
         {meetings.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No meeting summaries yet.</p>}
         <div className="gh-add-form">
@@ -85,7 +89,7 @@ export default function TeamTab({
             <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>+ Log meeting summary</summary>
             <form action={createMeetingSummaryAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
               <input className="gh-input" name="title" placeholder="Meeting title" required />
-              <textarea className="gh-input" name="summary" placeholder="Summary" rows={3} required />
+              <textarea className="gh-input" name="summary" placeholder="Summary — Markdown supported, paste straight from a .md file" rows={6} required />
               <SubmitButton>Log summary</SubmitButton>
             </form>
           </details>
