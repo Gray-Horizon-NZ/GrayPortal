@@ -71,5 +71,13 @@ export async function claimOrVerifyAllowlist(email: string, uid: string): Promis
   // via withSession on every request (brief §5.2). Stamped on every sign-in,
   // not just the first, so a role/clientId change on the users row self-heals
   // on next login instead of needing a manual claims reset.
-  await adminAuth.setCustomUserClaims(uid, { role, clientId: clientId ?? null });
+  //
+  // mfaEnrolled is read live from Firebase (not stored on the users row) so
+  // it self-heals the same way: enroll once and every subsequent sign-in
+  // (any provider) picks it up automatically. proxy.ts uses this to route
+  // client/contractor sessions through the mandatory TOTP enrollment gate —
+  // see MfaChallenge/EnrollMfa (src/app/login) for the other half.
+  const firebaseUser = await adminAuth.getUser(uid);
+  const mfaEnrolled = (firebaseUser.multiFactor?.enrolledFactors.length ?? 0) > 0;
+  await adminAuth.setCustomUserClaims(uid, { role, clientId: clientId ?? null, mfaEnrolled });
 }

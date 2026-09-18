@@ -1,11 +1,10 @@
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import SilentResume from "./SilentResume";
-import PasswordSignInForm from "./PasswordSignInForm";
-import GoogleSignInButton from "./GoogleSignInButton";
+import ResetPasswordForm from "./ResetPasswordForm";
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   return (
     <main
       style={{
@@ -18,7 +17,7 @@ export default function LoginPage() {
       }}
     >
       <Link
-        href="https://grayhorizon.nz"
+        href="/login"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -34,7 +33,7 @@ export default function LoginPage() {
         className="gh-back-link"
       >
         <ChevronLeft size={14} strokeWidth={1.75} />
-        Return to grayhorizon.nz
+        Back to sign in
       </Link>
 
       <div
@@ -53,38 +52,16 @@ export default function LoginPage() {
           <Image src="/brand-icon.png" alt="" width={48} height={48} className="gh-brand-icon" />
           <p className="gh-eyebrow">Gray Horizon</p>
           <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-            Gray <em>Portal</em>
+            Set your <em>password</em>
           </h1>
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-            For Gray Horizon clients and team. Access is by invitation.
-          </p>
         </div>
 
         <div style={{ width: "100%", borderTop: "1px solid var(--gh-border)" }} />
 
-        <SilentResume>
-          <PasswordSignInForm />
-          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--gh-space-3)", margin: "var(--gh-space-4) 0" }}>
-            <div style={{ flex: 1, borderTop: "1px solid var(--gh-border)" }} />
-            <span style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-disabled)", textTransform: "uppercase", letterSpacing: "var(--gh-tracking-wide)" }}>or</span>
-            <div style={{ flex: 1, borderTop: "1px solid var(--gh-border)" }} />
-          </div>
-          <GoogleSignInButton />
-        </SilentResume>
+        <Suspense fallback={null}>
+          <ResetPasswordForm />
+        </Suspense>
       </div>
-
-      <p
-        style={{
-          marginTop: "var(--gh-space-8)",
-          fontSize: "var(--gh-text-micro)",
-          textTransform: "uppercase",
-          letterSpacing: "var(--gh-tracking-wide)",
-          color: "var(--gh-text-disabled)",
-          textAlign: "center",
-        }}
-      >
-        Not a client yet? Get in touch at grayhorizon.nz
-      </p>
     </main>
   );
 }

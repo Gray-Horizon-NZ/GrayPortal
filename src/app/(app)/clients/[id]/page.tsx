@@ -43,6 +43,8 @@ export default async function ClientDetailPage({
     accessRequestApproved?: string;
     accessRequestDenied?: string;
     accessRequestError?: string;
+    passwordEmailSent?: string;
+    passwordEmailError?: string;
   }>;
 }) {
   const { id } = await params;
@@ -54,6 +56,8 @@ export default async function ClientDetailPage({
     accessRequestApproved,
     accessRequestDenied,
     accessRequestError,
+    passwordEmailSent,
+    passwordEmailError,
   } = await searchParams;
   const data = await getClient(id);
   if (!data) notFound();
@@ -122,7 +126,15 @@ export default async function ClientDetailPage({
   // Access & credentials tab now, so that tab must be the one showing on
   // return, or the message would land on a hidden pane.
   const initialTabId =
-    inviteError || invited || onboardingInviteSent || onboardingInviteError || accessRequestApproved || accessRequestDenied || accessRequestError
+    inviteError ||
+    invited ||
+    onboardingInviteSent ||
+    onboardingInviteError ||
+    accessRequestApproved ||
+    accessRequestDenied ||
+    accessRequestError ||
+    passwordEmailSent ||
+    passwordEmailError
       ? "access"
       : "overview";
 
@@ -194,6 +206,8 @@ export default async function ClientDetailPage({
                 accessRequestApproved={accessRequestApproved}
                 accessRequestDenied={accessRequestDenied}
                 accessRequestError={accessRequestError}
+                passwordEmailSent={passwordEmailSent}
+                passwordEmailError={passwordEmailError}
               />
             ),
           },

@@ -1,10 +1,11 @@
 import "server-only";
-import { users } from "@/lib/db/schema";
+import { users, clients, contractors } from "@/lib/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert } from "./mutate";
 import { adminAuth } from "@/lib/firebase/admin";
+import { provisionPasswordAccountAndEmail } from "./passwordAuth";
 import { z } from "zod";
 
 export const InviteClientInput = z.object({
@@ -37,7 +38,7 @@ export async function inviteClientUser(input: InviteClientInputT) {
       throw new Error(`${data.email} is already on the allowlist`);
     }
 
-    return auditedInsert(
+    const row = await auditedInsert(
       tx,
       users,
       {
@@ -49,6 +50,11 @@ export async function inviteClientUser(input: InviteClientInputT) {
       },
       { caller, entityType: "user" }
     );
+
+    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, data.clientId)).limit(1);
+    await provisionPasswordAccountAndEmail(data.email, client?.name ?? null);
+
+    return row;
   });
 }
 
@@ -79,7 +85,7 @@ export async function inviteContractorUser(input: InviteContractorInputT) {
       throw new Error(`${data.email} is already on the allowlist`);
     }
 
-    return auditedInsert(
+    const row = await auditedInsert(
       tx,
       users,
       {
@@ -91,6 +97,11 @@ export async function inviteContractorUser(input: InviteContractorInputT) {
       },
       { caller, entityType: "user" }
     );
+
+    const [contractor] = await tx.select({ name: contractors.name }).from(contractors).where(eq(contractors.id, data.contractorId)).limit(1);
+    await provisionPasswordAccountAndEmail(data.email, contractor?.name ?? null);
+
+    return row;
   });
 }
 

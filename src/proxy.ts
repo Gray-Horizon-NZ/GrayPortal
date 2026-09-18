@@ -13,7 +13,11 @@ import { isRateLimited } from "@/lib/rateLimit";
 // the allowlist or role (that needs Postgres, and happens in
 // src/lib/dal/session.ts's withSession, re-verified on every DAL call).
 // Both layers are required; this is the network-boundary half.
-const PUBLIC_PATHS = ["/login"];
+// /reset-password is reached with no session (a Firebase password-reset
+// link) — same public posture as /login. /login/enroll-mfa is deliberately
+// NOT here: it requires a valid session cookie (the caller must already be
+// signed in, just not yet MFA-enrolled), see the mfaEnrolled branch below.
+const PUBLIC_PATHS = ["/login", "/reset-password"];
 
 // Client-facing routes live under a distinct prefix so route separation
 // from the internal (app) group doesn't need PUBLIC_PATHS-style special
@@ -23,6 +27,12 @@ const PUBLIC_PATHS = ["/login"];
 // on, never whether a query is allowed to return data. That's still RLS,
 // re-evaluated per request, independent of anything proxy.ts believes.
 const PORTAL_PREFIX = "/portal";
+
+// Mandatory TOTP enrollment gate for client/contractor sign-in (password and
+// Google alike) — reachable with a valid session cookie even before
+// mfaEnrolled is stamped true, so it needs its own carve-out below rather
+// than living in PUBLIC_PATHS (which requires no session at all).
+const ENROLL_MFA_PATH = "/login/enroll-mfa";
 
 function isPortalPath(pathname: string) {
   return pathname === PORTAL_PREFIX || pathname.startsWith(`${PORTAL_PREFIX}/`);
@@ -66,6 +76,12 @@ const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads"];
 const TRULY_PUBLIC_PREFIX_PATHS = ["/onboard", "/api/track"];
 
 function isPublic(pathname: string) {
+  // ENROLL_MFA_PATH lives under /login/, which PUBLIC_PATHS' "/login" entry
+  // would otherwise match via the startsWith("/login/") branch below — it
+  // deliberately does NOT get the no-session-required bypass, since it
+  // requires a valid (just not-yet-enrolled) session cookie. See its own
+  // handling further down, past the cookie check.
+  if (pathname === ENROLL_MFA_PATH) return false;
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
@@ -81,7 +97,11 @@ export default async function proxy(request: NextRequest) {
   // Rate limiting (brief §5.6: auth endpoints + all mutations). Server
   // Actions are POSTs to ordinary page routes, so "any POST" is the one
   // place that sees every mutation without needing per-route wiring.
-  if (pathname.startsWith("/api/auth/session") || pathname.startsWith("/api/auth/claim")) {
+  if (
+    pathname.startsWith("/api/auth/session") ||
+    pathname.startsWith("/api/auth/claim") ||
+    pathname.startsWith("/api/auth/password/request-reset")
+  ) {
     if (isRateLimited(`auth:${clientKey(request)}`, 5, 60_000)) {
       return NextResponse.json({ error: "Too many attempts, slow down." }, { status: 429 });
     }
@@ -107,6 +127,7 @@ export default async function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/api/auth/session") ||
     pathname.startsWith("/api/auth/claim") ||
+    pathname.startsWith("/api/auth/password/request-reset") ||
     isPublic(pathname) ||
     BEARER_AUTH_EXACT_PATHS.includes(pathname) ||
     BEARER_AUTH_PREFIX_PATHS.some((p) => pathname.startsWith(p)) ||
@@ -130,7 +151,21 @@ export default async function proxy(request: NextRequest) {
     // present and clearly mismatched, so we never lock out an existing
     // admin session over a missing claim.
     const claimedRole = typeof decoded.role === "string" ? decoded.role : undefined;
-    if (claimedRole === "client" && !isPortalPath(pathname)) {
+    // mfaEnrolled is stamped alongside role/clientId on every sign-in
+    // (claimOrVerifyAllowlist) — explicit `false` only, same fail-open
+    // posture as the missing-role-claim comment above: a session cookie
+    // minted before this feature existed carries no mfaEnrolled claim at
+    // all (`undefined`), and is let through rather than locked out, until
+    // it naturally re-authenticates and gets a real claim stamped.
+    const mfaEnrolled = typeof decoded.mfaEnrolled === "boolean" ? decoded.mfaEnrolled : undefined;
+    if (
+      (claimedRole === "client" || claimedRole === "contractor") &&
+      mfaEnrolled === false &&
+      pathname !== ENROLL_MFA_PATH
+    ) {
+      return NextResponse.redirect(new URL(ENROLL_MFA_PATH, request.url));
+    }
+    if (claimedRole === "client" && !isPortalPath(pathname) && pathname !== ENROLL_MFA_PATH) {
       return NextResponse.redirect(new URL(PORTAL_PREFIX, request.url));
     }
     // An admin previewing a client's portal (gh_admin_preview_client cookie,

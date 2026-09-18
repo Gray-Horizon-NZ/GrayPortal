@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
-import { portalAccessRequests, users, emailTemplates } from "@/lib/db/schema";
+import { portalAccessRequests, users, emailTemplates, clients } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { auditedInsert, auditedUpdate } from "./mutate";
@@ -9,6 +9,7 @@ import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
 import { resolveActiveInvite } from "./onboardingInvites";
+import { provisionPasswordAccountAndEmail } from "./passwordAuth";
 
 export const SubmitPortalAccessRequestInput = z.object({
   email: z.string().email(),
@@ -155,6 +156,9 @@ export async function approvePortalAccessRequest(requestId: string) {
       },
       { caller, entityType: "user" }
     );
+
+    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, request.clientId)).limit(1);
+    await provisionPasswordAccountAndEmail(request.email, client?.name ?? null);
 
     await auditedUpdate(
       tx,

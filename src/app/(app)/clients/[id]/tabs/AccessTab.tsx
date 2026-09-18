@@ -9,6 +9,7 @@ import {
   sendOnboardingInviteAction,
   inviteClientAction,
   uploadDocumentAction,
+  resendPasswordSetupEmailAction,
 } from "../../actions";
 import SendInviteGate from "../SendInviteGate";
 import CredentialsList from "../../../vault/CredentialsList";
@@ -29,6 +30,8 @@ export default function AccessTab({
   accessRequestApproved,
   accessRequestDenied,
   accessRequestError,
+  passwordEmailSent,
+  passwordEmailError,
 }: {
   client: ClientRecord;
   pendingAccessRequests: PendingAccessRequest[];
@@ -44,6 +47,8 @@ export default function AccessTab({
   accessRequestApproved?: string;
   accessRequestDenied?: string;
   accessRequestError?: string;
+  passwordEmailSent?: string;
+  passwordEmailError?: string;
 }) {
   return (
     <div className="gh-tab-grid">
@@ -85,6 +90,10 @@ export default function AccessTab({
         {accessRequestError && (
           <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t approve: {accessRequestError}</p>
         )}
+        {passwordEmailSent && <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Password setup email sent.</p>}
+        {passwordEmailError && (
+          <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t send: {passwordEmailError}</p>
+        )}
         {portalUsers.map((u) => {
           const invite = onboardingInvites.find((i) => i.email === u.email);
           const daysLeft = invite ? daysUntil(invite.expiresAt) : null;
@@ -101,6 +110,11 @@ export default function AccessTab({
                 <span>{u.email}</span>
                 <span style={{ color: "var(--gh-text-muted)" }}>{u.googleUid ? "Active" : "Invited — awaiting first sign-in"}</span>
               </div>
+              <form action={resendPasswordSetupEmailAction.bind(null, client.id, u.id)}>
+                <SubmitButton className="gh-btn-secondary" style={{ fontSize: "var(--gh-text-xs)" }}>
+                  {u.googleUid ? "Send password setup email" : "Resend password setup email"}
+                </SubmitButton>
+              </form>
               {!u.googleUid && (
                 <SendInviteGate missingDocumentNames={missingReadinessItems}>
                   <details>

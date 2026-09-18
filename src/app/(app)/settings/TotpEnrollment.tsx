@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, multiFactor, TotpMultiFactorGenerator, type TotpSecret } from "firebase/auth";
+import { onAuthStateChanged, multiFactor } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { useTotpEnroll } from "@/lib/totp/useTotpEnroll";
 
 // Enrollment is the one-time setup half of Phase 6's vault re-auth
 // requirement — see RevealButton.tsx in src/app/(app)/vault for the other
@@ -9,13 +10,13 @@ import { firebaseAuth } from "@/lib/firebase/client";
 // re-enrollment/multiple-device UI here: once enrolled, this just shows a
 // badge. Firebase requires Identity Platform's TOTP MFA to be enabled on
 // the project for any of this to work — if it isn't, enroll() below fails
-// with a clear Firebase error.
+// with a clear Firebase error. Enroll mechanics live in useTotpEnroll,
+// shared with the mandatory client/contractor gate (src/app/login/enroll-mfa)
+// — this page is the optional, skippable version of the same flow.
 export default function TotpEnrollment() {
   const [enrolled, setEnrolled] = useState<boolean | null>(null);
-  const [secret, setSecret] = useState<TotpSecret | null>(null);
   const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { secret, busy, error, startEnrollment, confirmEnrollment } = useTotpEnroll();
 
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, (user) => {
@@ -24,38 +25,13 @@ export default function TotpEnrollment() {
     });
   }, []);
 
-  async function startEnrollment() {
-    setError(null);
-    setBusy(true);
-    try {
-      const user = firebaseAuth.currentUser;
-      if (!user) throw new Error("Not signed in");
-      const session = await multiFactor(user).getSession();
-      const generatedSecret = await TotpMultiFactorGenerator.generateSecret(session);
-      setSecret(generatedSecret);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start enrollment");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirmEnrollment() {
-    if (!secret) return;
-    setError(null);
-    setBusy(true);
-    try {
-      const user = firebaseAuth.currentUser;
-      if (!user) throw new Error("Not signed in");
-      const assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
-      await multiFactor(user).enroll(assertion, "Authenticator app");
-      setSecret(null);
+  async function handleConfirm() {
+    const user = firebaseAuth.currentUser;
+    if (!user) return;
+    const ok = await confirmEnrollment(user, code);
+    if (ok) {
       setCode("");
       setEnrolled(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid code — try again");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -69,7 +45,16 @@ export default function TotpEnrollment() {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <span className="gh-badge">Not enrolled</span>
-        <button className="gh-btn-primary" type="button" onClick={startEnrollment} disabled={busy} style={{ alignSelf: "flex-start" }}>
+        <button
+          className="gh-btn-primary"
+          type="button"
+          onClick={() => {
+            const user = firebaseAuth.currentUser;
+            if (user) startEnrollment(user);
+          }}
+          disabled={busy}
+          style={{ alignSelf: "flex-start" }}
+        >
           Set up authenticator app
         </button>
         {error && <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>{error}</p>}
@@ -92,7 +77,7 @@ export default function TotpEnrollment() {
         inputMode="numeric"
         maxLength={6}
       />
-      <button className="gh-btn-primary" type="button" onClick={confirmEnrollment} disabled={busy || code.length !== 6} style={{ alignSelf: "flex-start" }}>
+      <button className="gh-btn-primary" type="button" onClick={handleConfirm} disabled={busy || code.length !== 6} style={{ alignSelf: "flex-start" }}>
         Confirm
       </button>
       {error && <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>{error}</p>}

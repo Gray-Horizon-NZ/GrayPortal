@@ -10,6 +10,7 @@ import { listGoogleTasklistsForAdmin, createGoogleTasklistForAdmin } from "@/lib
 import { createDeal, type DealInputT } from "@/lib/dal/deals";
 import { createReferral, setReferralStatus, convertReferral } from "@/lib/dal/referrals";
 import { inviteClientUser } from "@/lib/dal/users";
+import { resendPasswordSetupEmail } from "@/lib/dal/passwordAuth";
 import { uploadDocument, linkDocument, updateDocument, deleteDocument, DocType } from "@/lib/dal/documents";
 import type { z } from "zod";
 import { ReferralStatus } from "@/lib/dal/referrals";
@@ -237,6 +238,16 @@ export async function inviteClientAction(clientId: string, formData: FormData) {
   }
   revalidatePath(`/clients/${clientId}`);
   redirect(`/clients/${clientId}?invited=1`);
+}
+
+export async function resendPasswordSetupEmailAction(clientId: string, userId: string) {
+  try {
+    await resendPasswordSetupEmail(userId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Couldn't send that email";
+    redirect(`/clients/${clientId}?passwordEmailError=${encodeURIComponent(message)}`);
+  }
+  redirect(`/clients/${clientId}?passwordEmailSent=1`);
 }
 
 export async function sendOnboardingInviteAction(clientId: string, formData: FormData) {

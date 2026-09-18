@@ -24,10 +24,11 @@ declare global {
  * ((app)/layout.tsx, (portal)/portal/layout.tsx), not per-page, so it
  * survives the client-side navigation from /login into the dashboard
  * instead of racing it. Plays at most once per browser tab (sessionStorage
- * gate), on whichever of these actually happens first: LoginButton just
- * signed someone in (name known, stashed in sessionStorage before the
- * push), or the tab is simply opening the app fresh with an existing
- * session cookie (no name known — generic copy).
+ * gate), on whichever of these actually happens first: completeSignIn
+ * (src/app/login/completeSignIn.ts) just signed someone in, any provider
+ * (name known, stashed in sessionStorage before the push), or the tab is
+ * simply opening the app fresh with an existing session cookie (no name
+ * known — generic copy).
  *
  * Unlike the old WelcomeTransition, this does not fade out on a fixed
  * timer — it waits for DashboardReadySignal (mounted inside the real
