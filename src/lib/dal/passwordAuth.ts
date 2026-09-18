@@ -3,9 +3,46 @@ import { and, eq, isNull } from "drizzle-orm";
 import { adminAuth } from "@/lib/firebase/admin";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, ctaButtonHtml, appUrl, MUTED } from "@/lib/email/chrome";
-import { users, clients } from "@/lib/db/schema";
+import { users, clients, emailTemplates } from "@/lib/db/schema";
 import { withAdminScope, assertRole } from "./session";
 import { withCaller } from "./auth";
+import { renderTemplate } from "./emails";
+
+// Same admin-editable-via-Email-Templates pattern as "onboarding_invite"
+// and "portal_access_request_notification" (onboardingInvites.ts,
+// portalAccessRequests.ts): resolvePasswordSetupEmail checks for a row with
+// this key first, falling back to the hardcoded copy below only until an
+// admin creates one from the Email Templates page's "New template" form —
+// there's no seed script for any of these three keys, so none of them have
+// a row out of the box.
+const PASSWORD_SETUP_TEMPLATE_KEY = "password_setup";
+
+function defaultPasswordSetupEmail(clientName: string | null): { subject: string; body: string } {
+  const greeting = clientName ? `Hi ${escapeHtml(clientName)} team,` : "Hi,";
+  return {
+    subject: "Set up your Gray Portal password",
+    body: `<p style="margin:0;">${greeting}</p><p>Use the button below to set your Gray Portal password. This link expires in 1 hour.</p>`,
+  };
+}
+
+/**
+ * Only this intro copy is editable via Email Templates ({{client_name}}
+ * available) — the CTA button and the "we'll never ask..." footer are fixed
+ * chrome appended after it, same reasoning as sendOnboardingInvite: the
+ * real link is never part of the admin-edited body.
+ */
+async function resolvePasswordSetupEmail(clientName: string | null): Promise<{ subject: string; body: string }> {
+  return withAdminScope("password setup email: resolve template", async (tx) => {
+    const [template] = await tx
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.key, PASSWORD_SETUP_TEMPLATE_KEY), isNull(emailTemplates.deletedAt)))
+      .limit(1);
+    if (!template) return defaultPasswordSetupEmail(clientName);
+    const rendered = renderTemplate(template, { client_name: clientName ?? "" });
+    return { subject: rendered.subject, body: rendered.htmlBody };
+  });
+}
 
 /**
  * Firebase requires an existing Auth user before a password-reset link can
@@ -37,19 +74,18 @@ async function sendPasswordSetupLink(email: string, clientName: string | null): 
     handleCodeInApp: true,
   });
 
-  const greeting = clientName ? `Hi ${escapeHtml(clientName)} team,` : "Hi,";
+  const { subject, body: introHtml } = await resolvePasswordSetupEmail(clientName);
   const body = `
-    <p>${greeting}</p>
-    <p>Use the button below to set your Gray Portal password. This link expires in 1 hour.</p>
+    ${introHtml}
     ${ctaButtonHtml("Set your password", link)}
     <p style="margin-top: 24px; font-size: 12px; color: ${MUTED};">We'll never ask you to reply to this email with your password. If you didn't request this, you can safely ignore it.</p>
   `;
 
   const sent = await sendGmail({
     to: email,
-    subject: "Set up your Gray Portal password",
+    subject,
     bodyText: `Set your Gray Portal password: ${link}\n\nThis link expires in 1 hour. We'll never ask you to reply to this email with your password.`,
-    bodyHtml: wrapEmailHtml(body, { previewText: "Set up your Gray Portal password" }),
+    bodyHtml: wrapEmailHtml(body, { previewText: subject }),
   });
   if (!sent) console.error(`Failed to send password setup email to ${email} — Gmail is not connected`);
 }
