@@ -52,9 +52,9 @@ export async function inviteClientUser(input: InviteClientInputT) {
     );
 
     const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, data.clientId)).limit(1);
-    await provisionPasswordAccountAndEmail(data.email, client?.name ?? null);
+    const emailResult = await provisionPasswordAccountAndEmail(data.email, client?.name ?? null);
 
-    return row;
+    return { ...row, passwordEmailError: emailResult.ok ? null : emailResult.error };
   });
 }
 
@@ -99,9 +99,9 @@ export async function inviteContractorUser(input: InviteContractorInputT) {
     );
 
     const [contractor] = await tx.select({ name: contractors.name }).from(contractors).where(eq(contractors.id, data.contractorId)).limit(1);
-    await provisionPasswordAccountAndEmail(data.email, contractor?.name ?? null);
+    const emailResult = await provisionPasswordAccountAndEmail(data.email, contractor?.name ?? null);
 
-    return row;
+    return { ...row, passwordEmailError: emailResult.ok ? null : emailResult.error };
   });
 }
 

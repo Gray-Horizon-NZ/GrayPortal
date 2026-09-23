@@ -8,10 +8,10 @@ export default async function ContractorDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ inviteError?: string; invited?: string }>;
+  searchParams: Promise<{ inviteError?: string; invited?: string; passwordEmailError?: string }>;
 }) {
   const { id } = await params;
-  const { inviteError, invited } = await searchParams;
+  const { inviteError, invited, passwordEmailError } = await searchParams;
   const data = await getContractorRecord(id);
   if (!data) notFound();
   const { contractor, portalUsers, assignedTasks } = data;
@@ -45,6 +45,11 @@ export default async function ContractorDetailPage({
         {invited && <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Invite sent.</p>}
         {inviteError && (
           <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t invite: {inviteError}</p>
+        )}
+        {passwordEmailError && (
+          <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>
+            Login was created, but the password-setup email didn&apos;t send: {passwordEmailError}
+          </p>
         )}
         {portalUsers.length === 0 && (
           <form action={inviteContractorAction.bind(null, contractor.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>

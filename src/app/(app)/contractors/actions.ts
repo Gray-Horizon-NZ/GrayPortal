@@ -20,16 +20,22 @@ export async function deleteContractorAction(id: string) {
 }
 
 export async function inviteContractorAction(contractorId: string, formData: FormData) {
+  let passwordEmailError: string | null = null;
   try {
-    await inviteContractorUser({
+    const result = await inviteContractorUser({
       contractorId,
       email: String(formData.get("email") ?? ""),
       displayName: String(formData.get("displayName") ?? "") || undefined,
     });
+    passwordEmailError = result.passwordEmailError;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invite failed";
     redirect(`/contractors/${contractorId}?inviteError=${encodeURIComponent(message)}`);
   }
   revalidatePath(`/contractors/${contractorId}`);
-  redirect(`/contractors/${contractorId}?invited=1`);
+  // The allowlist row was created either way; passwordEmailError only means
+  // the password-setup email itself didn't send (see clients/actions.ts's
+  // inviteClientAction for the same pattern).
+  const emailParam = passwordEmailError ? `&passwordEmailError=${encodeURIComponent(passwordEmailError)}` : "";
+  redirect(`/contractors/${contractorId}?invited=1${emailParam}`);
 }

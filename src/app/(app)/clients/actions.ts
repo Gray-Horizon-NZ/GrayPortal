@@ -226,18 +226,26 @@ export async function deleteToolStackItemAction(id: string, clientId: string) {
 }
 
 export async function inviteClientAction(clientId: string, formData: FormData) {
+  let passwordEmailError: string | null = null;
   try {
-    await inviteClientUser({
+    const result = await inviteClientUser({
       clientId,
       email: String(formData.get("email") ?? ""),
       displayName: String(formData.get("displayName") ?? "") || undefined,
     });
+    passwordEmailError = result.passwordEmailError;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invite failed";
     redirect(`/clients/${clientId}?inviteError=${encodeURIComponent(message)}`);
   }
   revalidatePath(`/clients/${clientId}`);
-  redirect(`/clients/${clientId}?invited=1`);
+  // The allowlist row was created either way (that's what inviteClientUser
+  // just committed) — passwordEmailError only means the password-setup
+  // email itself didn't go out (e.g. Gmail not connected), not that the
+  // invite failed. Surfaced alongside invited=1 so the admin knows to use
+  // "Resend password setup email" rather than assuming the client got one.
+  const emailParam = passwordEmailError ? `&passwordEmailError=${encodeURIComponent(passwordEmailError)}` : "";
+  redirect(`/clients/${clientId}?invited=1${emailParam}`);
 }
 
 export async function resendPasswordSetupEmailAction(clientId: string, userId: string) {
@@ -267,14 +275,20 @@ export async function sendOnboardingInviteAction(clientId: string, formData: For
 }
 
 export async function approvePortalAccessRequestAction(clientId: string, requestId: string) {
+  let passwordEmailError: string | null = null;
   try {
-    await approvePortalAccessRequest(requestId);
+    const result = await approvePortalAccessRequest(requestId);
+    passwordEmailError = result.passwordEmailError;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Couldn't approve that request";
     redirect(`/clients/${clientId}?accessRequestError=${encodeURIComponent(message)}`);
   }
   revalidatePath(`/clients/${clientId}`);
-  redirect(`/clients/${clientId}?accessRequestApproved=1`);
+  // Same posture as inviteClientAction above — the request was approved
+  // either way; passwordEmailError only flags that the password-setup
+  // email itself didn't send.
+  const emailParam = passwordEmailError ? `&passwordEmailError=${encodeURIComponent(passwordEmailError)}` : "";
+  redirect(`/clients/${clientId}?accessRequestApproved=1${emailParam}`);
 }
 
 export async function denyPortalAccessRequestAction(clientId: string, requestId: string) {

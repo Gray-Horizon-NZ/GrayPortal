@@ -66,8 +66,13 @@ async function ensureFirebaseAccount(email: string): Promise<void> {
  * resolved and sent — server-generated link + sendGmail, matching every
  * other transactional email in this app (onboarding invites, access-request
  * notifications) rather than Firebase's own unbranded default sender.
+ * Exported (rather than kept private) so resendPasswordSetupEmail can call
+ * it directly and let a real failure (Gmail not connected, missing send
+ * scope, Firebase error) propagate as an actual error — see that function's
+ * own comment for why provisionPasswordAccountAndEmail's swallow-everything
+ * behavior is wrong for that one caller.
  */
-async function sendPasswordSetupLink(email: string, clientName: string | null): Promise<void> {
+export async function sendPasswordSetupLink(email: string, clientName: string | null): Promise<void> {
   await ensureFirebaseAccount(email);
   const link = await adminAuth.generatePasswordResetLink(email, {
     url: `${appUrl()}/reset-password`,
@@ -90,18 +95,31 @@ async function sendPasswordSetupLink(email: string, clientName: string | null): 
   if (!sent) console.error(`Failed to send password setup email to ${email} — Gmail is not connected`);
 }
 
+export type ProvisionResult = { ok: true } | { ok: false; error: string };
+
 /**
  * Called right after the allowlist row is created (inviteClientUser,
  * inviteContractorUser, approvePortalAccessRequest — "the only path that
- * creates a login" per those files' own comments) and from the Access tab's
- * manual resend action. Best-effort throughout: a failed provision/send must
- * never fail the invite itself, same posture as sendOnboardingCompletionEmail.
+ * creates a login" per those files' own comments), all three still
+ * mid-transaction at that point. Best-effort throughout: a failed
+ * provision/send must never fail the invite itself (never throws), same
+ * posture as sendOnboardingCompletionEmail — but unlike before, the result
+ * is returned instead of only logged, so those three callers can still tell
+ * the admin the row was created but the email wasn't (see their own
+ * passwordEmailError handling).
+ *
+ * NOT used by the Access tab's manual resend action any more — that calls
+ * sendPasswordSetupLink directly. This wrapper existing at all is only for
+ * the three in-transaction callers above, where letting a Gmail/Firebase
+ * error escape would roll back the just-inserted allowlist row.
  */
-export async function provisionPasswordAccountAndEmail(email: string, clientName: string | null): Promise<void> {
+export async function provisionPasswordAccountAndEmail(email: string, clientName: string | null): Promise<ProvisionResult> {
   try {
     await sendPasswordSetupLink(email, clientName);
+    return { ok: true };
   } catch (err) {
     console.error(`Couldn't provision a password login for ${email}`, err);
+    return { ok: false, error: err instanceof Error ? err.message : "Couldn't send the password setup email" };
   }
 }
 
@@ -137,6 +155,16 @@ export async function requestPasswordResetIfAllowlisted(email: string): Promise<
  * Covers both the "never signed in yet" case (Alex's case) and proactively
  * handing an already-Google-claimed client a password option (see the
  * plan's "Existing users" section).
+ *
+ * Calls sendPasswordSetupLink directly rather than going through
+ * provisionPasswordAccountAndEmail — this runs entirely after withCaller's
+ * transaction has already committed (nothing left to roll back), and the
+ * caller (resendPasswordSetupEmailAction) already has real try/catch ->
+ * passwordEmailError handling wired up. Swallowing the error here instead
+ * would silently redirect to passwordEmailSent even when nothing was
+ * actually sent — e.g. the connected Google account (Settings) predates
+ * Gmail send scope, or isn't connected at all — which is exactly the bug
+ * this used to have.
  */
 export async function resendPasswordSetupEmail(userId: string): Promise<void> {
   const target = await withCaller(async (caller, tx) => {
@@ -151,7 +179,7 @@ export async function resendPasswordSetupEmail(userId: string): Promise<void> {
     const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, row.clientId)).limit(1);
     return { email: row.email, clientName: client?.name ?? null };
   });
-  await provisionPasswordAccountAndEmail(target.email, target.clientName);
+  await sendPasswordSetupLink(target.email, target.clientName);
 }
 
 function escapeHtml(s: string): string {

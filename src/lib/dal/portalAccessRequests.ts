@@ -158,7 +158,7 @@ export async function approvePortalAccessRequest(requestId: string) {
     );
 
     const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, request.clientId)).limit(1);
-    await provisionPasswordAccountAndEmail(request.email, client?.name ?? null);
+    const emailResult = await provisionPasswordAccountAndEmail(request.email, client?.name ?? null);
 
     await auditedUpdate(
       tx,
@@ -168,6 +168,8 @@ export async function approvePortalAccessRequest(requestId: string) {
       { status: "approved", decidedAt: new Date(), decidedBy: caller.userId },
       { caller, entityType: "portal_access_request" }
     );
+
+    return { passwordEmailError: emailResult.ok ? null : emailResult.error };
   });
 }
 
