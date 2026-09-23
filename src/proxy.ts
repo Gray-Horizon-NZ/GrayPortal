@@ -165,6 +165,13 @@ export default async function proxy(request: NextRequest) {
     ) {
       return NextResponse.redirect(new URL(ENROLL_MFA_PATH, request.url));
     }
+    // The reverse: an already-enrolled session has no business on the gate
+    // page — without this, landing there again (back button, a stale tab, a
+    // navigation that never left) shows a fresh "enroll" screen for an
+    // account that's already done.
+    if (mfaEnrolled === true && pathname === ENROLL_MFA_PATH) {
+      return NextResponse.redirect(new URL(claimedRole === "client" ? PORTAL_PREFIX : "/", request.url));
+    }
     if (claimedRole === "client" && !isPortalPath(pathname) && pathname !== ENROLL_MFA_PATH) {
       return NextResponse.redirect(new URL(PORTAL_PREFIX, request.url));
     }
