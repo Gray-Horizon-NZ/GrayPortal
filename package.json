@@ -16,7 +16,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@types/archiver": "^8.0.0",
     "archiver": "^8.0.0",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "firebase": "^12.17.0",
     "firebase-admin": "^14.2.0",
     "googleapis": "^174.0.0",
