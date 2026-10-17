@@ -142,7 +142,7 @@ The whole project runs in phases. **Each phase has exit criteria, and the next p
 Gray Portal is the door, Incrementum is the room behind it. It must feel like its own place.
 
 ### 2.1 Route and shell
-- Route `/incrementum`, with its own nested `layout.tsx` under `src/app/(app)/incrementum/`. Admin-only, gated like `/apexus`.
+- Route `/incrementum`, in its own route group `src/app/(incrementum)/incrementum/` (2026-10-18: full screen, outside the GrayPortal shell, with "← Return to Gray Portal" in its sidebar). Admin-only at the DAL and RLS.
 - Its own header: the "Project *Incrementum*" wordmark, an "← Gray Portal" back link, and its own tab rail (§4).
 - Same auth/session/DAL as the rest of GrayPortal. Not a separate app.
 - The **whole space renders in light mode** (§3), while the rest of the admin app stays dark.

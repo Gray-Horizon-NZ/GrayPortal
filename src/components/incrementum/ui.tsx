@@ -1,5 +1,5 @@
 // Shared Incrementum presentation pieces (server-safe — no hooks). Styling
-// lives in (app)/incrementum/incrementum.css; tokens in tokens.css.
+// lives in (incrementum)/incrementum/incrementum.css; tokens in tokens.css.
 import Link from "next/link";
 import { METRICS, isMetricKey } from "@/lib/incrementum/registry";
 import { formatMetric, formatTarget } from "@/lib/incrementum/format";

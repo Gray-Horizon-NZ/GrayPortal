@@ -9,7 +9,7 @@ import { clientsForTarget, toNum } from "@/lib/incrementum/pricing";
 import SubmitButton from "@/components/ui/SubmitButton";
 import AssignDialog from "./AssignDialog";
 import { Chip } from "./ui";
-import { createNeedAction, updateNeedAction, assignNeedAction, unassignNeedAction, deleteNeedAction } from "@/app/(app)/incrementum/actions";
+import { createNeedAction, updateNeedAction, assignNeedAction, unassignNeedAction, deleteNeedAction } from "@/app/(incrementum)/incrementum/actions";
 
 const PRICE_SOURCE: Record<string, string> = {
   override: "your price",

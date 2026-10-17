@@ -4,7 +4,7 @@
 import { money, shortDate, todayNz } from "@/lib/incrementum/format";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { Chip } from "./ui";
-import { stampCycleAction, updateCycleAction, deleteCycleAction } from "@/app/(app)/incrementum/actions";
+import { stampCycleAction, updateCycleAction, deleteCycleAction } from "@/app/(incrementum)/incrementum/actions";
 
 type Cycle = {
   id: string;

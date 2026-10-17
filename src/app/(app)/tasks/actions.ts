@@ -4,27 +4,40 @@ import { setTaskStatus, assignTask, createTask, toggleTaskStar, toggleTaskPriori
 import type { z } from "zod";
 import { TaskStatus } from "@/lib/dal/tasks";
 
-export async function setTaskStatusAction(id: string, status: z.infer<typeof TaskStatus>) {
-  await setTaskStatus(id, status);
+/**
+ * Every page that shows tasks. A task change made in one place (Home's task
+ * panel, the Master Task View, a client page, the calendar, the client
+ * portal, Project Incrementum) must refresh all of them — previously most
+ * actions only revalidated /tasks, so ticking a task on Home left it on
+ * Home, and Home went stale after Master Task View edits (Max, 2026-10-18).
+ */
+function revalidateTaskViews() {
+  revalidatePath("/");
   revalidatePath("/tasks");
   revalidatePath("/clients", "layout");
   revalidatePath("/calendar");
+  revalidatePath("/portal", "layout");
+  revalidatePath("/incrementum", "layout");
+}
+
+export async function setTaskStatusAction(id: string, status: z.infer<typeof TaskStatus>) {
+  await setTaskStatus(id, status);
+  revalidateTaskViews();
 }
 
 export async function assignTaskAction(id: string, assigneeUserId: string | null) {
   await assignTask(id, assigneeUserId);
-  revalidatePath("/tasks");
+  revalidateTaskViews();
 }
 
 export async function toggleTaskStarAction(id: string, starred: boolean) {
   await toggleTaskStar(id, starred);
-  revalidatePath("/tasks");
+  revalidateTaskViews();
 }
 
 export async function toggleTaskPriorityAction(id: string, priority: "normal" | "high") {
   await toggleTaskPriority(id, priority);
-  revalidatePath("/tasks");
-  revalidatePath("/");
+  revalidateTaskViews();
 }
 
 /**
@@ -65,21 +78,14 @@ export async function updateTaskAction(id: string, clientId: string | null, form
   const phaseId = formData.has("phaseId") ? String(formData.get("phaseId") ?? "") || null : undefined;
 
   await updateTask(id, { title, dueDate: dueDate || undefined, ...relist, funnelStage, phaseId });
-  revalidatePath("/tasks");
-  revalidatePath("/calendar");
-  revalidatePath("/portal/work");
-  revalidatePath("/portal");
+  revalidateTaskViews();
 }
 
 /** Admin-side only — see updateTaskAction. */
 export async function deleteTaskAction(id: string, clientId: string | null) {
+  void clientId; // kept for existing callers; every view is refreshed regardless now
   await deleteTask(id);
-  revalidatePath("/tasks");
-  revalidatePath("/calendar");
-  if (clientId) {
-    revalidatePath("/portal/work");
-    revalidatePath("/portal");
-  }
+  revalidateTaskViews();
 }
 
 /**
@@ -95,7 +101,5 @@ export async function createTaskAction(
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   await createTask({ clientId: clientId ?? undefined, internalList: internalList ?? undefined, title });
-  revalidatePath("/tasks");
-  revalidatePath("/clients", "layout");
-  revalidatePath("/calendar");
+  revalidateTaskViews();
 }

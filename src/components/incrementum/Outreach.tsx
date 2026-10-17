@@ -5,7 +5,7 @@ import { shortDateTime, todayNz } from "@/lib/incrementum/format";
 import SubmitButton from "@/components/ui/SubmitButton";
 import EmailComposer from "./EmailComposer";
 import type { EmailDraft } from "@/lib/incrementum/drafts";
-import { sendOutreachEmailAction, bookMeetingAction, addActivityAction } from "@/app/(app)/incrementum/actions";
+import { sendOutreachEmailAction, bookMeetingAction, addActivityAction } from "@/app/(incrementum)/incrementum/actions";
 
 type Activity = { id: string; type: string; subject: string | null; body: string | null; occurredAt: Date; meetingStart: Date | null; meetLink: string | null };
 type StageEvent = { id: string; fromStage: string | null; toStage: string; note: string | null; createdAt: Date };

@@ -35,29 +35,32 @@
   color-scheme: light;
   background: var(--gh-bg);
   color: var(--gh-text-primary);
-  /* Fill the dark shell's content area edge to edge (.gh-shell-main pads it). */
-  margin: calc(var(--gh-space-8) * -1);
-  min-height: calc(100vh - var(--gh-header-height, 56px));
+  /* Full screen (Max, 2026-10-18): its own route group, outside the
+     GrayPortal shell. Sidebar on the left, content on the right. */
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+
+/* --- Sidebar: brand, phase, tabs, return ------------------------------- */
+.gh-incrementum .inc-side {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--gh-border);
+  background: var(--gh-lt-ink);
 }
 
-@media (max-width: 1024px) {
-  .gh-incrementum {
-    margin: calc(var(--gh-space-4) * -1);
-  }
-}
-
-/* --- Header ---------------------------------------------------------- */
-.gh-incrementum .inc-header {
+.gh-incrementum .inc-side-brand {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gh-space-4);
-  padding: var(--gh-space-6) var(--gh-space-8);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--gh-space-2);
+  padding: var(--gh-space-6);
   border-bottom: 1px solid var(--gh-border);
-  background: var(--gh-lt-panel);
-  flex-wrap: wrap;
 }
 
 .gh-incrementum .inc-wordmark {
@@ -73,18 +76,6 @@
   font-weight: 400;
 }
 
-.gh-incrementum .inc-back {
-  font-size: var(--gh-text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-muted);
-  transition: color var(--gh-transition);
-}
-
-.gh-incrementum .inc-back:hover {
-  color: var(--gh-accent);
-}
-
 .gh-incrementum .inc-phase-chip {
   display: inline-flex;
   align-items: center;
@@ -95,19 +86,32 @@
   font-size: var(--gh-text-xs);
   letter-spacing: var(--gh-tracking-wide);
   text-transform: uppercase;
+  margin-top: var(--gh-space-2);
 }
 
-/* --- Body: tab rail + content ---------------------------------------- */
-.gh-incrementum .inc-body {
-  display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  flex: 1;
+.gh-incrementum .inc-return {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+  padding: var(--gh-space-4) var(--gh-space-6);
+  border-top: 1px solid var(--gh-border);
+  font-size: var(--gh-text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  color: var(--gh-text-primary);
+  background: var(--gh-lt-panel);
+  transition: color var(--gh-transition), background var(--gh-transition);
+}
+
+.gh-incrementum .inc-return:hover {
+  color: var(--gh-accent);
+  background: var(--gh-lt-brass-dim);
 }
 
 .gh-incrementum .inc-rail {
-  border-right: 1px solid var(--gh-border);
-  padding: var(--gh-space-6) 0;
-  background: var(--gh-lt-ink);
+  padding: var(--gh-space-4) 0;
 }
 
 .gh-incrementum .inc-rail-group {
@@ -163,28 +167,64 @@
 }
 
 .gh-incrementum .inc-content {
-  padding: var(--gh-space-8);
+  padding: var(--gh-space-8) var(--gh-space-12);
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--gh-space-6);
+  max-width: 1600px;
 }
 
+/* Tablet / phone: the sidebar becomes a top bar — brand + return on one
+   row, tabs scrolling sideways underneath. */
 @media (max-width: 1024px) {
-  .gh-incrementum .inc-header {
-    padding: var(--gh-space-4);
-  }
-
-  .gh-incrementum .inc-body {
+  .gh-incrementum {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .gh-incrementum .inc-rail {
-    display: flex;
-    overflow-x: auto;
+  .gh-incrementum .inc-side {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: auto;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     border-right: none;
     border-bottom: 1px solid var(--gh-border);
+  }
+
+  .gh-incrementum .inc-side-brand {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: var(--gh-space-3) var(--gh-space-4);
+    border-bottom: none;
+  }
+
+  .gh-incrementum .inc-side-brand .gh-eyebrow {
+    display: none;
+  }
+
+  .gh-incrementum .inc-phase-chip {
+    margin-top: 0;
+  }
+
+  .gh-incrementum .inc-return {
+    margin-top: 0;
+    border-top: none;
+    border-left: 1px solid var(--gh-border);
+    padding: var(--gh-space-3) var(--gh-space-4);
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .gh-incrementum .inc-rail {
+    grid-column: 1 / -1;
+    display: flex;
+    overflow-x: auto;
     padding: 0;
+    border-top: 1px solid var(--gh-border);
   }
 
   .gh-incrementum .inc-rail-group {
@@ -212,6 +252,17 @@
 
   .gh-incrementum .inc-content {
     padding: var(--gh-space-4);
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-incrementum .inc-return {
+    font-size: 0;
+    gap: 0;
+  }
+
+  .gh-incrementum .inc-return span {
+    font-size: var(--gh-text-base);
   }
 }
 

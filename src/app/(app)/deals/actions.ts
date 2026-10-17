@@ -53,6 +53,7 @@ export async function createDealTaskAction(dealId: string, formData: FormData) {
   if (!title) return;
   await createTask({ dealId, title });
   revalidatePath(`/deals/${dealId}`);
+  revalidatePath("/");
   revalidatePath("/tasks");
   revalidatePath("/calendar");
 }

@@ -7,7 +7,7 @@ import { formatMetric, money, shortDate, relativeDays, minutesSince } from "@/li
 import { toNum } from "@/lib/incrementum/pricing";
 import { monthsBetween } from "@/lib/incrementum/evaluate";
 import { Bar, Ring, Avatar, Dot, Chip, PhaseSteps, Empty, goalTone, GOAL_STATUS_LABELS, MetricValue } from "./ui";
-import { dismissNextMoveAction, setIncTaskStatusAction, createIncTaskAction } from "@/app/(app)/incrementum/actions";
+import { dismissNextMoveAction, setIncTaskStatusAction, createIncTaskAction } from "@/app/(incrementum)/incrementum/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 
 type S = IncrementumSnapshot;

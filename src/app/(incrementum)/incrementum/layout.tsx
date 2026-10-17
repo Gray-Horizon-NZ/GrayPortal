@@ -5,19 +5,21 @@ import IncrementumEntryOverlay from "@/components/incrementum/IncrementumEntryOv
 import IncrementumRail from "@/components/incrementum/IncrementumRail";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 
-// Project Incrementum (docs/Project-Incrementum-Plan.md) — its own light
-// shell inside GrayPortal's dark frame: Gray Portal is the door,
-// Incrementum the room behind it. This layout deliberately awaits nothing,
-// so it (and the entry animation) render the instant the link is clicked
-// instead of the (app) group's dark loading skeleton showing first; the
-// live bits (phase chip, tab counts) stream in through Suspense. Data access
-// is admin-only at the DAL (withIncrementum) and at RLS (db/sql/030); a
-// non-admin reaching this URL gets error.tsx, never data.
+// Project Incrementum (docs/Project-Incrementum-Plan.md) — a full-screen
+// space of its own (Max, 2026-10-18): it lives in its own route group, not
+// inside the GrayPortal shell, so it takes over the whole window. Gray
+// Portal is the door ("← Return to Gray Portal" sits in the sidebar).
+//
+// Deliberately awaits nothing, so the layout and the entry animation render
+// the instant you click in; the live bits (phase chip, tab counts) stream
+// in through Suspense. Access: proxy.ts sends signed-out visitors to
+// /login, contractors to /work and clients to /portal; every page's data is
+// admin-only at the DAL (withIncrementum) and RLS (db/sql/030), so anyone
+// else reaching a page gets error.tsx, never data.
 
-// Both header helpers swallow their own errors: they sit OUTSIDE this
-// segment's error.tsx (which only wraps the page), so a throw here would
-// otherwise take down the whole (app) shell. The page underneath reports
-// the real error.
+// Both helpers swallow their own errors: they sit outside this segment's
+// error.tsx (which only wraps the page), so a throw here would otherwise
+// take down the whole page. The page underneath reports the real error.
 async function safeSnapshot() {
   try {
     return await getIncrementumSnapshot();
@@ -54,25 +56,24 @@ export default function IncrementumLayout({ children }: { children: React.ReactN
   return (
     <div className="gh-incrementum">
       <IncrementumEntryOverlay />
-      <header className="inc-header">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
-          <Link href="/" className="inc-back">
-            ← Gray Portal
-          </Link>
+      <aside className="inc-side">
+        <div className="inc-side-brand">
+          <p className="gh-eyebrow">Gray Horizon</p>
           <Link href="/incrementum" className="inc-wordmark">
             Project <em>Incrementum</em>
           </Link>
+          <Suspense fallback={null}>
+            <PhaseChip />
+          </Suspense>
         </div>
-        <Suspense fallback={null}>
-          <PhaseChip />
-        </Suspense>
-      </header>
-      <div className="inc-body">
         <Suspense fallback={<IncrementumRail />}>
           <RailWithCounts />
         </Suspense>
-        <div className="inc-content">{children}</div>
-      </div>
+        <Link href="/" className="inc-return">
+          <span aria-hidden>←</span> Return to Gray Portal
+        </Link>
+      </aside>
+      <main className="inc-content">{children}</main>
     </div>
   );
 }
