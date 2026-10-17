@@ -49,6 +49,26 @@
   --gh-accent-contrast: #161310;
   --gh-focus-ring: #c2a468;
 
+  /* Light palette — the client portal's light mode, promoted here as the
+   * single source of truth (docs/Project-Incrementum-Plan.md §3.1). Read by
+   * the portal's light theme (portal-theme.css) AND by Project Incrementum,
+   * which renders entirely in it. New, distinct names, so referencing them
+   * one-way from portal-theme.css can't form the circular var() reference
+   * that file warns about. */
+  --gh-lt-ink: #f7f5ef;
+  --gh-lt-panel: #ffffff;
+  --gh-lt-panel-2: #f1eee3;
+  --gh-lt-line: #e0dbca;
+  --gh-lt-line-strong: #cbc4ad;
+  --gh-lt-text: #1c1c1c;
+  --gh-lt-text-dim: #8a8776;
+  --gh-lt-brass: #9b8353;
+  --gh-lt-brass-dim: #efe8d6;
+  --gh-lt-good: #668469;
+  --gh-lt-warn: #976637;
+  --gh-lt-danger: #9a5e42;
+  --gh-lt-chart-1: #2a78d6;
+
   /* Status colours — the one other departure from monochrome. State
    * signalling only, never decorative. Always paired with a text label or
    * icon. Kept clear of the gold accent hue so "warning" never reads as

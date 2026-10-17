@@ -8,6 +8,7 @@ export default function NavLink({
   count,
   children,
   onNavigate,
+  accent,
 }: {
   href: string;
   // A pre-rendered element (<Workflow size={16} />), not a component
@@ -18,12 +19,15 @@ export default function NavLink({
   count?: number;
   children: React.ReactNode;
   onNavigate?: () => void;
+  // Always-gold label (Project Incrementum's sidebar entry) — opt-in per
+  // item so no other nav link changes colour.
+  accent?: boolean;
 }) {
   const pathname = usePathname();
   const active = pathname === href || (href !== "/" && href !== "/portal" && pathname.startsWith(`${href}/`));
 
   return (
-    <Link href={href} className="gh-nav-link" data-active={active || undefined} onClick={onNavigate}>
+    <Link href={href} className="gh-nav-link" data-active={active || undefined} data-accent={accent || undefined} onClick={onNavigate}>
       {icon && <span className="gh-nav-icon">{icon}</span>}
       <span>{children}</span>
       {typeof count === "number" && count > 0 && <span className="gh-nav-count">{count}</span>}

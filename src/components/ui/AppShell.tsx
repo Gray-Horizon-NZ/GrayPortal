@@ -16,6 +16,8 @@ export type ShellNavItem = {
   // sidebar/drawer (e.g. "Sales", "Records"). Omit for pinned items
   // (Home, Search) that render above the first group, unindented.
   group?: string;
+  // Renders the label in system gold in every state (Project Incrementum).
+  accent?: boolean;
 };
 
 export type ShellNotification = {
@@ -86,7 +88,7 @@ export default function AppShell({
           </div>
           <div className="gh-shell-nav">
             {pinned.map((item) => (
-              <NavLink key={item.href} href={item.href} icon={item.icon} count={item.count}>
+              <NavLink key={item.href} href={item.href} icon={item.icon} count={item.count} accent={item.accent}>
                 {item.label}
               </NavLink>
             ))}
@@ -94,7 +96,7 @@ export default function AppShell({
               <div className="gh-nav-group" key={group.label}>
                 <p className="gh-nav-group-label">{group.label}</p>
                 {group.items.map((item) => (
-                  <NavLink key={item.href} href={item.href} icon={item.icon} count={item.count}>
+                  <NavLink key={item.href} href={item.href} icon={item.icon} count={item.count} accent={item.accent}>
                     {item.label}
                   </NavLink>
                 ))}

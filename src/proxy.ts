@@ -27,6 +27,7 @@ const PUBLIC_PATHS = ["/login", "/reset-password"];
 // on, never whether a query is allowed to return data. That's still RLS,
 // re-evaluated per request, independent of anything proxy.ts believes.
 const PORTAL_PREFIX = "/portal";
+const WORK_PREFIX = "/work";
 
 // Mandatory TOTP enrollment gate for client/contractor sign-in (password and
 // Google alike) — reachable with a valid session cookie even before
@@ -59,7 +60,7 @@ const BEARER_AUTH_PREFIX_PATHS = ["/api/cron"];
 // route itself applies its own soft protections (honeypot, optional
 // shared-secret header); this list only opts it out of the cookie
 // redirect, same caveat as BEARER_AUTH_EXACT_PATHS above.
-const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads"];
+const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads", "/api/incrementum/leads"];
 
 // Same "genuinely public, own protections" shape as TRULY_PUBLIC_EXACT_PATHS,
 // but for a route with a dynamic segment (the onboarding wizard's per-
@@ -105,7 +106,7 @@ export default async function proxy(request: NextRequest) {
     if (isRateLimited(`auth:${clientKey(request)}`, 5, 60_000)) {
       return NextResponse.json({ error: "Too many attempts, slow down." }, { status: 429 });
     }
-  } else if (pathname.startsWith("/api/leads")) {
+  } else if (pathname.startsWith("/api/leads") || pathname === "/api/incrementum/leads") {
     // Tighter than the generic mutate bucket below — this is the one
     // endpoint reachable by anyone on the internet, not just an
     // authenticated caller, so it's the most exposed to spam/abuse.
@@ -174,6 +175,17 @@ export default async function proxy(request: NextRequest) {
     }
     if (claimedRole === "client" && !isPortalPath(pathname) && pathname !== ENROLL_MFA_PATH) {
       return NextResponse.redirect(new URL(PORTAL_PREFIX, request.url));
+    }
+    // Contractors live in their own workspace (/work, db/sql/031). Same
+    // routing-hint posture as the client rule above: RLS is what actually
+    // stops a contractor reading admin data; this just keeps them where
+    // their pages are. API routes are left to their own checks.
+    const isWorkPath = pathname === WORK_PREFIX || pathname.startsWith(`${WORK_PREFIX}/`);
+    if (claimedRole === "contractor" && !isWorkPath && pathname !== ENROLL_MFA_PATH && !pathname.startsWith("/api/")) {
+      return NextResponse.redirect(new URL(WORK_PREFIX, request.url));
+    }
+    if (claimedRole && claimedRole !== "contractor" && isWorkPath) {
+      return NextResponse.redirect(new URL(claimedRole === "client" ? PORTAL_PREFIX : "/", request.url));
     }
     // An admin previewing a client's portal (gh_admin_preview_client cookie,
     // set by startPortalPreviewAction) is deliberately let through here —

@@ -2049,3 +2049,109 @@ textarea {
     padding: var(--gh-space-6);
   }
 }
+
+/* ---------------------------------------------------------------------
+   Project Incrementum hooks in the dark app (docs/Project-Incrementum-Plan.md
+   §2). Everything inside /incrementum itself lives in
+   (app)/incrementum/incrementum.css.
+   --------------------------------------------------------------------- */
+
+/* Sidebar entry — system gold in every state, not only when active. */
+.gh-nav-link[data-accent],
+.gh-nav-link[data-accent]:hover,
+.gh-nav-link[data-accent][data-active] {
+  color: var(--gh-accent);
+}
+
+/* Master Task View — the Incrementum main-list column. */
+.gh-task-col--incrementum {
+  border-color: var(--gh-accent);
+}
+
+/* Home "Enter Project Incrementum" mini banner — the one light object on
+   the dark dashboard, so it reads as a doorway. */
+.gh-inc-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gh-space-4);
+  width: 320px;
+  max-width: 100%;
+  padding: var(--gh-space-4) var(--gh-space-6);
+  background: var(--gh-lt-ink);
+  border: 1px solid var(--gh-lt-line);
+  color: var(--gh-lt-text);
+  transition: border-color var(--gh-transition), background var(--gh-transition);
+}
+
+.gh-inc-banner:hover {
+  border-color: var(--gh-lt-brass);
+  background: var(--gh-lt-panel);
+}
+
+.gh-inc-banner-eyebrow {
+  font-size: var(--gh-text-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wider);
+  color: var(--gh-lt-text-dim);
+}
+
+.gh-inc-banner-title {
+  font-family: var(--gh-font-display);
+  font-size: var(--gh-text-lg);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--gh-lt-text);
+}
+
+.gh-inc-banner-title em {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.gh-inc-banner-meta {
+  font-size: var(--gh-text-xs);
+  color: var(--gh-lt-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-inc-banner-arrow {
+  color: var(--gh-lt-brass);
+  font-size: var(--gh-text-lg);
+  transition: transform var(--gh-transition);
+}
+
+.gh-inc-banner:hover .gh-inc-banner-arrow {
+  transform: translateX(3px);
+}
+
+@media (max-width: 640px) {
+  .gh-inc-banner {
+    width: 100%;
+  }
+}
+
+/* Boot overlay, light tone ("Entering Project Incrementum") — the same
+   animation as the session boot, reading the shared light palette. */
+.gh-boot--light {
+  --gh-bg: var(--gh-lt-ink);
+  --gh-border: var(--gh-lt-line);
+  --gh-accent: var(--gh-lt-brass);
+  --gh-text-muted: var(--gh-lt-text-dim);
+  --gh-text-emphasis: var(--gh-lt-text);
+  --gh-text-primary: var(--gh-lt-text);
+  color-scheme: light;
+}
+
+.gh-boot-enter {
+  animation: gh-boot-enter 0.25s var(--gh-ease) both;
+}
+
+@keyframes gh-boot-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

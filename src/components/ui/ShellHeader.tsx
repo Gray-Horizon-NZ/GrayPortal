@@ -108,6 +108,7 @@ export default function ShellHeader({
                   href={item.href}
                   icon={item.icon}
                   count={item.count}
+                  accent={item.accent}
                   onNavigate={() => setDrawerOpen(false)}
                 >
                   {item.label}
@@ -122,6 +123,7 @@ export default function ShellHeader({
                       href={item.href}
                       icon={item.icon}
                       count={item.count}
+                      accent={item.accent}
                       onNavigate={() => setDrawerOpen(false)}
                     >
                       {item.label}

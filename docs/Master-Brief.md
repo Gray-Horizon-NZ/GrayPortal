@@ -23,7 +23,7 @@ It is built around a single idea that shows up in every phase: **business logic 
 | User | Access |
 |---|---|
 | **Max (admin)** | Full access to everything: pipeline, financials, credentials, internal ops, agent tooling. |
-| **Contractors** (e.g. Yuvi) | Scoped portal — assigned tasks and non-commercial context only. No pipeline value, no financials, no credentials. |
+| **Contractors** (e.g. Yuvi) | Their own workspace at `/work` (since 2026-10-18): their clients, monthly deliverables, assigned tasks, payouts (their own rate only), playbooks, the Gray Horizon Team and their profile. Reads go through the `contractor_*` views and writes through checked functions (`db/sql/031_contractor_scoping.sql`); no direct access to CRM, client lists, client prices, the catalogue, emails, pipeline, financials or credentials. |
 | **Clients** | Their own portal only — tasks, documents, reports, roadmap, referrals. Never pipeline/deal economics, never other clients' data. |
 | **Claude / AI agents** | Everything an admin can do, gated by MCP tool risk tiers — read tools auto-approved, writes always prompt, high-risk writes (like onboarding a client) always require confirmation. Acts through the same DAL as every human user; no separate, weaker code path. |
 
@@ -67,7 +67,10 @@ Website inquiry form wired directly into Lead creation. Referral program automat
 Automated client health scoring (payment status, task completion, activity recency, deal momentum — computed, never manually entered). Full-text search spanning CRM records, documents, email, and portal content, exposed identically to the UI and to Claude via MCP. AI-assisted task prioritization as an MCP tool reading live pipeline/task/health data.
 
 ### 4.7 Internal Operations (Phase 14, Phase 16, Phase 17)
-Contractor portal (assigned tasks, non-commercial context). A homepage/command center — welcome view, pipeline snapshot, financial rollup, health scores, activity feed, notifications — built last because it composes everything above it. A recurring task/reminder engine driving three standing obligations: MOP refresh, backup restore drills, health-score review.
+Contractor workspace (`/work`, rebuilt 2026-10-18 with Project Incrementum: their clients, months, tasks, payouts, playbooks, team, profile; scoped by `db/sql/031`). A homepage/command center — welcome view, pipeline snapshot, financial rollup, health scores, activity feed, notifications — built last because it composes everything above it. A recurring task/reminder engine driving three standing obligations: MOP refresh, backup restore drills, health-score review.
+
+### 4.10 Project Incrementum (2026-10-18)
+The management space for the 27ADS scheme (contractor-fulfilled retainer clients won through Google Search ads), at `/incrementum`, in the client portal's light palette inside the dark admin app. Growth phases 0–4 with gated exit criteria, a launch checklist, goals (freedom number $10k / $15k / $20k), roadmap and launch-relative deadlines, tasks (main list in the Master Task View + sub-lists), weekly review, Services & Pricing (contractor quote + markup, catalogue floor, overrides, price history, packages), Leads (response clock, quote builder, Onboard client), Engagements (monthly pay-when-paid cycle, contractor team, hours), Contractors (recruiting pipeline, bench, Gray Horizon Team, onboarding), Capacity, Playbooks, Payouts, Analytics, Experiments, Archive. Admin-only at RLS (`db/sql/030`). Full plan and build status: `docs/Project-Incrementum-Plan.md`.
 
 ### 4.8 Security & Continuity (Phase 6, Phase 18, Phase 19)
 An encrypted Credential Vault (per-client and business-wide secrets, MFA-gated reveal, no "shown once" secrets anywhere in the system). A Mobile Operations Package — a periodically regenerated, encrypted, admin-only archive bundling tool/agent configuration and credentials so a full working "GrayHorizon HQ" can stand up on any device, with its decryption password itself living in the Vault behind MFA. Rules-based anomaly monitoring (new-device login, failed-login rate limiting, bulk-export flagging) and recurring, encrypted, tested backups.

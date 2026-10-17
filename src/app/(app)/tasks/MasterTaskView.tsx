@@ -51,7 +51,11 @@ export default async function MasterTaskView() {
   const tasksForColumn = (col: Column) => {
     if (col.kind === "client") return tasks.filter((t) => t.resolvedClientId === col.clientId);
     if (col.kind === "deal") return tasks.filter((t) => !t.resolvedClientId && t.dealId === col.dealId);
-    return tasks.filter((t) => !t.resolvedClientId && !t.dealId && (t.internalList ?? INTERNAL_LIST_KEYS[0]) === col.internalList);
+    // Incrementum sub-list tasks (incrementumListId set) are deliberately
+    // hidden here — only the Incrementum main list shows on the master view.
+    return tasks.filter(
+      (t) => !t.resolvedClientId && !t.dealId && !t.incrementumListId && (t.internalList ?? INTERNAL_LIST_KEYS[0]) === col.internalList
+    );
   };
 
   if (columns.length === 0) {
@@ -69,10 +73,11 @@ export default async function MasterTaskView() {
         const done = colTasks.filter((t) => t.status === "done");
         const key = col.kind === "client" ? col.clientId : col.kind === "deal" ? col.dealId : col.internalList;
         const columnClientId = col.kind === "client" ? col.clientId : null;
+        const isIncrementum = col.kind === "internal" && col.internalList === "project_incrementum";
         return (
           <div
             key={key}
-            className="gh-card"
+            className={isIncrementum ? "gh-card gh-task-col--incrementum" : "gh-card"}
             style={{ minWidth: 360, maxWidth: 360, flexShrink: 0, display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}
           >
             {col.kind === "client" ? (
@@ -87,6 +92,10 @@ export default async function MasterTaskView() {
             ) : col.kind === "deal" ? (
               <Link href={`/deals/${col.dealId}`} target="_blank" className="gh-panel-title" style={{ color: "var(--gh-accent)" }}>
                 {col.name} ↗ <span style={{ fontSize: "var(--gh-text-micro)", color: "var(--gh-text-muted)" }}>(prospect)</span>
+              </Link>
+            ) : isIncrementum ? (
+              <Link href="/incrementum/tasks" className="gh-panel-title" style={{ color: "var(--gh-accent)" }}>
+                {col.name} →
               </Link>
             ) : (
               <p className="gh-panel-title">{col.name}</p>

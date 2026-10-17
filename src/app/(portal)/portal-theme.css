@@ -52,21 +52,23 @@
   --ghp-grid-line: rgba(255, 255, 255, 0.035);
 }
 .ghp-root[data-portal-theme="light"] {
-  --ghp-ink: #f7f5ef;
-  --ghp-panel: #ffffff;
-  --ghp-panel-2: #f1eee3;
-  --ghp-line: #e0dbca;
-  --ghp-text: #1c1c1c;
-  --ghp-text-dim: #8a8776;
+  /* Values live in tokens.css's --gh-lt-* (shared with Project Incrementum,
+     2026-10-18) — same hex as before, one source of truth. */
+  --ghp-ink: var(--gh-lt-ink);
+  --ghp-panel: var(--gh-lt-panel);
+  --ghp-panel-2: var(--gh-lt-panel-2);
+  --ghp-line: var(--gh-lt-line);
+  --ghp-text: var(--gh-lt-text);
+  --ghp-text-dim: var(--gh-lt-text-dim);
   /* Darkened companions of the standard --gh-accent/success/warning/danger
      hues above (same ~0.8x relationship the old hand-tuned light values
      used), since a light background needs a darker tone than tokens.css's
      dark-mode-only values to hold contrast. */
-  --ghp-brass: #9b8353;
-  --ghp-good: #668469;
-  --ghp-warn: #976637;
-  --ghp-danger: #9a5e42;
-  --ghp-chart-1: #2a78d6;
+  --ghp-brass: var(--gh-lt-brass);
+  --ghp-good: var(--gh-lt-good);
+  --ghp-warn: var(--gh-lt-warn);
+  --ghp-danger: var(--gh-lt-danger);
+  --ghp-chart-1: var(--gh-lt-chart-1);
   --ghp-grid-line: rgba(0, 0, 0, 0.035);
 }
 .ghp-root {

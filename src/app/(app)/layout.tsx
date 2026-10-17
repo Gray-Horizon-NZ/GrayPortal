@@ -3,7 +3,6 @@ import {
   Home,
   Workflow,
   Users,
-  HardHat,
   ListChecks,
   Inbox as InboxIcon,
   Mail,
@@ -21,6 +20,7 @@ import {
   LayoutGrid,
   Calculator,
   Palette,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
@@ -77,6 +77,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     throw err;
   }
 
+  // Contractors have their own workspace (/work); the admin shell is not
+  // theirs even if a stale or claim-less session lands here (db/sql/031
+  // already denies them the data — this keeps them out of the chrome too).
+  if (callerRole === "contractor") redirect("/work");
+
   // Single query drives both the bell dropdown's list and its unread count
   // (count = filter of this same result) — one round trip instead of two.
   const notifications = await listMyNotifications();
@@ -89,13 +94,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // notifications in the bell dropdown (both in AppShell/ShellHeader).
   const navItems: ShellNavItem[] = [
     { href: "/", label: "Home", icon: navIcon(Home) },
+    // Project Incrementum (docs/Project-Incrementum-Plan.md §2.2) — pinned
+    // straight after Home, gold in every state. Admin-only: the whole
+    // /incrementum tree is commercial data (db/sql/030 enforces it at RLS).
+    ...(callerRole === "admin"
+      ? [{ href: "/incrementum", label: "Project Incrementum", icon: navIcon(TrendingUp), accent: true }]
+      : []),
     ...(callerRole === "admin"
       ? [{ href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow), group: "Sales" }]
       : []),
     { href: "/clients", label: "Clients", icon: navIcon(Users), group: "Accounts" },
-    ...(callerRole === "admin"
-      ? [{ href: "/contractors", label: "Contractors", icon: navIcon(HardHat), group: "Accounts" }]
-      : []),
+    // Contractors now live in Project Incrementum (plan §4) — /contractors
+    // redirects there; the old roster pages stay reachable by direct link.
     { href: "/tasks", label: "Tasks", icon: navIcon(ListChecks), group: "Work" },
     // Calendar is admin-only in practice, same reasoning as Pipeline/Vault
     // above — the connected Google account (and thus anything to show) is

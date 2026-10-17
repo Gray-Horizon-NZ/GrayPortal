@@ -7,6 +7,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   payment_due_soon: "Payment due soon",
   security_alert: "Security alert",
   reminder_due: "Reminder due",
+  grayscale_request: "GrayScale request",
+  incrementum_lead: "New Incrementum lead",
 };
 
 export function notificationEntityHref(payload: unknown): string | null {
@@ -14,5 +16,6 @@ export function notificationEntityHref(payload: unknown): string | null {
   const p = payload as { entityType?: string; entityId?: string };
   if (p.entityType === "deal" && p.entityId) return `/deals/${p.entityId}`;
   if (p.entityType === "task") return "/tasks";
+  if (p.entityType === "incrementum_lead" && p.entityId) return `/incrementum/leads/${p.entityId}`;
   return null;
 }

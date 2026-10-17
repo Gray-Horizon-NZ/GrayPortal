@@ -15,6 +15,10 @@ import { listCredentials } from "@/lib/dal/credentials";
 import { listServiceItems } from "@/lib/dal/pricing";
 import { prioritizeTasks } from "@/lib/dal/taskPlanner";
 import { createCampaignDraft, updateCampaignDraft, listCampaigns, queueCampaignSend, CampaignInput } from "@/lib/dal/campaigns";
+import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
+import { createLead as createIncrementumLead, LeadInput as IncrementumLeadInput } from "@/lib/dal/incrementum/leads";
+import { createIncrementumTask } from "@/lib/dal/incrementum/tasks";
+import { createExperiment, ExperimentInput, logHours } from "@/lib/dal/incrementum/planning";
 
 // The MCP server exposing GrayPortal's existing application layer to
 // Claude (Phase 4 brief). Every tool below is a thin wrapper around a DAL
@@ -283,6 +287,107 @@ function buildServer() {
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
     async ({ id }) => jsonResult(await queueCampaignSend(id))
+  );
+
+  // -------------------------------------------------------------------------
+  // Project Incrementum (docs/Project-Incrementum-Plan.md §11). Reads are
+  // auto-approved; every write is readOnlyHint:false so it always prompts.
+  // Deliberately NOT exposed: onboard contractor / onboard client (create
+  // logins — always-confirm, UI only), send email and book meeting
+  // (external side effects), payouts (money) and price changes.
+  // -------------------------------------------------------------------------
+  server.registerTool(
+    "incrementum_overview",
+    {
+      description:
+        "Project Incrementum status in one call: current growth phase and exit criteria (met/unmet with live values), " +
+        "launch readiness %, every tracked metric (MRR, profit, leads, contractors, retention…), goals with pace status, " +
+        "needs-attention items, recommended next moves, capacity by service and upcoming deadlines.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      const s = await getIncrementumSnapshot();
+      return jsonResult({
+        mode: s.mode,
+        phase: s.phases.current && {
+          number: s.phases.current.number,
+          name: s.phases.current.name,
+          criteria: s.phases.current.criteria.map((c) => ({ label: c.label, met: c.met, value: c.value, target: c.target })),
+        },
+        launchReadinessPct: s.launch.readinessPct,
+        metrics: s.metrics,
+        goals: s.goals.map((g) => ({ title: g.title, status: g.status, value: g.value, target: g.target, periodEnd: g.periodEnd })),
+        attention: s.attention,
+        nextMoves: s.nextMoves,
+        capacity: s.capacity,
+        deadlines: s.deadlines,
+      });
+    }
+  );
+
+  server.registerTool(
+    "incrementum_list_leads",
+    {
+      description: "List Project Incrementum leads (newest first) with stage, source, response timing and conversion.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => jsonResult((await getIncrementumSnapshot()).state.leads)
+  );
+
+  server.registerTool(
+    "incrementum_list_contractors",
+    {
+      description: "List Project Incrementum contractor profiles (recruiting stage, contact details, agreements) plus each one's service quotes and capacity.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      const s = await getIncrementumSnapshot();
+      return jsonResult(
+        s.state.profiles.map((p) => ({ ...p, quotes: s.state.contractorServices.filter((cs) => cs.contractorId === p.contractorId) }))
+      );
+    }
+  );
+
+  server.registerTool(
+    "incrementum_create_lead",
+    {
+      description: "Add a Project Incrementum lead by hand (e.g. from an outreach call or referral). Kept separate from the main CRM until onboarded.",
+      inputSchema: IncrementumLeadInput.shape,
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await createIncrementumLead(args))
+  );
+
+  server.registerTool(
+    "incrementum_create_task",
+    {
+      description:
+        "Add a Project Incrementum task. listId null = the main list (shows in the Master Task View and syncs to Google Tasks); " +
+        "a sub-list id keeps it inside Incrementum only.",
+      inputSchema: { title: z.string().min(1), dueDate: z.string().nullable().default(null), listId: z.string().uuid().nullable().default(null) },
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await createIncrementumTask(args))
+  );
+
+  server.registerTool(
+    "incrementum_log_experiment",
+    {
+      description: "Log a change (to ads, offer, price, landing page or process), a test with pass/kill lines, or a retro in Project Incrementum's Experiments log.",
+      inputSchema: ExperimentInput.shape,
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await createExperiment(args))
+  );
+
+  server.registerTool(
+    "incrementum_log_hours",
+    {
+      description: "Log Max's own hours, optionally against an engagement. This is the 'is Max out of delivery?' proof metric.",
+      inputSchema: { engagementId: z.string().uuid().nullable().default(null), workDate: z.string(), hours: z.string(), note: z.string().nullable().default(null) },
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await logHours(args))
   );
 
   return server;

@@ -92,6 +92,9 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "security_alert",
   "reminder_due",
   "grayscale_request",
+  // Project Incrementum — a new lead arrived through the public Incrementum
+  // intake (src/app/api/incrementum/leads/route.ts).
+  "incrementum_lead",
 ]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "agent", "system"]);
 // "reveal" is a read, not a mutation — Phase 6 (Credential Vault) is the
@@ -412,6 +415,14 @@ export const tasks = pgTable("tasks", {
   // non-null funnelStage; null means "tagged for the funnel but not tied to
   // a specific phase yet," which the dial treats as not counted either way.
   phaseId: uuid("phase_id").references(() => roadmapItems.id),
+  // Project Incrementum sub-list (docs/Project-Incrementum-Plan.md §7.6).
+  // Only meaningful alongside internalList = "project_incrementum": null
+  // means the Incrementum *main* list (shown in the Master Task View's gold
+  // column), non-null means a sub-list task, which the Master Task View
+  // deliberately hides. A sub-list task must still carry internalList —
+  // a task with no client/deal/internalList falls into the first internal
+  // column ("Gray Horizon") instead.
+  incrementumListId: uuid("incrementum_list_id").references(() => incrementumTaskLists.id),
   ...softDelete,
   ...actorColumns,
 });
@@ -1205,4 +1216,495 @@ export const auditLog = pgTable("audit_log", {
   action: auditActionEnum("action").notNull(),
   fieldChanges: jsonb("field_changes"),
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Project Incrementum (docs/Project-Incrementum-Plan.md) — the management
+// space for the 27ADS contractor-fulfilled retainer scheme. Every table
+// below is ADMIN-ONLY at RLS (db/sql/030_incrementum.sql): contractor rates,
+// lead details, margins and payouts are commercial data no contractor or
+// client login may ever read. That's also why contractor CRM fields live in
+// incrementum_contractor_profiles instead of on `contractors` itself —
+// `contractors` is readable by every contractor login (db/sql/014).
+// Stage/status/metric columns are text + app-layer registries
+// (src/lib/incrementum/*), same reasoning as INTERNAL_LIST_KEYS: the lists
+// are expected to change without a migration.
+// ---------------------------------------------------------------------------
+
+// One row (key = "singleton"). Seeding of every other Incrementum table is
+// keyed off this row's existence — see ensureIncrementumSeeded().
+export const incrementumSettings = pgTable("incrementum_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  defaultMarkupPct: numeric("default_markup_pct", { precision: 6, scale: 2 }).notNull().default("33"),
+  freedomTarget: numeric("freedom_target", { precision: 12, scale: 2 }).notNull().default("10000"),
+  freedomGold: numeric("freedom_gold", { precision: 12, scale: 2 }).notNull().default("15000"),
+  freedomDiamond: numeric("freedom_diamond", { precision: 12, scale: 2 }).notNull().default("20000"),
+  adBudgetTotal: numeric("ad_budget_total", { precision: 12, scale: 2 }).notNull().default("2000"),
+  responseTargetMinutes: integer("response_target_minutes").notNull().default(60),
+  // Assumption used by Capacity until real contractor capacity exists.
+  defaultSlotsPerContractor: numeric("default_slots_per_contractor", { precision: 6, scale: 2 }).notNull().default("4"),
+  defaultRecruitDays: integer("default_recruit_days").notNull().default(21),
+  launchDate: date("launch_date"),
+  // null = automatic (pre-launch until launchDate is set), else "pre"/"live".
+  homeModeOverride: text("home_mode_override"),
+  // Set when Max confirms contractor-role access has been reviewed (plan
+  // §7.4's blocker). "Onboard to GrayPortal" stays disabled until then.
+  contractorAccessReviewedAt: timestamp("contractor_access_reviewed_at", { withTimezone: true }),
+  seededAt: timestamp("seeded_at", { withTimezone: true }),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Services & Pricing (plan §7.1). A layer over the main catalogue
+// (service_items) — never overwrites it.
+export const incrementumServices = pgTable("incrementum_services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serviceItemId: text("service_item_id").references(() => serviceItems.id),
+  name: text("name").notNull(),
+  // monthly | one_off | range
+  billing: text("billing").notNull().default("monthly"),
+  // highest | average | lowest | manual — which contractor quote prices are built on.
+  quoteBasis: text("quote_basis").notNull().default("highest"),
+  // The expected contractor quote, used when no bench contractor has quoted
+  // yet (or always, when quoteBasis = "manual").
+  expectedQuote: numeric("expected_quote", { precision: 12, scale: 2 }),
+  markupPct: numeric("markup_pct", { precision: 6, scale: 2 }), // null = settings default
+  // When true, sell price = max(quote × markup, catalogue Current price).
+  catalogueFloor: boolean("catalogue_floor").notNull().default(false),
+  manualPrice: numeric("manual_price", { precision: 12, scale: 2 }),
+  usuallyWaived: boolean("usually_waived").notNull().default(false),
+  gstBasis: text("gst_basis").notNull().default("exclusive"),
+  // Page-count bands etc. for range services.
+  ranges: jsonb("ranges").$type<{ label: string; min: number | null; max: number | null }[]>(),
+  competitorNotes: text("competitor_notes"),
+  notes: text("notes"),
+  // Identifiers used to match client needs to contractors (lower-case slugs,
+  // e.g. "google-ads", "shopify"). A contractor matches a need when they've
+  // quoted the need's service, or when their skills share one of its tags.
+  tags: text("tags").array(),
+  status: text("status").notNull().default("active"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumPriceHistory = pgTable("incrementum_price_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serviceId: uuid("service_id").notNull().references(() => incrementumServices.id),
+  oldPrice: numeric("old_price", { precision: 12, scale: 2 }),
+  newPrice: numeric("new_price", { precision: 12, scale: 2 }),
+  reason: text("reason"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumPackages = pgTable("incrementum_packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  inclusions: text("inclusions"),
+  exclusions: text("exclusions"),
+  deliverables: text("deliverables"),
+  minTermMonths: integer("min_term_months").notNull().default(3),
+  noticeDays: integer("notice_days").notNull().default(30),
+  landingUrl: text("landing_url"),
+  // Optional hand-set prices; null = calculated from the package's services.
+  manualMonthlyPrice: numeric("manual_monthly_price", { precision: 12, scale: 2 }),
+  manualSetupPrice: numeric("manual_setup_price", { precision: 12, scale: 2 }),
+  // draft | live | retired
+  status: text("status").notNull().default("draft"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumPackageServices = pgTable("incrementum_package_services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  packageId: uuid("package_id").notNull().references(() => incrementumPackages.id),
+  serviceId: uuid("service_id").notNull().references(() => incrementumServices.id),
+  // recurring | setup
+  kind: text("kind").notNull().default("recurring"),
+  waived: boolean("waived").notNull().default(false),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Contractor CRM data (plan §7.4). 1:1 with `contractors`.
+export const incrementumContractorProfiles = pgTable("incrementum_contractor_profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  contractorId: uuid("contractor_id").notNull().unique().references(() => contractors.id),
+  stage: text("stage").notNull().default("sourced"),
+  stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
+  businessName: text("business_name"),
+  email: text("email"),
+  phone: text("phone"),
+  location: text("location"),
+  portfolioUrl: text("portfolio_url"),
+  source: text("source"),
+  skills: text("skills").array(),
+  gstRegistered: boolean("gst_registered"),
+  paymentTerms: text("payment_terms"),
+  qualityRating: integer("quality_rating"),
+  photoUrl: text("photo_url"),
+  publicTitle: text("public_title"),
+  bio: text("bio"),
+  payWhenPaidAcceptedAt: date("pay_when_paid_accepted_at"),
+  nonSolicitSignedAt: date("non_solicit_signed_at"),
+  noticePeriodDays: integer("notice_period_days"),
+  agreementUrl: text("agreement_url"),
+  offRampReason: text("off_ramp_reason"),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumContractorServices = pgTable("incrementum_contractor_services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  contractorId: uuid("contractor_id").notNull().references(() => contractors.id),
+  serviceId: uuid("service_id").notNull().references(() => incrementumServices.id),
+  // monthly | hourly | project
+  rateType: text("rate_type").notNull().default("monthly"),
+  rate: numeric("rate", { precision: 12, scale: 2 }),
+  capacitySlots: numeric("capacity_slots", { precision: 6, scale: 2 }),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Leads (plan §7.2) — kept separate from the main CRM until "Onboard client".
+export const incrementumLeads = pgTable("incrementum_leads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  businessName: text("business_name").notNull(),
+  contactName: text("contact_name"),
+  email: text("email"),
+  phone: text("phone"),
+  website: text("website"),
+  packageId: uuid("package_id").references(() => incrementumPackages.id),
+  serviceInterest: text("service_interest"),
+  adBudget: text("ad_budget"),
+  message: text("message"),
+  stage: text("stage").notNull().default("new"),
+  stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
+  source: text("source").notNull().default("manual"),
+  utm: jsonb("utm").$type<Record<string, string>>(),
+  gclid: text("gclid"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  firstResponseAt: timestamp("first_response_at", { withTimezone: true }),
+  lostReason: text("lost_reason"),
+  notes: text("notes"),
+  convertedClientId: uuid("converted_client_id").references(() => clients.id),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Stage history for contractors and leads (entityType "contractor" | "lead").
+export const incrementumStageEvents = pgTable("incrementum_stage_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  entityType: text("entity_type").notNull(),
+  entityId: uuid("entity_id").notNull(),
+  fromStage: text("from_stage"),
+  toStage: text("to_stage").notNull(),
+  note: text("note"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Timeline for contractors, leads and engagements: note | call | email | meeting.
+export const incrementumActivities = pgTable("incrementum_activities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  entityType: text("entity_type").notNull(),
+  entityId: uuid("entity_id").notNull(),
+  type: text("type").notNull(),
+  subject: text("subject"),
+  body: text("body"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  meetingStart: timestamp("meeting_start", { withTimezone: true }),
+  meetingEnd: timestamp("meeting_end", { withTimezone: true }),
+  googleEventId: text("google_event_id"),
+  meetLink: text("meet_link"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Engagements (plan §7.3): client + package + contractors + signed price.
+export const incrementumEngagements = pgTable("incrementum_engagements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id").notNull().references(() => clients.id),
+  packageId: uuid("package_id").references(() => incrementumPackages.id),
+  leadId: uuid("lead_id").references(() => incrementumLeads.id),
+  name: text("name").notNull(),
+  // Signed prices — never recalculated from Services & Pricing afterwards.
+  monthlyPrice: numeric("monthly_price", { precision: 12, scale: 2 }).notNull().default("0"),
+  setupPrice: numeric("setup_price", { precision: 12, scale: 2 }),
+  slotWeight: numeric("slot_weight", { precision: 6, scale: 2 }).notNull().default("1"),
+  startDate: date("start_date"),
+  minTermEnd: date("min_term_end"),
+  // active | paused | ended
+  status: text("status").notNull().default("active"),
+  endedAt: date("ended_at"),
+  endReason: text("end_reason"),
+  lessons: text("lessons"),
+  // good | watch | at_risk
+  health: text("health").notNull().default("good"),
+  modules: jsonb("modules").$type<Record<string, boolean>>(),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumEngagementContractors = pgTable("incrementum_engagement_contractors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  engagementId: uuid("engagement_id").notNull().references(() => incrementumEngagements.id),
+  contractorId: uuid("contractor_id").notNull().references(() => contractors.id),
+  serviceId: uuid("service_id").references(() => incrementumServices.id),
+  // main | backup
+  role: text("role").notNull().default("main"),
+  monthlyCost: numeric("monthly_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  // Set when this assignment came from a client need (quote builder).
+  needId: uuid("need_id"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// One row per engagement per month: deliver → approve → report → invoice →
+// client paid → contractor payout (the pay-when-paid ledger, plan §7.9).
+export const incrementumEngagementCycles = pgTable(
+  "incrementum_engagement_cycles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    engagementId: uuid("engagement_id").notNull().references(() => incrementumEngagements.id),
+    month: date("month").notNull(), // first day of the month
+    deliveredAt: date("delivered_at"),
+    approvedAt: date("approved_at"),
+    reportSentAt: date("report_sent_at"),
+    invoicedAt: date("invoiced_at"),
+    xeroInvoiceNumber: text("xero_invoice_number"),
+    invoiceAmount: numeric("invoice_amount", { precision: 12, scale: 2 }),
+    clientPaidAt: date("client_paid_at"),
+    contractorBillRef: text("contractor_bill_ref"),
+    payoutAmount: numeric("payout_amount", { precision: 12, scale: 2 }),
+    payoutDueAt: date("payout_due_at"),
+    payoutPaidAt: date("payout_paid_at"),
+    notes: text("notes"),
+    ...softDelete,
+    ...actorColumns,
+  },
+  (table) => [
+    uniqueIndex("incrementum_engagement_cycles_month_idx")
+      .on(table.engagementId, table.month)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
+
+export const incrementumHours = pgTable("incrementum_hours", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  engagementId: uuid("engagement_id").references(() => incrementumEngagements.id),
+  userId: uuid("user_id").references(() => users.id),
+  workDate: date("work_date").notNull(),
+  hours: numeric("hours", { precision: 6, scale: 2 }).notNull(),
+  note: text("note"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Launch Readiness checklist (plan §6). metricKey + metricTarget make an
+// item automatic (it ticks itself from live data and can't be ticked by hand).
+export const incrementumLaunchItems = pgTable("incrementum_launch_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  gate: text("gate").notNull(),
+  title: text("title").notNull(),
+  detail: text("detail"),
+  // not_started | in_progress | done | na | blocked
+  status: text("status").notNull().default("not_started"),
+  critical: boolean("critical").notNull().default(true),
+  dueDate: date("due_date"),
+  notes: text("notes"),
+  evidenceUrl: text("evidence_url"),
+  naReason: text("na_reason"),
+  metricKey: text("metric_key"),
+  metricTarget: numeric("metric_target", { precision: 12, scale: 2 }),
+  taskId: uuid("task_id").references(() => tasks.id),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumTaskLists = pgTable("incrementum_task_lists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Growth phases (plan §1.2) — also the roadmap's phases.
+export const incrementumPhases = pgTable("incrementum_phases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  number: integer("number").notNull().unique(),
+  name: text("name").notNull(),
+  purpose: text("purpose"),
+  adBudget: text("ad_budget"),
+  services: text("services"),
+  clientMin: integer("client_min"),
+  clientMax: integer("client_max"),
+  contractorTarget: integer("contractor_target"),
+  targetDate: date("target_date"),
+  // When set, targetDate = launch date + this many days (resolved at read
+  // time from incrementum_settings.launch_date; "TBD" until it's set).
+  launchOffsetDays: integer("launch_offset_days"),
+  enteredAt: timestamp("entered_at", { withTimezone: true }),
+  exitedAt: timestamp("exited_at", { withTimezone: true }),
+  // upcoming | active | done
+  status: text("status").notNull().default("upcoming"),
+  retro: text("retro"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumPhaseCriteria = pgTable("incrementum_phase_criteria", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  phaseId: uuid("phase_id").notNull().references(() => incrementumPhases.id),
+  label: text("label").notNull(),
+  metricKey: text("metric_key"), // null = manual
+  comparator: text("comparator").notNull().default("gte"),
+  target: numeric("target", { precision: 12, scale: 2 }),
+  manualDoneAt: timestamp("manual_done_at", { withTimezone: true }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumMilestones = pgTable("incrementum_milestones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  phaseId: uuid("phase_id").references(() => incrementumPhases.id),
+  title: text("title").notNull(),
+  dueDate: date("due_date"),
+  launchOffsetDays: integer("launch_offset_days"),
+  doneAt: timestamp("done_at", { withTimezone: true }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumGoals = pgTable("incrementum_goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  metricKey: text("metric_key"), // null = manual
+  comparator: text("comparator").notNull().default("gte"),
+  target: numeric("target", { precision: 12, scale: 2 }),
+  periodStart: date("period_start"),
+  periodEnd: date("period_end"),
+  // Launch-relative goals: period runs from the launch date to launch + N days.
+  launchOffsetDays: integer("launch_offset_days"),
+  manualDoneAt: timestamp("manual_done_at", { withTimezone: true }),
+  phaseId: uuid("phase_id").references(() => incrementumPhases.id),
+  isFreedom: boolean("is_freedom").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumAdMonths = pgTable(
+  "incrementum_ad_months",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    month: date("month").notNull(),
+    spend: numeric("spend", { precision: 12, scale: 2 }).notNull().default("0"),
+    clicks: integer("clicks").notNull().default(0),
+    impressions: integer("impressions").notNull().default(0),
+    notes: text("notes"),
+    ...softDelete,
+    ...actorColumns,
+  },
+  (table) => [
+    uniqueIndex("incrementum_ad_months_month_idx").on(table.month).where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
+
+// Experiments (plan §7.12): change log, pass/kill tests, retros.
+export const incrementumExperiments = pgTable("incrementum_experiments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // change | test | retro
+  type: text("type").notNull().default("change"),
+  title: text("title").notNull(),
+  body: text("body"),
+  metricKey: text("metric_key"),
+  passLine: text("pass_line"),
+  killLine: text("kill_line"),
+  startedAt: date("started_at"),
+  endsAt: date("ends_at"),
+  result: text("result"),
+  // pass | fail | inconclusive
+  verdict: text("verdict"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumPlaybooks = pgTable("incrementum_playbooks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serviceId: uuid("service_id").references(() => incrementumServices.id),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  version: integer("version").notNull().default(1),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumWeeklyReviews = pgTable(
+  "incrementum_weekly_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    weekOf: date("week_of").notNull(), // the Monday
+    notes: text("notes"),
+    wins: text("wins"),
+    actions: text("actions").array(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    ...softDelete,
+    ...actorColumns,
+  },
+  (table) => [
+    uniqueIndex("incrementum_weekly_reviews_week_idx").on(table.weekOf).where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
+
+export const incrementumHomeLayouts = pgTable("incrementum_home_layouts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().unique().references(() => users.id),
+  // Ordered widget keys + hidden set.
+  widgets: jsonb("widgets").$type<{ order: string[]; hidden: string[] }>().notNull(),
+  ...softDelete,
+  ...actorColumns,
+});
+
+export const incrementumNextMoveDismissals = pgTable("incrementum_next_move_dismissals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  moveKey: text("move_key").notNull(),
+  note: text("note"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Client needs (quote builder): what a lead/client is after, one row per
+// service line. Assigning a contractor snapshots their rate; the estimated
+// sell price is rate × (1 + markup), or a hand-set override. On "Onboard
+// client" the needs move onto the engagement (engagementId set) and become
+// its contractor team and signed price.
+export const incrementumNeeds = pgTable("incrementum_needs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  leadId: uuid("lead_id").references(() => incrementumLeads.id),
+  engagementId: uuid("engagement_id").references(() => incrementumEngagements.id),
+  serviceId: uuid("service_id").notNull().references(() => incrementumServices.id),
+  title: text("title"),
+  tags: text("tags").array(),
+  quantity: numeric("quantity", { precision: 8, scale: 2 }).notNull().default("1"),
+  contractorId: uuid("contractor_id").references(() => contractors.id),
+  contractorRate: numeric("contractor_rate", { precision: 12, scale: 2 }),
+  markupPct: numeric("markup_pct", { precision: 6, scale: 2 }),
+  sellPrice: numeric("sell_price", { precision: 12, scale: 2 }),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
 });

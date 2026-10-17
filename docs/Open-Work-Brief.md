@@ -326,6 +326,21 @@ Ideas deliberately deferred rather than scheduled — don't build without Max ex
 15. What does the subscription-focused template actually need to show — subscription/plan tier, billing status, product usage, changelog/release notes, support/tickets? Which are real launch requirements vs. later nice-to-haves?
 16. How different should the look be — a distinct accent/palette variant within the existing dark-first monochrome system, or a materially different layout?
 
+**Service-based roadmap templates:**
+17. Multiple services on one client — independent phase tracks, interleaved by date, or primary-service-only? (§17.4.1)
+18. Re-running the build after a template changes or a second service is added mid-engagement — append delta, skip if phases exist, or always append? (§17.4.2)
+19. What anchors a template's relative day offsets into real dates, and is that anchor editable per generation run? (§17.4.3)
+20. Who authors the first real templates — Max by hand, or a first draft (e.g. landing page) handed to him to correct? (§17.4.4)
+
+**Client portal — performance assurance & accessibility (§18):**
+21. Roadmap deadlines — does a phase need both a start and a due date, or just a due date (keeping `targetDate` as start)? Should on-track/overdue status be computed from dates alone, or can Max override it (e.g. client-caused delay)?
+22. Timeline visual — a new horizontal timeline, or deadlines/status layered onto the existing Focus Dial + Now/Next/Later layout (§12)?
+23. Text sizes — what should Medium and Large actually be relative to today's (Small)? Suggested starting point: ~+12% and ~+25%.
+24. Text size persistence — per-device (`localStorage`, like Dark/Light) or saved to the client's account so it follows them across devices?
+25. Announcements — popup modal, a banner, or a bell/inbox? Shown once and dismissed, or kept in a "What's new" history list?
+26. Announcement authoring — Max writes each one in an admin page, or can Claude draft/publish via MCP (with confirm)?
+27. Announcement targeting — all clients, or only clients with the relevant `client_features` key enabled?
+
 ---
 
 ## 8. Resolved (no longer tracked)
@@ -539,3 +554,72 @@ Per the app's own stated principle ("security is structural, not a checklist" �
 
 ### 16.2 What this actually asks of future scoping sessions
 Not a specific build item — a standing question to ask when scoping *any* new client-facing feature from here on: "does this naturally produce a structured, queryable signal (timestamps, statuses, counts) as a side effect of normal use, or does it just produce free-text/manual notes that won't be usable as training/reasoning signal later?" Prefer the former where the two are equally easy to build. No schema changes, no new tables implied by this section alone — it's a lens for future work, not a task.
+
+---
+
+## 17. Service-based roadmap templates (semi-automated roadmap build)
+
+**Status:** Idea, not scoped — added 2026-09-17. Raised by Max: the same service, sold to different clients, produces roughly the same roadmap every time (landing page development is the recurring example — discovery, wireframe/copy, design, build, QA, launch, for practically every client who buys it), but today every client's roadmap starts blank.
+
+### 17.1 The gap this closes
+Roadmap phases (`roadmap_items`) and their funnel-tagged tasks are built one client at a time, entirely by hand, from `DeliveryTab.tsx`'s "+ Add phase" form (`createRoadmapItemAction`) — there is no notion anywhere in the schema that a phase sequence belongs to a *service* rather than to one client's roadmap. Meanwhile the service catalogue (`service_modules` / `service_items`, `src/lib/db/schema.ts`) already models exactly the thing that repeats — `client_services` (`src/lib/dal/clientServices.ts`) is the join table recording which catalogue items a given client is actually buying. The repeated shape (landing page build → same six-ish phases and their tasks) is only ever re-typed, never captured as structure.
+
+### 17.2 The idea
+Let a `service_items` row optionally carry a **roadmap template**: an ordered list of phases, each with an ordered list of task templates. When a service is attached to a client — via `addClientService` (manual) or inside `onboardClient()` (bulk, at signup) — an admin (or Claude, as an MCP tool) can run a "build roadmap from services" action that walks every one of that client's active `client_services`, and for each one that has a template, materializes real `roadmap_items` rows (phases) plus real `tasks` rows (funnel-tagged, `phaseId` set to the phase just created) scoped to that client. Generated rows are ordinary roadmap/task rows afterward — editable, reorderable, deletable exactly like a hand-built phase — this only pre-fills the starting shape, it doesn't lock it.
+
+### 17.3 Data model (not yet built)
+Two new tables, following the existing template/instance split the codebase already uses elsewhere (`emailTemplates` → `emailCampaigns`; `recurringTemplates` → generated `tasks`):
+
+- `service_roadmap_phase_templates` — `id, serviceItemId (→ service_items.id), title, description, sortOrder, relativeStartOffsetDays (nullable)`.
+- `service_roadmap_task_templates` — `id, phaseTemplateId (→ service_roadmap_phase_templates.id), title, relativeDueOffsetDays (nullable), sortOrder`.
+
+Kept relational rather than a single `jsonb` template column on `service_items` (unlike `notifications.payload`) so each template phase/task can be edited as its own row through an admin UI, the same way roadmap phases themselves are — a template is meant to be tuned over time as Max learns what actually recurs, not authored once as a blob. Both tables are catalogue-level, admin-maintained, no `client_id` — same posture as `service_items`/`service_modules` today.
+
+The generation step itself is a new DAL function, e.g. `buildRoadmapFromServices(clientId)` in `src/lib/dal/roadmap.ts`, called explicitly (a button on `DeliveryTab.tsx`, and as an MCP tool) rather than firing automatically on every `addClientService` — Max should decide when a client's roadmap gets (re)seeded, not have it happen silently as a side effect of a pricing-line edit.
+
+### 17.4 Open questions (→ candidates for §7)
+1. **Multiple services on one client.** If a client buys both landing page development and Google Ads management, do their templates produce two independent phase tracks, get interleaved by `sortOrder`/offset, or does only the "primary" service seed the roadmap? Landing page + Ads is a realistic combination, not an edge case — this needs an answer before build, not after.
+2. **Re-running the build.** If a template changes after a client's roadmap was already generated from it, or `buildRoadmapFromServices` is invoked a second time (e.g. after adding a second service mid-engagement), does it append only the delta, skip entirely if any generated phases already exist, or always append and let Max deduplicate by hand?
+3. **Relative dates.** `relativeStartOffsetDays`/`relativeDueOffsetDays` need an anchor (service start date? client's `createdAt`? the generation run's own timestamp?) to become real `targetDate`/`dueDate` values — which anchor, and is it editable per-client at generation time or fixed?
+4. **Seeding the first templates.** Who writes the actual phase/task lists per service — Max by hand through a new admin UI, or drafted once (e.g. from the landing page example) and handed to Max to correct, the same pattern used for the onboarding task list (§4.6) and email template copy (§2)?
+
+---
+
+## 18. Client portal — performance assurance & accessibility (added 2026-09-24)
+
+**Status:** Not scoped, not started — three asks from Max's notes after the 2026-09-24 NZMM (Alex Fuss) meeting. Each is independently buildable; point a session at one at a time, per §0. Open questions collected in §7 (items 21–27).
+
+### 18.1 Deadlines / timeline on roadmap phases and tasks
+**Ask:** Show deadlines and a timeline for roadmap phases and their tasks in the client portal, so clients can see delivery is on track ("performance assurance").
+
+**Current state:**
+- `roadmap_items` has a single nullable `targetDate` (`src/lib/db/schema.ts`), but `RoadmapWidget.tsx` renders it as **"Phase started"**, not as a deadline. The one date field is already used as a start date, so a real deadline needs its own column (e.g. `dueDate`) rather than a relabel. Otherwise existing phases would silently swap meaning.
+- Tasks already carry `dueDate` and `phaseId`, and the widget's Now/Next/Later cards already print `Due {dueDate}` as a raw ISO string. There's no timeline visual and no on-track/overdue state.
+- The old `MilestonesTimeline` SVG chart was deleted in the §12 roadmap redesign. Don't resurrect it blindly: the Focus Dial layout replaced it deliberately.
+
+**Likely shape (not decided):** a `roadmap_items` start/due date pair, editable in `DeliveryTab.tsx`'s phase form. The portal shows each phase's window and an "on track / due soon / overdue" status, with task due dates formatted `en-NZ` the same way the phase date already is. This overlaps §17.4.3 (relative-date anchoring for generated roadmaps), so settle the date model once, for both.
+
+### 18.2 Text-size toggle (Small / Medium / Large)
+**Ask:** Under Account on the client portal, a toggle that lets the client switch between small, medium, and large text for easier reading. It scales all portal text dynamically. **Today's sizing becomes "Small"; "Medium" (a step larger) becomes the default.** So every client's portal gets slightly bigger text the day this ships, not just those who opt in.
+
+**Current state:**
+- The Account page already has an **Appearance** panel holding `ThemeToggle.tsx` (Dark/Light), persisted to `localStorage` (`gh-portal-theme`) and applied pre-paint by `themeScript.ts`'s blocking script. A text-size control belongs in the same panel and should use the same no-flash technique, e.g. a `data-portal-text-size` attribute on `.ghp-root`.
+- **The real work is the CSS, not the toggle.** `portal-theme.css` hardcodes 75 `font-size: …px` declarations, plus inline `fontSize` styles scattered across portal pages/components (`GrayscaleWidget.tsx`, `account/page.tsx`, `files/page.tsx`, `page.tsx`, `work/page.tsx`, others). None of it scales from a root value. Options: (a) convert to `calc(Npx * var(--ghp-text-scale))` or rem, and scope the scale variable per size; or (b) CSS `zoom` on the content area, which is cheap but also scales spacing and layout, not just text. (a) is correct for "writing size" and (b) is a shortcut.
+- Portal pages that reuse admin components (the task list, via the `--gh-*` → `--ghp-*` redirect in `.ghp-root`, see §12) need checking too. Their sizes come from `tokens.css`/`globals.css`, not `portal-theme.css`.
+
+**Persistence:** `localStorage` means per-device, same as the theme. Whether it should follow the client across devices (a `users` column) is §7 item 24.
+
+### 18.3 "What's new" feature announcements in the client portal
+**Ask:** When Max ships a new portal feature, clients get a notification telling them about it. Example: when the text-size toggle (§18.2) ships, a notice pops up telling them it exists. §18.2 is intended as the first real announcement.
+
+**Current state:**
+- The `notifications` table is **admin-only in practice**. Its `notificationTypeEnum` covers admin/CRM events (`deal_stalled`, `task_overdue`, `grayscale_request`, …), and nothing in `src/app/(portal)` or `src/components/portal` reads it. Clients have no notification surface at all today.
+- The closest existing precedent is `clients.portalTourSeenAt`, a one-shot "has this client seen X" timestamp driving the first-login tour. It doesn't generalize to N announcements. A per-announcement "seen" record is needed instead.
+
+**Likely shape (not decided):** a catalogue-level `portal_announcements` table (`id, title, body, featureKey (nullable), publishedAt, createdBy`) authored by Max from an admin page, plus a per-user `portal_announcement_views` (`announcementId, userId, dismissedAt`). The portal shows unseen announcements on next load as a dismissable popup or banner (reuse the `.gh-modal`/`.gh-backdrop` pattern from §11, retinted via `--ghp-*`), with an optional "What's new" list on Account for history. `featureKey` lets an announcement skip clients who don't have that feature enabled in `client_features`. There's no point announcing a feature a client can't see. Per §0 rule 4, the create/publish write needs an MCP risk tier if exposed. Publishing blasts to every client, so treat it like `queueCampaignSend` (always-confirm).
+
+Per §16's lens: `portal_announcement_views` also produces a real engagement signal (who reads announcements, how fast), which is worth keeping queryable.
+
+## 19. Project Incrementum (BUILT 2026-10-18)
+
+Lives in its own doc: **`docs/Project-Incrementum-Plan.md`**, the single source of truth (plan, build status §14, open items §13–14.3). Built on branch `incrementum`; database applied 2026-10-18 (`db/APPLY-incrementum-2026-10-18.sql`); app code awaiting deploy. It also includes the **contractor lockdown + contractor workspace** (`db/sql/031_contractor_scoping.sql`, `/work`), which changes what the contractor role can reach across the whole app (see `Master-Brief.md` §2).

@@ -21,7 +21,11 @@ import { z } from "zod";
  * Moving it here means a hung Google call only delays this background
  * write, never the create/status-change action itself.
  */
-async function syncTaskGoogleBookkeeping(task: typeof tasks.$inferSelect) {
+export async function syncTaskGoogleBookkeeping(task: typeof tasks.$inferSelect) {
+  // Project Incrementum sub-list tasks never sync to Google Tasks (Max,
+  // 2026-10-17) — only the Incrementum main list does, via its own
+  // internal-list mapping like the other internal columns.
+  if (task.incrementumListId) return;
   try {
     const tasklistId = task.googleTaskListId ?? (await resolveGoogleTasklistId(task));
     const result = await syncTaskToGoogle(task, tasklistId);
@@ -47,11 +51,16 @@ export const TaskStatus = z.enum(["not_started", "in_progress", "done", "ongoing
 // pgEnum, matching PORTAL_FEATURE_KEYS's pattern (dal/clients.ts) so a new
 // bucket doesn't need a migration. Only meaningful on tasks with no
 // clientId; ignored otherwise.
-export const INTERNAL_LIST_KEYS = ["gray_horizon", "gray_horizon_focus"] as const;
+// "project_incrementum" is Project Incrementum's main list
+// (docs/Project-Incrementum-Plan.md §2.5) — its column renders third, after
+// Focus, with a gold outline. Its sub-list tasks carry incrementumListId and
+// are hidden from the Master Task View.
+export const INTERNAL_LIST_KEYS = ["gray_horizon", "gray_horizon_focus", "project_incrementum"] as const;
 export type InternalListKey = (typeof INTERNAL_LIST_KEYS)[number];
 export const INTERNAL_LIST_LABELS: Record<InternalListKey, string> = {
   gray_horizon: "Gray Horizon",
   gray_horizon_focus: "Gray Horizon - Focus",
+  project_incrementum: "Project Incrementum",
 };
 
 // Admin-gated wrappers around the adapter's tasklist picker calls — live

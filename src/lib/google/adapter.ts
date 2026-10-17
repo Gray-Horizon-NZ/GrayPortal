@@ -271,3 +271,54 @@ export async function removeTaskFromGoogle(googleTaskId: string | null, tasklist
     console.error(`removeTaskFromGoogle failed for task ${googleTaskId}`, err);
   }
 }
+
+export type MeetingResult =
+  | { status: "created"; eventId: string; htmlLink: string | null; meetLink: string | null }
+  | { status: "skipped" }
+  | { status: "failed"; error: string };
+
+/**
+ * Project Incrementum — books a timed meeting on the connected account's
+ * primary calendar with one external attendee (a contractor or a lead),
+ * and lets Google send them the invite (sendUpdates: "all"). Optional
+ * Google Meet link via conferenceData. Unlike the deal/task syncs above,
+ * this is the user's explicit action, so a failure is reported back rather
+ * than swallowed — but it still never throws.
+ */
+export async function createMeetingEvent(input: {
+  summary: string;
+  description?: string;
+  startIso: string;
+  endIso: string;
+  attendeeEmail: string | null;
+  withMeet: boolean;
+}): Promise<MeetingResult> {
+  try {
+    const auth = await authedClient();
+    if (!auth) return { status: "skipped" };
+    const calendar = google.calendar({ version: "v3", auth });
+    const { data } = await calendar.events.insert(
+      {
+        calendarId: "primary",
+        sendUpdates: input.attendeeEmail ? "all" : "none",
+        conferenceDataVersion: input.withMeet ? 1 : 0,
+        requestBody: {
+          summary: input.summary,
+          description: input.description,
+          start: { dateTime: input.startIso, timeZone: "Pacific/Auckland" },
+          end: { dateTime: input.endIso, timeZone: "Pacific/Auckland" },
+          attendees: input.attendeeEmail ? [{ email: input.attendeeEmail }] : undefined,
+          conferenceData: input.withMeet
+            ? { createRequest: { requestId: `inc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, conferenceSolutionKey: { type: "hangoutsMeet" } } }
+            : undefined,
+        },
+      },
+      { timeout: GOOGLE_REQUEST_TIMEOUT_MS }
+    );
+    const meetLink = data.hangoutLink ?? data.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri ?? null;
+    return { status: "created", eventId: data.id!, htmlLink: data.htmlLink ?? null, meetLink };
+  } catch (err) {
+    console.error("createMeetingEvent failed", err);
+    return { status: "failed", error: err instanceof Error ? err.message : "Google Calendar error" };
+  }
+}

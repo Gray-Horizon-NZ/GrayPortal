@@ -20,7 +20,7 @@ import { z } from "zod";
 
 const OUTBOUND_RATE_LIMIT_PER_HOUR = 30;
 
-async function assertUnderRateLimit(tx: Tx) {
+export async function assertUnderRateLimit(tx: Tx) {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   const [row] = await tx
     .select({ n: count() })

@@ -28,6 +28,7 @@ type Assignee = { id: string; displayName: string | null; email: string };
 const INTERNAL_LIST_LABELS: Record<string, string> = {
   gray_horizon: "Gray Horizon",
   gray_horizon_focus: "Gray Horizon - Focus",
+  project_incrementum: "Project Incrementum",
 };
 
 export default function TaskRow({ task, assignees = [] }: { task: Task; assignees?: Assignee[] }) {
