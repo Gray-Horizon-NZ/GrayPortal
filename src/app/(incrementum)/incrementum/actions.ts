@@ -4,6 +4,7 @@
 // Incrementum tree, and bounce back with ?ok= / ?error=. Forms carry a
 // hidden "_back" path so one action serves several pages.
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import * as planning from "@/lib/dal/incrementum/planning";
 import * as itasks from "@/lib/dal/incrementum/tasks";
@@ -65,7 +66,25 @@ async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string, goTo?:
   revalidatePath("/");
   if (error) redirect(withParam(back, "error", error));
   const target = goTo?.(result) ?? back;
-  redirect(ok ? withParam(target, "ok", ok) : target);
+  if (ok) redirect(withParam(target, "ok", ok));
+  // No message and the target is the page the form sits on: let the
+  // revalidation above re-render it in place. Redirecting to the same URL
+  // plus a #hash (e.g. waive / remove on a package line) is a hash-only
+  // navigation to the router, which left the old rows on screen.
+  if (await isCurrentPage(target)) return;
+  redirect(target);
+}
+
+async function isCurrentPage(target: string): Promise<boolean> {
+  const referer = (await headers()).get("referer");
+  if (!referer) return false;
+  try {
+    const current = new URL(referer);
+    const next = new URL(target, current.origin);
+    return current.pathname === next.pathname && current.search === next.search;
+  } catch {
+    return false;
+  }
 }
 
 // --- Settings ---------------------------------------------------------------

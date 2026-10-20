@@ -16,16 +16,18 @@ export default function SubmitButton({
   className = "gh-btn-primary",
   style,
   disabled,
+  ariaLabel,
 }: {
   children: React.ReactNode;
   pendingLabel?: string;
   className?: string;
   style?: React.CSSProperties;
   disabled?: boolean;
+  ariaLabel?: string;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button className={className} type="submit" disabled={disabled || pending} style={style}>
+    <button className={className} type="submit" disabled={disabled || pending} style={style} aria-label={ariaLabel}>
       {pending ? (
         <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
           <Loader2 className="gh-spin" size={14} strokeWidth={2} />

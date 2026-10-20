@@ -5,6 +5,7 @@ import { money, shortDate } from "@/lib/incrementum/format";
 import { clientsForTarget, toNum } from "@/lib/incrementum/pricing";
 import { PageHead, Flash, Chip } from "@/components/incrementum/ui";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
+import OpenHashTarget from "@/components/incrementum/OpenHashTarget";
 import SubmitButton from "@/components/ui/SubmitButton";
 import type { ServiceView } from "@/lib/incrementum/compute";
 import {
@@ -56,53 +57,83 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
         cheaper contractor means a cheaper price, not more profit. Tick <em>Catalogue floor</em> on a service to sell at whichever is higher: quote + markup, or the catalogue price.
       </div>
 
+      {/* Compact rows that click open to edit (Max, 2026-10-21): the page
+          was every service and package laid out as a full form. "New …"
+          rows sit at the foot of each list. */}
       <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Price <em>list</em>
-        </h2>
-        <div className="gh-table-wrap">
-          <table className="gh-table">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th>Billing</th>
-                <th className="gh-table-num">Quote</th>
-                <th className="gh-table-num">Markup</th>
-                <th className="gh-table-num">Sell price</th>
-                <th className="gh-table-num">Catalogue</th>
-                <th className="gh-table-num">Profit</th>
-                <th>Price from</th>
-              </tr>
-            </thead>
-            <tbody>
-              {active.map((sv) => (
-                <tr key={sv.id}>
-                  <td>
-                    <a className="inc-link" href={`#svc-${sv.id}`} style={{ textTransform: "none", letterSpacing: 0, fontSize: "var(--gh-text-sm)" }}>
-                      {sv.name}
-                    </a>
+        <div className="inc-cell-head">
+          <h2 className="inc-cell-title">
+            Price <em>list</em>
+          </h2>
+          <span className="inc-small">Click a service to edit it</span>
+        </div>
+        <div className="inc-acc">
+          <div className="inc-acc-head inc-acc-grid--svc" aria-hidden>
+            <span>Service</span>
+            <span>Billing</span>
+            <span className="inc-acc-num">Quote</span>
+            <span className="inc-acc-num">Markup</span>
+            <span className="inc-acc-num">Sell price</span>
+            <span className="inc-acc-num">Profit</span>
+            <span />
+          </div>
+          {active.map((sv) => (
+            <details className="inc-acc-item" key={sv.id} id={`svc-${sv.id}`}>
+              <summary className="inc-acc-sum inc-acc-grid--svc">
+                <span className="inc-acc-name">
+                  <span>
+                    {sv.name}
                     {sv.usuallyWaived && <> <Chip tone="accent">Usually waived</Chip></>}
-                    {sv.tags?.length ? <div className="inc-small">{sv.tags.join(" · ")}</div> : null}
-                  </td>
-                  <td>{SERVICE_BILLING_LABELS[sv.billing as keyof typeof SERVICE_BILLING_LABELS] ?? sv.billing}</td>
-                  <td className="gh-table-num">
-                    {money(sv.price.quote)}
-                    <div className="inc-small">{sv.price.quoteSource === "bench" ? `${sv.benchQuotes.length} bench quote${sv.benchQuotes.length === 1 ? "" : "s"}` : sv.price.quoteSource === "expected" ? "expected" : ""}</div>
-                  </td>
-                  <td className="gh-table-num">{sv.effectiveMarkupPct}%</td>
-                  <td className="gh-table-num">
-                    <strong>{sv.billing === "range" ? "By size" : money(sv.price.sellPrice)}</strong>
-                  </td>
-                  <td className="gh-table-num">{sv.billing === "range" ? sv.cataloguePriceText ?? "—" : money(sv.price.cataloguePrice)}</td>
-                  <td className="gh-table-num">
-                    {money(sv.price.profit)}
-                    <div className="inc-small">{sv.price.marginPct !== null ? `${sv.price.marginPct}% margin` : ""}</div>
-                  </td>
-                  <td className="inc-small">{SOURCE_LABEL[sv.price.priceSource]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                  {sv.tags?.length ? <span className="inc-small">{sv.tags.join(" · ")}</span> : null}
+                </span>
+                <span className="inc-acc-opt">{SERVICE_BILLING_LABELS[sv.billing as keyof typeof SERVICE_BILLING_LABELS] ?? sv.billing}</span>
+                <span className="inc-acc-num inc-acc-opt">
+                  {money(sv.price.quote)}
+                  <span className="inc-small">{sv.price.quoteSource === "bench" ? `${sv.benchQuotes.length} bench quote${sv.benchQuotes.length === 1 ? "" : "s"}` : sv.price.quoteSource === "expected" ? "expected" : ""}</span>
+                </span>
+                <span className="inc-acc-num inc-acc-opt">{sv.effectiveMarkupPct}%</span>
+                <span className="inc-acc-num">
+                  <strong>{sv.billing === "range" ? "By size" : money(sv.price.sellPrice)}</strong>
+                </span>
+                <span className="inc-acc-num inc-acc-opt">
+                  {money(sv.price.profit)}
+                  <span className="inc-small">{sv.price.marginPct !== null ? `${sv.price.marginPct}% margin` : ""}</span>
+                </span>
+                <span className="inc-acc-chev" aria-hidden />
+              </summary>
+              <div className="inc-acc-body">
+                <p className="inc-small">
+                  {sv.catalogueName ? `Catalogue: ${sv.serviceItemId}` : "Incrementum-only service"} · Catalogue price{" "}
+                  {sv.billing === "range" ? sv.cataloguePriceText ?? "—" : money(sv.price.cataloguePrice)} · Price from {SOURCE_LABEL[sv.price.priceSource]}
+                </p>
+                {sv.benchQuotes.length > 0 && (
+                  <p className="inc-small">Bench quotes: {sv.benchQuotes.map((q) => `${q.name} ${money(q.rate)}/${q.rateType === "monthly" ? "mo" : q.rateType}`).join(" · ")}</p>
+                )}
+                {sv.ranges?.length ? (
+                  <p className="inc-small">Bands: {sv.ranges.map((r) => `${r.label} ${money(r.min)}${r.max ? `–${money(r.max)}` : "+"}`).join(" · ")}</p>
+                ) : null}
+                <ServiceForm sv={sv} catalogue={catalogue} />
+                <form action={setServiceStatusAction}>
+                  <input type="hidden" name="_back" value={BACK} />
+                  <input type="hidden" name="id" value={sv.id} />
+                  <input type="hidden" name="status" value="retired" />
+                  <button className="gh-link-btn" type="submit">
+                    Retire service
+                  </button>
+                </form>
+              </div>
+            </details>
+          ))}
+          <details className="inc-acc-item inc-acc-item--add" id="svc-new">
+            <summary className="inc-acc-sum">
+              <span className="inc-acc-add">+ New service</span>
+              <span className="inc-acc-chev" aria-hidden />
+            </summary>
+            <div className="inc-acc-body">
+              <ServiceForm catalogue={catalogue} />
+            </div>
+          </details>
         </div>
       </section>
 
@@ -113,156 +144,154 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
           </h2>
           <span className="inc-small">Bundle discounts from the pricing framework: 8 / 12 / 15% recurring, 5 / 10% setup</span>
         </div>
-        <div className="inc-grid">
+        <div className="inc-acc">
+          <div className="inc-acc-head inc-acc-grid--pkg" aria-hidden>
+            <span>Package</span>
+            <span>Status</span>
+            <span className="inc-acc-num">Monthly</span>
+            <span className="inc-acc-num">Profit / mo</span>
+            <span className="inc-acc-num">Setup</span>
+            <span />
+          </div>
           {s.packages.map((p) => {
             const t = p.totals;
             const toTarget = clientsForTarget(freedom, t.monthlyProfit);
             const belowPass = t.monthlyProfit < 700;
             return (
-              <div className="inc-cell inc-span-6" key={p.id} id={`pkg-${p.id}`}>
-                <div className="inc-cell-head">
-                  <h3 className="inc-cell-title">
-                    <em>{p.name}</em>
-                  </h3>
-                  <Chip tone={p.status === "live" ? "good" : p.status === "retired" ? undefined : "accent"}>{p.status}</Chip>
-                </div>
-                {p.description && <p className="inc-muted">{p.description}</p>}
-                <div className="inc-stats">
-                  <div className="inc-stat">
-                    <span className="inc-small">Monthly price</span>
-                    <span className="inc-stat-value">{money(t.monthlyPrice)}</span>
+              <details className="inc-acc-item" key={p.id} id={`pkg-${p.id}`}>
+                <summary className="inc-acc-sum inc-acc-grid--pkg">
+                  <span className="inc-acc-name">
+                    <span>{p.name}</span>
                     <span className="inc-small">
-                      {p.manualMonthlyPrice !== null ? `your price · calculated ${money(p.calculated.monthlyPrice)}` : t.recurringDiscountPct ? `${t.recurringDiscountPct}% bundle off ${money(t.recurringSubtotal)}` : "no bundle discount"}
+                      {p.lines.length} service{p.lines.length === 1 ? "" : "s"}
+                      {toTarget ? ` · ${toTarget} clients for ${money(freedom)}` : ""}
                     </span>
-                  </div>
-                  <div className="inc-stat">
-                    <span className="inc-small">Profit / client / mo</span>
-                    <span className="inc-stat-value" style={{ color: belowPass ? "var(--gh-danger)" : "var(--gh-success)" }}>
-                      {money(t.monthlyProfit)}
-                    </span>
-                    <span className="inc-small">
-                      {t.marginPct ?? "—"}% margin · {t.markupPct ?? "—"}% markup
-                    </span>
-                  </div>
-                  <div className="inc-stat">
-                    <span className="inc-small">Clients for {money(freedom)}</span>
-                    <span className="inc-stat-value">{toTarget ?? "—"}</span>
-                    <span className="inc-small">at this package alone</span>
-                  </div>
-                  <div className="inc-stat">
-                    <span className="inc-small">Setup</span>
-                    <span className="inc-stat-value">{money(t.setupPrice)}</span>
-                    <span className="inc-small">{t.waivedValue ? `+ ${money(t.waivedValue)} waived` : ""}</span>
-                  </div>
-                </div>
-                {belowPass && <p className="inc-callout" data-tone="danger">Under the $700/month pass line (plan §1.1).</p>}
-                {t.missingPrices > 0 && <p className="inc-small">{t.missingPrices} line(s) have no price yet.</p>}
-                <div className="inc-list">
-                  {p.lines.map((l) => (
-                    <div className="inc-row" key={l.id}>
-                      <span className="inc-row-main">
-                        <Chip>{l.kind}</Chip>
-                        <span style={{ textDecoration: l.waived ? "line-through" : undefined }}>{l.name}</span>
-                      </span>
-                      <span className="inc-inline">
-                        <span className="inc-num">{money(l.sellPrice)}</span>
-                        {l.kind === "setup" && (
-                          <form action={togglePackageServiceWaivedAction}>
-                            <input type="hidden" name="_back" value={`${BACK}#pkg-${p.id}`} />
-                            <input type="hidden" name="id" value={l.id} />
-                            <input type="hidden" name="waived" value={l.waived ? "" : "on"} />
-                            <button className="gh-link-btn" type="submit">
-                              {l.waived ? "Charge" : "Waive"}
-                            </button>
-                          </form>
-                        )}
-                        <form action={removePackageServiceAction}>
-                          <input type="hidden" name="_back" value={`${BACK}#pkg-${p.id}`} />
-                          <input type="hidden" name="id" value={l.id} />
-                          <button className="gh-link-btn" type="submit" aria-label={`Remove ${l.name}`}>
-                            ×
-                          </button>
-                        </form>
+                  </span>
+                  <span className="inc-acc-opt">
+                    <Chip tone={p.status === "live" ? "good" : p.status === "retired" ? undefined : "accent"}>{p.status}</Chip>
+                  </span>
+                  <span className="inc-acc-num">
+                    <strong>{money(t.monthlyPrice)}</strong>
+                  </span>
+                  <span className="inc-acc-num inc-acc-opt" style={{ color: belowPass ? "var(--gh-danger)" : "var(--gh-success)" }}>
+                    {money(t.monthlyProfit)}
+                  </span>
+                  <span className="inc-acc-num inc-acc-opt">{money(t.setupPrice)}</span>
+                  <span className="inc-acc-chev" aria-hidden />
+                </summary>
+                <div className="inc-acc-body">
+                  {p.description && <p className="inc-muted">{p.description}</p>}
+                  <div className="inc-stats">
+                    <div className="inc-stat">
+                      <span className="inc-small">Monthly price</span>
+                      <span className="inc-stat-value">{money(t.monthlyPrice)}</span>
+                      <span className="inc-small">
+                        {p.manualMonthlyPrice !== null ? `your price · calculated ${money(p.calculated.monthlyPrice)}` : t.recurringDiscountPct ? `${t.recurringDiscountPct}% bundle off ${money(t.recurringSubtotal)}` : "no bundle discount"}
                       </span>
                     </div>
-                  ))}
-                </div>
-                <form action={addPackageServiceAction} className="inc-inline">
-                  <input type="hidden" name="_back" value={`${BACK}#pkg-${p.id}`} />
-                  <input type="hidden" name="packageId" value={p.id} />
-                  <select className="gh-input" name="serviceId" required aria-label="Service" style={{ flex: 1 }}>
-                    {active.map((sv) => (
-                      <option key={sv.id} value={sv.id}>
-                        {sv.name}
-                      </option>
+                    <div className="inc-stat">
+                      <span className="inc-small">Profit / client / mo</span>
+                      <span className="inc-stat-value" style={{ color: belowPass ? "var(--gh-danger)" : "var(--gh-success)" }}>
+                        {money(t.monthlyProfit)}
+                      </span>
+                      <span className="inc-small">
+                        {t.marginPct ?? "—"}% margin · {t.markupPct ?? "—"}% markup
+                      </span>
+                    </div>
+                    <div className="inc-stat">
+                      <span className="inc-small">Clients for {money(freedom)}</span>
+                      <span className="inc-stat-value">{toTarget ?? "—"}</span>
+                      <span className="inc-small">at this package alone</span>
+                    </div>
+                    <div className="inc-stat">
+                      <span className="inc-small">Setup</span>
+                      <span className="inc-stat-value">{money(t.setupPrice)}</span>
+                      <span className="inc-small">{t.waivedValue ? `+ ${money(t.waivedValue)} waived` : ""}</span>
+                    </div>
+                  </div>
+                  {belowPass && <p className="inc-callout" data-tone="danger">Under the $700/month pass line (plan §1.1).</p>}
+                  {t.missingPrices > 0 && <p className="inc-small">{t.missingPrices} line(s) have no price yet.</p>}
+                  <div className="inc-list">
+                    {p.lines.map((l) => (
+                      <div className="inc-row" key={l.id}>
+                        <span className="inc-row-main">
+                          <Chip>{l.kind}</Chip>
+                          <span style={{ textDecoration: l.waived ? "line-through" : undefined }}>{l.name}</span>
+                        </span>
+                        <span className="inc-inline">
+                          <span className="inc-num">{money(l.sellPrice)}</span>
+                          {l.kind === "setup" && (
+                            <form action={togglePackageServiceWaivedAction}>
+                              <input type="hidden" name="_back" value={`${BACK}#pkg-${p.id}`} />
+                              <input type="hidden" name="id" value={l.id} />
+                              <input type="hidden" name="waived" value={l.waived ? "" : "on"} />
+                              <SubmitButton className="gh-link-btn" pendingLabel="…">
+                                {l.waived ? "Charge" : "Waive"}
+                              </SubmitButton>
+                            </form>
+                          )}
+                          <form action={removePackageServiceAction}>
+                            <input type="hidden" name="_back" value={`${BACK}#pkg-${p.id}`} />
+                            <input type="hidden" name="id" value={l.id} />
+                            <SubmitButton className="gh-link-btn" pendingLabel="…" ariaLabel={`Remove ${l.name}`}>
+                              ×
+                            </SubmitButton>
+                          </form>
+                        </span>
+                      </div>
                     ))}
-                  </select>
-                  <select className="gh-input" name="kind" defaultValue="recurring" aria-label="Kind">
-                    <option value="recurring">Recurring</option>
-                    <option value="setup">Setup</option>
-                  </select>
-                  <SubmitButton className="gh-btn-secondary" pendingLabel="…">Add</SubmitButton>
-                </form>
-                <details className="inc-disclosure">
-                  <summary>Edit package</summary>
-                  <PackageForm action={updatePackageAction} p={p} />
-                  <form action={deletePackageAction} style={{ marginTop: "var(--gh-space-2)" }}>
-                    <input type="hidden" name="_back" value={BACK} />
-                    <input type="hidden" name="id" value={p.id} />
-                    <button className="gh-link-btn gh-link-btn--danger" type="submit">
-                      Delete package
-                    </button>
+                  </div>
+                  <form action={addPackageServiceAction} className="inc-inline">
+                    <input type="hidden" name="_back" value={`${BACK}#pkg-${p.id}`} />
+                    <input type="hidden" name="packageId" value={p.id} />
+                    <select className="gh-input" name="serviceId" required aria-label="Service" style={{ flex: 1 }}>
+                      {active.map((sv) => (
+                        <option key={sv.id} value={sv.id}>
+                          {sv.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select className="gh-input" name="kind" defaultValue="recurring" aria-label="Kind">
+                      <option value="recurring">Recurring</option>
+                      <option value="setup">Setup</option>
+                    </select>
+                    <SubmitButton className="gh-btn-secondary" pendingLabel="…">Add</SubmitButton>
                   </form>
-                </details>
-              </div>
+                  <details className="inc-disclosure">
+                    <summary>Edit package details</summary>
+                    <PackageForm action={updatePackageAction} p={p} />
+                    <form action={deletePackageAction} style={{ marginTop: "var(--gh-space-2)" }}>
+                      <input type="hidden" name="_back" value={BACK} />
+                      <input type="hidden" name="id" value={p.id} />
+                      <button className="gh-link-btn gh-link-btn--danger" type="submit">
+                        Delete package
+                      </button>
+                    </form>
+                  </details>
+                </div>
+              </details>
             );
           })}
-          <div className="inc-cell inc-span-6">
-            <h3 className="inc-cell-title">
-              New <em>package</em>
-            </h3>
-            <PackageForm action={createPackageAction} />
-          </div>
+          <details className="inc-acc-item inc-acc-item--add" id="pkg-new">
+            <summary className="inc-acc-sum">
+              <span className="inc-acc-add">+ New package</span>
+              <span className="inc-acc-chev" aria-hidden />
+            </summary>
+            <div className="inc-acc-body">
+              <PackageForm action={createPackageAction} />
+            </div>
+          </details>
         </div>
       </section>
 
-      {active.map((sv) => (
-        <section className="inc-panel" key={sv.id} id={`svc-${sv.id}`}>
-          <div className="inc-cell-head">
-            <h2 className="inc-cell-title">{sv.name}</h2>
-            <span className="inc-small">{sv.catalogueName ? `Catalogue: ${sv.serviceItemId}` : "Incrementum-only service"}</span>
-          </div>
-          {sv.benchQuotes.length > 0 && (
-            <p className="inc-small">Bench quotes: {sv.benchQuotes.map((q) => `${q.name} ${money(q.rate)}/${q.rateType === "monthly" ? "mo" : q.rateType}`).join(" · ")}</p>
-          )}
-          {sv.ranges?.length ? (
-            <p className="inc-small">Bands: {sv.ranges.map((r) => `${r.label} ${money(r.min)}${r.max ? `–${money(r.max)}` : "+"}`).join(" · ")}</p>
-          ) : null}
-          <ServiceForm sv={sv} catalogue={catalogue} />
-          <div className="inc-inline">
-            <form action={setServiceStatusAction}>
-              <input type="hidden" name="_back" value={BACK} />
-              <input type="hidden" name="id" value={sv.id} />
-              <input type="hidden" name="status" value="retired" />
-              <button className="gh-link-btn" type="submit">
-                Retire service
-              </button>
-            </form>
-          </div>
-        </section>
-      ))}
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          New <em>service</em>
-        </h2>
-        <ServiceForm catalogue={catalogue} />
-      </section>
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Price <em>history</em>
-        </h2>
+      <details className="inc-panel inc-fold">
+        <summary className="inc-fold-sum">
+          <h2 className="inc-cell-title">
+            Price <em>history</em>
+          </h2>
+          <span className="inc-small">{history.length} change{history.length === 1 ? "" : "s"}</span>
+          <span className="inc-acc-chev" aria-hidden />
+        </summary>
         {history.length === 0 ? (
           <p className="inc-muted">No price changes yet.</p>
         ) : (
@@ -279,13 +308,17 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
             ))}
           </div>
         )}
-      </section>
+      </details>
 
       {retired.length > 0 && (
-        <section className="inc-panel">
-          <h2 className="inc-cell-title">
-            Retired <em>services</em>
-          </h2>
+        <details className="inc-panel inc-fold">
+          <summary className="inc-fold-sum">
+            <h2 className="inc-cell-title">
+              Retired <em>services</em>
+            </h2>
+            <span className="inc-small">{retired.length}</span>
+            <span className="inc-acc-chev" aria-hidden />
+          </summary>
           {retired.map((sv) => (
             <div className="inc-row" key={sv.id}>
               <span className="inc-muted">{sv.name}</span>
@@ -308,8 +341,9 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
               </span>
             </div>
           ))}
-        </section>
+        </details>
       )}
+      <OpenHashTarget trigger={`${ok ?? ""}|${error ?? ""}`} />
       <IncrementumReadySignal />
     </>
   );
