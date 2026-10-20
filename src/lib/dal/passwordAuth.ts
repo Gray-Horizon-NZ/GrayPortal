@@ -62,6 +62,28 @@ async function ensureFirebaseAccount(email: string): Promise<void> {
 }
 
 /**
+ * The portal-setup invite's password step (/onboard/[token] → /reset-
+ * password?invite=…). The invite email itself can't carry a Firebase reset
+ * link — those die after 1 hour, the invite lives 14 days — so a fresh
+ * oobCode is minted here at click time instead, with the 14-day invite
+ * token as the gate. Returns null once the account already has a password:
+ * the invite link only ever sets a first password (a returning invitee goes
+ * straight to the wizard), so a forwarded/leaked invite can't be used to
+ * overwrite one the client already chose — that's the login page's
+ * "Forgot your password?" job.
+ */
+export async function mintFirstPasswordCode(email: string): Promise<string | null> {
+  await ensureFirebaseAccount(email);
+  const user = await adminAuth.getUserByEmail(email);
+  if (user.providerData.some((p) => p.providerId === "password")) return null;
+
+  const link = await adminAuth.generatePasswordResetLink(email);
+  const oobCode = new URL(link).searchParams.get("oobCode");
+  if (!oobCode) throw new Error("Firebase reset link had no oobCode");
+  return oobCode;
+}
+
+/**
  * The one place "what does the password-setup/reset email say" gets
  * resolved and sent — server-generated link + sendGmail, matching every
  * other transactional email in this app (onboarding invites, access-request
@@ -98,10 +120,12 @@ export async function sendPasswordSetupLink(email: string, clientName: string | 
 export type ProvisionResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Called right after the allowlist row is created (inviteClientUser,
- * inviteContractorUser, approvePortalAccessRequest — "the only path that
- * creates a login" per those files' own comments), all three still
- * mid-transaction at that point. Best-effort throughout: a failed
+ * Called right after the allowlist row is created (inviteContractorUser,
+ * approvePortalAccessRequest — "the only path that creates a login" per
+ * those files' own comments), both still mid-transaction at that point.
+ * inviteClientUser no longer calls this: a client's password is set from
+ * the portal-setup invite instead (mintFirstPasswordCode above), so they
+ * get one email, not two. Best-effort throughout: a failed
  * provision/send must never fail the invite itself (never throws), same
  * posture as sendOnboardingCompletionEmail — but unlike before, the result
  * is returned instead of only logged, so those three callers can still tell

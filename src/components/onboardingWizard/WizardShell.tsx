@@ -12,6 +12,8 @@ export default function WizardShell({
   clientName,
   stepIndex,
   stepCount,
+  heading,
+  stepLabel,
   action,
   promo = false,
   children,
@@ -19,6 +21,12 @@ export default function WizardShell({
   clientName: string;
   stepIndex: number;
   stepCount: number;
+  // Overrides for the password step in front of the wizard (/reset-
+  // password, ResetPasswordForm) — same shell so setting a password and
+  // the wizard read as one continuous flow, but it isn't a numbered step,
+  // and a plain forgot-password reset has no client name to welcome.
+  heading?: ReactNode;
+  stepLabel?: string;
   // Rendered in a fixed bottom-right slot, not inline after the step
   // content — so the primary action sits in the same spot on every step
   // regardless of how much content precedes it (2026-08-27 feedback).
@@ -41,14 +49,18 @@ export default function WizardShell({
             Gray Horizon
           </p>
           <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-            Welcome, <em>{clientName}</em>
+            {heading ?? (
+              <>
+                Welcome, <em>{clientName}</em>
+              </>
+            )}
           </h1>
         </div>
       </div>
       <div className={promo ? "gh-wizard-right gh-wizard-right--promo" : "gh-wizard-right"}>
         <div className="gh-wizard-step-indicator">
           <p className="gh-eyebrow">
-            {String(stepIndex).padStart(2, "0")} / {String(stepCount).padStart(2, "0")}
+            {stepLabel ?? `${String(stepIndex).padStart(2, "0")} / ${String(stepCount).padStart(2, "0")}`}
           </p>
         </div>
         <div className="gh-wizard-step-body">

@@ -9,6 +9,7 @@ import { auditedInsert } from "./mutate";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, wrapPortalInviteEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
+import { mintFirstPasswordCode } from "./passwordAuth";
 import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 
 // Client onboarding wizard, foundation slice (Open-Work-Brief.md §4, §7 item
@@ -216,7 +217,7 @@ export async function sendOnboardingInvite(input: SendOnboardingInviteInputT) {
     const sent = await sendGmail({
       to: data.toEmail,
       subject,
-      bodyText: `${stripHtmlToText(introHtml)}\n\nSetup your portal: ${link}`,
+      bodyText: `${stripHtmlToText(introHtml)}\n\nSet up your password: ${link}`,
       bodyHtml: html,
     });
     if (!sent) throw new Error("Gmail is not connected — could not send the invite");
@@ -370,6 +371,34 @@ async function buildWizardData(
   const attachedDocumentNames = await getAttachedOnboardingDocumentNames(tx, clientId);
 
   return { status: "valid", clientId, clientName, company, services, attachedDocumentNames };
+}
+
+export type InvitePasswordStep = { status: "needs_password"; oobCode: string } | { status: "done" };
+
+/**
+ * /onboard/[token]'s first check, before the wizard renders: the invite
+ * email's button is "Set up your password", so a recipient without one yet
+ * is sent to /reset-password with a freshly minted code first (see
+ * mintFirstPasswordCode for why it's minted here, not emailed). Anything
+ * that isn't a valid invite reports "done" and falls through to the
+ * wizard page's own expired/not_found states.
+ */
+export async function resolveInvitePasswordStep(rawToken: string): Promise<InvitePasswordStep> {
+  const email = await withAdminScope("onboarding invite: password step", async (tx) => {
+    const resolved = await resolveActiveInvite(tx, rawToken);
+    if (resolved.status !== "valid") return null;
+    const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const [row] = await tx
+      .select({ email: onboardingInvites.email })
+      .from(onboardingInvites)
+      .where(eq(onboardingInvites.tokenHash, hash))
+      .limit(1);
+    return row?.email ?? null;
+  });
+  if (!email) return { status: "done" };
+
+  const oobCode = await mintFirstPasswordCode(email);
+  return oobCode ? { status: "needs_password", oobCode } : { status: "done" };
 }
 
 /** Live wizard entry point — /onboard/[token]. */

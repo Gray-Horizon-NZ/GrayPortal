@@ -160,7 +160,7 @@ export function wrapPortalInviteEmailHtml(opts: {
             </tr>
             <tr>
               <td align="center" style="padding-bottom:26px;">
-                <a href="${ctaHref}" style="display:inline-block; padding:11px 24px; background:${GOLD}; color:#ffffff; text-decoration:none; font-weight:600; font-size:13.5px; font-family:${BODY_FONT}; border-radius:4px;">Setup your portal</a>
+                <a href="${ctaHref}" style="display:inline-block; padding:11px 24px; background:${GOLD}; color:#ffffff; text-decoration:none; font-weight:600; font-size:13.5px; font-family:${BODY_FONT}; border-radius:4px;">Set up your password</a>
                 <div style="margin-top:12px; font-family:${BODY_FONT}; font-size:12px; color:${MUTED};">Or copy this link: ${ctaHref}</div>
               </td>
             </tr>

@@ -1,4 +1,5 @@
-import { loadOnboardingWizardData } from "@/lib/dal/onboardingInvites";
+import { redirect } from "next/navigation";
+import { loadOnboardingWizardData, resolveInvitePasswordStep, type InvitePasswordStep } from "@/lib/dal/onboardingInvites";
 import OnboardingWizard from "@/components/onboardingWizard/OnboardingWizard";
 
 // The client-facing entry point for the onboarding wizard (Open-Work-
@@ -7,6 +8,21 @@ import OnboardingWizard from "@/components/onboardingWizard/OnboardingWizard";
 // the wizard chrome anyway); valid hands off to the real wizard shell.
 export default async function OnboardingInvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+
+  // The invite email's button is "Set up your password" — that comes first,
+  // then this same link lands back here (now with a password) and the
+  // wizard runs. Best-effort: a Firebase hiccup shouldn't lock a client out
+  // of the wizard, they can still use "Forgot your password?" afterwards.
+  let passwordStep: InvitePasswordStep = { status: "done" };
+  try {
+    passwordStep = await resolveInvitePasswordStep(token);
+  } catch (err) {
+    console.error("Onboarding invite password step failed", err);
+  }
+  if (passwordStep.status === "needs_password") {
+    redirect(`/reset-password?oobCode=${encodeURIComponent(passwordStep.oobCode)}&invite=${encodeURIComponent(token)}`);
+  }
+
   const result = await loadOnboardingWizardData(token);
 
   if (result.status === "valid") {

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { multiFactor, onAuthStateChanged, type User } from "firebase/auth";
+import { QRCodeSVG } from "qrcode.react";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { useTotpEnroll } from "@/lib/totp/useTotpEnroll";
 import { completeSignIn } from "../completeSignIn";
@@ -63,7 +64,12 @@ export default function EnrollMfa() {
   async function handleConfirm() {
     if (!user) return;
     const ok = await confirmEnrollment(user, code);
-    if (!ok) return;
+    if (!ok) {
+      // Either a wrong code (they rotate every 30s anyway) or a dead secret
+      // that useTotpEnroll just replaced — the typed code is useless both ways.
+      setCode("");
+      return;
+    }
     await finish();
   }
 
@@ -90,16 +96,41 @@ export default function EnrollMfa() {
       ) : (
         <>
           <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-            Add this key to your authenticator app (Google Authenticator, 1Password, etc.), then enter the
-            6-digit code it generates.
+            Scan this with your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, etc.),
+            then enter the 6-digit code it shows.
           </p>
-          <code style={{ fontFamily: "var(--gh-font-mono)", wordBreak: "break-all" }}>{secret.secretKey}</code>
+          {/* Always on white — authenticator cameras struggle with an inverted (light-on-dark) code. */}
+          <div style={{ alignSelf: "center", background: "#fff", padding: "var(--gh-space-3)", lineHeight: 0 }}>
+            <QRCodeSVG value={otpauthUrl(secret, user)} size={176} marginSize={0} />
+          </div>
+          {/* On a phone the QR is on the same screen as the camera — the otpauth:// link hands the key straight to the installed app instead. */}
+          <a href={otpauthUrl(secret, user)} style={{ alignSelf: "center", fontSize: "var(--gh-text-sm)", color: "var(--gh-accent)" }}>
+            On this phone? Open in authenticator app
+          </a>
+          <details>
+            <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
+              Can&apos;t scan? Enter the key manually
+            </summary>
+            <code
+              style={{
+                display: "block",
+                marginTop: "var(--gh-space-2)",
+                fontFamily: "var(--gh-font-mono)",
+                letterSpacing: "0.08em",
+                wordBreak: "break-word",
+                userSelect: "all",
+              }}
+            >
+              {secret.secretKey.match(/.{1,4}/g)?.join(" ")}
+            </code>
+          </details>
           <input
             className="gh-input"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             placeholder="6-digit code"
             inputMode="numeric"
+            autoComplete="one-time-code"
             maxLength={6}
           />
           <button
@@ -118,4 +149,8 @@ export default function EnrollMfa() {
       )}
     </div>
   );
+}
+
+function otpauthUrl(secret: { generateQrCodeUrl: (accountName?: string, issuer?: string) => string }, user: User): string {
+  return secret.generateQrCodeUrl(user.email ?? undefined, "Gray Portal");
 }

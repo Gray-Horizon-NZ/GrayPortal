@@ -1,5 +1,5 @@
 import "server-only";
-import { users, clients, contractors } from "@/lib/db/schema";
+import { users, contractors } from "@/lib/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
@@ -51,10 +51,11 @@ export async function inviteClientUser(input: InviteClientInputT) {
       { caller, entityType: "user" }
     );
 
-    const [client] = await tx.select({ name: clients.name }).from(clients).where(eq(clients.id, data.clientId)).limit(1);
-    const emailResult = await provisionPasswordAccountAndEmail(data.email, client?.name ?? null);
-
-    return { ...row, passwordEmailError: emailResult.ok ? null : emailResult.error };
+    // No email here any more — the client's one email is the portal-setup
+    // invite (sendOnboardingInvite), whose button sets their password first
+    // and then runs the wizard. Sending a separate password email now would
+    // land before the invite and skip the wizard entirely.
+    return row;
   });
 }
 

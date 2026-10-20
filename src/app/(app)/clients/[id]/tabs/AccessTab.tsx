@@ -148,7 +148,11 @@ export default function AccessTab({
         {portalUsers.length === 0 && (
           <p style={{ color: "var(--gh-text-muted)" }}>No portal login invited yet.</p>
         )}
-        {invited && <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>Invite sent.</p>}
+        {invited && (
+          <p style={{ color: "var(--gh-success)", fontSize: "var(--gh-text-sm)" }}>
+            Login added. Nothing&apos;s been emailed yet — send the portal-setup invite above when they&apos;re ready.
+          </p>
+        )}
         {inviteError && (
           <p style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-sm)" }}>Couldn&apos;t invite: {inviteError}</p>
         )}
@@ -164,7 +168,7 @@ export default function AccessTab({
           <form action={inviteClientAction.bind(null, client.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
             <input className="gh-input" name="email" type="email" placeholder="Client email" required />
             <input className="gh-input" name="displayName" placeholder="Display name (optional)" />
-            <SubmitButton>Invite to portal</SubmitButton>
+            <SubmitButton>Add portal login</SubmitButton>
           </form>
         </div>
       </section>
