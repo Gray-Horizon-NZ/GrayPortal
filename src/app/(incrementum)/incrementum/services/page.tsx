@@ -38,6 +38,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   const freedom = toNum(s.state.settings.freedomTarget) ?? 10000;
   const active = s.services.filter((x) => x.status === "active");
   const retired = s.services.filter((x) => x.status !== "active");
+  const roles = s.state.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
+  const roleName = (rid: string | null) => roles.find((r) => r.id === rid)?.name ?? null;
 
   return (
     <>
@@ -85,7 +87,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                     {sv.name}
                     {sv.usuallyWaived && <> <Chip tone="accent">Usually waived</Chip></>}
                   </span>
-                  {sv.tags?.length ? <span className="inc-small">{sv.tags.join(" · ")}</span> : null}
+                  <span className="inc-small">{roleName(sv.roleId) ?? "No contractor role"}</span>
                 </span>
                 <span className="inc-acc-opt">{SERVICE_BILLING_LABELS[sv.billing as keyof typeof SERVICE_BILLING_LABELS] ?? sv.billing}</span>
                 <span className="inc-acc-num inc-acc-opt">
@@ -113,7 +115,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                 {sv.ranges?.length ? (
                   <p className="inc-small">Bands: {sv.ranges.map((r) => `${r.label} ${money(r.min)}${r.max ? `–${money(r.max)}` : "+"}`).join(" · ")}</p>
                 ) : null}
-                <ServiceForm sv={sv} catalogue={catalogue} />
+                <ServiceForm sv={sv} catalogue={catalogue} roles={roles} />
                 <form action={setServiceStatusAction}>
                   <input type="hidden" name="_back" value={BACK} />
                   <input type="hidden" name="id" value={sv.id} />
@@ -131,7 +133,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
               <span className="inc-acc-chev" aria-hidden />
             </summary>
             <div className="inc-acc-body">
-              <ServiceForm catalogue={catalogue} />
+              <ServiceForm catalogue={catalogue} roles={roles} />
             </div>
           </details>
         </div>
@@ -349,7 +351,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   );
 }
 
-function ServiceForm({ sv, catalogue }: { sv?: ServiceView; catalogue: { id: string; moduleCode: string; deliverable: string }[] }) {
+function ServiceForm({ sv, catalogue, roles }: { sv?: ServiceView; catalogue: { id: string; moduleCode: string; deliverable: string }[]; roles: { id: string; name: string }[] }) {
   return (
     <form action={sv ? updateServiceAction : createServiceAction} className="inc-form">
       <input type="hidden" name="_back" value={sv ? `${BACK}#svc-${sv.id}` : BACK} />
@@ -365,6 +367,17 @@ function ServiceForm({ sv, catalogue }: { sv?: ServiceView; catalogue: { id: str
           {catalogue.map((c) => (
             <option key={c.id} value={c.id}>
               {c.moduleCode} · {c.deliverable}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="inc-field">
+        Delivered by (contractor role)
+        <select className="gh-input" name="roleId" defaultValue={sv?.roleId ?? ""}>
+          <option value="">No contractor (you, or none)</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
             </option>
           ))}
         </select>

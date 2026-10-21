@@ -24,6 +24,7 @@ import {
   incrementumTaskLists,
   incrementumNextMoveDismissals,
   incrementumNeeds,
+  incrementumContractorRoles,
   contractors,
   clients,
   tasks,
@@ -85,10 +86,19 @@ export const getIncrementumSnapshot = cache(async () => {
       taskRows,
       dismissals,
       needs,
+      roles,
     ] = await Promise.all([
       tx.select().from(incrementumServices).where(notDeleted(incrementumServices.deletedAt)).orderBy(asc(incrementumServices.sortOrder), asc(incrementumServices.createdAt)),
       tx
-        .select({ id: serviceItems.id, deliverable: serviceItems.deliverable, currentMonthlyPrice: serviceItems.currentMonthlyPrice, currentSetupPrice: serviceItems.currentSetupPrice, priceText: serviceItems.priceText })
+        .select({
+          id: serviceItems.id,
+          moduleCode: serviceItems.moduleCode,
+          deliverable: serviceItems.deliverable,
+          isRecurring: serviceItems.isRecurring,
+          currentMonthlyPrice: serviceItems.currentMonthlyPrice,
+          currentSetupPrice: serviceItems.currentSetupPrice,
+          priceText: serviceItems.priceText,
+        })
         .from(serviceItems)
         .where(notDeleted(serviceItems.deletedAt)),
       tx.select().from(incrementumContractorServices).where(notDeleted(incrementumContractorServices.deletedAt)),
@@ -134,6 +144,7 @@ export const getIncrementumSnapshot = cache(async () => {
         .orderBy(desc(tasks.createdAt)),
       tx.select({ moveKey: incrementumNextMoveDismissals.moveKey }).from(incrementumNextMoveDismissals).where(notDeleted(incrementumNextMoveDismissals.deletedAt)),
       tx.select().from(incrementumNeeds).where(notDeleted(incrementumNeeds.deletedAt)).orderBy(asc(incrementumNeeds.sortOrder), asc(incrementumNeeds.createdAt)),
+      tx.select().from(incrementumContractorRoles).where(notDeleted(incrementumContractorRoles.deletedAt)).orderBy(asc(incrementumContractorRoles.sortOrder)),
     ]);
 
     // Is db/sql/031 (contractor lockdown + views) applied? Onboarding a
@@ -147,6 +158,7 @@ export const getIncrementumSnapshot = cache(async () => {
       settings,
       services,
       catalogue,
+      roles,
       contractorServices,
       profiles: profileRows.map((r) => ({ ...r.profile, name: r.name, specialty: r.specialty })),
       packages,

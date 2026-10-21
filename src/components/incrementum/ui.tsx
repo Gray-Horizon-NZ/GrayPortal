@@ -71,6 +71,62 @@ export function Ring({ pct, size = 96, label }: { pct: number; size?: number; la
   );
 }
 
+/**
+ * Profile header for leads, clients and contractors (Max, 2026-10-21:
+ * DM Rider admin's customer layout in Incrementum's palette): avatar,
+ * name, a contact line and status badges, then an optional row of stat
+ * cards.
+ */
+export function ProfileHead({
+  eyebrow,
+  name,
+  photoUrl,
+  meta = [],
+  badges,
+  stats,
+}: {
+  eyebrow: string;
+  name: string;
+  photoUrl?: string | null;
+  meta?: React.ReactNode[];
+  badges?: React.ReactNode;
+  stats?: { label: string; value: React.ReactNode; note?: React.ReactNode }[];
+}) {
+  const shown = meta.filter(Boolean);
+  return (
+    <div className="inc-profile">
+      <div className="inc-profile-top">
+        <div className="inc-profile-id">
+          <Avatar name={name} photoUrl={photoUrl} size={56} />
+          <div style={{ minWidth: 0 }}>
+            <p className="gh-eyebrow">{eyebrow}</p>
+            <h1 className="inc-profile-name">{name}</h1>
+            {shown.length > 0 && (
+              <div className="inc-profile-meta">
+                {shown.map((m, i) => (
+                  <span key={i}>{m}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {badges && <div className="inc-inline">{badges}</div>}
+      </div>
+      {stats && stats.length > 0 && (
+        <div className="inc-profile-stats">
+          {stats.map((st) => (
+            <div className="inc-profile-stat" key={st.label}>
+              <span className="inc-profile-stat-value">{st.value}</span>
+              <span className="inc-profile-stat-label">{st.label}</span>
+              {st.note && <span className="inc-small">{st.note}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Avatar({ name, photoUrl, size = 44 }: { name: string; photoUrl?: string | null; size?: number }) {
   const initials = name
     .split(/\s+/)

@@ -1258,6 +1258,18 @@ export const incrementumSettings = pgTable("incrementum_settings", {
 
 // Services & Pricing (plan §7.1). A layer over the main catalogue
 // (service_items) — never overwrites it.
+// Contractor roles (Max, 2026-10-21): the fixed, Settings-managed list of
+// contractor types (Ads specialist, Website contractor, Designer, Tech).
+// Each service needs one role; each contractor covers one or more. A
+// client's lines are grouped by role, one contractor per role.
+export const incrementumContractorRoles = pgTable("incrementum_contractor_roles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
 export const incrementumServices = pgTable("incrementum_services", {
   id: uuid("id").primaryKey().defaultRandom(),
   serviceItemId: text("service_item_id").references(() => serviceItems.id),
@@ -1283,6 +1295,8 @@ export const incrementumServices = pgTable("incrementum_services", {
   // e.g. "google-ads", "shopify"). A contractor matches a need when they've
   // quoted the need's service, or when their skills share one of its tags.
   tags: text("tags").array(),
+  // The contractor role that delivers it; null = no contractor (e.g. Max's own Creative Strategy).
+  roleId: uuid("role_id").references(() => incrementumContractorRoles.id),
   status: text("status").notNull().default("active"),
   sortOrder: integer("sort_order").notNull().default(0),
   ...softDelete,
@@ -1343,6 +1357,8 @@ export const incrementumContractorProfiles = pgTable("incrementum_contractor_pro
   portfolioUrl: text("portfolio_url"),
   source: text("source"),
   skills: text("skills").array(),
+  // incrementum_contractor_roles ids this contractor can fill.
+  roleIds: uuid("role_ids").array(),
   gstRegistered: boolean("gst_registered"),
   paymentTerms: text("payment_terms"),
   qualityRating: integer("quality_rating"),
@@ -1695,7 +1711,18 @@ export const incrementumNeeds = pgTable("incrementum_needs", {
   id: uuid("id").primaryKey().defaultRandom(),
   leadId: uuid("lead_id").references(() => incrementumLeads.id),
   engagementId: uuid("engagement_id").references(() => incrementumEngagements.id),
-  serviceId: uuid("service_id").notNull().references(() => incrementumServices.id),
+  // Exactly one of serviceId (an Incrementum service) or serviceItemId (an
+  // off-list GrayPortal catalogue item, on this client only, priced from
+  // the catalogue into sellPrice).
+  serviceId: uuid("service_id").references(() => incrementumServices.id),
+  serviceItemId: text("service_item_id").references(() => serviceItems.id),
+  // Overrides the service's role (and is the only role an off-list line has).
+  roleId: uuid("role_id").references(() => incrementumContractorRoles.id),
+  // Set when the line was copied in from a package: its bundle discount applies.
+  packageId: uuid("package_id").references(() => incrementumPackages.id),
+  // recurring | setup — from the package line; null = the service's own billing.
+  kind: text("kind"),
+  waived: boolean("waived").notNull().default(false),
   title: text("title"),
   tags: text("tags").array(),
   quantity: numeric("quantity", { precision: 8, scale: 2 }).notNull().default("1"),

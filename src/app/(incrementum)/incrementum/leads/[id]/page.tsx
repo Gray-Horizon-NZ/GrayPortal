@@ -5,9 +5,9 @@ import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { LEAD_STAGES, LEAD_STAGE_LABELS, LEAD_SOURCES, LEAD_SOURCE_LABELS, type LeadStage } from "@/lib/incrementum/registry";
 import { LEAD_DRAFTS } from "@/lib/incrementum/drafts";
 import { formatMetric, money, shortDateTime, todayNz, minutesSince } from "@/lib/incrementum/format";
-import { PageHead, Flash, Chip } from "@/components/incrementum/ui";
+import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
 import { OutreachPanel, Timeline } from "@/components/incrementum/Outreach";
-import QuoteBuilder from "@/components/incrementum/QuoteBuilder";
+import ClientServices from "@/components/incrementum/ClientServices";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { setLeadStageAction, updateLeadAction, markLeadRespondedAction, onboardLeadAction, deleteLeadAction } from "../../actions";
@@ -23,7 +23,9 @@ export default async function LeadDetail({ params, searchParams }: { params: Pro
   const target = s.state.settings.responseTargetMinutes ?? 60;
   const waitingMins = l.firstResponseAt ? null : minutesSince(l.receivedAt);
   const responseMins = l.firstResponseAt ? Math.round((new Date(l.firstResponseAt).getTime() - new Date(l.receivedAt).getTime()) / 60_000) : null;
-  const pkg = s.packages.find((p) => p.id === l.packageId) ?? s.packages[0];
+  // The package their lines were copied from, else the one they asked about; never a guess.
+  const quotePackageId = s.state.needs.find((n) => n.leadId === l.id && !n.engagementId && n.packageId)?.packageId;
+  const pkg = s.packages.find((p) => p.id === (quotePackageId ?? l.packageId));
   const engagement = l.convertedClientId ? s.state.engagements.find((e) => e.leadId === l.id) : null;
 
   return (
@@ -31,10 +33,20 @@ export default async function LeadDetail({ params, searchParams }: { params: Pro
       <Link href="/incrementum/leads" className="inc-link">
         ← Leads
       </Link>
-      <PageHead
-        eyebrow={`${LEAD_SOURCE_LABELS[l.source as keyof typeof LEAD_SOURCE_LABELS] ?? l.source} · arrived ${shortDateTime(l.receivedAt)}`}
-        title={l.businessName}
-        actions={
+      <ProfileHead
+        eyebrow={`Lead · ${LEAD_SOURCE_LABELS[l.source as keyof typeof LEAD_SOURCE_LABELS] ?? l.source} · arrived ${shortDateTime(l.receivedAt)}`}
+        name={l.businessName}
+        meta={[
+          l.contactName,
+          l.email && <a href={`mailto:${l.email}`}>{l.email}</a>,
+          l.phone && <a href={`tel:${l.phone}`}>{l.phone}</a>,
+          l.website && (
+            <a href={l.website.startsWith("http") ? l.website : `https://${l.website}`} target="_blank" rel="noreferrer">
+              {l.website.replace(/^https?:\/\//, "")}
+            </a>
+          ),
+        ]}
+        badges={
           <>
             <Chip tone={stage === "won" ? "good" : stage === "lost" ? "danger" : "accent"}>{LEAD_STAGE_LABELS[stage]}</Chip>
             {waitingMins !== null && stage !== "lost" && <Chip tone={waitingMins > target ? "danger" : "warning"}>Waiting {formatMetric(waitingMins, "minutes")}</Chip>}
@@ -71,7 +83,7 @@ export default async function LeadDetail({ params, searchParams }: { params: Pro
 
       <div className="inc-two">
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", minWidth: 0 }}>
-          {!l.convertedClientId && <QuoteBuilder s={s} leadId={id} back={back} />}
+          {!l.convertedClientId && <ClientServices s={s} leadId={id} back={back} />}
           {l.message && (
             <section className="inc-panel">
               <h2 className="inc-cell-title">Their message</h2>

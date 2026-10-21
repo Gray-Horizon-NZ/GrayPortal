@@ -372,6 +372,7 @@ function serviceFromForm(fd: FormData) {
     competitorNotes: nul(fd, "competitorNotes"),
     notes: nul(fd, "notes"),
     tags: nul(fd, "tags"),
+    roleId: nul(fd, "roleId"),
   };
 }
 
@@ -469,6 +470,7 @@ export async function updateContractorProfileAction(fd: FormData) {
         portfolioUrl: nul(fd, "portfolioUrl"),
         source: nul(fd, "source"),
         skills: str(fd, "skills").split(",").map((s) => s.trim()).filter(Boolean),
+        roleIds: fd.getAll("roleIds").map(String).filter(Boolean),
         gstRegistered: gst === "yes" ? true : gst === "no" ? false : null,
         paymentTerms: nul(fd, "paymentTerms"),
         qualityRating: nul(fd, "qualityRating") as never,
@@ -715,22 +717,55 @@ export async function deleteCycleAction(fd: FormData) {
   await act(fd, () => engagements.deleteCycle(str(fd, "id")));
 }
 
-// --- Needs (quote builder) ------------------------------------------------------
+// --- Client lines (services & team on a lead / engagement profile) -------------
+// Add / assign actions carry no flash on purpose: they refresh the profile
+// in place (see act), so the popup they're fired from stays open.
+function scopeFromForm(fd: FormData) {
+  return { leadId: nul(fd, "leadId"), engagementId: nul(fd, "engagementId") };
+}
+
 export async function createNeedAction(fd: FormData) {
-  await act(
-    fd,
-    () =>
-      needs.createNeed({
-        leadId: nul(fd, "leadId"),
-        engagementId: nul(fd, "engagementId"),
-        serviceId: str(fd, "serviceId"),
-        title: nul(fd, "title"),
-        tags: nul(fd, "tags"),
-        quantity: nul(fd, "quantity"),
-        notes: nul(fd, "notes"),
-      }),
-    "Need added"
+  await act(fd, () =>
+    needs.createNeed({
+      ...scopeFromForm(fd),
+      serviceId: nul(fd, "serviceId"),
+      serviceItemId: nul(fd, "serviceItemId"),
+      roleId: nul(fd, "roleId"),
+      title: nul(fd, "title"),
+      tags: nul(fd, "tags"),
+      quantity: nul(fd, "quantity"),
+      notes: nul(fd, "notes"),
+    })
   );
+}
+
+export async function addPackageLinesAction(fd: FormData) {
+  await act(fd, () => needs.addPackageLines(scopeFromForm(fd), str(fd, "packageId")));
+}
+
+export async function setNeedWaivedAction(fd: FormData) {
+  await act(fd, () => needs.setNeedWaived(str(fd, "id"), bool(fd, "waived")));
+}
+
+export async function assignRoleAction(fd: FormData) {
+  await act(fd, () => needs.assignRole(scopeFromForm(fd), nul(fd, "roleId"), str(fd, "contractorId")));
+}
+
+export async function unassignRoleAction(fd: FormData) {
+  await act(fd, () => needs.unassignRole(scopeFromForm(fd), nul(fd, "roleId")));
+}
+
+// --- Contractor roles (Settings) -------------------------------------------------
+export async function createRoleAction(fd: FormData) {
+  await act(fd, () => services.createRole(str(fd, "name")), "Role added");
+}
+
+export async function updateRoleAction(fd: FormData) {
+  await act(fd, () => services.updateRole(str(fd, "id"), { name: str(fd, "name"), sortOrder: Number(str(fd, "sortOrder") || 0) }), "Role saved");
+}
+
+export async function deleteRoleAction(fd: FormData) {
+  await act(fd, () => services.deleteRole(str(fd, "id")), "Role removed");
 }
 
 export async function updateNeedAction(fd: FormData) {
@@ -750,14 +785,6 @@ export async function updateNeedAction(fd: FormData) {
   );
 }
 
-export async function assignNeedAction(fd: FormData) {
-  await act(fd, () => needs.assignNeed(str(fd, "id"), str(fd, "contractorId"), nul(fd, "rate")), "Contractor assigned");
-}
-
-export async function unassignNeedAction(fd: FormData) {
-  await act(fd, () => needs.unassignNeed(str(fd, "id")));
-}
-
 export async function deleteNeedAction(fd: FormData) {
-  await act(fd, () => needs.deleteNeed(str(fd, "id")), "Need removed");
+  await act(fd, () => needs.deleteNeed(str(fd, "id")));
 }

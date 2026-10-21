@@ -3,7 +3,8 @@ import {
   resolveLaunchDates,
   computeNeed,
   quoteTotals,
-  needCandidates,
+  roleGroups,
+  roleCandidates,
   computeServices,
   computePackages,
   computeMetrics,
@@ -86,11 +87,13 @@ function dayOne(): IncrementumState {
         competitorNotes: null,
         notes: null,
         tags: ["google-ads"],
+        roleId: null as string | null,
         status: "active",
         sortOrder: 0,
       },
     ],
-    catalogue: [{ id: "ga-google-ads-mgmt", deliverable: "Google Ads Management (R)", currentMonthlyPrice: "950.00", currentSetupPrice: null, priceText: null }],
+    catalogue: [{ id: "ga-google-ads-mgmt", moduleCode: "GA", deliverable: "Google Ads Management (R)", isRecurring: true, currentMonthlyPrice: "950.00", currentSetupPrice: null, priceText: null }],
+    roles: [],
     contractorServices: [],
     profiles: [],
     packages: [{ ...base, id: packageId, name: "Foundation", description: null, inclusions: null, exclusions: null, deliverables: null, minTermMonths: 3, noticeDays: 30, landingUrl: null, manualMonthlyPrice: null, manualSetupPrice: null, status: "draft", sortOrder: 0 }],
@@ -204,14 +207,41 @@ describe("launch-relative dates", () => {
 
 describe("quote builder", () => {
   const st = dayOne();
+  const roleId = id();
+  st.roles = [{ ...base, id: roleId, name: "Ads specialist", sortOrder: 0 }];
+  st.services[0].roleId = roleId;
   const services = computeServices(st);
   const svc = st.services[0];
   const contractorId = "11111111-1111-1111-1111-111111111111";
+  const benId = "22222222-2222-2222-2222-222222222222";
+  const profile = { ...base, specialty: null, stage: "confirmed", stageChangedAt: t0, businessName: null, email: null, phone: null, location: null, portfolioUrl: null, source: null, skills: null, roleIds: null, gstRegistered: null, paymentTerms: null, qualityRating: null, photoUrl: null, publicTitle: null, bio: null, payWhenPaidAcceptedAt: null, nonSolicitSignedAt: null, noticePeriodDays: null, agreementUrl: null, offRampReason: null, notes: null };
   st.profiles = [
-    { ...base, id: id(), contractorId, name: "Ana", specialty: null, stage: "confirmed", stageChangedAt: t0, businessName: null, email: null, phone: null, location: null, portfolioUrl: null, source: null, skills: ["shopify"], gstRegistered: null, paymentTerms: null, qualityRating: 4, photoUrl: null, publicTitle: null, bio: null, payWhenPaidAcceptedAt: null, nonSolicitSignedAt: null, noticePeriodDays: null, agreementUrl: null, offRampReason: null, notes: null },
+    { ...profile, id: id(), contractorId, name: "Ana", skills: ["shopify"], qualityRating: 4 },
+    { ...profile, id: id(), contractorId: benId, name: "Ben", roleIds: [roleId] },
   ] as never;
   st.contractorServices = [{ ...base, id: id(), contractorId, serviceId: svc.id, rateType: "monthly", rate: "600", capacitySlots: "5", notes: null }] as never;
-  const need = { ...base, id: id(), leadId: null, engagementId: null, serviceId: svc.id, title: null, tags: null, quantity: "1", contractorId: null, contractorRate: null, markupPct: null, sellPrice: null, notes: null, sortOrder: 0 };
+  st.catalogue.push({ id: "gs-brand-guideline", moduleCode: "P2", deliverable: "Brand Guideline", isRecurring: false, currentMonthlyPrice: null, currentSetupPrice: "650.00", priceText: null });
+  const need = {
+    ...base,
+    id: id(),
+    leadId: null,
+    engagementId: null,
+    serviceId: svc.id,
+    serviceItemId: null,
+    roleId: null,
+    packageId: null,
+    kind: null,
+    waived: false,
+    title: null,
+    tags: null,
+    quantity: "1",
+    contractorId: null,
+    contractorRate: null,
+    markupPct: null,
+    sellPrice: null,
+    notes: null,
+    sortOrder: 0,
+  };
 
   it("prices an unassigned need from the service", () => {
     const v = computeNeed(st, services, need as never);
@@ -229,10 +259,34 @@ describe("quote builder", () => {
     expect(quoteTotals([assigned, overridden]).monthlyPrice).toBe(3198);
   });
 
-  it("lists contractors who quoted the service", () => {
-    const c = needCandidates(st, computeServices(st), need as never);
-    expect(c).toHaveLength(1);
-    expect(c[0].match).toBe("quote");
-    expect(c[0].estUnitPrice).toBe(798);
+  it("groups lines by role and lists who can take each role", () => {
+    const offList = computeNeed(st, services, { ...need, id: id(), serviceId: null, serviceItemId: "gs-brand-guideline", kind: "setup", sellPrice: "650" } as never);
+    expect(offList.billing).toBe("one_off");
+    expect(offList.price).toBe(650);
+    const groups = roleGroups(st, [computeNeed(st, services, need as never), offList]);
+    expect(groups.map((g) => [g.roleName, g.lines.length])).toEqual([
+      ["Ads specialist", 1],
+      ["No contractor role", 1],
+    ]);
+    const c = roleCandidates(st, groups[0]);
+    // Ben ticked the role (no quote yet) so he leads; Ana only quoted the service.
+    expect(c.map((x) => x.name)).toEqual(["Ben", "Ana"]);
+    expect(c[0].missingQuotes).toBe(1);
+    expect(c[1].monthlyRate).toBe(600);
+    expect(c[1].jobs).toBe(0);
+  });
+
+  it("keeps a package's bundle discount, and a waived setup costs but isn't charged", () => {
+    const pkg = st.packages[0].id;
+    const a = computeNeed(st, services, { ...need, id: id(), packageId: pkg, kind: "recurring" } as never);
+    const b = computeNeed(st, services, { ...need, id: id(), packageId: pkg, kind: "recurring" } as never);
+    const setup = computeNeed(st, services, { ...need, id: id(), packageId: pkg, kind: "setup", waived: true } as never);
+    const t = quoteTotals([a, b, setup]);
+    expect(t.monthlySubtotal).toBe(1330);
+    expect(t.monthlyDiscount).toBe(106.4); // 8% for 2 recurring lines
+    expect(t.monthlyPrice).toBe(1223.6);
+    expect(t.oneOffPrice).toBe(0);
+    expect(t.oneOffCost).toBe(500);
+    expect(t.waivedValue).toBe(665);
   });
 });

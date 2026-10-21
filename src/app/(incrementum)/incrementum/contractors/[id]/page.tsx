@@ -5,7 +5,7 @@ import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { ALL_CONTRACTOR_STAGES, CONTRACTOR_STAGES, CONTRACTOR_STAGE_LABELS, CONTRACTOR_RATE_TYPES, type ContractorStage } from "@/lib/incrementum/registry";
 import { CONTRACTOR_DRAFTS } from "@/lib/incrementum/drafts";
 import { money, shortDate } from "@/lib/incrementum/format";
-import { PageHead, Flash, Chip, Avatar } from "@/components/incrementum/ui";
+import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
 import { OutreachPanel, Timeline } from "@/components/incrementum/Outreach";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -33,22 +33,36 @@ export default async function ContractorDetail({ params, searchParams }: { param
   const reviewed = Boolean(s.state.contractorLockdownApplied);
   const canOnboard = stage === "confirmed" && agreementsDone && reviewed && d.portalUsers.length === 0;
   const activeServices = s.services.filter((x) => x.status === "active");
+  const roles = s.state.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
+  const activeEngagementIds = new Set(s.state.engagements.filter((e) => e.status === "active").map((e) => e.id));
+  const activeClients = new Set(s.state.engagementContractors.filter((ec) => ec.contractorId === id && activeEngagementIds.has(ec.engagementId)).map((ec) => ec.engagementId)).size;
+  const openLeadIds = new Set(s.state.leads.filter((l) => !l.convertedClientId && l.stage !== "lost").map((l) => l.id));
+  const openQuotes = new Set(s.state.needs.filter((n) => n.contractorId === id && n.leadId && !n.engagementId && openLeadIds.has(n.leadId)).map((n) => n.leadId)).size;
+  const quotedCount = s.state.contractorServices.filter((cs) => cs.contractorId === id).length;
 
   return (
     <>
       <Link href="/incrementum/contractors" className="inc-link">
         ← Contractors
       </Link>
-      <PageHead
-        eyebrow={p.businessName ?? c.specialty ?? "Contractor"}
-        title={
-          <span className="inc-inline" style={{ gap: "var(--gh-space-4)" }}>
-            <Avatar name={c.name} photoUrl={p.photoUrl} size={56} />
-            {c.name}
-          </span>
-        }
-        actions={
+      <ProfileHead
+        eyebrow={`Contractor${p.businessName ?? c.specialty ? ` · ${p.businessName ?? c.specialty}` : ""}`}
+        name={c.name}
+        photoUrl={p.photoUrl}
+        meta={[p.email && <a href={`mailto:${p.email}`}>{p.email}</a>, p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>, p.location]}
+        stats={[
+          { label: "Active clients", value: activeClients },
+          { label: "Open quotes", value: openQuotes },
+          { label: "Services quoted", value: quotedCount },
+          { label: "Quality", value: p.qualityRating ? `${p.qualityRating}/5` : "—" },
+        ]}
+        badges={
           <>
+            {roles
+              .filter((r) => (p.roleIds ?? []).includes(r.id))
+              .map((r) => (
+                <Chip key={r.id}>{r.name}</Chip>
+              ))}
             <Chip tone={stage === "onboarded" ? "accent" : stage === "not_a_fit" ? "danger" : stage === "confirmed" ? "good" : undefined}>{CONTRACTOR_STAGE_LABELS[stage]}</Chip>
             {stage === "onboarded" && <Chip tone="accent">◆ Gray Horizon Team</Chip>}
           </>
@@ -249,7 +263,16 @@ export default async function ContractorDetail({ params, searchParams }: { param
               <Field name="location" label="Location" v={p.location} />
               <Field name="portfolioUrl" label="Portfolio" v={p.portfolioUrl} />
               <Field name="source" label="Found via" v={p.source} />
-              <Field name="skills" label="Skills (comma-separated)" v={(p.skills ?? []).join(", ")} wide />
+              <fieldset className="inc-field inc-field--wide inc-roles-pick">
+                <legend>Roles (which contractor types they can fill)</legend>
+                {roles.length === 0 && <span className="inc-small">Add roles in Settings first.</span>}
+                {roles.map((r) => (
+                  <label key={r.id} className="inc-inline" style={{ fontSize: "var(--gh-text-sm)" }}>
+                    <input type="checkbox" name="roleIds" value={r.id} defaultChecked={(p.roleIds ?? []).includes(r.id)} /> {r.name}
+                  </label>
+                ))}
+              </fieldset>
+              <Field name="skills" label="Skills (comma-separated, finer matching)" v={(p.skills ?? []).join(", ")} wide />
               <label className="inc-field">
                 GST registered
                 <select className="gh-input" name="gstRegistered" defaultValue={p.gstRegistered === null ? "" : p.gstRegistered ? "yes" : "no"}>

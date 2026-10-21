@@ -9,6 +9,7 @@ import {
   incrementumPriceHistory,
   incrementumPackages,
   incrementumPackageServices,
+  incrementumContractorRoles,
   serviceItems,
 } from "@/lib/db/schema";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "../mutate";
@@ -106,6 +107,7 @@ export const ServiceInput = z.object({
   competitorNotes: z.string().nullable(),
   notes: z.string().nullable(),
   tags: z.string().nullable(),
+  roleId: z.string().uuid().nullable(),
 });
 
 function serviceValues(data: z.infer<typeof ServiceInput>) {
@@ -200,4 +202,30 @@ export async function setPackageServiceWaived(id: string, waived: boolean) {
 
 export async function removePackageService(id: string) {
   return withIncrementum(async (caller, tx) => auditedSoftDelete(tx, incrementumPackageServices, id, { caller, entityType: "incrementum_package_service" }));
+}
+
+// --- Contractor roles (Settings) ---------------------------------------------
+export async function createRole(name: string) {
+  const data = z.string().trim().min(1).parse(name);
+  return withIncrementum(async (caller, tx) =>
+    auditedInsert(tx, incrementumContractorRoles, { name: data, sortOrder: 999, ...actor(caller) }, { caller, entityType: "incrementum_contractor_role" })
+  );
+}
+
+export async function updateRole(id: string, input: { name: string; sortOrder: number }) {
+  const data = z.object({ name: z.string().trim().min(1), sortOrder: z.coerce.number().int() }).parse(input);
+  return withIncrementum(async (caller, tx) =>
+    auditedUpdate(tx, incrementumContractorRoles, eq(incrementumContractorRoles.id, id), id, { ...data, updatedBy: caller.userId }, { caller, entityType: "incrementum_contractor_role" })
+  );
+}
+
+/** Services and lines on this role fall into "No contractor role" until given another. */
+export async function deleteRole(id: string) {
+  return withIncrementum(async (caller, tx) => {
+    const onRole = await tx.select({ id: incrementumServices.id }).from(incrementumServices).where(eq(incrementumServices.roleId, id));
+    for (const sv of onRole) {
+      await auditedUpdate(tx, incrementumServices, eq(incrementumServices.id, sv.id), sv.id, { roleId: null, updatedBy: caller.userId }, { caller, entityType: "incrementum_service" });
+    }
+    await auditedSoftDelete(tx, incrementumContractorRoles, id, { caller, entityType: "incrementum_contractor_role" });
+  });
 }

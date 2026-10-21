@@ -118,6 +118,7 @@ export const ContractorProfileInput = z.object({
   portfolioUrl: z.string().nullable(),
   source: z.string().nullable(),
   skills: z.array(z.string()),
+  roleIds: z.array(z.string().uuid()),
   gstRegistered: z.boolean().nullable(),
   paymentTerms: z.string().nullable(),
   qualityRating: z.coerce.number().int().min(1).max(5).nullable(),

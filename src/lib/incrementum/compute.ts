@@ -26,6 +26,7 @@ import type {
   incrementumExperiments,
   incrementumTaskLists,
   incrementumNeeds,
+  incrementumContractorRoles,
   tasks,
   serviceItems,
 } from "@/lib/db/schema";
@@ -39,7 +40,7 @@ import {
   type ContractorStage,
   QUOTE_BASES,
 } from "./registry";
-import { computePackageTotals, computeServicePrice, toNum, type PackageTotals, type PriceBreakdown } from "./pricing";
+import { computePackageTotals, computeServicePrice, recurringBundleDiscountPct, setupBundleDiscountPct, toNum, type PackageTotals, type PriceBreakdown } from "./pricing";
 import {
   criterionMet,
   goalStatus,
@@ -63,7 +64,8 @@ export type IncrementumState = {
   now: Date;
   settings: Row<typeof incrementumSettings>;
   services: Row<typeof incrementumServices>[];
-  catalogue: Pick<Row<typeof serviceItems>, "id" | "deliverable" | "currentMonthlyPrice" | "currentSetupPrice" | "priceText">[];
+  catalogue: Pick<Row<typeof serviceItems>, "id" | "moduleCode" | "deliverable" | "isRecurring" | "currentMonthlyPrice" | "currentSetupPrice" | "priceText">[];
+  roles: Row<typeof incrementumContractorRoles>[];
   contractorServices: Row<typeof incrementumContractorServices>[];
   profiles: (Row<typeof incrementumContractorProfiles> & { name: string; specialty: string | null })[];
   packages: Row<typeof incrementumPackages>[];
@@ -650,35 +652,50 @@ export function metricLabel(key: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Client needs -> quote (the assign-a-contractor quote builder)
+// Client lines -> quote, grouped by contractor role (Max, 2026-10-21):
+// a profile starts empty; packages, services or off-list catalogue items
+// are added as lines; lines group by the role that delivers them, and one
+// contractor is added per role.
 // ---------------------------------------------------------------------------
 export type NeedView = Row<typeof incrementumNeeds> & {
   service: ServiceView | null;
-  billing: string;
+  catalogueItem: IncrementumState["catalogue"][number] | null;
+  name: string;
+  billing: "monthly" | "one_off";
+  /** The line's own role, else its service's. */
+  roleId: string | null;
+  packageName: string | null;
   contractorName: string | null;
   rate: number | null; // per unit: the assigned contractor's rate, else the service's quote
   rateSource: "assigned" | "service" | "none";
   markup: number;
   unitPrice: number | null;
-  price: number | null; // unitPrice x quantity
+  listPrice: number | null; // unitPrice x quantity, before waiving
+  price: number | null; // what the client pays: 0 when waived
   cost: number | null;
   profit: number | null;
-  priceSource: "override" | "cost_plus" | "catalogue_floor" | "service" | "none";
+  priceSource: "override" | "cost_plus" | "catalogue_floor" | "service" | "catalogue" | "none";
 };
 
 export function computeNeed(state: IncrementumState, services: ServiceView[], need: Row<typeof incrementumNeeds>): NeedView {
-  const service = services.find((s) => s.id === need.serviceId) ?? null;
+  const service = need.serviceId ? (services.find((s) => s.id === need.serviceId) ?? null) : null;
+  const catalogueItem = need.serviceItemId ? (state.catalogue.find((c) => c.id === need.serviceItemId) ?? null) : null;
   const qty = toNum(need.quantity) ?? 1;
   const assignedRate = need.contractorId ? toNum(need.contractorRate) : null;
   const rate = assignedRate ?? service?.price.quote ?? null;
   const rateSource: NeedView["rateSource"] = assignedRate !== null ? "assigned" : rate !== null ? "service" : "none";
   const markup = toNum(need.markupPct) ?? service?.effectiveMarkupPct ?? (toNum(state.settings.defaultMarkupPct) ?? 33);
+  const billing: NeedView["billing"] =
+    need.kind === "recurring" ? "monthly" : need.kind === "setup" ? "one_off" : service ? (service.billing === "monthly" ? "monthly" : "one_off") : catalogueItem?.isRecurring ? "monthly" : "one_off";
   const override = toNum(need.sellPrice);
   let unitPrice: number | null = null;
   let priceSource: NeedView["priceSource"] = "none";
   if (override !== null) {
     unitPrice = override;
     priceSource = "override";
+  } else if (!service && catalogueItem) {
+    unitPrice = toNum(billing === "monthly" ? catalogueItem.currentMonthlyPrice : catalogueItem.currentSetupPrice) ?? toNum(catalogueItem.currentMonthlyPrice) ?? toNum(catalogueItem.currentSetupPrice);
+    priceSource = unitPrice !== null ? "catalogue" : "none";
   } else if (rate !== null) {
     unitPrice = Math.round(rate * (1 + markup / 100) * 100) / 100;
     priceSource = "cost_plus";
@@ -691,18 +708,25 @@ export function computeNeed(state: IncrementumState, services: ServiceView[], ne
     unitPrice = service.price.sellPrice;
     priceSource = "service";
   }
-  const price = unitPrice !== null ? Math.round(unitPrice * qty * 100) / 100 : null;
+  const listPrice = unitPrice !== null ? Math.round(unitPrice * qty * 100) / 100 : null;
+  const price = need.waived ? 0 : listPrice;
+  // A waived line is still delivered, so the contractor is still paid.
   const cost = rate !== null ? Math.round(rate * qty * 100) / 100 : null;
   const contractorName = need.contractorId ? (state.profiles.find((p) => p.contractorId === need.contractorId)?.name ?? null) : null;
   return {
     ...need,
     service,
-    billing: service?.billing ?? "monthly",
+    catalogueItem,
+    name: service?.name ?? catalogueItem?.deliverable ?? need.title ?? "Line",
+    billing,
+    roleId: need.roleId ?? service?.roleId ?? null,
+    packageName: need.packageId ? (state.packages.find((p) => p.id === need.packageId)?.name ?? null) : null,
     contractorName,
     rate,
     rateSource,
     markup,
     unitPrice,
+    listPrice,
     price,
     cost,
     profit: price !== null && cost !== null ? Math.round((price - cost) * 100) / 100 : null,
@@ -711,88 +735,152 @@ export function computeNeed(state: IncrementumState, services: ServiceView[], ne
 }
 
 export type QuoteTotals = {
+  monthlySubtotal: number;
+  monthlyDiscount: number; // package bundle discounts on monthly lines
   monthlyPrice: number;
   monthlyCost: number;
   monthlyProfit: number;
   marginPct: number | null;
+  oneOffSubtotal: number;
+  oneOffDiscount: number;
   oneOffPrice: number;
   oneOffCost: number;
+  waivedValue: number;
   unassigned: number;
   unpriced: number;
 };
 
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Lines copied in from a package keep that package's bundle discount
+ * (8 / 12 / 15% recurring by count, 5 / 10% setup), worked out over the
+ * lines still on the profile, so removing one recalculates it.
+ */
+function bundleDiscount(lines: NeedView[], pctFor: (count: number) => number): number {
+  const byPackage = new Map<string, NeedView[]>();
+  for (const l of lines) if (l.packageId && !l.waived) byPackage.set(l.packageId, [...(byPackage.get(l.packageId) ?? []), l]);
+  let off = 0;
+  for (const group of byPackage.values()) off += group.reduce((a, l) => a + (l.price ?? 0), 0) * (pctFor(group.length) / 100);
+  return r2(off);
+}
+
 export function quoteTotals(needs: NeedView[]): QuoteTotals {
   const monthly = needs.filter((n) => n.billing === "monthly");
   const oneOff = needs.filter((n) => n.billing !== "monthly");
-  const sum = (rows: NeedView[], k: "price" | "cost") => Math.round(rows.reduce((a, n) => a + (n[k] ?? 0), 0) * 100) / 100;
-  const monthlyPrice = sum(monthly, "price");
+  const sum = (rows: NeedView[], k: "price" | "cost") => r2(rows.reduce((a, n) => a + (n[k] ?? 0), 0));
+  const monthlySubtotal = sum(monthly, "price");
+  const monthlyDiscount = bundleDiscount(monthly, recurringBundleDiscountPct);
+  const monthlyPrice = r2(monthlySubtotal - monthlyDiscount);
   const monthlyCost = sum(monthly, "cost");
-  const monthlyProfit = Math.round((monthlyPrice - monthlyCost) * 100) / 100;
+  const monthlyProfit = r2(monthlyPrice - monthlyCost);
+  const oneOffSubtotal = sum(oneOff, "price");
+  const oneOffDiscount = bundleDiscount(oneOff, setupBundleDiscountPct);
   return {
+    monthlySubtotal,
+    monthlyDiscount,
     monthlyPrice,
     monthlyCost,
     monthlyProfit,
     marginPct: monthlyPrice > 0 ? Math.round((monthlyProfit / monthlyPrice) * 1000) / 10 : null,
-    oneOffPrice: sum(oneOff, "price"),
+    oneOffSubtotal,
+    oneOffDiscount,
+    oneOffPrice: r2(oneOffSubtotal - oneOffDiscount),
     oneOffCost: sum(oneOff, "cost"),
+    waivedValue: r2(needs.filter((n) => n.waived).reduce((a, n) => a + (n.listPrice ?? 0), 0)),
     unassigned: needs.filter((n) => !n.contractorId).length,
     unpriced: needs.filter((n) => n.price === null).length,
   };
 }
 
-export type Candidate = {
+export type RoleGroup = {
+  roleId: string | null;
+  roleName: string;
+  lines: NeedView[];
+  /** Set when every line in the group has the same contractor. */
+  contractorId: string | null;
+  contractorName: string | null;
+  assignedCount: number;
+};
+
+/** A profile's lines grouped by contractor role, in Settings order; lines with no role last. */
+export function roleGroups(state: IncrementumState, views: NeedView[]): RoleGroup[] {
+  const roles = state.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
+  const known = new Set(roles.map((r) => r.id));
+  const groups: RoleGroup[] = [];
+  const build = (roleId: string | null, roleName: string, lines: NeedView[]) => {
+    if (!lines.length) return;
+    const assigned = lines.filter((l) => l.contractorId);
+    const ids = new Set(assigned.map((l) => l.contractorId));
+    const single = ids.size === 1 && assigned.length === lines.length ? assigned[0] : null;
+    groups.push({ roleId, roleName, lines, contractorId: single?.contractorId ?? null, contractorName: single?.contractorName ?? null, assignedCount: assigned.length });
+  };
+  for (const r of roles) build(r.id, r.name, views.filter((v) => v.roleId === r.id));
+  build(null, "No contractor role", views.filter((v) => !v.roleId || !known.has(v.roleId)));
+  return groups;
+}
+
+export type RoleCandidate = {
   contractorId: string;
   name: string;
+  photoUrl: string | null;
   stage: string;
   onBench: boolean;
-  rate: number | null;
-  rateType: string | null;
-  capacitySlots: number | null;
-  slotsUsed: number;
   quality: number | null;
-  match: "quote" | "skills";
-  matchedTags: string[];
-  estUnitPrice: number | null;
+  /** They cover this role (ticked on their profile), not just quoted one of its services. */
+  roleMatch: boolean;
+  lines: { needId: string; name: string; billing: NeedView["billing"]; rate: number | null }[];
+  monthlyRate: number;
+  oneOffRate: number;
+  missingQuotes: number;
+  /** Active clients they're on + open lead quotes they're assigned to. */
+  jobs: number;
 };
 
 /**
- * Everyone who can fulfil a need: contractors who've quoted its service
- * (strongest match), plus contractors whose skills share one of the need's
- * or service's tags (no quote yet). Not-a-fit contractors are excluded.
- * Bench first, then quoted, then cheapest.
+ * Who can take a role on this profile: contractors who cover the role,
+ * plus anyone who has quoted one of the group's services. Their price is
+ * their quoted rate for each line (× quantity); a line they haven't quoted
+ * counts as missing. Not-a-fit contractors are excluded. Bench first, then
+ * role matches, then fewest gaps, then cheapest.
  */
-export function needCandidates(state: IncrementumState, services: ServiceView[], need: Row<typeof incrementumNeeds>): Candidate[] {
-  const service = services.find((s) => s.id === need.serviceId) ?? null;
-  const tags = new Set([...(need.tags ?? []), ...(service?.tags ?? [])].map((t) => t.toLowerCase()));
-  const markup = toNum(need.markupPct) ?? service?.effectiveMarkupPct ?? (toNum(state.settings.defaultMarkupPct) ?? 33);
-  const activeEng = new Set(state.engagements.filter((e) => e.status === "active").map((e) => e.id));
-  const out = new Map<string, Candidate>();
+export function roleCandidates(state: IncrementumState, group: RoleGroup): RoleCandidate[] {
+  const activeEng = new Set(state.engagements.filter((e) => e.status === "active" && !e.deletedAt).map((e) => e.id));
+  const openLeads = new Set(state.leads.filter((l) => !l.deletedAt && !l.convertedClientId && l.stage !== "lost").map((l) => l.id));
+  const serviceIds = new Set(group.lines.map((l) => l.serviceId).filter(Boolean));
+  const out: RoleCandidate[] = [];
   for (const p of state.profiles) {
     if (p.deletedAt || p.stage === "not_a_fit") continue;
-    const quote = state.contractorServices.find((cs) => cs.contractorId === p.contractorId && cs.serviceId === need.serviceId && !cs.deletedAt);
-    const skills = (p.skills ?? []).map((x) => x.toLowerCase());
-    const matchedTags = skills.filter((x) => tags.has(x));
-    if (!quote && matchedTags.length === 0) continue;
-    const rate = quote ? toNum(quote.rate) : null;
-    const slotsUsed = state.engagementContractors.filter(
-      (ec) => !ec.deletedAt && ec.contractorId === p.contractorId && ec.serviceId === need.serviceId && ec.role === "main" && activeEng.has(ec.engagementId)
-    ).length;
-    out.set(p.contractorId, {
+    const quotes = state.contractorServices.filter((cs) => cs.contractorId === p.contractorId && !cs.deletedAt);
+    const roleMatch = group.roleId !== null && (p.roleIds ?? []).includes(group.roleId);
+    if (!roleMatch && !quotes.some((q) => serviceIds.has(q.serviceId))) continue;
+    const lines = group.lines.map((l) => {
+      const q = l.serviceId ? quotes.find((x) => x.serviceId === l.serviceId) : undefined;
+      const rate = q ? toNum(q.rate) : null;
+      return { needId: l.id, name: l.name, billing: l.billing, rate: rate !== null ? r2(rate * (toNum(l.quantity) ?? 1)) : null };
+    });
+    const engagements = new Set(state.engagementContractors.filter((ec) => !ec.deletedAt && ec.contractorId === p.contractorId && activeEng.has(ec.engagementId)).map((ec) => ec.engagementId));
+    const leads = new Set(state.needs.filter((n) => !n.deletedAt && n.contractorId === p.contractorId && n.leadId && !n.engagementId && openLeads.has(n.leadId)).map((n) => n.leadId));
+    out.push({
       contractorId: p.contractorId,
       name: p.name,
+      photoUrl: p.photoUrl,
       stage: p.stage,
       onBench: isBench(p.stage),
-      rate,
-      rateType: quote?.rateType ?? null,
-      capacitySlots: quote ? toNum(quote.capacitySlots) : null,
-      slotsUsed,
       quality: p.qualityRating,
-      match: quote ? "quote" : "skills",
-      matchedTags,
-      estUnitPrice: rate !== null ? Math.round(rate * (1 + markup / 100) * 100) / 100 : null,
+      roleMatch,
+      lines,
+      monthlyRate: r2(lines.filter((l) => l.billing === "monthly").reduce((a, l) => a + (l.rate ?? 0), 0)),
+      oneOffRate: r2(lines.filter((l) => l.billing !== "monthly").reduce((a, l) => a + (l.rate ?? 0), 0)),
+      missingQuotes: lines.filter((l) => l.rate === null).length,
+      jobs: engagements.size + leads.size,
     });
   }
-  return [...out.values()].sort(
-    (a, b) => Number(b.onBench) - Number(a.onBench) || Number(b.match === "quote") - Number(a.match === "quote") || (a.rate ?? Infinity) - (b.rate ?? Infinity)
+  return out.sort(
+    (a, b) =>
+      Number(b.onBench) - Number(a.onBench) ||
+      Number(b.roleMatch) - Number(a.roleMatch) ||
+      a.missingQuotes - b.missingQuotes ||
+      a.monthlyRate + a.oneOffRate - (b.monthlyRate + b.oneOffRate)
   );
 }

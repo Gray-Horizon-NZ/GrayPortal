@@ -1003,3 +1003,228 @@
 @media (prefers-reduced-motion: reduce) {
   .gh-incrementum .inc-bar-fill { animation: none; }
 }
+
+/* --- Profile header (DM Rider admin's customer layout, 2026-10-21) ---- */
+.gh-incrementum .inc-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-6);
+}
+
+.gh-incrementum .inc-profile-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gh-space-4);
+}
+
+.gh-incrementum .inc-profile-id {
+  display: flex;
+  align-items: center;
+  gap: var(--gh-space-4);
+  min-width: 0;
+}
+
+.gh-incrementum .inc-profile-name {
+  font-family: var(--gh-font-display);
+  font-size: var(--gh-text-2xl);
+  color: var(--gh-text-emphasis);
+  line-height: 1.15;
+}
+
+.gh-incrementum .inc-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gh-space-1) var(--gh-space-4);
+  margin-top: var(--gh-space-1);
+  font-size: var(--gh-text-sm);
+  color: var(--gh-text-muted);
+}
+
+.gh-incrementum .inc-profile-meta a:hover {
+  color: var(--gh-accent);
+}
+
+.gh-incrementum .inc-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--gh-space-3);
+}
+
+.gh-incrementum .inc-profile-stat {
+  background: var(--gh-lt-panel);
+  border: 1px solid var(--gh-border);
+  border-top: 2px solid var(--gh-accent);
+  padding: var(--gh-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-1);
+}
+
+.gh-incrementum .inc-profile-stat-value {
+  font-family: var(--gh-font-display);
+  font-size: var(--gh-text-xl);
+  color: var(--gh-text-emphasis);
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-incrementum .inc-profile-stat-label {
+  font-size: var(--gh-text-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wider);
+  color: var(--gh-text-muted);
+}
+
+/* --- Services & team: role groups -------------------------------------- */
+.gh-incrementum .inc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--gh-space-3);
+  padding: var(--gh-space-6);
+  border: 1px dashed var(--gh-border-strong);
+}
+
+.gh-incrementum .inc-role {
+  border: 1px solid var(--gh-border);
+}
+
+.gh-incrementum .inc-role-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gh-space-3);
+  padding: var(--gh-space-3) var(--gh-space-4);
+  background: var(--gh-lt-panel-2);
+  border-bottom: 1px solid var(--gh-border);
+}
+
+.gh-incrementum .inc-role-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gh-incrementum .inc-role-label {
+  font-size: var(--gh-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  color: var(--gh-text-emphasis);
+}
+
+.gh-incrementum .inc-role-who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gh-space-2);
+}
+
+.gh-incrementum .inc-role > .inc-list {
+  padding: 0 var(--gh-space-4);
+}
+
+.gh-incrementum .inc-roles-pick {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gh-space-2) var(--gh-space-6);
+}
+
+.gh-incrementum .inc-roles-pick legend {
+  width: 100%;
+  margin-bottom: var(--gh-space-2);
+}
+
+/* --- Pick lists in popups (add contractor / add package or service) ---- */
+.gh-incrementum .inc-tabs {
+  display: flex;
+  gap: var(--gh-space-1);
+  border-bottom: 1px solid var(--gh-border);
+  margin-bottom: var(--gh-space-4);
+}
+
+.gh-incrementum .inc-tabs-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: var(--gh-space-2) var(--gh-space-3);
+  font-size: var(--gh-text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--gh-tracking-wide);
+  color: var(--gh-text-muted);
+  cursor: pointer;
+}
+
+.gh-incrementum .inc-tabs-btn[data-active] {
+  color: var(--gh-text-emphasis);
+  border-bottom-color: var(--gh-accent);
+}
+
+.gh-incrementum .inc-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gh-space-3) var(--gh-space-4);
+  padding: var(--gh-space-3) 0;
+  border-bottom: 1px solid var(--gh-border);
+  font-size: var(--gh-text-sm);
+}
+
+.gh-incrementum .inc-pick:last-child {
+  border-bottom: none;
+}
+
+.gh-incrementum .inc-pick-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.gh-incrementum .inc-pick-main strong {
+  font-weight: 500;
+  color: var(--gh-text-emphasis);
+}
+
+.gh-incrementum .inc-pick-price,
+.gh-incrementum .inc-pick-jobs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 64px;
+}
+
+/* The one green control in Incrementum (Max, 2026-10-21): ADD in pickers. */
+.gh-incrementum .inc-btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  background: #2f7d4a;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--gh-radius);
+  font-size: var(--gh-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--gh-tracking-wide);
+  padding: var(--gh-space-3) var(--gh-space-4);
+  cursor: pointer;
+  transition: background var(--gh-transition);
+}
+
+.gh-incrementum .inc-btn-add:hover {
+  background: #266a3e;
+}
+
+.gh-incrementum .inc-btn-add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

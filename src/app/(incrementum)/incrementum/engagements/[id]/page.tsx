@@ -6,9 +6,9 @@ import { ENGAGEMENT_HEALTH, ENGAGEMENT_HEALTH_LABELS, ENGAGEMENT_MODULES, ENGAGE
 import { money, shortDate, todayNz } from "@/lib/incrementum/format";
 import { monthsBetween } from "@/lib/incrementum/evaluate";
 import { toNum } from "@/lib/incrementum/pricing";
-import { PageHead, Flash, Chip } from "@/components/incrementum/ui";
+import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
 import { CycleRow } from "@/components/incrementum/CycleRow";
-import QuoteBuilder from "@/components/incrementum/QuoteBuilder";
+import ClientServices from "@/components/incrementum/ClientServices";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
 import {
@@ -44,10 +44,11 @@ export default async function EngagementDetail({ params, searchParams }: { param
       <Link href="/incrementum/engagements" className="inc-link">
         ← Engagements
       </Link>
-      <PageHead
-        eyebrow={d.packageName ? `${d.packageName} package` : "Engagement"}
-        title={d.clientName ?? e.name}
-        actions={
+      <ProfileHead
+        eyebrow={d.packageName ? `Client · ${d.packageName} package` : "Client"}
+        name={d.clientName ?? e.name}
+        meta={[e.startDate && `Started ${shortDate(e.startDate, true)}`, e.minTermEnd && `Min term to ${shortDate(e.minTermEnd, true)}`]}
+        badges={
           <>
             <Chip tone={e.status === "active" ? "good" : e.status === "ended" ? undefined : "warning"}>{e.status}</Chip>
             <Chip tone={e.health === "good" ? "good" : e.health === "watch" ? "warning" : "danger"}>{ENGAGEMENT_HEALTH_LABELS[e.health as keyof typeof ENGAGEMENT_HEALTH_LABELS] ?? e.health}</Chip>
@@ -86,7 +87,7 @@ export default async function EngagementDetail({ params, searchParams }: { param
         </div>
       </div>
 
-      <QuoteBuilder s={s} engagementId={id} back={back} readOnly={e.status === "ended"} />
+      <ClientServices s={s} engagementId={id} back={back} readOnly={e.status === "ended"} />
 
       <section className="inc-panel">
         <div className="inc-cell-head">
