@@ -20,6 +20,7 @@ import CalendarPicker from "./CalendarPicker";
 import GoogleTasklistPicker from "@/components/ui/GoogleTasklistPicker";
 import { getXeroConnection } from "@/lib/dal/xeroConnection";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead } from "@/components/ui/terminal/Term";
 
 export default async function SettingsPage({
   searchParams,
@@ -37,11 +38,8 @@ export default async function SettingsPage({
   const ideationCategories = await listIdeationCategories();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 560 }}>
-      <div>
-        <p className="gh-eyebrow">Settings</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Integrations</h1>
-      </div>
+    <div className="gh-term-page" style={{ maxWidth: 760 }}>
+      <PageHead title="Settings" sub="Integrations, security and the ideation categories" />
 
       {google === "connected" && (
         <p style={{ color: "var(--gh-success)" }}>Google Calendar & Tasks connected.</p>

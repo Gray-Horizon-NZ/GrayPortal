@@ -1,15 +1,10 @@
 import TriageTabs from "./TriageTabs";
+import { PageHead } from "@/components/ui/terminal/Term";
 
 export default function EmailTriageLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", maxWidth: 800 }}>
-      <div>
-        <p className="gh-eyebrow">Internal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Email Triage</h1>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Inbound mail that couldn&apos;t be auto-matched to a contact, and a single feed of every matched client email.
-        </p>
-      </div>
+    <div className="gh-term-page" style={{ maxWidth: 1000 }}>
+      <PageHead title="Email triage" sub="Inbound mail that couldn't be auto-matched to a contact, and a single feed of every matched client email." />
       <TriageTabs />
       {children}
     </div>

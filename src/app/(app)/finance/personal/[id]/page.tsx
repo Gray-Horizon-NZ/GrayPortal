@@ -11,6 +11,7 @@ import {
   deletePeriodAction,
 } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead } from "@/components/ui/terminal/Term";
 import HourlyRateHelper from "./HourlyRateHelper";
 
 function money(n: number) {
@@ -34,19 +35,13 @@ export default async function PersonalFinancePeriodPage({ params }: { params: Pr
   const figures = computePeriodFigures(period, expenseItems, contractorPayments, businessExpensesMonthlyNzd);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--gh-space-3)" }}>
-        <div>
-          <Link href="/finance/personal/history" style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-accent)" }}>← All periods</Link>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)", marginTop: "var(--gh-space-2)" }}>{period.label}</h1>
-          {period.notes && (
-            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginTop: "var(--gh-space-1)" }}>{period.notes}</p>
-          )}
-        </div>
+    <div className="gh-term-page" style={{ maxWidth: 900 }}>
+      <Link href="/finance/personal/history" className="gh-term-backlink">← All periods</Link>
+      <PageHead title={period.label} sub={period.notes ?? undefined}>
         <form action={deletePeriodAction.bind(null, period.id)}>
           <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Deleting…">Delete period</SubmitButton>
         </form>
-      </div>
+      </PageHead>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--gh-space-4)" }}>
         <div className="gh-card">

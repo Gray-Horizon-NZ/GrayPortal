@@ -1,37 +1,44 @@
+import { Clock } from "lucide-react";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { createRecurringTemplateAction, softDeleteRecurringTemplateAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead, Panel } from "@/components/ui/terminal/Term";
+
+const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 
 export default async function RemindersPage() {
   const templates = await listRecurringTemplates();
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
-      <div>
-        <p className="gh-eyebrow">Gray Horizon</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>Recurring Reminders</h1>
-      </div>
+    <div className="gh-term-page" style={{ maxWidth: 900 }}>
+      <PageHead title="Recurring reminders" sub="Each one creates its task automatically when it comes due" />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-        {templates.map((t) => (
-          <div key={t.id} className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <p style={{ fontWeight: 500 }}>{t.name}</p>
-              <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>
-                {t.interval} — next due {t.nextDueDate}
-              </p>
-            </div>
-            <form action={softDeleteRecurringTemplateAction.bind(null, t.id)}>
-              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">Remove</SubmitButton>
-            </form>
+      <Panel title="Reminders" icon={Clock} right={`${templates.length} set`} pad={templates.length === 0}>
+        {templates.length === 0 ? (
+          <p className="gh-term-muted">No recurring reminders configured.</p>
+        ) : (
+          <div className="gh-term-rows">
+            {templates.map((t) => (
+              <div key={t.id} className="gh-term-row">
+                <div style={{ minWidth: 0 }}>
+                  <p className="gh-term-strong">{t.name}</p>
+                  <p className="gh-term-small" style={t.nextDueDate <= today ? { color: "var(--gh-warning)" } : undefined}>
+                    {t.interval} · next due {fmt(t.nextDueDate)}
+                  </p>
+                </div>
+                <form action={softDeleteRecurringTemplateAction.bind(null, t.id)} style={{ marginLeft: "auto" }}>
+                  <SubmitButton className="gh-link-btn gh-link-btn--danger" pendingLabel="Removing…">Remove</SubmitButton>
+                </form>
+              </div>
+            ))}
           </div>
-        ))}
-        {templates.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No recurring reminders configured.</p>}
-      </div>
+        )}
+      </Panel>
 
       <details className="gh-card">
-        <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add reminder</summary>
-        <form action={createRecurringTemplateAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
+        <summary className="gh-eyebrow">Add reminder</summary>
+        <form action={createRecurringTemplateAction} className="gh-term-form">
           <input className="gh-input" name="name" placeholder="Name" required />
           <input className="gh-input" name="taskTitle" placeholder="Task title to create" required />
           <select className="gh-input" name="interval" defaultValue="monthly">

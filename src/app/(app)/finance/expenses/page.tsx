@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Receipt } from "lucide-react";
 import { withCaller } from "@/lib/dal/auth";
 import { listBusinessExpenses } from "@/lib/dal/businessExpenses";
 import { createBusinessExpenseAction, updateBusinessExpenseAction, deleteBusinessExpenseAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead, Panel } from "@/components/ui/terminal/Term";
 
 function money(v: string | null) {
   return v ? `$${Number(v).toLocaleString("en-NZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
@@ -26,108 +28,119 @@ export default async function BusinessExpensesPage() {
     }),
     { yearly: 0, monthly: 0, gstYearly: 0, gstMonthly: 0 }
   );
+  const writeoffs = items.filter((i) => i.isWriteoff).length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 1000 }}>
-      <div>
-        <p className="gh-eyebrow">Internal</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Business Expenses</h1>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Recurring software/tool costs and whether they&apos;re a write-off. Feeds{" "}
-          <Link href="/finance/personal" style={{ color: "var(--gh-accent)" }}>Personal Finance</Link>&apos;s monthly expense figure.
-        </p>
+    <div className="gh-term-page" style={{ maxWidth: 1200 }}>
+      <PageHead
+        title="Business expenses"
+        sub={
+          <>
+            Recurring software/tool costs and whether they&apos;re a write-off. Feeds{" "}
+            <Link href="/finance/personal" className="gh-term-link">Owner&apos;s Cut</Link>&apos;s monthly expense figure.
+          </>
+        }
+      />
+
+      <div className="gh-term-split">
+        <div>
+          <p className="k">Monthly</p>
+          <p className="v">{money(totals.monthly.toFixed(2))}</p>
+          <p className="h">all recurring items</p>
+        </div>
+        <div>
+          <p className="k">Yearly</p>
+          <p className="v">{money(totals.yearly.toFixed(2))}</p>
+          <p className="h">annual subscriptions</p>
+        </div>
+        <div>
+          <p className="k">Write-offs</p>
+          <p className="v">{writeoffs}</p>
+          <p className="h">of {items.length} items</p>
+        </div>
+        <div>
+          <p className="k">GST</p>
+          <p className="v">{money(totals.gstMonthly.toFixed(2))}</p>
+          <p className="h">per month · {money(totals.gstYearly.toFixed(2))}/yr</p>
+        </div>
       </div>
 
-      <section style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--gh-text-sm)" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--gh-border)", textAlign: "left" }}>
-              <th style={{ padding: "var(--gh-space-2)" }}>Category</th>
-              <th style={{ padding: "var(--gh-space-2)" }}>Item</th>
-              <th style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>Yearly</th>
-              <th style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>Monthly</th>
-              <th style={{ padding: "var(--gh-space-2)", textAlign: "center" }}>Write-off</th>
-              <th style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>GST (yr)</th>
-              <th style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>GST (mo)</th>
-              <th style={{ padding: "var(--gh-space-2)" }} />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i) => (
-              <tr key={i.id} style={{ borderBottom: "1px solid var(--gh-border)" }}>
-                <td style={{ padding: "var(--gh-space-2)", fontWeight: 500 }}>{i.category || "—"}</td>
-                <td style={{ padding: "var(--gh-space-2)" }}>{i.label}</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(i.yearlyAmountNzd)}</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(i.monthlyAmountNzd)}</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "center" }}>
-                  <span className="gh-badge" data-status={i.isWriteoff ? "success" : "danger"}>{i.isWriteoff ? "Yes" : "No"}</span>
-                </td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(i.gstYearlyNzd)}</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(i.gstMonthlyNzd)}</td>
-                <td style={{ padding: "var(--gh-space-2)" }}>
-                  <details>
-                    <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Edit</summary>
-                    <form
-                      action={updateBusinessExpenseAction.bind(null, i.id)}
-                      style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-2)", minWidth: 220 }}
-                    >
-                      <input className="gh-input" name="category" defaultValue={i.category ?? ""} placeholder="Category" />
-                      <input className="gh-input" name="label" defaultValue={i.label} placeholder="Item" required />
-                      <input className="gh-input" name="yearlyAmountNzd" defaultValue={i.yearlyAmountNzd ?? ""} placeholder="Yearly" />
-                      <input className="gh-input" name="monthlyAmountNzd" defaultValue={i.monthlyAmountNzd ?? ""} placeholder="Monthly" />
-                      <label style={{ fontSize: "var(--gh-text-sm)" }}>
-                        <input type="checkbox" name="isWriteoff" defaultChecked={i.isWriteoff} /> Write-off
-                      </label>
-                      <input className="gh-input" name="gstYearlyNzd" defaultValue={i.gstYearlyNzd ?? ""} placeholder="GST (yearly)" />
-                      <input className="gh-input" name="gstMonthlyNzd" defaultValue={i.gstMonthlyNzd ?? ""} placeholder="GST (monthly)" />
-                      <SubmitButton>Save</SubmitButton>
-                    </form>
-                    <form action={deleteBusinessExpenseAction.bind(null, i.id)} style={{ marginTop: "var(--gh-space-2)" }}>
-                      <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)", fontSize: "var(--gh-text-micro)" }}>
-                        Remove
-                      </SubmitButton>
-                    </form>
-                  </details>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 && (
+      <Panel title="Expenses" icon={Receipt} right={`${items.length} items`} pad={false}>
+        <div className="gh-table-wrap" style={{ border: 0 }}>
+          <table className="gh-table">
+            <thead>
               <tr>
-                <td colSpan={8} style={{ padding: "var(--gh-space-4)", color: "var(--gh-text-muted)" }}>No expenses logged yet.</td>
+                <th>Category</th>
+                <th>Item</th>
+                <th className="gh-table-num">Yearly</th>
+                <th className="gh-table-num">Monthly</th>
+                <th>Write-off</th>
+                <th className="gh-table-num">GST (yr)</th>
+                <th className="gh-table-num">GST (mo)</th>
+                <th />
               </tr>
-            )}
-          </tbody>
-          {items.length > 0 && (
-            <tfoot>
-              <tr style={{ fontWeight: 600 }}>
-                <td style={{ padding: "var(--gh-space-2)" }} colSpan={2}>Total</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(totals.yearly.toFixed(2))}</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(totals.monthly.toFixed(2))}</td>
-                <td />
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(totals.gstYearly.toFixed(2))}</td>
-                <td style={{ padding: "var(--gh-space-2)", textAlign: "right" }}>{money(totals.gstMonthly.toFixed(2))}</td>
-                <td />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </section>
+            </thead>
+            <tbody>
+              {items.map((i) => (
+                <tr key={i.id}>
+                  <td className="gh-term-small">{i.category || "—"}</td>
+                  <td className="gh-term-strong">{i.label}</td>
+                  <td className="gh-table-num">{money(i.yearlyAmountNzd)}</td>
+                  <td className="gh-table-num">{money(i.monthlyAmountNzd)}</td>
+                  <td>
+                    <span className="gh-badge" data-status={i.isWriteoff ? "success" : undefined}>{i.isWriteoff ? "Yes" : "No"}</span>
+                  </td>
+                  <td className="gh-table-num">{money(i.gstYearlyNzd)}</td>
+                  <td className="gh-table-num">{money(i.gstMonthlyNzd)}</td>
+                  <td>
+                    <details className="gh-term-rowedit">
+                      <summary>Edit</summary>
+                      <div className="gh-term-rowedit-pop">
+                        <form action={updateBusinessExpenseAction.bind(null, i.id)} className="gh-term-form" style={{ marginTop: 0 }}>
+                          <input className="gh-input" name="category" defaultValue={i.category ?? ""} placeholder="Category" />
+                          <input className="gh-input" name="label" defaultValue={i.label} placeholder="Item" required />
+                          <input className="gh-input" name="yearlyAmountNzd" defaultValue={i.yearlyAmountNzd ?? ""} placeholder="Yearly" />
+                          <input className="gh-input" name="monthlyAmountNzd" defaultValue={i.monthlyAmountNzd ?? ""} placeholder="Monthly" />
+                          <label className="gh-term-check">
+                            <input type="checkbox" name="isWriteoff" defaultChecked={i.isWriteoff} /> Write-off
+                          </label>
+                          <input className="gh-input" name="gstYearlyNzd" defaultValue={i.gstYearlyNzd ?? ""} placeholder="GST (yearly)" />
+                          <input className="gh-input" name="gstMonthlyNzd" defaultValue={i.gstMonthlyNzd ?? ""} placeholder="GST (monthly)" />
+                          <SubmitButton>Save</SubmitButton>
+                        </form>
+                        <form action={deleteBusinessExpenseAction.bind(null, i.id)}>
+                          <SubmitButton className="gh-link-btn gh-link-btn--danger">Remove</SubmitButton>
+                        </form>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="gh-term-small">No expenses logged yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Add expense</p>
-        <form action={createBusinessExpenseAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", maxWidth: 400 }}>
+      <details className="gh-card">
+        <summary className="gh-eyebrow">Add expense</summary>
+        <form action={createBusinessExpenseAction} className="gh-term-form" style={{ maxWidth: 420 }}>
           <input className="gh-input" name="category" placeholder="Category (e.g. Finance, CRM)" />
           <input className="gh-input" name="label" placeholder="Item (e.g. Xero)" required />
           <input className="gh-input" name="yearlyAmountNzd" placeholder="Yearly (NZD)" />
           <input className="gh-input" name="monthlyAmountNzd" placeholder="Monthly (NZD)" />
-          <label style={{ fontSize: "var(--gh-text-sm)" }}>
+          <label className="gh-term-check">
             <input type="checkbox" name="isWriteoff" /> Write-off
           </label>
           <input className="gh-input" name="gstYearlyNzd" placeholder="GST (yearly)" />
           <input className="gh-input" name="gstMonthlyNzd" placeholder="GST (monthly)" />
           <SubmitButton>Add expense</SubmitButton>
         </form>
-      </section>
+      </details>
     </div>
   );
 }

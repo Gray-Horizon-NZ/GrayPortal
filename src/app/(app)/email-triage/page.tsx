@@ -15,21 +15,21 @@ export default async function EmailTriageUnmatchedPage() {
   const unmatched = await listUnmatchedInboundEmails();
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+    <section className="gh-term-panel gh-term-rowcards">
       {unmatched.map((e) => (
         <div key={e.id} className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <p style={{ fontWeight: 500 }}>{e.subject || "(no subject)"}</p>
-            <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>{e.fromAddress}</span>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--gh-space-3)" }}>
+            <p className="gh-term-strong">{e.subject || "(no subject)"}</p>
+            <span className="gh-term-small">{e.fromAddress}</span>
           </div>
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>{e.snippet}</p>
+          <p className="gh-term-small">{e.snippet}</p>
           <MatchContact emailId={e.id} fromAddress={e.fromAddress} />
           <form action={dismissUnmatchedEmailAction.bind(null, e.id)}>
-            <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Dismissing…">Dismiss</SubmitButton>
+            <SubmitButton className="gh-link-btn gh-link-btn--danger" pendingLabel="Dismissing…">Dismiss</SubmitButton>
           </form>
         </div>
       ))}
-      {unmatched.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>Nothing to triage.</p>}
+      {unmatched.length === 0 && <p className="gh-term-muted gh-term-rowcards-empty">Nothing to triage.</p>}
     </section>
   );
 }

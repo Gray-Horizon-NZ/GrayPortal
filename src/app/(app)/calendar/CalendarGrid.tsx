@@ -66,6 +66,7 @@ export default function CalendarGrid({
   return (
     <>
       <div
+        className="gh-term-cal"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
@@ -75,7 +76,7 @@ export default function CalendarGrid({
         }}
       >
         {WEEKDAY_LABELS.map((label) => (
-          <div key={label} className="gh-eyebrow" style={{ background: "var(--gh-surface)", padding: "var(--gh-space-2)", textAlign: "center" }}>
+          <div key={label} className="gh-eyebrow gh-term-cal-head" style={{ background: "var(--gh-surface)", padding: "var(--gh-space-2)", textAlign: "center" }}>
             {label}
           </div>
         ))}
@@ -91,6 +92,8 @@ export default function CalendarGrid({
             <button
               key={day}
               type="button"
+              className="gh-term-calday"
+              data-today={isToday || undefined}
               onClick={() => setOpenDay(day)}
               style={{
                 all: "unset",
@@ -136,14 +139,8 @@ export default function CalendarGrid({
                     <span
                       key={e.id}
                       title={label}
-                      style={{
-                        fontSize: "var(--gh-text-xs)",
-                        color: e.color ?? "var(--gh-text-muted)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "100%",
-                      }}
+                      className="gh-term-calev"
+                      style={{ borderLeftColor: e.color ?? "var(--gh-accent)" }}
                     >
                       {label}
                     </span>

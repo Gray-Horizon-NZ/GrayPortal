@@ -2,33 +2,27 @@ import Link from "next/link";
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { createGrayscaleProductAction, updateGrayscaleProductAction, softDeleteGrayscaleProductAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead } from "@/components/ui/terminal/Term";
 
 export default async function GrayscaleProductsPage() {
   const products = await listGrayscaleProducts();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 900 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--gh-space-4)" }}>
-        <div>
-          <p className="gh-eyebrow">GrayScale</p>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-            Product <em>Catalogue</em>
-          </h1>
-          <p className="gh-source-note" style={{ marginTop: "var(--gh-space-2)" }}>
-            Shown to clients in the portal&apos;s GrayScale consultation widget and validated against here when a
-            request is submitted. Previously a hardcoded source file — this is the live catalogue now.
-          </p>
-        </div>
-        <Link href="/apexus" className="gh-btn-secondary" style={{ whiteSpace: "nowrap" }}>
+    <div className="gh-term-page" style={{ maxWidth: 1200 }}>
+      <PageHead
+        title="GrayScale catalogue"
+        sub="Shown to clients in the portal's GrayScale consultation widget and validated against here when a request is submitted."
+      >
+        <Link href="/apexus" className="gh-btn-secondary">
           Build a quote →
         </Link>
-      </div>
+      </PageHead>
 
       <div className="gh-grid-joined gh-grid-joined--3">
         {products.map((p) => (
           <div key={p.id} className="gh-grid-cell gh-grid-cell--interactive">
             <div className="gh-card-top">
-              <p style={{ fontSize: "var(--gh-text-base)", fontWeight: 600 }}>{p.name}</p>
+              <p className="gh-term-strong" style={{ fontSize: 15 }}>{p.name}</p>
               {p.category && <span className="gh-badge">{p.category}</span>}
             </div>
             {p.description && (
@@ -36,7 +30,7 @@ export default async function GrayscaleProductsPage() {
                 {p.description}
               </p>
             )}
-            <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-accent)", fontWeight: 600, marginTop: "var(--gh-space-2)" }}>
+            <p style={{ fontSize: 18, color: "var(--gh-accent)", fontWeight: 500, marginTop: "var(--gh-space-3)", fontVariantNumeric: "tabular-nums" }}>
               {p.monthlyPriceNzd ? `$${Number(p.monthlyPriceNzd).toLocaleString()}/mo` : "No price set"}
             </p>
             <details style={{ marginTop: "var(--gh-space-3)" }}>
@@ -53,12 +47,7 @@ export default async function GrayscaleProductsPage() {
                 <SubmitButton>Save</SubmitButton>
               </form>
               <form action={softDeleteGrayscaleProductAction.bind(null, p.id)} style={{ marginTop: "var(--gh-space-2)" }}>
-                <SubmitButton
-                  className="gh-btn-secondary"
-                  style={{ color: "var(--gh-danger)", borderColor: "var(--gh-danger)", fontSize: "var(--gh-text-micro)", padding: "var(--gh-space-1) var(--gh-space-2)" }}
-                >
-                  Remove
-                </SubmitButton>
+                <SubmitButton className="gh-link-btn gh-link-btn--danger">Remove</SubmitButton>
               </form>
             </details>
           </div>
@@ -79,7 +68,7 @@ export default async function GrayscaleProductsPage() {
           </form>
         </details>
       </div>
-      {products.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No GrayScale products yet.</p>}
+      {products.length === 0 && <p className="gh-term-muted">No GrayScale products yet.</p>}
     </div>
   );
 }
