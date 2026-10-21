@@ -1,0 +1,394 @@
+/* GrayPortal terminal UI — the admin app in the GTA business-terminal style
+ * (concept: OS/grayportal-gta-concept, approved 21 Oct 2026).
+ *
+ * EVERY rule here is scoped under .gh-terminal, which only the admin
+ * (app)/layout.tsx sets (AppShell variant="terminal"). Next keeps a layout's
+ * CSS loaded after client-side navigation, so an unscoped rule here would
+ * leak into the client portal, the contractor workspace and Project
+ * Incrementum — which keep their own UI.
+ *
+ * The "calm layer" is deliberate: one gold focal point per area, no looping
+ * motion, roomy gaps, quieter secondary text, and detail numbers folded
+ * behind a click rather than all on screen at once. */
+
+.gh-terminal {
+  --t-bg-2: #111113;
+  --t-panel: var(--gh-surface);
+  --t-panel-2: var(--gh-800);
+  --t-panel-3: #1f1f22;
+  --t-line: var(--gh-border);
+  --t-line-soft: color-mix(in srgb, var(--gh-border) 60%, transparent);
+  --t-line-strong: var(--gh-border-strong);
+  --t-text: var(--gh-text-primary);
+  --t-strong: var(--gh-text-emphasis);
+  --t-muted: var(--gh-text-muted);
+  --t-faint: var(--gh-text-disabled);
+  --t-accent: var(--gh-accent);
+  --t-accent-dim: var(--gh-accent-dim);
+  --t-accent-ink: var(--gh-accent-contrast);
+  --t-track: #242326;
+  --t-series-2: #d9d4c6;
+  --gh-header-height: 58px;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Repeated-mark wallpaper (the hangar terminal's), barely there. */
+.gh-terminal .gh-term-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.gh-terminal .gh-term-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23c2a468' stroke-width='1.6'%3E%3Cpath d='M44 80a26 26 0 0 1 52 0'/%3E%3Cpath d='M32 84c10-6 20-6 30-1s22 5 32 0 14-4 14-4'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: 0.022;
+  transform: rotate(-24deg);
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────── */
+.gh-terminal .gh-shell-header {
+  gap: 18px;
+  padding: 0 18px;
+  background: var(--t-bg-2);
+  border-bottom-color: var(--t-line);
+}
+.gh-terminal .gh-term-wordmark { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.gh-terminal .gh-term-wordmark-type { height: 22px; width: auto; filter: invert(1) sepia(0.12); mix-blend-mode: screen; }
+.gh-terminal .gh-shell-header-search {
+  max-width: 460px;
+  margin-left: 12px;
+  background: transparent;
+  border-color: var(--t-line-soft);
+}
+.gh-terminal .gh-shell-header-search:focus-within { border-color: var(--t-line-strong); }
+.gh-terminal .gh-shell-header-actions .gh-icon-btn { border-color: transparent; }
+
+/* ─── Rail ────────────────────────────────────────────────────────────── */
+.gh-terminal .gh-term-rail {
+  width: 236px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  /* Sticky, no own height or scrollbar: one page scroller (Max's rule). */
+  position: sticky;
+  top: var(--gh-header-height);
+  padding: 20px 16px 24px;
+  background: var(--t-bg-2);
+  border-right: 1px solid var(--t-line);
+  min-height: calc(100dvh - var(--gh-header-height));
+}
+.gh-terminal .gh-term-nav { display: flex; flex-direction: column; gap: 8px; }
+.gh-terminal .gh-term-navbtn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 42px;
+  padding: 0 14px;
+  background: var(--t-panel-3);
+  border: 1px solid transparent;
+  font-size: 13.5px;
+  color: var(--t-text);
+  transition: background var(--gh-duration-fast) var(--gh-ease), transform var(--gh-duration-fast) var(--gh-ease);
+}
+.gh-terminal .gh-term-navbtn-icon { display: inline-flex; color: var(--t-muted); }
+.gh-terminal .gh-term-navbtn:hover { background: color-mix(in srgb, var(--t-accent) 14%, var(--t-panel-3)); transform: translateX(2px); }
+.gh-terminal .gh-term-navbtn[data-active] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); font-weight: 500; }
+.gh-terminal .gh-term-navbtn[data-active] .gh-term-navbtn-icon { color: var(--t-accent-ink); }
+/* Project Incrementum: gold icon only, so the page you're on stays the one
+   solid-gold block. */
+.gh-terminal .gh-term-navbtn[data-accent]:not([data-active]) .gh-term-navbtn-icon { color: var(--t-accent); }
+.gh-terminal .gh-term-count { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-navbtn[data-active] .gh-term-count { color: var(--t-accent-ink); }
+
+.gh-terminal .gh-term-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t-faint);
+}
+.gh-terminal .gh-term-folder-head:hover { color: var(--t-strong); }
+.gh-terminal .gh-term-folder-head::after { content: ""; flex: 1; height: 1px; background: var(--t-line); order: 2; }
+.gh-terminal .gh-term-chev { order: 3; transform: rotate(-90deg); transition: transform var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-chev[data-open] { transform: none; }
+.gh-terminal .gh-term-subtree { display: grid; gap: 2px; margin: 4px 0 0 6px; padding-left: 10px; border-left: 1px solid var(--t-line-strong); }
+.gh-terminal .gh-term-subitem { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; font-size: 13px; color: var(--t-muted); }
+.gh-terminal .gh-term-subitem:hover { color: var(--t-strong); background: var(--t-panel); }
+.gh-terminal .gh-term-subitem[data-active] { color: var(--t-accent-ink); background: var(--t-accent); }
+
+.gh-terminal .gh-term-drawer { padding: 20px 16px; background: var(--t-bg-2); }
+
+/* ─── Content frame ───────────────────────────────────────────────────── */
+.gh-terminal .gh-shell-main { padding: 28px 34px 64px; }
+
+/* Panels across every admin page: gapped panels instead of hairline-joined
+   cells, room inside, small tracked titles. */
+.gh-terminal .gh-grid-joined { gap: 20px; background: none; border: 0; }
+.gh-terminal .gh-grid-joined + .gh-grid-joined { margin-top: 0; }
+.gh-terminal .gh-grid-cell { border: 1px solid var(--t-line); padding: 22px 24px; }
+.gh-terminal .gh-grid-cell--compact { padding: 16px 18px; }
+.gh-terminal .gh-card { padding: 22px 24px; }
+.gh-terminal .gh-panel-head { align-items: center; margin-bottom: 18px; }
+.gh-terminal .gh-panel-title {
+  font-family: var(--gh-font-body);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+}
+.gh-terminal .gh-table td { border-bottom-color: var(--t-line-soft); }
+
+@media (max-width: 1024px) {
+  .gh-terminal .gh-term-rail { width: 204px; padding: 16px 12px; }
+  .gh-terminal .gh-shell-main { padding: 22px 22px 48px; }
+}
+@media (max-width: 640px) {
+  .gh-terminal .gh-term-rail { display: none; }
+  .gh-terminal .gh-term-wordmark-type { display: none; }
+  .gh-terminal .gh-shell-main { padding: 16px 16px 40px; }
+}
+
+/* ─── Home ────────────────────────────────────────────────────────────── */
+.gh-terminal .gh-term-home { display: flex; flex-direction: column; gap: 24px; max-width: 1480px; }
+.gh-terminal .gh-term-grid { display: grid; gap: 20px; }
+.gh-terminal .gh-term-grid--4 { grid-template-columns: repeat(4, 1fr); }
+.gh-terminal .gh-term-grid--lead { grid-template-columns: 1.6fr 1fr; }
+.gh-terminal .gh-term-grid--2-1 { grid-template-columns: 2fr 1fr; }
+
+.gh-terminal .gh-term-panel { background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
+.gh-terminal .gh-term-phead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--t-line-soft);
+}
+.gh-terminal .gh-term-phead svg { color: var(--t-accent); opacity: 0.8; }
+.gh-terminal .gh-term-ptitle { font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .gh-term-phead-r { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--t-muted); }
+.gh-terminal .gh-term-pbody { padding: 22px 24px; }
+.gh-terminal .gh-term-link { color: var(--t-accent); font-size: 12px; font-weight: 500; }
+.gh-terminal .gh-term-link:hover { text-decoration: underline; }
+.gh-terminal .gh-term-muted { color: var(--t-muted); font-size: 13px; }
+
+.gh-terminal .gh-term-welcome { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+/* Hero — the highlighted MRR. */
+.gh-terminal .gh-term-hero {
+  display: grid;
+  grid-template-columns: auto 1fr 250px;
+  gap: 6px 36px;
+  align-items: center;
+  padding: 26px 28px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+}
+.gh-terminal .gh-term-hero-label { font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .gh-term-hero-value {
+  font-family: var(--gh-font-display);
+  font-size: 58px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--t-accent);
+  font-variant-numeric: lining-nums tabular-nums;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.gh-terminal .gh-term-hero-value:hover { filter: brightness(1.08); }
+.gh-terminal .gh-term-hero-meta { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .gh-term-hero-meta b { color: var(--t-text); font-weight: 500; }
+.gh-terminal .gh-term-spark { display: block; width: 100%; height: 64px; }
+.gh-terminal .gh-term-spark-area { fill: var(--t-accent); opacity: 0.12; }
+.gh-terminal .gh-term-spark-line { fill: none; stroke: var(--t-accent); stroke-width: 2; }
+.gh-terminal .gh-term-spark-dot { fill: var(--t-accent); }
+.gh-terminal .gh-term-spark-cap { display: block; margin-top: 4px; font-size: 10px; color: var(--t-faint); text-align: right; }
+
+.gh-terminal .gh-term-mini {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--t-panel-2);
+  border: 1px solid var(--t-line);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  transition: border-color var(--gh-duration-fast) var(--gh-ease);
+}
+.gh-terminal .gh-term-mini:hover { border-color: var(--t-accent); }
+.gh-terminal .gh-term-mini-top { display: flex; justify-content: space-between; align-items: center; }
+.gh-terminal .gh-term-mini-top b { font-size: 15px; font-weight: 500; color: var(--t-strong); }
+.gh-terminal .gh-term-eyebrow { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .gh-term-small { font-size: 12px; color: var(--t-muted); }
+
+/* Meter + month cells */
+.gh-terminal .gh-term-meter { display: block; width: 100%; background: var(--t-track); overflow: hidden; }
+.gh-terminal .gh-term-meter i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--gh-ease); }
+.gh-terminal .gh-term-meter i[data-tone="neutral"] { background: var(--t-series-2); }
+.gh-terminal .gh-term-meter i[data-tone="warn"] { background: var(--gh-warning); }
+.gh-terminal .gh-term-meter i[data-tone="bad"] { background: var(--gh-danger); }
+
+/* Stat tiles — value + bar; the detail line folds open on click. */
+.gh-terminal .gh-term-stat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 20px 22px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--gh-duration-fast) var(--gh-ease);
+}
+.gh-terminal .gh-term-stat:hover { border-color: var(--t-line-strong); }
+.gh-terminal .gh-term-stat-label { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); padding-right: 20px; }
+.gh-terminal .gh-term-stat-value { font-size: 24px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-stat-value[data-tone="bad"] { color: var(--gh-danger); }
+.gh-terminal .gh-term-stat-viz { display: block; margin-top: 4px; }
+.gh-terminal .gh-term-stat-sub { display: block; padding-top: 6px; font-size: 12px; color: var(--t-faint); }
+.gh-terminal .gh-term-stat-chev { position: absolute; top: 18px; right: 18px; color: var(--t-faint); transition: transform var(--gh-duration-fast) var(--gh-ease), color var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-stat:hover .gh-term-stat-chev { color: var(--t-accent); }
+.gh-terminal .gh-term-stat[data-open] .gh-term-stat-chev { transform: rotate(180deg); }
+
+/* Fold — grid-rows trick animates to auto height. */
+.gh-terminal .gh-term-fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.22s var(--gh-ease), opacity 0.22s var(--gh-ease); }
+.gh-terminal .gh-term-fold > * { overflow: hidden; min-height: 0; }
+.gh-terminal .gh-term-fold[data-open],
+.gh-terminal [data-open] > .gh-term-fold { grid-template-rows: 1fr; opacity: 1; }
+.gh-terminal .gh-term-more { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; font-size: 12px; color: var(--t-faint); }
+.gh-terminal .gh-term-more:hover { color: var(--t-accent); }
+.gh-terminal .gh-term-more svg { transition: transform var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-more[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* Due list — the row is the link; "Open" shows where you point. */
+.gh-terminal .gh-term-due { display: grid; }
+.gh-terminal .gh-term-due a { display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--t-line-soft); font-size: 13px; }
+.gh-terminal .gh-term-due a:last-child { border-bottom: 0; }
+.gh-terminal .gh-term-due a:hover { color: var(--t-accent); }
+.gh-terminal .gh-term-due svg { flex-shrink: 0; color: var(--gh-danger); }
+.gh-terminal .gh-term-due svg[data-tone="warn"] { color: var(--gh-warning); }
+.gh-terminal .gh-term-due .go { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-accent); opacity: 0; transition: opacity var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-due a:hover .go,
+.gh-terminal .gh-term-due a:focus-visible .go { opacity: 1; }
+
+/* Ledger (key/value) */
+.gh-terminal .gh-term-kv { display: grid; }
+.gh-terminal .gh-term-kv > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--t-line-soft); font-size: 13px; }
+.gh-terminal .gh-term-kv > div:last-child { border-bottom: 0; }
+.gh-terminal .gh-term-kv dt { color: var(--t-muted); }
+.gh-terminal .gh-term-kv dd { color: var(--t-strong); font-variant-numeric: tabular-nums; text-align: right; }
+.gh-terminal .gh-term-kv > div[data-tone="bad"] dd { color: var(--gh-danger); }
+.gh-terminal .gh-term-kv > div[data-tone="warn"] dd { color: var(--gh-warning); }
+
+/* Value by stage — columns, value on top, count/share on hover. */
+.gh-terminal .gh-term-stagecols { display: grid; grid-template-columns: repeat(var(--n, 5), 1fr); gap: 20px; padding-top: 4px; }
+.gh-terminal .gh-term-stagecol { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.gh-terminal .gh-term-stagecol-val { font-size: 14px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-stagecol-track { display: flex; align-items: flex-end; width: 100%; max-width: 110px; height: 170px; background: var(--t-track); }
+.gh-terminal .gh-term-stagecol-track i { display: block; width: 100%; background: var(--t-accent); transition: height 0.9s var(--gh-ease), filter var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-stagecol:hover .gh-term-stagecol-track i { filter: brightness(1.12); }
+.gh-terminal .gh-term-stagecol-name { font-size: 12px; color: var(--t-muted); }
+.gh-terminal .gh-term-stagecol-more { font-size: 11px; color: var(--t-faint); opacity: 0; transition: opacity var(--gh-duration-fast) var(--gh-ease); white-space: nowrap; }
+.gh-terminal .gh-term-stagecol:hover .gh-term-stagecol-more,
+.gh-terminal .gh-term-stagecol:focus-visible .gh-term-stagecol-more { opacity: 1; }
+
+/* This week — seven-day strip. */
+.gh-terminal .gh-term-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--t-line); }
+.gh-terminal .gh-term-week > div { background: var(--t-panel); padding: 14px; min-height: 104px; min-width: 0; }
+.gh-terminal .gh-term-week .d { font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); margin-bottom: 8px; }
+.gh-terminal .gh-term-week .d[data-today] { color: var(--t-accent); }
+.gh-terminal .gh-term-week .e { font-size: 12px; color: var(--t-strong); line-height: 1.3; margin-bottom: 10px; overflow-wrap: anywhere; }
+.gh-terminal .gh-term-week .e small { display: block; color: var(--t-muted); font-size: 10px; }
+.gh-terminal .gh-term-week .none { font-size: 11px; color: var(--t-faint); }
+
+/* Client tiles (master-control portraits). */
+.gh-terminal .gh-term-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.gh-terminal .gh-term-tile { display: flex; flex-direction: column; background: var(--t-panel); border: 1px solid var(--t-line); transition: border-color var(--gh-duration-fast) var(--gh-ease), transform var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
+.gh-terminal .gh-term-tile-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .gh-term-banner {
+  --tint: var(--t-accent);
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 104px;
+  background-color: color-mix(in srgb, var(--tint) 12%, var(--t-panel));
+  background-image:
+    radial-gradient(ellipse at 50% 50%, transparent 30%, color-mix(in srgb, var(--gh-bg) 55%, transparent) 100%),
+    linear-gradient(color-mix(in srgb, var(--tint) 30%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tint) 30%, transparent) 1px, transparent 1px);
+  background-size: auto, 18px 18px, 18px 18px;
+  background-position: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 40%, var(--t-line));
+}
+.gh-terminal .gh-term-banner img { position: relative; max-width: 54%; max-height: 58%; object-fit: contain; }
+.gh-terminal .gh-term-banner-mono { position: relative; font-family: var(--gh-font-display); font-size: 46px; font-weight: 600; color: color-mix(in srgb, var(--tint) 70%, var(--t-strong)); }
+.gh-terminal .gh-term-tile-body { padding: 10px 12px 12px; display: grid; gap: 8px; }
+.gh-terminal .gh-term-tile-meter { display: grid; grid-template-columns: 62px 1fr 56px; align-items: center; gap: 8px; font-size: 11px; color: var(--t-muted); }
+.gh-terminal .gh-term-tile-meter b { text-align: right; color: var(--t-text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-trend { font-size: 9px; }
+.gh-terminal .gh-term-trend[data-trend="up"] { color: var(--gh-success); }
+.gh-terminal .gh-term-trend[data-trend="down"] { color: var(--gh-danger); }
+.gh-terminal .gh-term-trend[data-trend="flat"] { color: var(--t-muted); }
+.gh-terminal .gh-term-tile-manage { padding: 8px 12px; border-top: 1px solid var(--t-line-soft); font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--t-faint); }
+.gh-terminal .gh-term-tile:hover .gh-term-tile-manage { color: var(--t-accent); }
+
+/* Pop-up (GST detail) */
+.gh-terminal .gh-term-scrim { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); }
+.gh-terminal .gh-term-modal { width: min(560px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); }
+.gh-terminal .gh-term-modal-head { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 8px 0 18px; border-bottom: 1px solid var(--t-line); }
+.gh-terminal .gh-term-modal-body { padding: 18px; display: grid; gap: 16px; }
+.gh-terminal .gh-term-threshold { position: relative; height: 14px; margin-bottom: 22px; background: var(--t-track); }
+.gh-terminal .gh-term-threshold > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); }
+.gh-terminal .gh-term-threshold > i[data-tone="warn"] { background: var(--gh-warning); }
+.gh-terminal .gh-term-threshold > i[data-tone="bad"] { background: var(--gh-danger); }
+.gh-terminal .gh-term-threshold span { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--t-line-strong); }
+.gh-terminal .gh-term-threshold span em { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; color: var(--t-muted); white-space: nowrap; }
+
+@media (max-width: 1280px) {
+  .gh-terminal .gh-term-grid--4 { grid-template-columns: repeat(2, 1fr); }
+  .gh-terminal .gh-term-hero { grid-template-columns: auto 1fr; }
+  .gh-terminal .gh-term-mini { grid-column: 1 / -1; }
+}
+@media (max-width: 1000px) {
+  .gh-terminal .gh-term-grid--lead,
+  .gh-terminal .gh-term-grid--2-1 { grid-template-columns: 1fr; }
+  .gh-terminal .gh-term-week { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .gh-terminal .gh-term-home { gap: 18px; }
+  .gh-terminal .gh-term-grid--4 { grid-template-columns: 1fr; }
+  .gh-terminal .gh-term-hero { grid-template-columns: 1fr; padding: 20px; }
+  .gh-terminal .gh-term-hero-value { font-size: 44px; }
+  .gh-terminal .gh-term-stagecols { gap: 8px; }
+  .gh-terminal .gh-term-stagecol-track { height: 120px; }
+  .gh-terminal .gh-term-stagecol-name { font-size: 10px; }
+  .gh-terminal .gh-term-stagecol-more { display: none; }
+  .gh-terminal .gh-term-week { grid-template-columns: 1fr; }
+}

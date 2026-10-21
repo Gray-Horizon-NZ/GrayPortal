@@ -85,9 +85,11 @@ export async function getBusinessFinancialRollup() {
     const rows = await tx.select().from(xeroInvoices);
     const unpaid = rows.filter((r) => r.status === "AUTHORISED" && Number(r.amountDue ?? 0) > 0);
     const today = new Date().toISOString().slice(0, 10);
+    const overdue = unpaid.filter((r) => r.dueDate && r.dueDate < today);
     return {
       totalOutstandingNzd: unpaid.reduce((sum, r) => sum + Number(r.amountDue ?? 0), 0),
-      overdueCount: unpaid.filter((r) => r.dueDate && r.dueDate < today).length,
+      overdueCount: overdue.length,
+      overdueNzd: overdue.reduce((sum, r) => sum + Number(r.amountDue ?? 0), 0),
       unlinkedInvoiceCount: rows.filter((r) => !r.clientId).length,
     };
   });
@@ -112,7 +114,34 @@ export async function getXeroPaidIncomeBetween(fromIso: string, toIsoExclusive: 
   });
 }
 
-export const LinkXeroContactInput = z.object({ clientId: z.string().uuid(), xeroContactId: z.string().min(1) });
+/**
+ * Paid income per calendar month (by invoice date) for the last `months`
+ * months including the current one, oldest first — Home's MRR-hero trend
+ * line and its GST-threshold gauge (rolling 12 months against $60k). Same
+ * cached-table, admin-only posture as getXeroPaidIncomeBetween above.
+ */
+export async function getXeroPaidIncomeByMonth(months: number): Promise<{ month: string; paidNzd: number }[]> {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const now = new Date();
+    const keys = Array.from({ length: months }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    });
+    const rows = await tx
+      .select({ invoiceDate: xeroInvoices.invoiceDate, amountPaid: xeroInvoices.amountPaid })
+      .from(xeroInvoices)
+      .where(gte(xeroInvoices.invoiceDate, `${keys[0]}-01`));
+    const byMonth = new Map(keys.map((k) => [k, 0]));
+    for (const r of rows) {
+      const k = r.invoiceDate?.slice(0, 7);
+      if (k && byMonth.has(k)) byMonth.set(k, byMonth.get(k)! + Number(r.amountPaid ?? 0));
+    }
+    return keys.map((month) => ({ month, paidNzd: byMonth.get(month)! }));
+  });
+}
+
+export const LinkXeroContactInput =z.object({ clientId: z.string().uuid(), xeroContactId: z.string().min(1) });
 
 /**
  * Admin-only, explicit — never auto-matched (see clients.xeroContactId's
