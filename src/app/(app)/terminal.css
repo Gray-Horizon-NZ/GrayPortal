@@ -70,6 +70,22 @@
 }
 .gh-terminal .gh-shell-header-search:focus-within { border-color: var(--t-line-strong); }
 .gh-terminal .gh-shell-header-actions .gh-icon-btn { border-color: transparent; }
+.gh-terminal .gh-term-whoami {
+  margin-left: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--t-line);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--t-muted);
+}
+.gh-terminal .gh-term-whoami b { font-weight: 500; color: var(--t-accent); }
+@media (max-width: 860px) {
+  .gh-terminal .gh-term-whoami { display: none; }
+}
 
 /* ─── Rail ────────────────────────────────────────────────────────────── */
 .gh-terminal .gh-term-rail {
@@ -288,6 +304,43 @@
   .gh-terminal .gh-term-profile { grid-template-columns: 1fr; }
   .gh-terminal .gh-term-profile-banner { min-height: 100px; border-right: 0; border-bottom: 1px solid var(--t-line); }
   .gh-terminal .gh-term-profile-actions { padding-top: 0; }
+}
+
+/* Tasks — list picker left, the selected list right (one page scroller). */
+.gh-terminal .gh-term-tasks { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+.gh-terminal .gh-term-lists { position: sticky; top: calc(var(--gh-header-height) + 20px); padding: 6px 0 10px; }
+.gh-terminal .gh-term-lists-group { padding: 14px 16px 6px; font-size: 9px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-faint); }
+.gh-terminal .gh-term-listbtn { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 16px; font-size: 13px; color: var(--t-text); border-left: 2px solid transparent; }
+.gh-terminal .gh-term-listbtn svg { flex-shrink: 0; color: var(--t-muted); }
+.gh-terminal .gh-term-listbtn:hover { background: var(--t-panel-2); }
+.gh-terminal .gh-term-listbtn[data-active] { background: var(--t-accent-dim); border-left-color: var(--t-accent); color: var(--t-strong); font-weight: 500; }
+.gh-terminal .gh-term-listbtn[data-active] svg { color: var(--t-accent); }
+.gh-terminal .gh-term-listbtn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gh-terminal .gh-term-listbtn-count { margin-left: auto; font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-listbtn-overdue { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; background: color-mix(in srgb, var(--gh-danger) 22%, transparent); color: var(--gh-danger); font-size: 10px; font-weight: 500; }
+.gh-terminal .gh-term-listbtn-overdue + .gh-term-listbtn-count { margin-left: 6px; }
+.gh-terminal .gh-term-quickadd { display: flex; gap: 8px; padding: 14px 22px; border-bottom: 1px solid var(--t-line-soft); background: var(--t-panel-2); }
+.gh-terminal .gh-term-quickadd .gh-input { flex: 1; }
+.gh-terminal .gh-term-taskrows { display: grid; }
+.gh-terminal .gh-term-taskrow { min-height: 46px; padding: 4px 22px; border-bottom: 1px solid var(--t-line-soft); }
+.gh-terminal .gh-term-taskrow:last-child { border-bottom: 0; }
+.gh-terminal .gh-term-taskrow:hover { background: var(--t-panel-2); }
+.gh-terminal .gh-term-done { border-top: 1px solid var(--t-line-soft); }
+.gh-terminal .gh-term-done > summary { list-style: none; padding: 12px 22px; cursor: pointer; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-faint); }
+.gh-terminal .gh-term-done > summary::-webkit-details-marker { display: none; }
+.gh-terminal .gh-term-done > summary:hover { color: var(--t-strong); }
+.gh-terminal .gh-term-due-label { flex-shrink: 0; font-size: 11px; color: var(--t-muted); white-space: nowrap; }
+.gh-terminal .gh-term-due-label[data-late] { color: var(--gh-danger); }
+/* TaskRow (All / Mine / Starred / Home): rows inside a panel, not cards. */
+.gh-terminal .gh-term-tasklist { display: grid; margin: -22px -24px; }
+.gh-terminal .gh-term-tasklist .gh-term-task { padding: 12px 24px; background: transparent; border: 0; border-bottom: 1px solid var(--t-line-soft); }
+.gh-terminal .gh-term-tasklist > :last-child .gh-term-task,
+.gh-terminal .gh-term-tasklist > .gh-term-task:last-child { border-bottom: 0; }
+.gh-terminal .gh-term-tasklist .gh-term-task:hover { background: var(--t-panel-2); }
+.gh-terminal .gh-term-task .gh-eyebrow { font-size: 9px; }
+@media (max-width: 900px) {
+  .gh-terminal .gh-term-tasks { grid-template-columns: 1fr; }
+  .gh-terminal .gh-term-lists { position: static; max-height: none; }
 }
 
 /* Big-totals strip (the bunker's centred totals), one panel split four ways. */

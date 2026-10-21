@@ -48,8 +48,8 @@ export default function TaskRowEditable({
   roadmapPhases?: RoadmapPhaseOption[];
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-      <div style={{ flex: 1 }}>
+    <div className="gh-term-taskrow" style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <TaskCheckRow task={task} />
       </div>
       <EditTaskButton

@@ -17,7 +17,7 @@ import { listAllTasks, listMyAssignedTasks } from "@/lib/dal/tasks";
 import { listLatestHealthScores } from "@/lib/dal/health";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
 import { withCaller } from "@/lib/dal/auth";
-import { listClients } from "@/lib/dal/clients";
+import { listClients, clientLogoSrc } from "@/lib/dal/clients";
 import { getTotalActiveMonthlyRevenue, getMonthlyRevenueByClient } from "@/lib/dal/clientServices";
 import { getBusinessFinancialRollup, getXeroPaidIncomeByMonth } from "@/lib/dal/xero";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
@@ -306,16 +306,7 @@ export default async function HomePage({
           {widgetTasks.length === 0 ? (
             <p className="gh-term-muted">Nothing outstanding.</p>
           ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--gh-space-2)",
-                fontSize: 12,
-                ["--gh-text-sm" as string]: "11px",
-                ["--gh-text-xs" as string]: "10px",
-              } as React.CSSProperties}
-            >
+            <div className="gh-term-tasklist" style={{ marginBottom: 0 }}>
               {widgetTasks.map((t) => (
                 <TaskRow key={t.id} task={t} />
               ))}
@@ -395,7 +386,7 @@ export default async function HomePage({
                   key={c.id}
                   id={c.id}
                   name={c.name}
-                  logoUrl={c.logoUrl}
+                  logoUrl={clientLogoSrc(c)}
                   badge={mrr > 0 ? { label: "Retainer", tone: "success" } : undefined}
                   mrr={isAdmin ? mrr : undefined}
                   mrrTotal={monthlyRecurringRevenue}

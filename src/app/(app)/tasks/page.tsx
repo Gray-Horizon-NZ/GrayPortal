@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ListChecks, Star } from "lucide-react";
+import { ListChecks, Repeat, Star } from "lucide-react";
 import { listAllTasks, listMyAssignedTasks, listStarredTasks, getTaskDealContext, INTERNAL_LIST_LABELS, type InternalListKey } from "@/lib/dal/tasks";
 import { listAssignableUsers } from "@/lib/dal/users";
 import { withCaller } from "@/lib/dal/auth";
 import EmptyState from "@/components/ui/EmptyState";
 import TaskRow from "./TaskRow";
 import MasterTaskView from "./MasterTaskView";
-import { PageHead } from "@/components/ui/terminal/Term";
+import { PageHead, Panel } from "@/components/ui/terminal/Term";
 
 const VIEWS = ["mine", "all", "master", "starred"] as const;
 type View = (typeof VIEWS)[number];
@@ -33,9 +33,9 @@ function displayClientName(t: { clientName: string | null; dealCompanyName?: str
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; list?: string }>;
 }) {
-  const { view: viewParam } = await searchParams;
+  const { view: viewParam, list } = await searchParams;
   const caller = await withCaller(async (c) => c);
   const isAdmin = caller.role === "admin";
   // Admins land on Master by default — the merged, grouped view of
@@ -61,7 +61,7 @@ export default async function TasksPage({
       </PageHead>
 
       {view === "master" ? (
-        <MasterTaskView />
+        <MasterTaskView list={list} />
       ) : view === "all" ? (
         <AllTasksView />
       ) : view === "starred" ? (
@@ -87,26 +87,26 @@ async function AllTasksView() {
   return (
     <>
       {ongoing.length > 0 && (
-        <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-          <p className="gh-eyebrow">Ongoing</p>
-          {ongoing.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
-        </section>
+        <Panel title={`Ongoing · ${ongoing.length}`} icon={Repeat}>
+          <div className="gh-term-tasklist">
+            {ongoing.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
+          </div>
+        </Panel>
       )}
 
-      <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-        <p className="gh-eyebrow">Active</p>
-        {active.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
+      <Panel title={`Active · ${active.length}`} icon={ListChecks}>
+        <div className="gh-term-tasklist">
+          {active.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
+        </div>
         {active.length === 0 && (
           <EmptyState icon={ListChecks} title="Nothing outstanding" description="Every task is done or ongoing." />
         )}
-      </section>
+      </Panel>
 
       {done.length > 0 && (
-        <details>
-          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>
-            Done ({done.length})
-          </summary>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)", marginTop: "var(--gh-space-3)" }}>
+        <details className="gh-card">
+          <summary className="gh-eyebrow">Done ({done.length})</summary>
+          <div className="gh-term-tasklist" style={{ marginTop: "var(--gh-space-3)" }}>
             {done.map((t) => <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />)}
           </div>
         </details>
@@ -123,14 +123,16 @@ async function StarredTasksView() {
   ]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-      {tasks.map((t) => (
-        <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />
-      ))}
+    <Panel title={`Starred · ${tasks.length}`} icon={Star}>
+      <div className="gh-term-tasklist">
+        {tasks.map((t) => (
+          <TaskRow key={t.id} task={{ ...t, clientName: displayClientName(t) }} assignees={assignees} />
+        ))}
+      </div>
       {tasks.length === 0 && (
         <EmptyState icon={Star} title="Nothing starred" description="Star a task anywhere to pin it here, with which list it's from." />
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -141,7 +143,8 @@ async function MyTasksView() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+    <Panel title={`Assigned to you · ${myTasks.length}`} icon={ListChecks}>
+      <div className="gh-term-tasklist">
       {myTasks.map((t, i) => {
         const context = dealContexts[i];
         return (
@@ -159,6 +162,7 @@ async function MyTasksView() {
       {myTasks.length === 0 && (
         <EmptyState icon={ListChecks} title="Nothing assigned to you" description="Tasks assigned to you will show up here." />
       )}
-    </div>
+      </div>
+    </Panel>
   );
 }

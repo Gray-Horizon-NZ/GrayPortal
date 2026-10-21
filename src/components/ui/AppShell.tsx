@@ -47,6 +47,7 @@ export default function AppShell({
   markNotificationReadAction,
   markAllNotificationsReadAction,
   variant,
+  callerRole,
   children,
 }: {
   eyebrow: string;
@@ -66,6 +67,8 @@ export default function AppShell({
   // every terminal style is scoped under .gh-terminal, so the portal,
   // contractor and Incrementum shells never pick any of it up.
   variant?: "terminal";
+  // Shown in the terminal header ("Clearance: admin").
+  callerRole?: string;
   children: React.ReactNode;
 }) {
   const { pinned, groups } = groupNavItems(navItems);
@@ -75,6 +78,7 @@ export default function AppShell({
       {variant === "terminal" && <div className="gh-term-backdrop" aria-hidden />}
       <ShellHeader
         variant={variant}
+        callerRole={callerRole}
         eyebrow={eyebrow}
         title={title}
         navItems={navItems}
