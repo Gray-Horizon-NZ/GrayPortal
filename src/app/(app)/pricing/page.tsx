@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHead } from "@/components/ui/terminal/Term";
 import { listServiceModules, listServiceItems } from "@/lib/dal/pricing";
 import { createServiceItemAction, updateServiceItemAction, softDeleteServiceItemAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -67,19 +68,16 @@ export default async function PricingPage({
   const webdevCloudflare = webdevItems.find((it) => it.id === WEBDEV_CLOUDFLARE_ID);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 1100 }}>
-      <div>
-        <p className="gh-eyebrow">Pricing</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-          Service <em>Catalogue</em>
-        </h1>
-      </div>
-
-      <p className="gh-source-note">
-        Structured copy of <code>gh_pricing_framework_v5.md</code>. Current is the default rate to quote —
-        Suggested isn&apos;t active until authorised. Re-run <code>scripts/import-pricing.mjs</code> after
-        the source file changes rather than editing prices in bulk here.
-      </p>
+    <div className="gh-term-page" style={{ maxWidth: 1200 }}>
+      <PageHead
+        title="Pricing"
+        sub={
+          <>
+            Structured copy of <code>gh_pricing_framework_v5.md</code>. Current is the default rate to quote — Suggested
+            isn&apos;t active until authorised. Re-run <code>scripts/import-pricing.mjs</code> after the source file changes.
+          </>
+        }
+      />
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
         <form className="gh-list-toolbar">

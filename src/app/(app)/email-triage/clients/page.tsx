@@ -18,24 +18,24 @@ export default async function ClientEmailsPage() {
   const clientEmails = await listClientEmails();
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
+    <section className="gh-term-panel gh-term-rowcards">
       {clientEmails.map((e) => (
         <div key={e.id} className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <p style={{ fontWeight: 500 }}>{e.subject || "(no subject)"}</p>
-            <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
+            <p className="gh-term-strong">{e.subject || "(no subject)"}</p>
+            <span className="gh-term-small">
               {new Date(e.sentAt).toLocaleString("en-NZ")}
             </span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--gh-text-sm)" }}>
             <span>
-              <Link href={`/clients/${e.clientId}`}>{e.clientName}</Link>
+              <Link href={`/clients/${e.clientId}`} className="gh-term-link">{e.clientName}</Link>
               {" — "}
               {e.contactFirstName} {e.contactLastName}
             </span>
             <span className="gh-badge">{e.direction}</span>
           </div>
-          <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>{e.snippet}</p>
+          <p className="gh-term-small">{e.snippet}</p>
           <details>
             <summary style={{ cursor: "pointer", fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
               + Add another address for {e.contactFirstName}
@@ -50,7 +50,7 @@ export default async function ClientEmailsPage() {
           </details>
         </div>
       ))}
-      {clientEmails.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No matched client email yet.</p>}
+      {clientEmails.length === 0 && <p className="gh-term-muted gh-term-rowcards-empty">No matched client email yet.</p>}
     </section>
   );
 }

@@ -306,6 +306,83 @@
   .gh-terminal .gh-term-profile-actions { padding-top: 0; }
 }
 
+/* Serif only for the hero figure, monograms and the welcome name (RULES §2):
+   every other p.gh-title (record names, card values) uses the UI face. */
+.gh-terminal .gh-shell-main p.gh-title { font-family: var(--gh-font-body); font-weight: 500; letter-spacing: 0; }
+.gh-terminal .gh-shell-main p.gh-title em { font-style: normal; }
+
+/* Record header (deal and other detail pages): a panel strip. */
+.gh-terminal .gh-record-header { padding: 18px 22px; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-terminal .gh-record-header .gh-avatar { width: 44px; height: 44px; }
+
+.gh-terminal .gh-term-backlink { align-self: flex-start; margin-bottom: -12px; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .gh-term-backlink:hover { color: var(--t-accent); }
+.gh-terminal .gh-term-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.gh-terminal .gh-term-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--t-text); }
+.gh-terminal .gh-term-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--t-line-strong); }
+.gh-terminal .gh-term-dot[data-on] { background: var(--t-accent); }
+
+/* Card lists inside one panel: each card becomes a row. */
+.gh-terminal .gh-term-rowcards { display: grid; }
+.gh-terminal .gh-term-rowcards > .gh-card { padding: 16px 22px; background: transparent; border: 0; border-bottom: 1px solid var(--t-line-soft); }
+.gh-terminal .gh-term-rowcards > .gh-card:last-of-type { border-bottom: 0; }
+.gh-terminal .gh-term-rowcards-empty { padding: 22px; }
+
+/* Boards (Ideation, AI agents): a panel per column, compact cards, "+ Add" at the foot. */
+.gh-terminal .gh-term-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; align-items: start; }
+.gh-terminal .gh-term-bcol { display: flex; flex-direction: column; }
+.gh-terminal .gh-term-bcol-body { display: grid; gap: 10px; padding: 16px; }
+.gh-terminal .gh-term-bcard { display: grid; gap: 6px; padding: 12px 14px; background: var(--t-panel-2); border: 1px solid var(--t-line); }
+.gh-terminal .gh-term-bcard-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.gh-terminal .gh-term-bcard-foot select { max-width: 70%; min-height: 28px; font-size: 12px; }
+.gh-terminal .gh-term-bcol-add { border-top: 1px solid var(--t-line-soft); }
+.gh-terminal .gh-term-bcol-add > summary { list-style: none; padding: 12px 16px; cursor: pointer; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .gh-term-bcol-add > summary::-webkit-details-marker { display: none; }
+.gh-terminal .gh-term-bcol-add > summary:hover { color: var(--t-accent); }
+.gh-terminal .gh-term-bcol-add[open] { padding: 0 16px 16px; }
+.gh-terminal .gh-term-bcol-add[open] > summary { padding-left: 0; padding-right: 0; color: var(--t-accent); }
+
+/* Per-row edit inside a table: "Edit" opens a small pop-over form. */
+.gh-terminal .gh-term-rowedit { position: relative; }
+.gh-terminal .gh-term-rowedit > summary { list-style: none; cursor: pointer; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .gh-term-rowedit > summary::-webkit-details-marker { display: none; }
+.gh-terminal .gh-term-rowedit > summary:hover,
+.gh-terminal .gh-term-rowedit[open] > summary { color: var(--t-accent); }
+.gh-terminal .gh-term-rowedit-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  width: 260px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line-strong);
+  border-top: 2px solid var(--t-accent);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Calendar grid */
+.gh-terminal .gh-term-cal { background: var(--t-line) !important; border-color: var(--t-line) !important; }
+.gh-terminal .gh-term-cal-head { background: var(--t-panel-2) !important; padding: 10px 8px !important; font-size: 10px; }
+.gh-terminal .gh-term-calday { background: var(--t-panel) !important; padding: 10px !important; transition: background var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal .gh-term-calday:hover { background: var(--t-panel-2) !important; }
+.gh-terminal .gh-term-calday[data-today] { background: color-mix(in srgb, var(--t-accent) 6%, var(--t-panel)) !important; box-shadow: inset 0 2px 0 var(--t-accent); }
+.gh-terminal .gh-term-calev {
+  display: block;
+  max-width: 100%;
+  padding: 2px 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--t-strong);
+  background: var(--t-panel-3);
+  border-left: 2px solid var(--t-accent);
+}
+
 /* Tasks — list picker left, the selected list right (one page scroller). */
 .gh-terminal .gh-term-tasks { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
 .gh-terminal .gh-term-lists { position: sticky; top: calc(var(--gh-header-height) + 20px); padding: 6px 0 10px; }

@@ -1,7 +1,9 @@
+import { Lightbulb } from "lucide-react";
 import { listInternalIdeationItems, listIdeationCategories } from "@/lib/dal/ideation";
 import { createInternalIdeationItemAction, deleteInternalIdeationItemAction } from "./actions";
 import IdeationStatusSelect from "./IdeationStatusSelect";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead } from "@/components/ui/terminal/Term";
 
 export default async function IdeationPage() {
   const [items, categories] = await Promise.all([listInternalIdeationItems(), listIdeationCategories()]);
@@ -19,72 +21,47 @@ export default async function IdeationPage() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)" }}>
-      <div>
-        <p className="gh-eyebrow">Gray Horizon</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>Ideation</h1>
-        <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-2)" }}>
-          Your own internal/business ideas — separate from client ideation, never client- or contractor-visible.
-          Manage categories in Settings.
-        </p>
-      </div>
+    <div className="gh-term-page">
+      <PageHead
+        title="Ideation"
+        sub="Your own internal/business ideas — separate from client ideation, never client- or contractor-visible. Manage categories in Settings."
+      />
 
       {columns.length === 0 ? (
-        <p style={{ color: "var(--gh-text-muted)" }}>
-          No categories yet — add one in Settings before logging an idea.
-        </p>
+        <p className="gh-term-muted">No categories yet — add one in Settings before logging an idea.</p>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${columns.length}, minmax(280px, 1fr))`,
-            gap: "var(--gh-space-6)",
-          }}
-        >
+        <div className="gh-term-board">
           {columns.map(({ key, label }) => {
             const categoryItems = key === null ? orphaned : items.filter((it) => it.category === key);
             return (
-              <div key={key ?? "__other__"} className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-                <p className="gh-eyebrow">{label}</p>
-
-                {categoryItems.map((it) => (
-                  <div
-                    key={it.id}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "var(--gh-space-2)",
-                      background: "var(--gh-surface-raised)",
-                      border: "1px solid var(--gh-border-strong)",
-                      borderRadius: "var(--gh-radius)",
-                      padding: "var(--gh-space-3)",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--gh-space-2)" }}>
-                      <span style={{ fontWeight: 500 }}>{it.title}</span>
-                      <form action={deleteInternalIdeationItemAction.bind(null, it.id)}>
-                        <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Removing…">
-                          Remove
-                        </SubmitButton>
-                      </form>
+              <section key={key ?? "__other__"} className="gh-term-panel gh-term-bcol">
+                <header className="gh-term-phead">
+                  <Lightbulb size={13} strokeWidth={2} />
+                  <span className="gh-term-ptitle">{label}</span>
+                  <span className="gh-term-phead-r">{categoryItems.length}</span>
+                </header>
+                <div className="gh-term-bcol-body">
+                  {categoryItems.map((it) => (
+                    <div key={it.id} className="gh-term-bcard">
+                      <p className="gh-term-strong">{it.title}</p>
+                      {it.description && <p className="gh-term-small">{it.description}</p>}
+                      <div className="gh-term-bcard-foot">
+                        <IdeationStatusSelect id={it.id} status={it.status} />
+                        <form action={deleteInternalIdeationItemAction.bind(null, it.id)}>
+                          <SubmitButton className="gh-link-btn gh-link-btn--danger" pendingLabel="Removing…">
+                            Remove
+                          </SubmitButton>
+                        </form>
+                      </div>
                     </div>
-                    {it.description && (
-                      <p style={{ fontSize: "var(--gh-text-sm)", color: "var(--gh-text-muted)" }}>{it.description}</p>
-                    )}
-                    <IdeationStatusSelect id={it.id} status={it.status} />
-                  </div>
-                ))}
-                {categoryItems.length === 0 && (
-                  <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No {label.toLowerCase()} ideas yet.</p>
-                )}
+                  ))}
+                  {categoryItems.length === 0 && <p className="gh-term-muted">No {label.toLowerCase()} ideas yet.</p>}
+                </div>
 
                 {key !== null && (
-                  <details>
-                    <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Add idea</summary>
-                    <form
-                      action={createInternalIdeationItemAction}
-                      style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}
-                    >
+                  <details className="gh-term-bcol-add">
+                    <summary>+ Add idea</summary>
+                    <form action={createInternalIdeationItemAction} className="gh-term-form">
                       <input type="hidden" name="category" value={key} />
                       <input className="gh-input" name="title" placeholder="Idea title" required />
                       <textarea className="gh-input" name="description" placeholder="Description" rows={2} />
@@ -92,7 +69,7 @@ export default async function IdeationPage() {
                     </form>
                   </details>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>

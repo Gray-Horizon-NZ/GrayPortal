@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { withCaller } from "@/lib/dal/auth";
 import GuidebookViewer from "./GuidebookViewer";
+import { PageHead } from "@/components/ui/terminal/Term";
 
 /**
  * Admin-only quick-reference for the Gray Horizon brand guidebook
@@ -15,13 +16,8 @@ export default async function BrandGuidelinesPage() {
   if (caller.role !== "admin") redirect("/");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-4)", height: "calc(100vh - 120px)" }}>
-      <div>
-        <p className="gh-eyebrow">Gray Horizon</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-          Brand <em>Guidelines</em>
-        </h1>
-      </div>
+    <div className="gh-term-page" style={{ height: "calc(100dvh - 140px)", gap: "var(--gh-space-4)" }}>
+      <PageHead title="Brand guidelines" sub="The Gray Horizon brand guidebook, section by section" />
       <GuidebookViewer />
     </div>
   );
