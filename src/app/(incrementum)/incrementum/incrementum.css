@@ -1235,3 +1235,33 @@
   padding-left: var(--gh-space-3);
   border-left: 1px solid var(--gh-border);
 }
+
+/* Read-only package deliverables (setup / ongoing / not included), as
+   written in "Edit package details". Bullets are plain text, so pre-line. */
+.gh-incrementum .inc-deliv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--gh-border);
+  border: 1px solid var(--gh-border);
+}
+
+.gh-incrementum .inc-deliv-col {
+  background: var(--gh-lt-panel);
+  padding: var(--gh-space-4);
+  white-space: pre-line;
+  font-size: var(--gh-text-sm);
+  line-height: 1.55;
+}
+
+.gh-incrementum .inc-deliv-col::first-line {
+  font-size: var(--gh-text-micro);
+  letter-spacing: var(--gh-tracking-wider);
+  color: var(--gh-text-muted);
+}
+
+.gh-incrementum .inc-deliv-note {
+  white-space: pre-line;
+  font-size: var(--gh-text-sm);
+  color: var(--gh-text-primary);
+}

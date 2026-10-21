@@ -109,6 +109,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                   {sv.catalogueName ? `Catalogue: ${sv.serviceItemId}` : "Incrementum-only service"} · Catalogue price{" "}
                   {sv.billing === "range" ? sv.cataloguePriceText ?? "—" : money(sv.price.cataloguePrice)} · Price from {SOURCE_LABEL[sv.price.priceSource]}
                 </p>
+                {sv.notes && <p className="inc-deliv-note">{sv.notes}</p>}
                 {sv.benchQuotes.length > 0 && (
                   <p className="inc-small">Bench quotes: {sv.benchQuotes.map((q) => `${q.name} ${money(q.rate)}/${q.rateType === "monthly" ? "mo" : q.rateType}`).join(" · ")}</p>
                 )}
@@ -183,6 +184,17 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                 </summary>
                 <div className="inc-acc-body">
                   {p.description && <p className="inc-muted">{p.description}</p>}
+                  {(p.inclusions || p.deliverables || p.exclusions) && (
+                    <div className="inc-deliv">
+                      {[p.inclusions, p.deliverables, p.exclusions].map((text, i) =>
+                        text ? (
+                          <div className="inc-deliv-col" key={i}>
+                            {text}
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+                  )}
                   <div className="inc-stats">
                     <div className="inc-stat">
                       <span className="inc-small">Monthly price</span>
