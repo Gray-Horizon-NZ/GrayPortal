@@ -1359,6 +1359,8 @@ export const incrementumContractorProfiles = pgTable("incrementum_contractor_pro
   skills: text("skills").array(),
   // incrementum_contractor_roles ids this contractor can fill.
   roleIds: uuid("role_ids").array(),
+  // Business sizes they'll take jobs for (BUSINESS_SIZES); null/empty = any size.
+  worksWithSizes: text("works_with_sizes").array(),
   gstRegistered: boolean("gst_registered"),
   paymentTerms: text("payment_terms"),
   qualityRating: integer("quality_rating"),
@@ -1399,6 +1401,8 @@ export const incrementumLeads = pgTable("incrementum_leads", {
   packageId: uuid("package_id").references(() => incrementumPackages.id),
   serviceInterest: text("service_interest"),
   adBudget: text("ad_budget"),
+  // small | medium | large (BUSINESS_SIZES); null = not set yet.
+  businessSize: text("business_size"),
   message: text("message"),
   stage: text("stage").notNull().default("new"),
   stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1463,6 +1467,8 @@ export const incrementumEngagements = pgTable("incrementum_engagements", {
   lessons: text("lessons"),
   // good | watch | at_risk
   health: text("health").notNull().default("good"),
+  // small | medium | large, copied from the lead at onboarding.
+  businessSize: text("business_size"),
   modules: jsonb("modules").$type<Record<string, boolean>>(),
   notes: text("notes"),
   ...softDelete,

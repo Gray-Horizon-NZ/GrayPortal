@@ -37,6 +37,8 @@ export default function RoleAssignDialog({
   engagementId,
   back,
   candidates,
+  hiddenForSize = 0,
+  sizeLabel = null,
   assignedId,
 }: {
   action: (fd: FormData) => Promise<void>;
@@ -46,6 +48,9 @@ export default function RoleAssignDialog({
   engagementId?: string;
   back: string;
   candidates: RoleCandidate[];
+  /** Contractors left out because they don't take jobs this size. */
+  hiddenForSize?: number;
+  sizeLabel?: string | null;
   assignedId: string | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -70,6 +75,12 @@ export default function RoleAssignDialog({
                 <p className="gh-eyebrow">Add contractor</p>
                 <h2 className="inc-cell-title">{roleName}</h2>
                 <p className="inc-small">Their price is their quote for each of this client&apos;s {roleName.toLowerCase()} lines. You can adjust any line afterwards.</p>
+                {sizeLabel && (
+                  <p className="inc-small">
+                    {sizeLabel} job · showing contractors who work with this size
+                    {hiddenForSize > 0 ? ` (${hiddenForSize} hidden who don't)` : ""}.
+                  </p>
+                )}
               </div>
               <button type="button" className="gh-link-btn" onClick={() => setOpen(false)} aria-label="Close">
                 ✕
@@ -77,7 +88,9 @@ export default function RoleAssignDialog({
             </div>
             {candidates.length === 0 ? (
               <p className="inc-muted">
-                Nobody covers this role yet. Tick &quot;{roleName}&quot; under Roles on a contractor&apos;s profile, or add their quote for one of these services.
+                {hiddenForSize > 0
+                  ? `Nobody who covers this role works with ${sizeLabel?.toLowerCase() ?? "this size of business"} yet. Tick it under "Works with" on a contractor's profile.`
+                  : `Nobody covers this role yet. Tick "${roleName}" under Roles on a contractor's profile, or add their quote for one of these services.`}
               </p>
             ) : (
               <div className="inc-list">

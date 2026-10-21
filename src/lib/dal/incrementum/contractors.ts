@@ -20,7 +20,7 @@ import { withIncrementum, actor, nullable, numOrNull } from "./core";
 import type { Tx } from "../session";
 import { recordStageChange } from "./outreach";
 import { logServicePriceChange } from "./services";
-import { ALL_CONTRACTOR_STAGES, CONTRACTOR_RATE_TYPES, type ContractorStage } from "@/lib/incrementum/registry";
+import { ALL_CONTRACTOR_STAGES, BUSINESS_SIZES, CONTRACTOR_RATE_TYPES, type ContractorStage } from "@/lib/incrementum/registry";
 
 export async function getContractorDetail(contractorId: string) {
   return withIncrementum(async (_caller, tx) => {
@@ -119,6 +119,7 @@ export const ContractorProfileInput = z.object({
   source: z.string().nullable(),
   skills: z.array(z.string()),
   roleIds: z.array(z.string().uuid()),
+  worksWithSizes: z.array(z.enum(BUSINESS_SIZES)),
   gstRegistered: z.boolean().nullable(),
   paymentTerms: z.string().nullable(),
   qualityRating: z.coerce.number().int().min(1).max(5).nullable(),

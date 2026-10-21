@@ -8,7 +8,7 @@ import type { IncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { computeNeed, quoteTotals, roleGroups, roleCandidates } from "@/lib/incrementum/compute";
 import { money } from "@/lib/incrementum/format";
 import { clientsForTarget, toNum } from "@/lib/incrementum/pricing";
-import { SERVICE_BILLING_LABELS } from "@/lib/incrementum/registry";
+import { BUSINESS_SIZE_LABELS, SERVICE_BILLING_LABELS, type BusinessSize } from "@/lib/incrementum/registry";
 import SubmitButton from "@/components/ui/SubmitButton";
 import AddLinesDialog from "./AddLinesDialog";
 import RoleAssignDialog from "./RoleAssignDialog";
@@ -52,6 +52,8 @@ export default function ClientServices({
   const freedom = toNum(s.state.settings.freedomTarget) ?? 10000;
   const roles = s.state.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
   const roleName = (id: string | null) => roles.find((r) => r.id === id)?.name ?? null;
+  const businessSize = (engagementId ? s.state.engagements.find((e) => e.id === engagementId)?.businessSize : s.state.leads.find((l) => l.id === leadId)?.businessSize) ?? null;
+  const sizeLabel = businessSize ? (BUSINESS_SIZE_LABELS[businessSize as BusinessSize] ?? businessSize) : null;
   const scope = (
     <>
       {leadId && <input type="hidden" name="leadId" value={leadId} />}
@@ -103,6 +105,7 @@ export default function ClientServices({
           </h2>
         </div>
         <span className="inc-inline">
+          {sizeLabel && <Chip>{sizeLabel}</Chip>}
           {t.unassigned > 0 && <Chip tone="warning">{t.unassigned} without a contractor</Chip>}
           {!readOnly && views.length > 0 && addDialog(false)}
         </span>
@@ -150,7 +153,8 @@ export default function ClientServices({
           </div>
 
           {groups.map((g) => {
-            const candidates = roleCandidates(s.state, g);
+            const all = roleCandidates(s.state, g, businessSize);
+            const candidates = all.filter((c) => c.sizeMatch);
             const groupCost = g.lines.reduce((a, l) => a + (l.billing === "monthly" ? (l.cost ?? 0) : 0), 0);
             const profile = g.contractorId ? s.state.profiles.find((p) => p.contractorId === g.contractorId) : null;
             return (
@@ -187,6 +191,8 @@ export default function ClientServices({
                           engagementId={engagementId}
                           back={lineBack}
                           candidates={candidates}
+                          hiddenForSize={sizeLabel ? all.length - candidates.length : 0}
+                          sizeLabel={sizeLabel}
                           assignedId={g.contractorId}
                         />
                         {g.assignedCount > 0 && (

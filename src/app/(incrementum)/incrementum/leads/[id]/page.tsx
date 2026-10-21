@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeadDetail } from "@/lib/dal/incrementum/leads";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { LEAD_STAGES, LEAD_STAGE_LABELS, LEAD_SOURCES, LEAD_SOURCE_LABELS, type LeadStage } from "@/lib/incrementum/registry";
+import { LEAD_STAGES, LEAD_STAGE_LABELS, LEAD_SOURCES, LEAD_SOURCE_LABELS, BUSINESS_SIZES, BUSINESS_SIZE_LABELS, type LeadStage, type BusinessSize } from "@/lib/incrementum/registry";
 import { LEAD_DRAFTS } from "@/lib/incrementum/drafts";
 import { formatMetric, money, shortDateTime, todayNz, minutesSince } from "@/lib/incrementum/format";
 import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
@@ -49,6 +49,7 @@ export default async function LeadDetail({ params, searchParams }: { params: Pro
         badges={
           <>
             <Chip tone={stage === "won" ? "good" : stage === "lost" ? "danger" : "accent"}>{LEAD_STAGE_LABELS[stage]}</Chip>
+            <Chip tone={l.businessSize ? undefined : "warning"}>{l.businessSize ? BUSINESS_SIZE_LABELS[l.businessSize as BusinessSize] : "Size not set"}</Chip>
             {waitingMins !== null && stage !== "lost" && <Chip tone={waitingMins > target ? "danger" : "warning"}>Waiting {formatMetric(waitingMins, "minutes")}</Chip>}
             {responseMins !== null && <Chip tone={responseMins <= target ? "good" : "warning"}>Replied in {formatMetric(responseMins, "minutes")}</Chip>}
           </>
@@ -223,6 +224,17 @@ export default async function LeadDetail({ params, searchParams }: { params: Pro
               <label className="inc-field">
                 Ad budget
                 <input className="gh-input" name="adBudget" defaultValue={l.adBudget ?? ""} />
+              </label>
+              <label className="inc-field">
+                Business size
+                <select className="gh-input" name="businessSize" defaultValue={l.businessSize ?? ""}>
+                  <option value="">Not set</option>
+                  {BUSINESS_SIZES.map((z) => (
+                    <option key={z} value={z}>
+                      {BUSINESS_SIZE_LABELS[z]}
+                    </option>
+                  ))}
+                </select>
               </label>
               <input type="hidden" name="message" value={l.message ?? ""} />
               <label className="inc-field inc-field--wide">

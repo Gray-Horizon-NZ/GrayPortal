@@ -15,7 +15,7 @@ import {
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "../mutate";
 import type { Caller, Tx } from "../session";
 import { withIncrementum, actor, numOrNull, nullable } from "./core";
-import { ENGAGEMENT_HEALTH, ENGAGEMENT_MODULES } from "@/lib/incrementum/registry";
+import { BUSINESS_SIZES, ENGAGEMENT_HEALTH, ENGAGEMENT_MODULES } from "@/lib/incrementum/registry";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -42,6 +42,7 @@ export type NewEngagement = {
   setupPrice: string | null;
   startDate: string;
   minTermMonths: number;
+  businessSize?: string | null;
 };
 
 /** Shared by "New engagement" and lead conversion. Prices passed in are the signed prices. */
@@ -58,6 +59,7 @@ export async function createEngagementInTx(tx: Tx, caller: Caller, data: NewEnga
       setupPrice: numOrNull(data.setupPrice),
       startDate: data.startDate,
       minTermEnd: addMonthsIso(data.startDate, data.minTermMonths),
+      businessSize: data.businessSize ?? null,
       modules: DEFAULT_MODULES,
       ...actor(caller),
     },
@@ -109,6 +111,7 @@ export const EngagementUpdate = z.object({
   startDate: isoDate.nullable(),
   minTermEnd: isoDate.nullable(),
   health: z.enum(ENGAGEMENT_HEALTH),
+  businessSize: z.enum(BUSINESS_SIZES).nullable(),
   status: z.enum(["active", "paused"]),
   notes: z.string().nullable(),
 });

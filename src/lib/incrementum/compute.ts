@@ -835,6 +835,8 @@ export type RoleCandidate = {
   missingQuotes: number;
   /** Active clients they're on + open lead quotes they're assigned to. */
   jobs: number;
+  /** They take jobs this size (no sizes ticked = any size). */
+  sizeMatch: boolean;
 };
 
 /**
@@ -844,7 +846,7 @@ export type RoleCandidate = {
  * counts as missing. Not-a-fit contractors are excluded. Bench first, then
  * role matches, then fewest gaps, then cheapest.
  */
-export function roleCandidates(state: IncrementumState, group: RoleGroup): RoleCandidate[] {
+export function roleCandidates(state: IncrementumState, group: RoleGroup, businessSize: string | null = null): RoleCandidate[] {
   const activeEng = new Set(state.engagements.filter((e) => e.status === "active" && !e.deletedAt).map((e) => e.id));
   const openLeads = new Set(state.leads.filter((l) => !l.deletedAt && !l.convertedClientId && l.stage !== "lost").map((l) => l.id));
   const serviceIds = new Set(group.lines.map((l) => l.serviceId).filter(Boolean));
@@ -874,6 +876,7 @@ export function roleCandidates(state: IncrementumState, group: RoleGroup): RoleC
       oneOffRate: r2(lines.filter((l) => l.billing !== "monthly").reduce((a, l) => a + (l.rate ?? 0), 0)),
       missingQuotes: lines.filter((l) => l.rate === null).length,
       jobs: engagements.size + leads.size,
+      sizeMatch: !businessSize || !p.worksWithSizes?.length || p.worksWithSizes.includes(businessSize),
     });
   }
   return out.sort(

@@ -90,6 +90,17 @@ export const LAUNCH_ITEM_STATUS_LABELS: Record<LaunchItemStatus, string> = {
 // Engagements
 // ---------------------------------------------------------------------------
 export const ENGAGEMENT_STATUSES = ["active", "paused", "ended"] as const;
+// Business size (Max, 2026-10-21): small businesses get the simple,
+// low-headache offer (reviews and exposure); medium and large get the full
+// packages and VIP priority. Contractors tick which sizes they'll work with.
+export const BUSINESS_SIZES = ["small", "medium", "large"] as const;
+export type BusinessSize = (typeof BUSINESS_SIZES)[number];
+export const BUSINESS_SIZE_LABELS: Record<BusinessSize, string> = {
+  small: "Small business",
+  medium: "Medium business",
+  large: "Large business",
+};
+
 export const ENGAGEMENT_HEALTH = ["good", "watch", "at_risk"] as const;
 export const ENGAGEMENT_HEALTH_LABELS: Record<(typeof ENGAGEMENT_HEALTH)[number], string> = {
   good: "Healthy",

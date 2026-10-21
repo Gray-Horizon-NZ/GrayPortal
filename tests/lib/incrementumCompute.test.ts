@@ -214,7 +214,7 @@ describe("quote builder", () => {
   const svc = st.services[0];
   const contractorId = "11111111-1111-1111-1111-111111111111";
   const benId = "22222222-2222-2222-2222-222222222222";
-  const profile = { ...base, specialty: null, stage: "confirmed", stageChangedAt: t0, businessName: null, email: null, phone: null, location: null, portfolioUrl: null, source: null, skills: null, roleIds: null, gstRegistered: null, paymentTerms: null, qualityRating: null, photoUrl: null, publicTitle: null, bio: null, payWhenPaidAcceptedAt: null, nonSolicitSignedAt: null, noticePeriodDays: null, agreementUrl: null, offRampReason: null, notes: null };
+  const profile = { ...base, specialty: null, stage: "confirmed", stageChangedAt: t0, businessName: null, email: null, phone: null, location: null, portfolioUrl: null, source: null, skills: null, roleIds: null, worksWithSizes: null as string[] | null, gstRegistered: null, paymentTerms: null, qualityRating: null, photoUrl: null, publicTitle: null, bio: null, payWhenPaidAcceptedAt: null, nonSolicitSignedAt: null, noticePeriodDays: null, agreementUrl: null, offRampReason: null, notes: null };
   st.profiles = [
     { ...profile, id: id(), contractorId, name: "Ana", skills: ["shopify"], qualityRating: 4 },
     { ...profile, id: id(), contractorId: benId, name: "Ben", roleIds: [roleId] },
@@ -274,6 +274,15 @@ describe("quote builder", () => {
     expect(c[0].missingQuotes).toBe(1);
     expect(c[1].monthlyRate).toBe(600);
     expect(c[1].jobs).toBe(0);
+  });
+
+  it("only matches contractors who take jobs the client's size (none ticked = any size)", () => {
+    const sized = { ...st, profiles: st.profiles.map((p) => (p.name === "Ben" ? { ...p, worksWithSizes: ["medium", "large"] } : p)) };
+    const [group] = roleGroups(sized, [computeNeed(sized, services, need as never)]);
+    const small = roleCandidates(sized, group, "small");
+    expect(small.find((c) => c.name === "Ben")?.sizeMatch).toBe(false);
+    expect(small.find((c) => c.name === "Ana")?.sizeMatch).toBe(true);
+    expect(roleCandidates(sized, group, "large").every((c) => c.sizeMatch)).toBe(true);
   });
 
   it("keeps a package's bundle discount, and a waived setup costs but isn't charged", () => {

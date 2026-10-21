@@ -22,7 +22,7 @@ import { createEngagementInTx } from "./engagements";
 import { adoptLeadNeeds } from "./needs";
 import { computeNeed, quoteTotals } from "@/lib/incrementum/compute";
 import { getIncrementumSnapshot } from "./snapshot";
-import { LEAD_SOURCES, LEAD_STAGES } from "@/lib/incrementum/registry";
+import { BUSINESS_SIZES, LEAD_SOURCES, LEAD_STAGES } from "@/lib/incrementum/registry";
 
 export async function getLeadDetail(id: string) {
   return withIncrementum(async (_c, tx) => {
@@ -45,6 +45,7 @@ export const LeadInput = z.object({
   packageId: z.string().uuid().nullable(),
   serviceInterest: z.string().nullable(),
   adBudget: z.string().nullable(),
+  businessSize: z.enum(BUSINESS_SIZES).nullable(),
   message: z.string().nullable(),
   source: z.enum(LEAD_SOURCES),
   notes: z.string().nullable(),
@@ -240,6 +241,7 @@ export async function onboardLeadAsClient(leadId: string, input: z.input<typeof 
       setupPrice: data.setupPrice ?? (quote ? String(quote.oneOffPrice) : pkg ? String(pkg.totals.setupPrice) : null),
       startDate: data.startDate,
       minTermMonths: pkg?.minTermMonths ?? 3,
+      businessSize: lead.businessSize,
     });
     await adoptLeadNeeds(tx, caller, leadId, (engagement as { id: string }).id);
     await auditedUpdate(

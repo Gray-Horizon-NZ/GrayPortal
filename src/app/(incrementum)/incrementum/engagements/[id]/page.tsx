@@ -2,7 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEngagementDetail } from "@/lib/dal/incrementum/engagements";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { ENGAGEMENT_HEALTH, ENGAGEMENT_HEALTH_LABELS, ENGAGEMENT_MODULES, ENGAGEMENT_MODULE_LABELS, BENCH_STAGES, type ContractorStage } from "@/lib/incrementum/registry";
+import {
+  ENGAGEMENT_HEALTH,
+  ENGAGEMENT_HEALTH_LABELS,
+  ENGAGEMENT_MODULES,
+  ENGAGEMENT_MODULE_LABELS,
+  BENCH_STAGES,
+  BUSINESS_SIZES,
+  BUSINESS_SIZE_LABELS,
+  type ContractorStage,
+  type BusinessSize,
+} from "@/lib/incrementum/registry";
 import { money, shortDate, todayNz } from "@/lib/incrementum/format";
 import { monthsBetween } from "@/lib/incrementum/evaluate";
 import { toNum } from "@/lib/incrementum/pricing";
@@ -51,6 +61,7 @@ export default async function EngagementDetail({ params, searchParams }: { param
         badges={
           <>
             <Chip tone={e.status === "active" ? "good" : e.status === "ended" ? undefined : "warning"}>{e.status}</Chip>
+            {e.businessSize && <Chip>{BUSINESS_SIZE_LABELS[e.businessSize as BusinessSize] ?? e.businessSize}</Chip>}
             <Chip tone={e.health === "good" ? "good" : e.health === "watch" ? "warning" : "danger"}>{ENGAGEMENT_HEALTH_LABELS[e.health as keyof typeof ENGAGEMENT_HEALTH_LABELS] ?? e.health}</Chip>
             <Link className="gh-btn-secondary" href={`/clients/${e.clientId}`}>
               Client record ↗
@@ -262,6 +273,17 @@ export default async function EngagementDetail({ params, searchParams }: { param
               <label className="inc-field">
                 Slot weight
                 <input className="gh-input" name="slotWeight" defaultValue={e.slotWeight} />
+              </label>
+              <label className="inc-field">
+                Business size
+                <select className="gh-input" name="businessSize" defaultValue={e.businessSize ?? ""}>
+                  <option value="">Not set</option>
+                  {BUSINESS_SIZES.map((z) => (
+                    <option key={z} value={z}>
+                      {BUSINESS_SIZE_LABELS[z]}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="inc-field">
                 Health

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { LEAD_STAGES, LEAD_STAGE_LABELS, LEAD_SOURCES, LEAD_SOURCE_LABELS, METRICS, type LeadStage } from "@/lib/incrementum/registry";
+import { LEAD_STAGES, LEAD_STAGE_LABELS, LEAD_SOURCES, LEAD_SOURCE_LABELS, METRICS, BUSINESS_SIZES, BUSINESS_SIZE_LABELS, type LeadStage } from "@/lib/incrementum/registry";
 import { formatMetric, shortDate, minutesSince } from "@/lib/incrementum/format";
 import { PageHead, Flash, Chip, Dot } from "@/components/incrementum/ui";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
@@ -140,6 +140,17 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <label className="inc-field">
             Monthly ad budget
             <input className="gh-input" name="adBudget" placeholder="e.g. $1,500" />
+          </label>
+          <label className="inc-field">
+            Business size
+            <select className="gh-input" name="businessSize" defaultValue="">
+              <option value="">Not set</option>
+              {BUSINESS_SIZES.map((z) => (
+                <option key={z} value={z}>
+                  {BUSINESS_SIZE_LABELS[z]}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="inc-field inc-field--wide">
             Notes

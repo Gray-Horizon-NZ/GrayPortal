@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getContractorDetail, listUnlinkedContractorLogins } from "@/lib/dal/incrementum/contractors";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { ALL_CONTRACTOR_STAGES, CONTRACTOR_STAGES, CONTRACTOR_STAGE_LABELS, CONTRACTOR_RATE_TYPES, type ContractorStage } from "@/lib/incrementum/registry";
+import { ALL_CONTRACTOR_STAGES, CONTRACTOR_STAGES, CONTRACTOR_STAGE_LABELS, CONTRACTOR_RATE_TYPES, BUSINESS_SIZES, BUSINESS_SIZE_LABELS, type ContractorStage } from "@/lib/incrementum/registry";
 import { CONTRACTOR_DRAFTS } from "@/lib/incrementum/drafts";
 import { money, shortDate } from "@/lib/incrementum/format";
 import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
@@ -58,6 +58,9 @@ export default async function ContractorDetail({ params, searchParams }: { param
         ]}
         badges={
           <>
+            {(p.worksWithSizes ?? []).length > 0 && (
+              <Chip tone="accent">Works with {BUSINESS_SIZES.filter((z) => p.worksWithSizes!.includes(z)).map((z) => BUSINESS_SIZE_LABELS[z].replace(" business", "").toLowerCase()).join(" · ")}</Chip>
+            )}
             {roles
               .filter((r) => (p.roleIds ?? []).includes(r.id))
               .map((r) => (
@@ -269,6 +272,14 @@ export default async function ContractorDetail({ params, searchParams }: { param
                 {roles.map((r) => (
                   <label key={r.id} className="inc-inline" style={{ fontSize: "var(--gh-text-sm)" }}>
                     <input type="checkbox" name="roleIds" value={r.id} defaultChecked={(p.roleIds ?? []).includes(r.id)} /> {r.name}
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset className="inc-field inc-field--wide inc-roles-pick">
+                <legend>Works with (business sizes they&apos;ll take jobs for; none ticked = any)</legend>
+                {BUSINESS_SIZES.map((z) => (
+                  <label key={z} className="inc-inline" style={{ fontSize: "var(--gh-text-sm)" }}>
+                    <input type="checkbox" name="worksWithSizes" value={z} defaultChecked={(p.worksWithSizes ?? []).includes(z)} /> {BUSINESS_SIZE_LABELS[z]}
                   </label>
                 ))}
               </fieldset>

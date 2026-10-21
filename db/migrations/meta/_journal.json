@@ -274,6 +274,13 @@
       "when": 1792540529300,
       "tag": "0038_incrementum_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792543020766,
+      "tag": "0039_business_size",
+      "breakpoints": true
     }
   ]
 }
