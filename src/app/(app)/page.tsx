@@ -27,13 +27,14 @@ import { formatEventTimeRange } from "@/lib/date";
 import MrrBreakdownButton from "@/components/ui/MrrBreakdownButton";
 import ScoreGauge from "@/components/ui/ScoreGauge";
 import EmptyState from "@/components/ui/EmptyState";
-import { Meter, StatRow, HeroMore, GstGauge, type HomeStat } from "@/components/ui/terminal/HomeWidgets";
+import { StatRow, HeroMore, GstGauge, type HomeStat } from "@/components/ui/terminal/HomeWidgets";
+import { Panel, ClientTile } from "@/components/ui/terminal/Term";
 import TaskRow from "./tasks/TaskRow";
 import DashboardReadySignal from "@/components/ui/DashboardReadySignal";
 import IncrementumHomeBanner from "@/components/incrementum/IncrementumHomeBanner";
 
-// Phase 16 — the "front door" (brief §12), in the terminal UI (GTA concept,
-// 21 Oct 2026). Calm view: one gold focal point (the MRR hero), bars doing
+// Phase 16 — the "front door" (brief §12), in the terminal UI (21 Oct 2026;
+// rules in grayhorizon-docs/Terminal UI/RULES.md). Calm view: one gold focal point (the MRR hero), bars doing
 // the talking, and detail numbers folded behind a click. "Due" still leads
 // the panels below the stats, since research on how CRM dashboards are
 // actually used (Pipedrive/HubSpot) shows they lead with attention-needed
@@ -41,31 +42,6 @@ import IncrementumHomeBanner from "@/components/incrementum/IncrementumHomeBanne
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-NZ")}`;
 const short = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : `$${Math.round(n)}`);
-
-function Panel({
-  title,
-  icon: Icon,
-  right,
-  pad = true,
-  children,
-}: {
-  title: string;
-  icon: LucideIcon;
-  right?: React.ReactNode;
-  pad?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="gh-term-panel">
-      <header className="gh-term-phead">
-        <Icon size={13} strokeWidth={2} />
-        <span className="gh-term-ptitle">{title}</span>
-        {right && <span className="gh-term-phead-r">{right}</span>}
-      </header>
-      <div className={pad ? "gh-term-pbody" : undefined}>{children}</div>
-    </section>
-  );
-}
 
 function Sparkline({ values }: { values: number[] }) {
   const W = 640;
@@ -223,7 +199,7 @@ export default async function HomePage({
       <div className="gh-term-welcome gh-animate-fade-up">
         <div>
           <p className="gh-eyebrow">Welcome back</p>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
+          <h1 className="gh-title gh-term-keep" style={{ fontSize: "var(--gh-text-2xl)" }}>
             <em>{firstName}</em>
           </h1>
         </div>
@@ -413,45 +389,18 @@ export default async function HomePage({
           <div className="gh-term-tiles">
             {clients.map((c) => {
               const health = healthByClient.get(c.id);
-              const score = health ? Math.round(Number(health.score)) : null;
               const mrr = revenueByClient.get(c.id) ?? 0;
               return (
-                <Link key={c.id} href={`/clients/${c.id}`} className="gh-term-tile">
-                  <span className="gh-term-tile-name">
-                    <span>{c.name}</span>
-                    {mrr > 0 && <span className="gh-badge" data-status="success">Retainer</span>}
-                  </span>
-                  <span className="gh-term-banner">
-                    {c.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- admin-set public Storage URL, any host
-                      <img src={c.logoUrl} alt={`${c.name} logo`} />
-                    ) : (
-                      <span className="gh-term-banner-mono">{c.name.trim().charAt(0).toUpperCase()}</span>
-                    )}
-                  </span>
-                  <span className="gh-term-tile-body">
-                    {isAdmin && (
-                      <span className="gh-term-tile-meter">
-                        <span>Revenue</span>
-                        <Meter pct={monthlyRecurringRevenue > 0 ? (mrr / monthlyRecurringRevenue) * 100 : 0} label="Share of monthly recurring revenue" />
-                        <b>{mrr > 0 ? money(mrr) : "—"}</b>
-                      </span>
-                    )}
-                    <span className="gh-term-tile-meter">
-                      <span>Health</span>
-                      <Meter pct={score ?? 0} tone="neutral" label="Health score" />
-                      <b>
-                        {score ?? "—"}{" "}
-                        {health && (
-                          <span className="gh-term-trend" data-trend={health.trend}>
-                            {health.trend === "up" ? "▲" : health.trend === "down" ? "▼" : "■"}
-                          </span>
-                        )}
-                      </b>
-                    </span>
-                  </span>
-                  <span className="gh-term-tile-manage">Manage account</span>
-                </Link>
+                <ClientTile
+                  key={c.id}
+                  id={c.id}
+                  name={c.name}
+                  logoUrl={c.logoUrl}
+                  badge={mrr > 0 ? { label: "Retainer", tone: "success" } : undefined}
+                  mrr={isAdmin ? mrr : undefined}
+                  mrrTotal={monthlyRecurringRevenue}
+                  health={health ? { score: Math.round(Number(health.score)), trend: health.trend } : null}
+                />
               );
             })}
           </div>

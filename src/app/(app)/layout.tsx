@@ -93,7 +93,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // never branched on inside the shared AppShell component. Search and
   // Notifications are no longer nav items — search lives in the top bar,
   // notifications in the bell dropdown (both in AppShell/ShellHeader).
-  // Terminal rail (GTA concept, 21 Oct 2026): ungrouped items render as the
+  // Terminal rail (21 Oct 2026; rules in grayhorizon-docs/Terminal UI/RULES.md): ungrouped items render as the
   // big block buttons for daily pages, in this order; grouped items fold
   // into the folders underneath, ordered by first appearance below.
   const isAdminCaller = callerRole === "admin";

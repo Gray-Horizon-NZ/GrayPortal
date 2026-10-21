@@ -1,5 +1,7 @@
-/* GrayPortal terminal UI — the admin app in the GTA business-terminal style
- * (concept: OS/grayportal-gta-concept, approved 21 Oct 2026).
+/* GrayPortal terminal UI — the admin app in the business-terminal style
+ * (approved 21 Oct 2026). Design rules, the single source of truth:
+ * grayhorizon-docs/Terminal UI/RULES.md. Playground with mock data:
+ * OS/grayportal-terminal-concept.
  *
  * EVERY rule here is scoped under .gh-terminal, which only the admin
  * (app)/layout.tsx sets (AppShell variant="terminal"). Next keeps a layout's
@@ -153,7 +155,83 @@
   text-transform: uppercase;
   color: var(--t-muted);
 }
-.gh-terminal .gh-table td { border-bottom-color: var(--t-line-soft); }
+/* ─── Shared primitives (every admin page) ────────────────────────────── */
+
+/* Page title: every page's "Gray Horizon" eyebrow + h1.gh-title becomes the
+   terminal title — tracked caps with a gold square. !important beats the
+   inline font sizes the pages set. Home's welcome name keeps its serif. */
+.gh-terminal .gh-shell-main h1.gh-title:not(.gh-term-keep) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--gh-font-body);
+  font-size: 13px !important;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--t-strong);
+  line-height: 1.4;
+}
+.gh-terminal .gh-shell-main h1.gh-title:not(.gh-term-keep)::before { content: ""; flex-shrink: 0; width: 9px; height: 9px; background: var(--t-accent); }
+.gh-terminal .gh-shell-main p.gh-eyebrow:has(+ h1.gh-title:not(.gh-term-keep)) { margin-bottom: 6px; padding-left: 19px; font-size: 10px; color: var(--t-faint); }
+
+/* Buttons: 34px, sentence case — caps are for titles only. */
+.gh-terminal .gh-btn-primary,
+.gh-terminal .gh-btn-secondary {
+  min-height: 34px;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+}
+.gh-terminal .gh-btn-primary { font-weight: 500; }
+.gh-terminal .gh-btn-primary:hover { opacity: 1; filter: brightness(1.08); }
+.gh-terminal .gh-btn-secondary { border-color: var(--t-line-strong); }
+.gh-terminal .gh-btn-secondary:hover { background: transparent; border-color: var(--t-accent); color: var(--t-strong); }
+.gh-terminal .gh-btn-secondary[data-active] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); }
+.gh-terminal .gh-filter { font-size: 12px; letter-spacing: 0.01em; text-transform: none; border-color: var(--t-line-strong); }
+.gh-terminal .gh-filter[data-active="true"] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); }
+
+/* Inputs */
+.gh-terminal .gh-input { min-height: 34px; background: var(--t-panel-2); border-color: var(--t-line-strong); font-size: 13px; }
+.gh-terminal textarea.gh-input { line-height: 1.5; }
+.gh-terminal .gh-input:focus { outline: none; border-color: var(--t-accent); }
+
+/* Cards: quieter interactive hover (a line, not a jump). */
+.gh-terminal .gh-card { border-color: var(--t-line); }
+.gh-terminal .gh-card--interactive:hover { transform: none; border-color: var(--t-line-strong); }
+
+/* Folded sections (<details class="gh-card">): the summary reads as a panel
+   header with a chevron. */
+.gh-terminal details.gh-card > summary { list-style: none; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.gh-terminal details.gh-card > summary::-webkit-details-marker { display: none; }
+.gh-terminal details.gh-card > summary::before { content: "›"; font-size: 14px; line-height: 1; color: var(--t-faint); transition: transform var(--gh-duration-fast) var(--gh-ease); }
+.gh-terminal details.gh-card[open] > summary::before { transform: rotate(90deg); color: var(--t-accent); }
+
+/* Tabs: underline tabs, gold rule on the active one. */
+.gh-terminal .gh-tabs { gap: 0; border-bottom-color: var(--t-line); }
+.gh-terminal .gh-tab-btn { height: 42px; padding: 0 16px; font-size: 13px; }
+.gh-terminal .gh-tab-btn[data-active="true"] { font-weight: 500; }
+
+/* Tables */
+.gh-terminal .gh-table-wrap { border-color: var(--t-line); background: var(--t-panel); }
+.gh-terminal .gh-table th { height: 34px; padding: 0 14px; font-size: 10px; letter-spacing: 0.16em; background: var(--t-panel-2); }
+.gh-terminal .gh-table td { height: 42px; padding: 8px 14px; font-size: 13px; border-bottom-color: var(--t-line-soft); }
+.gh-terminal .gh-table-num { font-family: var(--gh-font-body); }
+
+/* KPI strips: value + small label, the stat-tile look. */
+.gh-terminal .gh-kpi-strip { gap: 20px; }
+.gh-terminal .gh-kpi { padding: 18px 20px; border-color: var(--t-line); }
+.gh-terminal .gh-kpi-n { font-family: var(--gh-font-body); font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-kpi-l { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
+
+/* Rows and lists */
+.gh-terminal .gh-item-row { padding: 12px 0; border-bottom-color: var(--t-line-soft); }
+.gh-terminal .gh-add-form { border-top-color: var(--t-line-soft); }
+.gh-terminal .gh-badge { font-size: 10px; padding: 2px 7px; }
 
 @media (max-width: 1024px) {
   .gh-terminal .gh-term-rail { width: 204px; padding: 16px 12px; }
@@ -163,6 +241,103 @@
   .gh-terminal .gh-term-rail { display: none; }
   .gh-terminal .gh-term-wordmark-type { display: none; }
   .gh-terminal .gh-shell-main { padding: 16px 16px 40px; }
+}
+
+/* ─── Screen frame (PageHead, rows, empty states) ─────────────────────── */
+.gh-terminal .gh-term-page { display: flex; flex-direction: column; gap: 24px; max-width: 1480px; }
+.gh-terminal .gh-term-pagehead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--t-line);
+}
+.gh-terminal .gh-term-pagehead-sub { margin-top: 6px; padding-left: 19px; font-size: 13px; color: var(--t-muted); }
+.gh-terminal .gh-term-pagehead-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gh-terminal .gh-term-grid--2 { grid-template-columns: 1fr 1fr; align-items: start; }
+.gh-terminal .gh-term-strong { color: var(--t-strong); font-weight: 500; }
+.gh-terminal a.gh-term-strong:hover { color: var(--t-accent); }
+
+.gh-terminal .gh-term-rows { display: grid; }
+.gh-terminal .gh-term-row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 22px; border-bottom: 1px solid var(--t-line-soft); font-size: 13px; }
+.gh-terminal .gh-term-row:last-child { border-bottom: 0; }
+.gh-terminal .gh-term-row:hover { background: var(--t-panel-2); }
+.gh-terminal .gh-term-row-go { color: var(--t-faint); flex-shrink: 0; }
+.gh-terminal .gh-term-row:hover .gh-term-row-go { color: var(--t-accent); }
+
+.gh-terminal .gh-term-empty { display: grid; justify-items: center; gap: 6px; padding: 28px 12px; text-align: center; font-size: 13px; color: var(--t-muted); }
+.gh-terminal .gh-term-empty-title { font-size: 14px; font-weight: 500; color: var(--t-strong); }
+
+/* Profile header — logo banner, name, meta, actions. */
+.gh-terminal .gh-term-profile {
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  align-items: stretch;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+}
+.gh-terminal .gh-term-profile-banner { height: auto; min-height: 120px; border-bottom: 0; border-right: 1px solid color-mix(in srgb, var(--t-accent) 40%, var(--t-line)); }
+.gh-terminal .gh-term-profile-id { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 20px 24px; min-width: 0; }
+.gh-terminal .gh-term-profile-name { font-size: 24px; font-weight: 500; color: var(--t-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gh-terminal .gh-term-profile-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .gh-term-profile-meta b { color: var(--t-text); font-weight: 500; }
+.gh-terminal .gh-term-profile-actions { align-self: center; padding: 20px 24px; }
+@media (max-width: 760px) {
+  .gh-terminal .gh-term-profile { grid-template-columns: 1fr; }
+  .gh-terminal .gh-term-profile-banner { min-height: 100px; border-right: 0; border-bottom: 1px solid var(--t-line); }
+  .gh-terminal .gh-term-profile-actions { padding-top: 0; }
+}
+
+/* Big-totals strip (the bunker's centred totals), one panel split four ways. */
+.gh-terminal .gh-term-split { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-terminal .gh-term-split > div { padding: 22px 16px; text-align: center; }
+.gh-terminal .gh-term-split > div + div { border-left: 1px solid var(--t-line-soft); }
+.gh-terminal .gh-term-split .k { font-family: var(--gh-font-display); font-size: 22px; font-weight: 600; color: var(--t-accent); }
+.gh-terminal .gh-term-split .v { margin-top: 4px; font-size: 28px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-split .h { margin-top: 2px; font-size: 12px; color: var(--t-faint); }
+.gh-terminal .gh-term-monthcols { gap: 10px; }
+.gh-terminal .gh-term-monthcols .gh-term-stagecol-track { height: 150px; max-width: 46px; }
+.gh-terminal .gh-term-monthcols .gh-term-stagecol-val { font-size: 11px; font-weight: 400; color: var(--t-muted); }
+@media (max-width: 900px) {
+  .gh-terminal .gh-term-split { grid-template-columns: 1fr 1fr; }
+  .gh-terminal .gh-term-split > div:nth-child(3) { border-left: 0; }
+  .gh-terminal .gh-term-split > div:nth-child(n + 3) { border-top: 1px solid var(--t-line-soft); }
+}
+
+/* Stage tiles (hangar layout) — the selected tile drives the table below. */
+.gh-terminal .gh-term-stagetiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.gh-terminal .gh-term-stagetile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 140px;
+  padding: 16px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  transition: border-color var(--gh-duration-fast) var(--gh-ease), background var(--gh-duration-fast) var(--gh-ease);
+}
+.gh-terminal .gh-term-stagetile:hover { border-color: var(--t-line-strong); }
+.gh-terminal .gh-term-stagetile[data-active] { border-color: var(--t-accent); background: color-mix(in srgb, var(--t-accent) 6%, var(--t-panel)); }
+.gh-terminal .gh-term-stagetile .name { font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .gh-term-stagetile[data-active] .name { color: var(--t-strong); }
+.gh-terminal .gh-term-stagetile .n { margin-top: auto; font-family: var(--gh-font-display); font-size: 52px; font-weight: 600; line-height: 1; color: var(--t-accent); }
+.gh-terminal .gh-term-stagetile .v { font-size: 14px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .gh-term-stagetiles--closed { grid-template-columns: repeat(3, 1fr); margin-top: -12px; }
+.gh-terminal .gh-term-stagetiles--closed .gh-term-stagetile { min-height: 0; flex-direction: row; align-items: center; gap: 14px; padding: 12px 16px; }
+.gh-terminal .gh-term-stagetiles--closed .n { margin: 0 0 0 auto; font-size: 28px; color: var(--t-muted); }
+.gh-terminal .gh-term-stagetiles--closed .v { font-size: 13px; font-weight: 400; color: var(--t-muted); }
+
+@media (max-width: 1100px) {
+  .gh-terminal .gh-term-stagetiles { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 760px) {
+  .gh-terminal .gh-term-stagetiles,
+  .gh-terminal .gh-term-stagetiles--closed,
+  .gh-terminal .gh-term-grid--2 { grid-template-columns: 1fr 1fr; }
+  .gh-terminal .gh-term-stagetile { min-height: 110px; }
+  .gh-terminal .gh-term-stagetile .n { font-size: 40px; }
 }
 
 /* ─── Home ────────────────────────────────────────────────────────────── */

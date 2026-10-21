@@ -61,7 +61,7 @@ export default function AppShell({
   notifications?: ShellNotification[];
   markNotificationReadAction?: (id: string) => Promise<void>;
   markAllNotificationsReadAction?: () => Promise<void>;
-  // "terminal" = the admin GTA business-terminal chrome (wordmark header,
+  // "terminal" = the admin business-terminal chrome (wordmark header,
   // block-button rail with folders). Only (app)/layout.tsx passes it, and
   // every terminal style is scoped under .gh-terminal, so the portal,
   // contractor and Incrementum shells never pick any of it up.

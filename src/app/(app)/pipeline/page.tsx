@@ -1,243 +1,238 @@
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, Workflow, ChevronRight } from "lucide-react";
 import { listDealsWithCompany } from "@/lib/dal/deals";
-import { STAGES, isClosedStage } from "@/config/pipeline";
+import { STAGES, CLOSED_STAGES, isClosedStage, type Stage } from "@/config/pipeline";
+import { PageHead, Panel } from "@/components/ui/terminal/Term";
+import { StatRow, type HomeStat } from "@/components/ui/terminal/HomeWidgets";
 
 type SortKey = "value" | "stage" | "nextActionDate";
-type ViewKey = "board" | "list";
+type ViewKey = "stages" | "list";
+type Deal = Awaited<ReturnType<typeof listDealsWithCompany>>[number];
+
+const money = (n: number) => `$${Math.round(n).toLocaleString("en-NZ")}`;
+const OPEN_STAGES = STAGES.filter((s) => !isClosedStage(s));
 
 function withParams(view: ViewKey, extra: Record<string, string | undefined> = {}) {
   const params = new URLSearchParams({ view, ...Object.fromEntries(Object.entries(extra).filter(([, v]) => v)) } as Record<string, string>);
   return `/pipeline?${params.toString()}`;
 }
 
+const fmtDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
+
+// Terminal layout (rules: grayhorizon-docs/Terminal UI/RULES.md): stage
+// tiles drive the deal table below them, instead of eight kanban columns
+// side by side. The List view keeps the full sortable table.
 export default async function PipelinePage({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string; sort?: string; stage?: string }>;
 }) {
   const { view: viewParam, sort, stage } = await searchParams;
-  const view: ViewKey = viewParam === "list" ? "list" : "board";
+  const view: ViewKey = viewParam === "list" ? "list" : "stages";
   const deals = await listDealsWithCompany();
+
+  return (
+    <div className="gh-term-page">
+      <PageHead title="Pipeline" sub={view === "stages" ? "Pick a stage to see its deals — open a deal for its full record" : "Every deal, sortable"}>
+        <Link href={withParams("stages")} className="gh-btn-secondary" data-active={view === "stages" || undefined}>
+          Stages
+        </Link>
+        <Link href={withParams("list", { sort, stage })} className="gh-btn-secondary" data-active={view === "list" || undefined}>
+          List
+        </Link>
+        <Link className="gh-btn-secondary" href="/api/export/deals">
+          <Download size={14} strokeWidth={1.75} />
+          Export CSV
+        </Link>
+      </PageHead>
+
+      {view === "stages" ? <StagesView deals={deals} stage={stage} /> : <ListView deals={deals} sort={sort} stage={stage} />}
+    </div>
+  );
+}
+
+function StagesView({ deals, stage }: { deals: Deal[]; stage?: string }) {
   const today = new Date().toISOString().slice(0, 10);
+  const byStage = (s: Stage) => deals.filter((d) => d.stage === s);
+  const sum = (ds: Deal[]) => ds.reduce((a, d) => a + Number(d.valueNzd ?? 0), 0);
 
-  const openDeals = deals.filter((d) => !isClosedStage(d.stage));
-  const totalPipelineValue = openDeals.reduce((sum, d) => sum + Number(d.valueNzd ?? 0), 0);
-  const largestDeal = openDeals.reduce((max, d) => Math.max(max, Number(d.valueNzd ?? 0)), 0);
+  // Default to the furthest-along open stage that has deals in it.
+  const selected: Stage =
+    (STAGES as readonly string[]).includes(stage ?? "")
+      ? (stage as Stage)
+      : ([...OPEN_STAGES].reverse().find((s) => byStage(s).length > 0) ?? OPEN_STAGES[0]);
+  const inStage = byStage(selected).sort((a, b) => a.nextActionDate.localeCompare(b.nextActionDate));
+
+  const open = deals.filter((d) => !isClosedStage(d.stage));
+  const total = sum(open);
+  const withProb = open.filter((d) => d.closeProbability != null);
+  const weighted = withProb.reduce((a, d) => a + Number(d.valueNzd ?? 0) * (Number(d.closeProbability) / 100), 0);
+  const won = byStage("Won").length;
+  const lost = byStage("Lost").length;
+  const largest = open.reduce((m, d) => Math.max(m, Number(d.valueNzd ?? 0)), 0);
+
+  const stats: HomeStat[] = [
+    { label: "Open pipeline", value: money(total), sub: `${open.length} open deal${open.length === 1 ? "" : "s"}` },
+    withProb.length > 0
+      ? {
+          label: "Weighted",
+          value: money(weighted),
+          sub: `value × close probability, ${withProb.length} of ${open.length} deals have one set`,
+          meter: { pct: total > 0 ? (weighted / total) * 100 : 0, label: "Weighted share of open pipeline" },
+        }
+      : { label: "Average deal", value: money(open.length ? total / open.length : 0), sub: "open deals" },
+    { label: "Largest deal", value: money(largest), sub: "open deals" },
+    {
+      label: "Win rate",
+      value: won + lost > 0 ? `${Math.round((won / (won + lost)) * 100)}%` : "—",
+      sub: `${won} won of ${won + lost} decided (dormant excluded)`,
+      meter: { pct: won + lost > 0 ? (won / (won + lost)) * 100 : 0, tone: "neutral", label: "Win rate" },
+    },
+  ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "var(--gh-space-3)" }}>
-        <div>
-          <p className="gh-eyebrow">Gray Horizon</p>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-            Pipeline
-          </h1>
-        </div>
-        <div style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
-          <Link
-            href={withParams("board")}
-            className="gh-btn-secondary"
-            style={view === "board" ? { background: "var(--gh-surface-raised)", borderColor: "var(--gh-text-muted)" } : undefined}
-          >
-            Board
-          </Link>
-          <Link
-            href={withParams("list", { sort, stage })}
-            className="gh-btn-secondary"
-            style={view === "list" ? { background: "var(--gh-surface-raised)", borderColor: "var(--gh-text-muted)" } : undefined}
-          >
-            List
-          </Link>
-          <Link className="gh-btn-secondary" href="/api/export/deals" style={{ gap: "var(--gh-space-2)" }}>
-            <Download size={14} strokeWidth={1.75} style={{ marginRight: 6 }} />
-            Export CSV
-          </Link>
-        </div>
+    <>
+      <div className="gh-term-stagetiles">
+        {OPEN_STAGES.map((s) => {
+          const ds = byStage(s);
+          return (
+            <Link key={s} href={withParams("stages", { stage: s })} className="gh-term-stagetile" data-active={selected === s || undefined}>
+              <span className="name">{s}</span>
+              <span className="n">{ds.length}</span>
+              <span className="v">{money(sum(ds))}</span>
+            </Link>
+          );
+        })}
+      </div>
+      <div className="gh-term-stagetiles gh-term-stagetiles--closed">
+        {CLOSED_STAGES.map((s) => {
+          const ds = byStage(s);
+          return (
+            <Link key={s} href={withParams("stages", { stage: s })} className="gh-term-stagetile" data-active={selected === s || undefined}>
+              <span className="name">{s}</span>
+              <span className="v">{money(sum(ds))}</span>
+              <span className="n">{ds.length}</span>
+            </Link>
+          );
+        })}
       </div>
 
-      {view === "board" ? (
-        <BoardView deals={deals} openCount={openDeals.length} totalPipelineValue={totalPipelineValue} largestDeal={largestDeal} today={today} />
-      ) : (
-        <ListView deals={deals} sort={sort} stage={stage} />
-      )}
-    </div>
+      <Panel title={selected} icon={Workflow} pad={inStage.length === 0} right={`${inStage.length} deal${inStage.length === 1 ? "" : "s"}`}>
+        {inStage.length === 0 ? (
+          <div className="gh-term-empty">
+            <p className="gh-term-empty-title">No deals in this stage</p>
+            <p>Deals are added from a company&apos;s page; new prospects land in Identified first.</p>
+          </div>
+        ) : (
+          <div className="gh-table-wrap" style={{ border: 0 }}>
+            <table className="gh-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th className="gh-table-num">Value</th>
+                  <th>{isClosedStage(selected) ? "Close reason" : "Next action"}</th>
+                  <th>Owner</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {inStage.map((d) => {
+                  const late = !isClosedStage(d.stage) && d.nextActionDate < today;
+                  return (
+                    <tr key={d.id} className="gh-term-rowlink">
+                      <td>
+                        <Link href={`/deals/${d.id}`} className="gh-term-strong">{d.companyName}</Link>
+                        {(d.packageTier || d.source) && (
+                          <div className="gh-term-small">{[d.packageTier, d.source].filter(Boolean).join(" · ")}</div>
+                        )}
+                      </td>
+                      <td className="gh-table-num">{d.valueNzd ? money(Number(d.valueNzd)) : "TBC"}</td>
+                      <td>
+                        {isClosedStage(d.stage) ? (
+                          <span className="gh-term-small">{d.closeReason || "—"}</span>
+                        ) : (
+                          <>
+                            <div style={late ? { color: "var(--gh-danger)" } : undefined}>{d.nextAction}</div>
+                            <div className="gh-term-small" style={late ? { color: "var(--gh-danger)" } : undefined}>
+                              {late ? `Overdue · ${fmtDate(d.nextActionDate)}` : d.nextActionDate === today ? "Today" : fmtDate(d.nextActionDate)}
+                            </div>
+                          </>
+                        )}
+                      </td>
+                      <td className="gh-term-small">{d.ownerName ?? "—"}</td>
+                      <td className="gh-table-num">
+                        <Link href={`/deals/${d.id}`} className="gh-term-link" aria-label={`Open ${d.companyName}`}>
+                          Open <ChevronRight size={12} style={{ verticalAlign: "-2px" }} />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <StatRow stats={stats} />
+    </>
   );
 }
 
-function BoardView({
-  deals,
-  openCount,
-  totalPipelineValue,
-  largestDeal,
-  today,
-}: {
-  deals: Awaited<ReturnType<typeof listDealsWithCompany>>;
-  openCount: number;
-  totalPipelineValue: number;
-  largestDeal: number;
-  today: string;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--gh-space-8)",
-          paddingBottom: "var(--gh-space-4)",
-          borderBottom: "1px solid var(--gh-border)",
-          flexWrap: "wrap",
-        }}
-      >
-        <SummaryItem label="Total pipeline" value={`$${totalPipelineValue.toLocaleString("en-NZ")}`} accent />
-        <SummaryItem label="Open deals" value={openCount} />
-        <SummaryItem label="Largest deal" value={`$${largestDeal.toLocaleString("en-NZ")}`} />
-        <SummaryItem label="Stages" value={STAGES.length} />
-      </div>
-
-      <div style={{ overflowX: "auto", paddingBottom: "var(--gh-space-2)" }}>
-        <div className="gh-stagger gh-pipeline-board">
-          {STAGES.map((stage) => {
-            const stageDeals = deals.filter((d) => d.stage === stage);
-            const total = stageDeals.reduce((sum, d) => sum + Number(d.valueNzd ?? 0), 0);
-            return (
-              <div key={stage} className="gh-pipeline-col">
-                <div className="gh-pipeline-col-head">
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)", marginBottom: "var(--gh-space-2)" }}>
-                    <span className="gh-eyebrow" style={{ marginBottom: 0 }}>{stage}</span>
-                    <span className="gh-badge" style={{ marginLeft: "auto" }}>{stageDeals.length}</span>
-                  </div>
-                  <p className="gh-title" style={{ fontSize: "var(--gh-text-lg)", color: total === 0 ? "var(--gh-text-muted)" : undefined }}>
-                    ${total.toLocaleString("en-NZ")}
-                  </p>
-                </div>
-                <div className="gh-pipeline-col-body">
-                  {stageDeals.map((d) => {
-                    const noNextAction = d.nextActionDate < today;
-                    const isToday = d.nextActionDate === today;
-                    const ownerInitial = d.ownerName?.trim()?.[0]?.toUpperCase();
-                    return (
-                      <Link key={d.id} href={`/deals/${d.id}`} className="gh-card gh-card--interactive">
-                        <p style={{ fontWeight: 500 }}>{d.valueNzd ? `$${d.valueNzd}` : "TBC"}</p>
-                        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
-                          {d.companyName}
-                        </p>
-                        <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: "var(--gh-space-1)" }}>
-                          {d.nextAction}
-                        </p>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginTop: "var(--gh-space-3)",
-                            paddingTop: "var(--gh-space-2)",
-                            borderTop: "1px solid var(--gh-border)",
-                          }}
-                        >
-                          {ownerInitial ? (
-                            <span className="gh-pipeline-owner">{ownerInitial}</span>
-                          ) : (
-                            <span />
-                          )}
-                          {noNextAction ? (
-                            <span className="gh-badge" data-status="danger">
-                              No next action
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: "var(--gh-text-micro)", color: "var(--gh-text-muted)" }}>
-                              Next: {isToday ? "today" : d.nextActionDate}
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                  {stageDeals.length === 0 && (
-                    <div className="gh-pipeline-empty">
-                      <span className="gh-pipeline-empty-title">Nothing here yet</span>
-                      New prospects land in this stage first.
-                    </div>
-                  )}
-                  <div className="gh-pipeline-add">+ Add deal</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryItem({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-1)" }}>
-      <span className="gh-eyebrow">{label}</span>
-      <span className="gh-title" style={{ fontSize: "var(--gh-text-lg)", color: accent ? "var(--gh-accent)" : undefined }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function ListView({
-  deals,
-  sort,
-  stage,
-}: {
-  deals: Awaited<ReturnType<typeof listDealsWithCompany>>;
-  sort?: string;
-  stage?: string;
-}) {
+function ListView({ deals, sort, stage }: { deals: Deal[]; sort?: string; stage?: string }) {
   const sortKey = (sort as SortKey) ?? "nextActionDate";
   const filtered = stage ? deals.filter((r) => r.stage === stage) : deals;
   const sorted = [...filtered].sort((a, b) => {
     if (sortKey === "value") return Number(b.valueNzd ?? 0) - Number(a.valueNzd ?? 0);
-    if (sortKey === "stage") return a.stage.localeCompare(b.stage);
+    if (sortKey === "stage") return STAGES.indexOf(a.stage) - STAGES.indexOf(b.stage);
     return a.nextActionDate.localeCompare(b.nextActionDate);
   });
+  const sortLabels: Record<SortKey, string> = { nextActionDate: "Next action date", value: "Value", stage: "Stage" };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }}>
-      <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
+    <>
+      <div className="gh-list-toolbar" style={{ marginBottom: 0 }}>
+        <span className="gh-term-small">Sort by</span>
         {(["nextActionDate", "value", "stage"] as SortKey[]).map((k) => (
-          <Link key={k} href={withParams("list", { sort: k, stage })} className="gh-btn-secondary">
-            Sort: {k}
+          <Link key={k} href={withParams("list", { sort: k, stage })} className="gh-filter" data-active={sortKey === k}>
+            {sortLabels[k]}
           </Link>
         ))}
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--gh-text-sm)" }}>
+      <div className="gh-table-wrap">
+        <table className="gh-table">
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--gh-border)" }}>
-              <th className="gh-eyebrow" style={{ padding: "var(--gh-space-2)" }}>Company</th>
-              <th className="gh-eyebrow" style={{ padding: "var(--gh-space-2)" }}>Stage</th>
-              <th className="gh-eyebrow" style={{ padding: "var(--gh-space-2)" }}>Value</th>
-              <th className="gh-eyebrow" style={{ padding: "var(--gh-space-2)" }}>Next action</th>
-              <th className="gh-eyebrow" style={{ padding: "var(--gh-space-2)" }}>Due</th>
+            <tr>
+              <th>Company</th>
+              <th>Stage</th>
+              <th className="gh-table-num">Value</th>
+              <th>Next action</th>
+              <th>Due</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((d) => (
-              <tr key={d.id} style={{ borderBottom: "1px solid var(--gh-border)" }}>
-                <td style={{ padding: "var(--gh-space-2)" }}>
-                  <Link href={`/deals/${d.id}`}>{d.companyName}</Link>
+              <tr key={d.id}>
+                <td>
+                  <Link href={`/deals/${d.id}`} className="gh-term-strong">{d.companyName}</Link>
                 </td>
-                <td style={{ padding: "var(--gh-space-2)" }}>
+                <td>
                   <span className="gh-badge">{d.stage}</span>
                 </td>
-                <td style={{ padding: "var(--gh-space-2)", fontFamily: "var(--gh-font-mono)" }}>
-                  {d.valueNzd ? `$${d.valueNzd}` : "—"}
-                </td>
-                <td style={{ padding: "var(--gh-space-2)" }}>{d.nextAction}</td>
-                <td style={{ padding: "var(--gh-space-2)", fontFamily: "var(--gh-font-mono)" }}>{d.nextActionDate}</td>
+                <td className="gh-table-num">{d.valueNzd ? money(Number(d.valueNzd)) : "—"}</td>
+                <td>{d.nextAction}</td>
+                <td className="gh-term-small">{fmtDate(d.nextActionDate)}</td>
               </tr>
             ))}
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={5} className="gh-term-small">No deals yet.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }

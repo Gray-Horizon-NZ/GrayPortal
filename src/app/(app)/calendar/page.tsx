@@ -6,6 +6,7 @@ import { listAllTasks } from "@/lib/dal/tasks";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
 import { listCalendarEventsInRange } from "@/lib/google/adapter";
 import CalendarGrid from "./CalendarGrid";
+import { PageHead } from "@/components/ui/terminal/Term";
 import { addDays, addMonths, buildMonthGrid, buildWeekDays, parseDateStr, toDateStr } from "./dateGrid";
 
 export default async function CalendarPage({
@@ -42,11 +43,19 @@ export default async function CalendarPage({
       : `${dayDates[0].toLocaleDateString("en-NZ", { day: "numeric", month: "short", timeZone: "UTC" })} – ${dayDates[6].toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", maxWidth: 1200 }}>
-      <div>
-        <p className="gh-eyebrow">Work</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>Calendar</h1>
-      </div>
+    <div className="gh-term-page">
+      <PageHead title="Calendar" sub={connection ? title : "Business calendar (Google)"}>
+        {connection && (
+          <>
+            <Link href={`/calendar?view=week&date=${anchorStr}`} className="gh-btn-secondary" data-active={view === "week" || undefined}>
+              Week
+            </Link>
+            <Link href={`/calendar?view=month&date=${anchorStr}`} className="gh-btn-secondary" data-active={view === "month" || undefined}>
+              Month
+            </Link>
+          </>
+        )}
+      </PageHead>
 
       {!connection ? (
         <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
@@ -74,14 +83,6 @@ export default async function CalendarPage({
                 <ChevronRight size={16} strokeWidth={1.75} />
               </Link>
               <p className="gh-panel-title" style={{ marginLeft: "var(--gh-space-2)" }}>{title}</p>
-            </div>
-            <div style={{ display: "flex", gap: "var(--gh-space-2)" }}>
-              <Link href={`/calendar?view=week&date=${anchorStr}`} className="gh-btn-secondary" data-active={view === "week" || undefined}>
-                Week
-              </Link>
-              <Link href={`/calendar?view=month&date=${anchorStr}`} className="gh-btn-secondary" data-active={view === "month" || undefined}>
-                Month
-              </Link>
             </div>
           </div>
 
