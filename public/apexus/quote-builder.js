@@ -16,6 +16,12 @@
 (function () {
   "use strict";
 
+  // Gray Horizon is not GST registered (Max, 2026-10-21): quotes show plain
+  // prices with no GST wording at all, and the "+15% GST" toggle is hidden.
+  // Flip to true on registration to bring back "Prices shown exclude GST
+  // (15%)" and the GST-inclusive toggle.
+  const GST_REGISTERED = false;
+
   // ============================================================
   // DATA — fetched live from /api/apexus-pricing (GrayPortal's own
   // serviceModules/serviceItems + grayscale_products tables). See
@@ -874,7 +880,7 @@
     });
 
     // GST
-    const gstOn = document.getElementById("f_gst").checked;
+    const gstOn = GST_REGISTERED && document.getElementById("f_gst").checked;
     const gstMult = gstOn ? 1.15 : 1;
 
     // ---------- Write to preview ----------
@@ -952,8 +958,8 @@
     }
 
     // Terms
-    const gstNote = gstOn ? "Prices shown are GST-inclusive." : "Prices shown exclude GST (15%).";
-    document.getElementById("p_terms").textContent = `${gstNote} Minimum engagement term: 3 months. Ad spend billed directly by the ad platform, separate from this quote. Pricing reviewed annually with 30 days' notice. Work beyond agreed scope billed at the standard hourly change-order rate unless re-scoped in writing.`;
+    const gstNote = !GST_REGISTERED ? "" : gstOn ? "Prices shown are GST-inclusive. " : "Prices shown exclude GST (15%). ";
+    document.getElementById("p_terms").textContent = `${gstNote}Minimum engagement term: 3 months. Ad spend billed directly by the ad platform, separate from this quote. Pricing reviewed annually with 30 days' notice. Work beyond agreed scope billed at the standard hourly change-order rate unless re-scoped in writing.`;
 
     // ---------- Page 2: Total Cost Breakdown ----------
     document.getElementById("p2_contact").textContent = contactVal;
@@ -1195,7 +1201,8 @@
       totalPerceivedValue,
       freebieHeading,
       benefitLines,
-      gstOn: document.getElementById("f_gst").checked,
+      gstOn: GST_REGISTERED && document.getElementById("f_gst").checked,
+      gstRegistered: GST_REGISTERED,
       warmPct: (parseFloat(document.getElementById("f_warmlead").value) || 0) / 100,
       billing: document.querySelector('input[name="setupbilling"]:checked').value,
       showAdspend: document.getElementById("f_adspend_toggle").checked,
@@ -1430,7 +1437,7 @@
           <strong>Always included:</strong> monthly strategy session, GH-HQ portal access, Quarterly Business Review, reporting rhythm and priority response (Retained Advisory). Ads Management includes retargeting.
         </div>
 
-        <div class="terms" id="p_terms">${meta.gstOn ? "Prices shown are GST-inclusive." : "Prices shown exclude GST (15%)."} Minimum engagement term: 3 months. Ad spend billed directly by the ad platform, separate from this quote. Pricing reviewed annually with 30 days' notice. Work beyond agreed scope billed at the standard hourly change-order rate unless re-scoped in writing.</div>
+        <div class="terms" id="p_terms">${!meta.gstRegistered ? "" : meta.gstOn ? "Prices shown are GST-inclusive. " : "Prices shown exclude GST (15%). "}Minimum engagement term: 3 months. Ad spend billed directly by the ad platform, separate from this quote. Pricing reviewed annually with 30 days' notice. Work beyond agreed scope billed at the standard hourly change-order rate unless re-scoped in writing.</div>
 
         <div class="scroll-note">Please scroll for additional information<div class="chevron">⌄</div></div>
       </div>
@@ -1685,5 +1692,8 @@ recalc();
   window.addGSRow = addGSRow;
   window.createChildDocument = createChildDocument;
 
+  // Inline style, not the hidden attribute: .toggle-row sets its own display.
+  const gstRow = document.getElementById("f_gst")?.closest(".toggle-row");
+  if (!GST_REGISTERED && gstRow) gstRow.style.display = "none";
   loadCatalogueAndRender();
 })();
