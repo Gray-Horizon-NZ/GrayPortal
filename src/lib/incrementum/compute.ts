@@ -741,10 +741,12 @@ export type QuoteTotals = {
   monthlyCost: number;
   monthlyProfit: number;
   marginPct: number | null;
+  markupPct: number | null;
   oneOffSubtotal: number;
   oneOffDiscount: number;
   oneOffPrice: number;
   oneOffCost: number;
+  oneOffProfit: number;
   waivedValue: number;
   unassigned: number;
   unpriced: number;
@@ -776,6 +778,8 @@ export function quoteTotals(needs: NeedView[]): QuoteTotals {
   const monthlyProfit = r2(monthlyPrice - monthlyCost);
   const oneOffSubtotal = sum(oneOff, "price");
   const oneOffDiscount = bundleDiscount(oneOff, setupBundleDiscountPct);
+  const oneOffPrice = r2(oneOffSubtotal - oneOffDiscount);
+  const oneOffCost = sum(oneOff, "cost");
   return {
     monthlySubtotal,
     monthlyDiscount,
@@ -783,10 +787,12 @@ export function quoteTotals(needs: NeedView[]): QuoteTotals {
     monthlyCost,
     monthlyProfit,
     marginPct: monthlyPrice > 0 ? Math.round((monthlyProfit / monthlyPrice) * 1000) / 10 : null,
+    markupPct: monthlyCost > 0 ? Math.round((monthlyProfit / monthlyCost) * 1000) / 10 : null,
     oneOffSubtotal,
     oneOffDiscount,
-    oneOffPrice: r2(oneOffSubtotal - oneOffDiscount),
-    oneOffCost: sum(oneOff, "cost"),
+    oneOffPrice,
+    oneOffCost,
+    oneOffProfit: r2(oneOffPrice - oneOffCost),
     waivedValue: r2(needs.filter((n) => n.waived).reduce((a, n) => a + (n.listPrice ?? 0), 0)),
     unassigned: needs.filter((n) => !n.contractorId).length,
     unpriced: needs.filter((n) => n.price === null).length,
@@ -886,4 +892,41 @@ export function roleCandidates(state: IncrementumState, group: RoleGroup, busine
       a.missingQuotes - b.missingQuotes ||
       a.monthlyRate + a.oneOffRate - (b.monthlyRate + b.oneOffRate)
   );
+}
+
+export type RolePreview = {
+  /** The whole profile's totals if this contractor took the role. */
+  totals: QuoteTotals;
+  /** Just the role's lines: what the client pays for them and what you keep. */
+  roleMonthlyPrice: number;
+  roleMonthlyProfit: number;
+  roleOneOffPrice: number;
+  roleOneOffProfit: number;
+};
+
+/**
+ * "If I add this contractor": prices the role's lines exactly as assigning
+ * them would (their quote for each service, else the service's expected
+ * quote; see assignRole) and re-totals the whole profile, so the popup can
+ * show the client's price and your profit for a $400 vs a $700 contractor
+ * before you pick. Hand-set line prices stay as they are.
+ */
+export function previewRole(state: IncrementumState, services: ServiceView[], rows: Row<typeof incrementumNeeds>[], group: RoleGroup, contractorId: string): RolePreview {
+  const inGroup = new Set(group.lines.map((l) => l.id));
+  const quotes = state.contractorServices.filter((cs) => cs.contractorId === contractorId && !cs.deletedAt);
+  const views = rows.map((n) => {
+    if (!inGroup.has(n.id)) return computeNeed(state, services, n);
+    const quoted = n.serviceId ? quotes.find((q) => q.serviceId === n.serviceId)?.rate : null;
+    const fallback = n.serviceId ? (state.services.find((s) => s.id === n.serviceId)?.expectedQuote ?? null) : null;
+    return computeNeed(state, services, { ...n, contractorId, contractorRate: quoted ?? fallback });
+  });
+  const role = views.filter((v) => inGroup.has(v.id));
+  const sum = (billing: "monthly" | "one_off", k: "price" | "profit") => r2(role.filter((v) => v.billing === billing).reduce((a, v) => a + (v[k] ?? 0), 0));
+  return {
+    totals: quoteTotals(views),
+    roleMonthlyPrice: sum("monthly", "price"),
+    roleMonthlyProfit: sum("monthly", "profit"),
+    roleOneOffPrice: sum("one_off", "price"),
+    roleOneOffProfit: sum("one_off", "profit"),
+  };
 }

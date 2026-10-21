@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import SubmitButton from "@/components/ui/SubmitButton";
 
-export type AddablePackage = { id: string; name: string; status: string; monthlyPrice: number; setupPrice: number; lines: string[] };
+export type AddablePackage = { id: string; name: string; status: string; monthlyPrice: number; monthlyProfit: number; setupPrice: number; lines: string[] };
 export type AddableService = { id: string; name: string; billing: string; price: number | null; roleName: string | null };
 export type AddableCatalogueItem = { id: string; moduleCode: string; deliverable: string; price: string };
 
@@ -125,6 +125,7 @@ export default function AddLinesDialog({
                     <div className="inc-pick-price">
                       <span className="inc-num">{money(p.monthlyPrice)}/mo</span>
                       {p.setupPrice > 0 && <span className="inc-small">+ {money(p.setupPrice)} setup</span>}
+                      <span className="inc-small">profit {money(p.monthlyProfit)}/mo</span>
                     </div>
                     <SubmitButton className="inc-btn-add" pendingLabel="…">
                       ADD

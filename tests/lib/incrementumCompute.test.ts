@@ -5,6 +5,7 @@ import {
   quoteTotals,
   roleGroups,
   roleCandidates,
+  previewRole,
   computeServices,
   computePackages,
   computeMetrics,
@@ -274,6 +275,19 @@ describe("quote builder", () => {
     expect(c[0].missingQuotes).toBe(1);
     expect(c[1].monthlyRate).toBe(600);
     expect(c[1].jobs).toBe(0);
+  });
+
+  it("previews the profile's price and profit for each contractor before adding them", () => {
+    const [group] = roleGroups(st, [computeNeed(st, services, need as never)]);
+    // Ana quoted $600 → 600 × 1.33; Ben hasn't quoted → the service's $500 expected quote.
+    const ana = previewRole(st, services, [need as never], group, contractorId);
+    expect(ana.totals.monthlyPrice).toBe(798);
+    expect(ana.totals.monthlyProfit).toBe(198);
+    expect(ana.roleMonthlyProfit).toBe(198);
+    const ben = previewRole(st, services, [need as never], group, benId);
+    expect(ben.totals.monthlyPrice).toBe(665);
+    expect(ben.totals.monthlyProfit).toBe(165);
+    expect(ben.totals.markupPct).toBe(33);
   });
 
   it("only matches contractors who take jobs the client's size (none ticked = any size)", () => {

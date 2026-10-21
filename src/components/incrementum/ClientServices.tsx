@@ -5,7 +5,7 @@
 // (Ads specialist, Website contractor…) with one "Add contractor" per role.
 // Every number stays adjustable per line; totals recalculate from the lines.
 import type { IncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { computeNeed, quoteTotals, roleGroups, roleCandidates } from "@/lib/incrementum/compute";
+import { computeNeed, quoteTotals, roleGroups, roleCandidates, previewRole } from "@/lib/incrementum/compute";
 import { money } from "@/lib/incrementum/format";
 import { clientsForTarget, toNum } from "@/lib/incrementum/pricing";
 import { BUSINESS_SIZE_LABELS, SERVICE_BILLING_LABELS, type BusinessSize } from "@/lib/incrementum/registry";
@@ -31,6 +31,9 @@ const PRICE_SOURCE: Record<string, string> = {
   catalogue: "catalogue price",
   none: "no price yet",
 };
+
+/** Plan §1.1: average profit per client per month. */
+const PASS_LINE = 700;
 
 export default function ClientServices({
   s,
@@ -74,7 +77,15 @@ export default function ClientServices({
       added={[...rows.map((r) => r.serviceId ?? r.serviceItemId ?? ""), ...rows.map((r) => r.packageId ?? "")].filter(Boolean)}
       packages={s.packages
         .filter((p) => p.status !== "retired")
-        .map((p) => ({ id: p.id, name: p.name, status: p.status, monthlyPrice: p.totals.monthlyPrice, setupPrice: p.totals.setupPrice, lines: p.lines.map((l) => l.name) }))}
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          status: p.status,
+          monthlyPrice: p.totals.monthlyPrice,
+          monthlyProfit: p.totals.monthlyProfit,
+          setupPrice: p.totals.setupPrice,
+          lines: p.lines.map((l) => l.name),
+        }))}
       services={s.services
         .filter((x) => x.status === "active")
         .map((x) => ({
@@ -118,43 +129,58 @@ export default function ClientServices({
         </div>
       ) : (
         <>
+          {/* The same read-out as a package on Services & Pricing, live from these lines and contractors. */}
           <div className="inc-stats">
             <div className="inc-stat">
-              <span className="inc-small">Monthly price</span>
+              <span className="inc-small">Monthly retainer</span>
               <span className="inc-stat-value">{money(t.monthlyPrice)}</span>
-              <span className="inc-small">{t.monthlyDiscount ? `bundle −${money(t.monthlyDiscount)} off ${money(t.monthlySubtotal)}` : ""}</span>
+              <span className="inc-small">{t.monthlyDiscount ? `bundle −${money(t.monthlyDiscount)} off ${money(t.monthlySubtotal)}` : "no bundle discount"}</span>
             </div>
             <div className="inc-stat">
-              <span className="inc-small">Contractor cost</span>
-              <span className="inc-stat-value">{money(t.monthlyCost)}</span>
-            </div>
-            <div className="inc-stat">
-              <span className="inc-small">Your profit / mo</span>
-              <span
-                className="inc-stat-value"
-                style={{ color: t.monthlyProfit < 400 && t.monthlyPrice > 0 ? "var(--gh-danger)" : t.monthlyProfit >= 700 ? "var(--gh-success)" : undefined }}
-              >
+              <span className="inc-small">Profit / mo</span>
+              <span className="inc-stat-value" style={{ color: t.monthlyPrice > 0 ? (t.monthlyProfit < PASS_LINE ? "var(--gh-danger)" : "var(--gh-success)") : undefined }}>
                 {money(t.monthlyProfit)}
               </span>
-              <span className="inc-small">{t.marginPct !== null ? `${t.marginPct}% margin` : ""}</span>
+              <span className="inc-small">
+                {t.marginPct ?? "—"}% margin · {t.markupPct ?? "—"}% markup · cost {money(t.monthlyCost)}
+              </span>
             </div>
             <div className="inc-stat">
-              <span className="inc-small">One-off / setup</span>
+              <span className="inc-small">Setup / one-off</span>
               <span className="inc-stat-value">{money(t.oneOffPrice)}</span>
               <span className="inc-small">
-                cost {money(t.oneOffCost)}
+                cost {money(t.oneOffCost)} · profit {money(t.oneOffProfit)}
                 {t.waivedValue ? ` · ${money(t.waivedValue)} waived` : ""}
               </span>
             </div>
             <div className="inc-stat">
               <span className="inc-small">Clients like this for {money(freedom)}</span>
               <span className="inc-stat-value">{clientsForTarget(freedom, t.monthlyProfit) ?? "—"}</span>
+              <span className="inc-small">first year {money(t.monthlyProfit * 12 + t.oneOffProfit)} profit</span>
             </div>
           </div>
+          {t.monthlyPrice > 0 && t.monthlyProfit < PASS_LINE && <p className="inc-callout" data-tone="danger">Under the {money(PASS_LINE)}/month pass line (plan §1.1).</p>}
+          {t.unpriced > 0 && <p className="inc-small">{t.unpriced} line(s) have no price yet.</p>}
 
           {groups.map((g) => {
             const all = roleCandidates(s.state, g, businessSize);
             const candidates = all.filter((c) => c.sizeMatch);
+            const previews = Object.fromEntries(
+              candidates.map((c) => {
+                const p = previewRole(s.state, s.services, rows, g, c.contractorId);
+                return [
+                  c.contractorId,
+                  {
+                    monthlyPrice: p.totals.monthlyPrice,
+                    monthlyProfit: p.totals.monthlyProfit,
+                    oneOffPrice: p.totals.oneOffPrice,
+                    marginPct: p.totals.marginPct,
+                    roleMonthlyPrice: p.roleMonthlyPrice,
+                    roleMonthlyProfit: p.roleMonthlyProfit,
+                  },
+                ];
+              })
+            );
             const groupCost = g.lines.reduce((a, l) => a + (l.billing === "monthly" ? (l.cost ?? 0) : 0), 0);
             const profile = g.contractorId ? s.state.profiles.find((p) => p.contractorId === g.contractorId) : null;
             return (
@@ -191,6 +217,8 @@ export default function ClientServices({
                           engagementId={engagementId}
                           back={lineBack}
                           candidates={candidates}
+                          previews={previews}
+                          passLine={PASS_LINE}
                           hiddenForSize={sizeLabel ? all.length - candidates.length : 0}
                           sizeLabel={sizeLabel}
                           assignedId={g.contractorId}

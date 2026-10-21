@@ -15,6 +15,15 @@ const STAGE_LABEL: Record<string, string> = {
 
 const nzd = new Intl.NumberFormat("en-NZ", { style: "currency", currency: "NZD", maximumFractionDigits: 0 });
 const money = (n: number) => nzd.format(n);
+
+export type ContractorPreview = {
+  monthlyPrice: number;
+  monthlyProfit: number;
+  oneOffPrice: number;
+  marginPct: number | null;
+  roleMonthlyPrice: number;
+  roleMonthlyProfit: number;
+};
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -28,6 +37,9 @@ const initials = (name: string) =>
  * contractor who covers the role (or has quoted one of its services), with
  * what they'd charge for this client's lines and how many jobs they already
  * have, then a green ADD. Adding assigns them to every line in the role.
+ * Each row also previews the result: what the client would pay per month
+ * and your profit with that contractor, so a $400 and a $700 contractor
+ * compare at a glance.
  */
 export default function RoleAssignDialog({
   action,
@@ -37,6 +49,8 @@ export default function RoleAssignDialog({
   engagementId,
   back,
   candidates,
+  previews = {},
+  passLine = 700,
   hiddenForSize = 0,
   sizeLabel = null,
   assignedId,
@@ -48,6 +62,9 @@ export default function RoleAssignDialog({
   engagementId?: string;
   back: string;
   candidates: RoleCandidate[];
+  /** What the profile comes to if each contractor is added (previewRole). */
+  previews?: Record<string, ContractorPreview>;
+  passLine?: number;
   /** Contractors left out because they don't take jobs this size. */
   hiddenForSize?: number;
   sizeLabel?: string | null;
@@ -74,7 +91,9 @@ export default function RoleAssignDialog({
               <div>
                 <p className="gh-eyebrow">Add contractor</p>
                 <h2 className="inc-cell-title">{roleName}</h2>
-                <p className="inc-small">Their price is their quote for each of this client&apos;s {roleName.toLowerCase()} lines. You can adjust any line afterwards.</p>
+                <p className="inc-small">
+                  &quot;Their rate&quot; is their quote for this client&apos;s {roleName.toLowerCase()} lines. &quot;If added&quot; is the whole profile&apos;s monthly retainer, your profit and setup with them. You can adjust any line afterwards.
+                </p>
                 {sizeLabel && (
                   <p className="inc-small">
                     {sizeLabel} job · showing contractors who work with this size
@@ -130,9 +149,24 @@ export default function RoleAssignDialog({
                         )}
                       </div>
                       <div className="inc-pick-price">
-                        <span className="inc-num">{c.monthlyRate ? `${money(c.monthlyRate)}/mo` : quoted.length ? "" : "No quotes"}</span>
+                        <span className="inc-small">Their rate</span>
+                        <span className="inc-num">{c.monthlyRate ? `${money(c.monthlyRate)}/mo` : quoted.length ? "—" : "No quotes"}</span>
                         {c.oneOffRate > 0 && <span className="inc-small">+ {money(c.oneOffRate)} one-off</span>}
                       </div>
+                      {previews[c.contractorId] && (
+                        <div className="inc-pick-price inc-pick-preview">
+                          <span className="inc-small">If added</span>
+                          <span className="inc-num">{money(previews[c.contractorId].monthlyPrice)}/mo</span>
+                          <span
+                            className="inc-small"
+                            style={{ color: previews[c.contractorId].monthlyProfit < passLine ? "var(--gh-danger)" : "var(--gh-success)", fontWeight: 500 }}
+                          >
+                            profit {money(previews[c.contractorId].monthlyProfit)}
+                            {previews[c.contractorId].marginPct !== null ? ` · ${previews[c.contractorId].marginPct}%` : ""}
+                          </span>
+                          {previews[c.contractorId].oneOffPrice > 0 && <span className="inc-small">setup {money(previews[c.contractorId].oneOffPrice)}</span>}
+                        </div>
+                      )}
                       <div className="inc-pick-jobs">
                         <span className="inc-num">{c.jobs}</span>
                         <span className="inc-small">job{c.jobs === 1 ? "" : "s"}</span>
