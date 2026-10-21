@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Building2 } from "lucide-react";
 import { getClient } from "@/lib/dal/clients";
 import { paymentStatus } from "@/lib/paymentStatus";
 import { listActiveDiscounts } from "@/lib/dal/referrals";
@@ -21,7 +20,7 @@ import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
 import { listGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
 import { deleteClientAction, startPortalPreviewAction } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
-import RecordHeader from "@/components/ui/RecordHeader";
+import { ProfileHead } from "@/components/ui/terminal/Term";
 import Badge from "@/components/ui/Badge";
 import ClientDetailTabs from "./ClientDetailTabs";
 import OverviewTab from "./tabs/OverviewTab";
@@ -139,17 +138,21 @@ export default async function ClientDetailPage({
       : "overview";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)" }} className="gh-animate-fade-up">
-      <RecordHeader
-        icon={Building2}
-        avatarUrl={client.logoUrl}
-        avatarAlt={`${client.name} logo`}
-        title={client.name}
-        meta={status && <Badge status={status.tone}>{status.label}</Badge>}
+    <div className="gh-term-page gh-animate-fade-up">
+      <ProfileHead
+        name={client.name}
+        logoUrl={client.logoUrl}
+        meta={
+          <>
+            {status && <Badge status={status.tone}>{status.label}</Badge>}
+            {companyData?.company?.name && companyData.company.name !== client.name && <span>{companyData.company.name}</span>}
+            {client.nextPaymentDate && <span>Next payment <b>{client.nextPaymentDate}</b></span>}
+          </>
+        }
         actions={
           <>
             <form action={startPortalPreviewAction.bind(null, client.id)}>
-              <SubmitButton className="gh-btn-secondary">View client portal</SubmitButton>
+              <SubmitButton>Access client portal</SubmitButton>
             </form>
             <form action={deleteClientAction.bind(null, client.id)}>
               <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>

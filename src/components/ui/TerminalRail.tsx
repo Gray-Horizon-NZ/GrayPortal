@@ -13,7 +13,7 @@ function isActive(pathname: string, href: string) {
 }
 
 /**
- * The admin terminal rail (GTA business-terminal style): ungrouped items are
+ * The admin terminal rail (see grayhorizon-docs/Terminal UI/RULES.md): ungrouped items are
  * big block buttons for the pages used daily, grouped items sit in folders
  * underneath. Folders start closed so the rail reads as the block buttons;
  * the folder holding the current page always shows. Which folders Max has

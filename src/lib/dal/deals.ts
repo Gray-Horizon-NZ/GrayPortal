@@ -104,6 +104,11 @@ export async function listDealsWithCompany() {
         valueNzd: deals.valueNzd,
         nextAction: deals.nextAction,
         nextActionDate: deals.nextActionDate,
+        closeProbability: deals.closeProbability,
+        packageTier: deals.packageTier,
+        source: deals.source,
+        closeReason: deals.closeReason,
+        companyId: deals.companyId,
         companyName: companies.name,
         ownerName: users.displayName,
       })

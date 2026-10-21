@@ -6,9 +6,16 @@ import { withCaller } from "@/lib/dal/auth";
 import EmptyState from "@/components/ui/EmptyState";
 import TaskRow from "./TaskRow";
 import MasterTaskView from "./MasterTaskView";
+import { PageHead } from "@/components/ui/terminal/Term";
 
 const VIEWS = ["mine", "all", "master", "starred"] as const;
 type View = (typeof VIEWS)[number];
+const VIEW_SUBS: Record<View, string> = {
+  master: "Every list side by side",
+  all: "Everything open, grouped by status",
+  mine: "Assigned to you",
+  starred: "Starred tasks",
+};
 
 function internalLabel(internalList: string | null) {
   return INTERNAL_LIST_LABELS[(internalList as InternalListKey | null) ?? "gray_horizon"] ?? INTERNAL_LIST_LABELS.gray_horizon;
@@ -38,52 +45,20 @@ export default async function TasksPage({
   const view: View = isAdmin && VIEWS.includes(viewParam as View) ? (viewParam as View) : defaultView;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: view === "master" ? undefined : 700 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "var(--gh-space-3)" }}>
-        <div>
-          <p className="gh-eyebrow">Gray Horizon</p>
-          <h1 className="gh-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-            Tasks
-          </h1>
-        </div>
+    <div className="gh-term-page" style={view === "master" ? undefined : { maxWidth: 820 }}>
+      <PageHead title="Tasks" sub={VIEW_SUBS[view]}>
         {isAdmin && (
-          <div className="gh-list-toolbar" style={{ margin: 0 }}>
-            <Link
-              href="/tasks?view=master"
-              className="gh-btn-secondary"
-              data-active={view === "master" || undefined}
-              style={view === "master" ? { background: "var(--gh-surface-raised)" } : undefined}
-            >
-              Master
-            </Link>
-            <Link
-              href="/tasks?view=all"
-              className="gh-btn-secondary"
-              data-active={view === "all" || undefined}
-              style={view === "all" ? { background: "var(--gh-surface-raised)" } : undefined}
-            >
-              All
-            </Link>
-            <Link
-              href="/tasks?view=mine"
-              className="gh-btn-secondary"
-              data-active={view === "mine" || undefined}
-              style={view === "mine" ? { background: "var(--gh-surface-raised)" } : undefined}
-            >
-              Mine
-            </Link>
-            <Link
-              href="/tasks?view=starred"
-              className="gh-btn-secondary"
-              data-active={view === "starred" || undefined}
-              style={view === "starred" ? { background: "var(--gh-surface-raised)" } : undefined}
-            >
-              <Star size={13} strokeWidth={1.75} style={{ marginRight: 4, verticalAlign: -2 }} />
+          <>
+            <Link href="/tasks?view=master" className="gh-btn-secondary" data-active={view === "master" || undefined}>Master</Link>
+            <Link href="/tasks?view=all" className="gh-btn-secondary" data-active={view === "all" || undefined}>All</Link>
+            <Link href="/tasks?view=mine" className="gh-btn-secondary" data-active={view === "mine" || undefined}>Mine</Link>
+            <Link href="/tasks?view=starred" className="gh-btn-secondary" data-active={view === "starred" || undefined}>
+              <Star size={13} strokeWidth={1.75} />
               Starred
             </Link>
-          </div>
+          </>
         )}
-      </div>
+      </PageHead>
 
       {view === "master" ? (
         <MasterTaskView />
