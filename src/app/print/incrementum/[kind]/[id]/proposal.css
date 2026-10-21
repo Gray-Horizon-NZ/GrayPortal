@@ -1,0 +1,332 @@
+/* Apexus-Incrementum proposal (Max, 2026-10-21): the same A4 Gray Horizon
+   document style as Apexus's client copy (CHILD_DOCUMENT_CSS in
+   public/apexus/quote-builder.js), scoped under .inc-proposal so none of
+   it leaks into the app. */
+.inc-proposal {
+  --black: #1c1c1c;
+  --dark: #333333;
+  --mid: #6b6b6b;
+  --light: #f4f4f4;
+  --white: #ffffff;
+  --line: #e2e2e2;
+  /* The same two faces, already loaded app-wide by next/font (app/layout.tsx). */
+  --serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --sans: var(--font-dm-sans), "DM Sans", sans-serif;
+  min-height: 100vh;
+  background: #eaeaea;
+  color: var(--black);
+  font-family: var(--sans);
+  padding: 24px 16px 48px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.inc-proposal * {
+  box-sizing: border-box;
+}
+
+.inc-proposal .toolbar {
+  max-width: 210mm;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--mid);
+}
+
+.inc-proposal .toolbar a {
+  color: var(--dark);
+}
+
+.inc-proposal .print-btn {
+  background: var(--black);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 10px 18px;
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.inc-proposal .pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.inc-proposal .page {
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  background: var(--white);
+  box-shadow: 0 0 0 1px var(--line), 0 8px 30px rgba(0, 0, 0, 0.12);
+  padding: 16mm 16mm 14mm;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.inc-proposal .page-body {
+  flex: 1 0 auto;
+}
+
+.inc-proposal .brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--black);
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.inc-proposal .brand-name {
+  font-size: 22px;
+}
+
+.inc-proposal .wm-gray {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.inc-proposal .wm-horizon {
+  font-weight: 300;
+  font-style: italic;
+  color: var(--mid);
+  letter-spacing: 0.1em;
+  margin-left: 6px;
+  font-size: 0.62em;
+}
+
+.inc-proposal .brand-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  color: var(--mid);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.inc-proposal .brand-meta {
+  text-align: right;
+  font-size: 10.5px;
+  color: var(--mid);
+}
+
+.inc-proposal .brand-meta strong {
+  color: var(--black);
+  font-weight: 500;
+}
+
+.inc-proposal .doc-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 27px;
+  line-height: 1.15;
+  margin: 0 0 4px;
+}
+
+.inc-proposal .doc-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--mid);
+}
+
+.inc-proposal .doc-sub {
+  font-size: 12px;
+  color: var(--mid);
+  margin-bottom: 16px;
+}
+
+.inc-proposal .section-label {
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mid);
+  font-weight: 500;
+  margin: 18px 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inc-proposal .section-label::before {
+  content: "";
+  width: 20px;
+  height: 1px;
+  background: var(--mid);
+}
+
+.inc-proposal .invest-grid {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.inc-proposal .invest-card {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--black);
+  padding: 14px 14px 11px;
+  break-inside: avoid;
+}
+
+.inc-proposal .price-label {
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mid);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.inc-proposal .price {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.inc-proposal .price-desc {
+  font-size: 9.5px;
+  color: var(--mid);
+}
+
+.inc-proposal table.items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+  margin-bottom: 4px;
+}
+
+.inc-proposal table.items th {
+  background: var(--black);
+  color: #fff;
+  text-align: left;
+  padding: 7px 9px;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.inc-proposal table.items td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line);
+  color: var(--dark);
+}
+
+.inc-proposal table.items tr {
+  break-inside: avoid;
+}
+
+.inc-proposal table.items tr:nth-child(even) td {
+  background: var(--light);
+}
+
+.inc-proposal table.items .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.inc-proposal .was {
+  text-decoration: line-through;
+  color: var(--mid);
+  margin-right: 6px;
+}
+
+.inc-proposal .discount-line {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  font-size: 9.5px;
+  color: var(--mid);
+  padding: 4px 9px 10px;
+}
+
+.inc-proposal .deliv {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.inc-proposal .deliv-col {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--black);
+  padding: 11px 12px;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--dark);
+  white-space: pre-line;
+  break-inside: avoid;
+}
+
+.inc-proposal .deliv-col::first-line {
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--mid);
+  font-weight: 500;
+}
+
+.inc-proposal .terms {
+  font-size: 8.5px;
+  color: var(--mid);
+  margin-top: 15px;
+  line-height: 1.6;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.inc-proposal .page-footer {
+  margin-top: auto;
+  padding-top: 9px;
+  font-size: 8.5px;
+  color: var(--mid);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+}
+
+@media (max-width: 760px) {
+  .inc-proposal .invest-grid,
+  .inc-proposal .deliv {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  .inc-proposal {
+    background: #fff;
+    padding: 0;
+  }
+
+  .inc-proposal .toolbar {
+    display: none;
+  }
+
+  .inc-proposal .pages {
+    display: block;
+  }
+
+  .inc-proposal .page {
+    box-shadow: none;
+    margin: 0;
+  }
+
+  .inc-proposal .page + .page {
+    break-before: page;
+  }
+}

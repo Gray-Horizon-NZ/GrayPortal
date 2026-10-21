@@ -118,6 +118,12 @@ export default function ClientServices({
         <span className="inc-inline">
           {sizeLabel && <Chip>{sizeLabel}</Chip>}
           {t.unassigned > 0 && <Chip tone="warning">{t.unassigned} without a contractor</Chip>}
+          {views.length > 0 && (
+            // Apexus-Incrementum: the client proposal built from these lines (src/app/print/incrementum).
+            <a className="gh-btn-secondary" href={engagementId ? `/print/incrementum/client/${engagementId}` : `/print/incrementum/lead/${leadId}`} target="_blank" rel="noreferrer">
+              Apexus proposal ↗
+            </a>
+          )}
           {!readOnly && views.length > 0 && addDialog(false)}
         </span>
       </div>
