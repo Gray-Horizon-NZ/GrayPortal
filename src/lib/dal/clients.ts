@@ -193,6 +193,58 @@ function firebaseDownloadUrl(bucketName: string, objectPath: string, token: stri
   return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`;
 }
 
+/**
+ * Storage object path from a stored logo URL. Two shapes exist in the data:
+ * the download-token URL below (…/v0/b/<bucket>/o/<encoded path>?alt=media…)
+ * and an older plain GCS URL (storage.googleapis.com/<bucket>/<path>).
+ */
+function logoObjectPath(logoUrl: string, bucketName: string): string | null {
+  try {
+    const u = new URL(logoUrl);
+    const fb = u.pathname.match(/\/o\/(.+)$/);
+    if (fb) return decodeURIComponent(fb[1]);
+    const prefix = `/${bucketName}/`;
+    if (u.pathname.startsWith(prefix)) return decodeURIComponent(u.pathname.slice(prefix.length));
+  } catch {
+    /* not a URL */
+  }
+  return null;
+}
+
+/**
+ * The client's logo bytes, read server-side so the browser loads it from
+ * GrayPortal's own origin (/api/clients/<id>/logo). Neither stored URL
+ * shape renders directly: the bucket isn't Firebase-linked, so token URLs
+ * answer 412, and the plain GCS URL isn't public. Access goes through
+ * withCaller, so RLS decides who may see which client's logo (admins, and
+ * that client's own portal users).
+ */
+export async function getClientLogo(clientId: string): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const logoUrl = await withCaller(async (_caller, tx) => {
+    const [row] = await tx
+      .select({ logoUrl: clients.logoUrl })
+      .from(clients)
+      .where(and(eq(clients.id, clientId), isNull(clients.deletedAt)))
+      .limit(1);
+    return row?.logoUrl ?? null;
+  });
+  if (!logoUrl) return null;
+  const bucket = adminBucket();
+  const objectPath = logoObjectPath(logoUrl, bucket.name);
+  if (!objectPath) return null;
+  const file = bucket.file(objectPath);
+  const [[bytes], [meta]] = await Promise.all([file.download(), file.getMetadata()]);
+  return { bytes, contentType: meta.contentType ?? "image/png" };
+}
+
+/** Same-origin src for a client's logo, or null; `v` busts caches when the logo changes. */
+export function clientLogoSrc(client: { id: string; logoUrl: string | null }): string | null {
+  if (!client.logoUrl) return null;
+  let v = 0;
+  for (const ch of client.logoUrl) v = (v * 31 + ch.charCodeAt(0)) >>> 0;
+  return `/api/clients/${client.id}/logo?v=${v.toString(36)}`;
+}
+
 export async function uploadClientLogo(clientId: string, file: File) {
   if (file.size > MAX_LOGO_BYTES) {
     throw new Error(`Logo exceeds ${MAX_LOGO_BYTES / (1024 * 1024)}MB limit`);

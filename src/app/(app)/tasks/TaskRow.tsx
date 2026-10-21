@@ -31,13 +31,26 @@ const INTERNAL_LIST_LABELS: Record<string, string> = {
   project_incrementum: "Project Incrementum",
 };
 
+// "Due 21 Oct", red once it's past and the task isn't done.
+export function DueLabel({ due, done }: { due: string; done?: boolean }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const late = !done && due < today;
+  const label = new Date(`${due}T00:00:00`).toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
+  return (
+    <span className="gh-term-due-label" data-late={late || undefined}>
+      {late ? "Overdue · " : due === today ? "Today · " : "Due "}
+      {label}
+    </span>
+  );
+}
+
 export default function TaskRow({ task, assignees = [] }: { task: Task; assignees?: Assignee[] }) {
   const [starred, setStarred] = useState(task.starred ?? false);
   const [highPriority, setHighPriority] = useState((task.priority ?? "normal") === "high");
   const [, startTransition] = useTransition();
 
   return (
-    <div className="gh-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="gh-card gh-term-task" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--gh-space-3)" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--gh-space-2)" }}>
         <button
           type="button"
@@ -108,19 +121,7 @@ export default function TaskRow({ task, assignees = [] }: { task: Task; assignee
           )}
           <p style={{ fontWeight: 500 }}>{task.title}</p>
           <div style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
-            {task.dueDate && (
-              <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>Due {task.dueDate}</p>
-            )}
-            {task.starred && (
-              <span className="gh-badge" data-status="accent" style={{ fontSize: "var(--gh-text-micro)" }}>
-                Starred
-              </span>
-            )}
-            {task.priority === "high" && (
-              <span className="gh-badge" data-status="danger" style={{ fontSize: "var(--gh-text-micro)" }}>
-                High priority
-              </span>
-            )}
+            {task.dueDate && <DueLabel due={task.dueDate} done={task.status === "done"} />}
             {task.syncState === "failed" && (
               <span className="gh-badge" data-status="danger">Sync failed</span>
             )}

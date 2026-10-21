@@ -244,6 +244,7 @@ export async function getPortalShellContext() {
 
     const [identity] = await tx
       .select({
+        id: clients.id,
         name: clients.name,
         createdAt: clients.createdAt,
         logoUrl: clients.logoUrl,

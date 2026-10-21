@@ -27,6 +27,7 @@ export default function ShellHeader({
   markNotificationReadAction,
   markAllNotificationsReadAction,
   variant,
+  callerRole,
 }: {
   eyebrow: string;
   title: React.ReactNode;
@@ -37,6 +38,7 @@ export default function ShellHeader({
   markNotificationReadAction?: (id: string) => Promise<void>;
   markAllNotificationsReadAction?: () => Promise<void>;
   variant?: "terminal";
+  callerRole?: string;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
@@ -96,6 +98,17 @@ export default function ShellHeader({
               markReadAction={markNotificationReadAction}
               markAllReadAction={markAllNotificationsReadAction}
             />
+          )}
+          {variant === "terminal" && (
+            <p className="gh-term-whoami">
+              Logged in as: <b>{callerLabel.split(/[\s@]/)[0]}</b>
+              {callerRole && (
+                <>
+                  <br />
+                  Clearance: <b>{callerRole}</b>
+                </>
+              )}
+            </p>
           )}
           <AccountMenu label={callerLabel} logoutSlot={logoutSlot} />
         </div>

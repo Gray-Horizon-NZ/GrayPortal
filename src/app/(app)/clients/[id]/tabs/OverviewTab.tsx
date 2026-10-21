@@ -79,7 +79,7 @@ export default function OverviewTab({
         <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-4)" }}>
           {client.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- external signed Storage URL, not a local asset
-            <img src={client.logoUrl} alt={`${client.name} logo`} style={{ width: 48, height: 48, objectFit: "contain" }} />
+            <img src={`/api/clients/${client.id}/logo?u=${encodeURIComponent(client.logoUrl.slice(-12))}`} alt={`${client.name} logo`} style={{ width: 48, height: 48, objectFit: "contain" }} />
           )}
           <form action={uploadClientLogoAction.bind(null, client.id)} encType="multipart/form-data" style={{ display: "flex", gap: "var(--gh-space-2)", alignItems: "center" }}>
             <input className="gh-input" name="logo" type="file" accept="image/*" required />

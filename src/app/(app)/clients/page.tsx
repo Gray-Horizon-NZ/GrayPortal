@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Building2, ChevronRight, Search, Users } from "lucide-react";
 import { listAccounts } from "@/lib/dal/accounts";
-import { listClients } from "@/lib/dal/clients";
+import { listClients, clientLogoSrc } from "@/lib/dal/clients";
 import { getMonthlyRevenueByClient } from "@/lib/dal/clientServices";
 import { withCaller } from "@/lib/dal/auth";
 import { paymentStatus } from "@/lib/paymentStatus";
@@ -28,7 +28,7 @@ export default async function ClientsPage({
     isAdmin ? getMonthlyRevenueByClient() : Promise.resolve([]),
   ]);
   const healthByClient = new Map(healthScores.map((h) => [h.clientId, h]));
-  const logoByClient = new Map(clientRows.map((c) => [c.id, c.logoUrl]));
+  const logoByClient = new Map(clientRows.map((c) => [c.id, clientLogoSrc(c)]));
   const mrrByClient = new Map(revenue.map((r) => [r.clientId, r.monthlyNzd]));
   const mrrTotal = revenue.reduce((a, r) => a + r.monthlyNzd, 0);
 

@@ -146,6 +146,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <SessionBootOverlay />
       <AppShell
         variant="terminal"
+        callerRole={callerRole}
         eyebrow="Gray Horizon"
         title="Portal"
         navItems={navItems}

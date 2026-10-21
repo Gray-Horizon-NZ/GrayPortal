@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getClient } from "@/lib/dal/clients";
+import { getClient, clientLogoSrc } from "@/lib/dal/clients";
 import { paymentStatus } from "@/lib/paymentStatus";
 import { listActiveDiscounts } from "@/lib/dal/referrals";
 import { getLatestHealthScore } from "@/lib/dal/health";
@@ -141,7 +141,7 @@ export default async function ClientDetailPage({
     <div className="gh-term-page gh-animate-fade-up">
       <ProfileHead
         name={client.name}
-        logoUrl={client.logoUrl}
+        logoUrl={clientLogoSrc(client)}
         meta={
           <>
             {status && <Badge status={status.tone}>{status.label}</Badge>}

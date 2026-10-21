@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { getVerifiedUid, NotOnAllowlistError } from "@/lib/dal/auth";
 import { getPortalShellContext } from "@/lib/dal/portal";
+import { clientLogoSrc } from "@/lib/dal/clients";
 import { exitPortalPreviewAction } from "@/app/(app)/clients/actions";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import PortalTour from "@/components/portal/PortalTour";
@@ -122,7 +123,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <PortalShell
         clientName={identity?.name ?? callerLabel}
         clientSince={clientSince}
-        clientLogoUrl={identity?.logoUrl}
+        clientLogoUrl={identity ? clientLogoSrc(identity) : null}
         navItems={navItems}
         logoutSlot={<LogoutButton />}
         tourSlot={showTour && <PortalTour clientName={identity!.name} />}

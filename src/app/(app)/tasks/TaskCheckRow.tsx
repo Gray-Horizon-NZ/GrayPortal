@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { Star, AlertTriangle } from "lucide-react";
 import { setTaskStatusAction, toggleTaskStarAction, toggleTaskPriorityAction } from "./actions";
+import { DueLabel } from "./TaskRow";
 
 type Task = {
   id: string;
@@ -55,6 +56,7 @@ export default function TaskCheckRow({ task }: { task: Task }) {
         >
           {task.title}
         </span>
+        {task.dueDate && <DueLabel due={task.dueDate} done={done} />}
       </label>
       <button
         type="button"
