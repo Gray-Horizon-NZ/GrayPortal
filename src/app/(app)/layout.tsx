@@ -29,6 +29,7 @@ import { markNotificationReadAction, markAllNotificationsReadAction } from "./no
 import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
 import LogoutButton from "./LogoutButton";
 import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
+import "./terminal.css";
 
 // Renders the icon element server-side. NavLink/AppShell's icon prop is a
 // pre-rendered ReactNode, not a component reference — a bare component
@@ -92,53 +93,50 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // never branched on inside the shared AppShell component. Search and
   // Notifications are no longer nav items — search lives in the top bar,
   // notifications in the bell dropdown (both in AppShell/ShellHeader).
+  // Terminal rail (GTA concept, 21 Oct 2026): ungrouped items render as the
+  // big block buttons for daily pages, in this order; grouped items fold
+  // into the folders underneath, ordered by first appearance below.
+  const isAdminCaller = callerRole === "admin";
   const navItems: ShellNavItem[] = [
     { href: "/", label: "Home", icon: navIcon(Home) },
     // Project Incrementum (docs/Project-Incrementum-Plan.md §2.2) — pinned
     // straight after Home, gold in every state. Admin-only: the whole
     // /incrementum tree is commercial data (db/sql/030 enforces it at RLS).
-    ...(callerRole === "admin"
-      ? [{ href: "/incrementum", label: "Project Incrementum", icon: navIcon(TrendingUp), accent: true }]
-      : []),
-    ...(callerRole === "admin"
-      ? [{ href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow), group: "Sales" }]
-      : []),
-    { href: "/clients", label: "Clients", icon: navIcon(Users), group: "Accounts" },
+    // It opens Incrementum's own light CRM, which keeps its own UI.
+    ...(isAdminCaller ? [{ href: "/incrementum", label: "Project Incrementum", icon: navIcon(TrendingUp), accent: true }] : []),
+    ...(isAdminCaller ? [{ href: "/pipeline", label: "Pipeline", icon: navIcon(Workflow) }] : []),
+    { href: "/clients", label: "Clients", icon: navIcon(Users) },
     // Contractors now live in Project Incrementum (plan §4) — /contractors
     // redirects there; the old roster pages stay reachable by direct link.
-    { href: "/tasks", label: "Tasks", icon: navIcon(ListChecks), group: "Work" },
+    { href: "/tasks", label: "Tasks", icon: navIcon(ListChecks) },
     // Calendar is admin-only in practice, same reasoning as Pipeline/Vault
-    // above — the connected Google account (and thus anything to show) is
-    // always the admin's own, per src/lib/google/adapter.ts.
-    ...(callerRole === "admin" ? [{ href: "/calendar", label: "Calendar", icon: navIcon(CalendarDays), group: "Work" }] : []),
-    ...(callerRole === "admin"
+    // — the connected Google account (and thus anything to show) is always
+    // the admin's own, per src/lib/google/adapter.ts.
+    ...(isAdminCaller ? [{ href: "/calendar", label: "Calendar", icon: navIcon(CalendarDays) }] : []),
+    ...(isAdminCaller ? [{ href: "/finance", label: "Finance", icon: navIcon(Wallet) }] : []),
+    ...(isAdminCaller
       ? [
           { href: "/email-triage", label: "Email Triage", icon: navIcon(InboxIcon), group: "Comms" },
           { href: "/email-templates", label: "Email Templates", icon: navIcon(Mail), group: "Comms" },
           { href: "/email-campaigns", label: "Email Campaigns", icon: navIcon(Megaphone), group: "Comms" },
+          { href: "/finance/personal", label: "Owner's Cut", icon: navIcon(PiggyBank), group: "Finance tools" },
+          { href: "/finance/expenses", label: "Expenses", icon: navIcon(Receipt), group: "Finance tools" },
         ]
       : []),
-    // Max's own business-wide ideas (Open-Work-Brief.md §3) — admin-only,
-    // never contractor- or client-visible (db/sql/022 enforces this at RLS,
-    // not just by hiding the nav link).
-    ...(callerRole === "admin" ? [{ href: "/ideation", label: "Ideation", icon: navIcon(Lightbulb), group: "Work" }] : []),
-    // Same design/admin-only reasoning as Ideation just above — Max's own
-    // AI agent roadmap, grouped next to it in the nav (db/sql/024).
-    ...(callerRole === "admin" ? [{ href: "/ai-agents", label: "AI Agents", icon: navIcon(Bot), group: "Work" }] : []),
-    ...(callerRole === "admin" ? [{ href: "/finance", label: "Finance", icon: navIcon(Wallet), group: "Finance" }] : []),
-    ...(callerRole === "admin" ? [{ href: "/finance/personal", label: "Owner's Cut", icon: navIcon(PiggyBank), group: "Finance" }] : []),
-    ...(callerRole === "admin" ? [{ href: "/finance/expenses", label: "Expenses", icon: navIcon(Receipt), group: "Finance" }] : []),
-    { href: "/pricing", label: "Pricing", icon: navIcon(Tag), group: "Finance" },
-    ...(callerRole === "admin"
-      ? [{ href: "/grayscale-products", label: "GrayScale", icon: navIcon(LayoutGrid), group: "Finance" }]
-      : []),
-    ...(callerRole === "admin" ? [{ href: "/apexus", label: "Apexus", icon: navIcon(Calculator), group: "Finance" }] : []),
-    ...(callerRole === "admin"
+    { href: "/pricing", label: "Pricing", icon: navIcon(Tag), group: "Finance tools" },
+    ...(isAdminCaller
       ? [
-          { href: "/reminders", label: "Reminders", icon: navIcon(Clock), group: "System" },
-          { href: "/vault", label: "Vault", icon: navIcon(ShieldCheck), group: "System" },
-          { href: "/brand-guidelines", label: "Brand Guidelines", icon: navIcon(Palette), group: "System" },
-          { href: "/settings", label: "Settings", icon: navIcon(SettingsIcon), group: "System" },
+          { href: "/grayscale-products", label: "GrayScale", icon: navIcon(LayoutGrid), group: "Finance tools" },
+          { href: "/apexus", label: "Apexus", icon: navIcon(Calculator), group: "Finance tools" },
+          // Max's own business-wide ideas and AI agent roadmap — admin-only,
+          // never contractor- or client-visible (db/sql/022 and 024 enforce
+          // this at RLS, not just by hiding the nav link).
+          { href: "/ideation", label: "Ideation", icon: navIcon(Lightbulb), group: "Work" },
+          { href: "/ai-agents", label: "AI Agents", icon: navIcon(Bot), group: "Work" },
+          { href: "/reminders", label: "Reminders", icon: navIcon(Clock), group: "Work" },
+          { href: "/vault", label: "Vault", icon: navIcon(ShieldCheck), group: "Systems" },
+          { href: "/brand-guidelines", label: "Brand Guidelines", icon: navIcon(Palette), group: "Systems" },
+          { href: "/settings", label: "Settings", icon: navIcon(SettingsIcon), group: "Systems" },
         ]
       : []),
   ];
@@ -147,6 +145,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <SessionBootOverlay />
       <AppShell
+        variant="terminal"
         eyebrow="Gray Horizon"
         title="Portal"
         navItems={navItems}

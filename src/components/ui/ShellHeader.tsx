@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Search as SearchIcon } from "lucide-react";
 import NavLink from "@/components/NavLink";
 import { groupNavItems } from "@/lib/ui/navGroups";
 import NotificationBell from "./NotificationBell";
 import AccountMenu from "./AccountMenu";
+import TerminalRail from "./TerminalRail";
 import type { ShellNavItem, ShellNotification } from "./AppShell";
 
 /**
@@ -24,6 +26,7 @@ export default function ShellHeader({
   notifications,
   markNotificationReadAction,
   markAllNotificationsReadAction,
+  variant,
 }: {
   eyebrow: string;
   title: React.ReactNode;
@@ -33,6 +36,7 @@ export default function ShellHeader({
   notifications?: ShellNotification[];
   markNotificationReadAction?: (id: string) => Promise<void>;
   markAllNotificationsReadAction?: () => Promise<void>;
+  variant?: "terminal";
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
@@ -71,7 +75,14 @@ export default function ShellHeader({
           {drawerOpen ? <X size={20} strokeWidth={1.75} /> : <Menu size={20} strokeWidth={1.75} />}
         </button>
 
-        <p className="gh-shell-header-title gh-title">{title}</p>
+        {variant === "terminal" ? (
+          <Link href="/" className="gh-term-wordmark" aria-label="Gray Portal home">
+            <Image src="/brand-icon.png" alt="" width={34} height={34} />
+            <Image src="/email-wordmark.png" alt="Gray Horizon" width={102} height={22} className="gh-term-wordmark-type" />
+          </Link>
+        ) : (
+          <p className="gh-shell-header-title gh-title">{title}</p>
+        )}
 
         <form className="gh-shell-header-search" action="/search" method="GET">
           <SearchIcon size={14} strokeWidth={1.75} />
@@ -93,6 +104,11 @@ export default function ShellHeader({
       {drawerOpen && (
         <>
           <div className="gh-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden />
+          {variant === "terminal" ? (
+            <nav className="gh-drawer gh-shell-drawer gh-term-drawer" aria-label="Primary">
+              <TerminalRail navItems={navItems} onNavigate={() => setDrawerOpen(false)} />
+            </nav>
+          ) : (
           <nav className="gh-drawer gh-shell-drawer" aria-label="Primary">
             <div className="gh-shell-brand">
               <Image src="/brand-icon.png" alt="" width={28} height={28} className="gh-brand-icon" />
@@ -133,6 +149,7 @@ export default function ShellHeader({
               ))}
             </div>
           </nav>
+          )}
         </>
       )}
     </>

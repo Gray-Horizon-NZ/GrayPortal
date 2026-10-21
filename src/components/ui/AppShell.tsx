@@ -2,6 +2,7 @@ import Image from "next/image";
 import NavLink from "@/components/NavLink";
 import { groupNavItems } from "@/lib/ui/navGroups";
 import ShellHeader from "./ShellHeader";
+import TerminalRail from "./TerminalRail";
 
 export type ShellNavItem = {
   href: string;
@@ -45,6 +46,7 @@ export default function AppShell({
   notifications,
   markNotificationReadAction,
   markAllNotificationsReadAction,
+  variant,
   children,
 }: {
   eyebrow: string;
@@ -59,13 +61,20 @@ export default function AppShell({
   notifications?: ShellNotification[];
   markNotificationReadAction?: (id: string) => Promise<void>;
   markAllNotificationsReadAction?: () => Promise<void>;
+  // "terminal" = the admin GTA business-terminal chrome (wordmark header,
+  // block-button rail with folders). Only (app)/layout.tsx passes it, and
+  // every terminal style is scoped under .gh-terminal, so the portal,
+  // contractor and Incrementum shells never pick any of it up.
+  variant?: "terminal";
   children: React.ReactNode;
 }) {
   const { pinned, groups } = groupNavItems(navItems);
 
   return (
-    <div className="gh-shell">
+    <div className={variant === "terminal" ? "gh-shell gh-terminal" : "gh-shell"}>
+      {variant === "terminal" && <div className="gh-term-backdrop" aria-hidden />}
       <ShellHeader
+        variant={variant}
         eyebrow={eyebrow}
         title={title}
         navItems={navItems}
@@ -78,6 +87,11 @@ export default function AppShell({
 
       <div className="gh-shell-body">
         {/* Desktop / tablet sidebar — hidden on mobile, replaced by ShellHeader's drawer */}
+        {variant === "terminal" ? (
+          <nav className="gh-term-rail" aria-label="Primary">
+            <TerminalRail navItems={navItems} />
+          </nav>
+        ) : (
         <nav className="gh-shell-sidebar" aria-label="Primary">
           <div className="gh-shell-brand">
             <Image src="/brand-icon.png" alt="" width={28} height={28} className="gh-brand-icon" />
@@ -104,6 +118,7 @@ export default function AppShell({
             ))}
           </div>
         </nav>
+        )}
 
         <main className="gh-shell-main">{children}</main>
       </div>
