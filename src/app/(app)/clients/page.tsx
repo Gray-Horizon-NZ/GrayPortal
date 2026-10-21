@@ -3,7 +3,7 @@ import { Building2, ChevronRight, Search, Users } from "lucide-react";
 import { listAccounts } from "@/lib/dal/accounts";
 import { listClients, clientLogoSrc } from "@/lib/dal/clients";
 import { getMonthlyRevenueByClient } from "@/lib/dal/clientServices";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { paymentStatus } from "@/lib/paymentStatus";
 import { listLatestHealthScores } from "@/lib/dal/health";
 import { createClientAction } from "./actions";
@@ -19,7 +19,7 @@ export default async function ClientsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   const isAdmin = caller.role === "admin";
   const [accounts, healthScores, clientRows, revenue] = await Promise.all([
     listAccounts(q),

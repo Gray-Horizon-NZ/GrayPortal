@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listUnmatchedInboundEmails } from "@/lib/dal/emails";
 import { dismissUnmatchedEmailAction } from "./actions";
 import MatchContact from "./MatchContact";
@@ -9,7 +9,7 @@ import SubmitButton from "@/components/ui/SubmitButton";
 // Contact by sender address is surfaced here rather than silently dropped.
 // Admin-only, since it's a business-wide triage tool, not a per-record view.
 export default async function EmailTriageUnmatchedPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const unmatched = await listUnmatchedInboundEmails();

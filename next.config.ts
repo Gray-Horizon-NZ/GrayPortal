@@ -33,6 +33,14 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "200mb",
     },
+    // Client-side router cache for dynamic pages (Next 15+ defaults this to
+    // 0): a page visited in the last 60s reopens instantly from memory, and
+    // loading skeletons are reused for 5 minutes. Server actions still
+    // invalidate it, so edits show straight away.
+    staleTimes: {
+      dynamic: 60,
+      static: 300,
+    },
   },
   async headers() {
     return [

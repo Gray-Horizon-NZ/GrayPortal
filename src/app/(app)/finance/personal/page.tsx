@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { getTotalActiveMonthlyRevenue } from "@/lib/dal/clientServices";
 import { getMonthlyExpenseTotal, getMonthlyWriteoffExpenseTotal } from "@/lib/dal/businessExpenses";
 import { listDevCosts, getMonthlyDevCostTotal } from "@/lib/dal/devCosts";
@@ -24,7 +24,7 @@ function money(n: number) {
 // income defaults to your real active client revenue, expenses default to
 // the live Business Expenses + dev-cost totals.
 export default async function OwnersCutCalculatorPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const now = new Date();

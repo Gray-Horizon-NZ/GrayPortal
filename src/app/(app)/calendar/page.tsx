@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listAllTasks } from "@/lib/dal/tasks";
 import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
 import { listCalendarEventsInRange } from "@/lib/google/adapter";
@@ -15,7 +15,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ view?: string; date?: string }>;
 }) {
   const { view: viewParam, date: dateParam } = await searchParams;
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const view = viewParam === "month" ? "month" : "week";

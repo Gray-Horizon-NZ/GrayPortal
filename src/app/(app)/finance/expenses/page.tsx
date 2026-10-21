@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listBusinessExpenses } from "@/lib/dal/businessExpenses";
 import { createBusinessExpenseAction, updateBusinessExpenseAction, deleteBusinessExpenseAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -15,7 +15,7 @@ function money(v: string | null) {
 // Expenses" table (category, yearly/monthly, write-off flag, GST). Feeds
 // /finance/personal's monthly-expenses figure as a live total.
 export default async function BusinessExpensesPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const items = await listBusinessExpenses();

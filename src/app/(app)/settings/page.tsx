@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { getGoogleConnection, getInternalTasklistMappings } from "@/lib/dal/googleConnection";
 import { listConnectedCalendars } from "@/lib/google/adapter";
 import { INTERNAL_LIST_KEYS, INTERNAL_LIST_LABELS } from "@/lib/dal/tasks";
@@ -28,7 +28,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ google?: "connected" | "error" | "notconfigured"; reason?: string; xero?: string }>;
 }) {
   const { google, reason, xero } = await searchParams;
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const connection = await getGoogleConnection();

@@ -1,14 +1,14 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Users } from "lucide-react";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { getCampaign, listCampaignRecipients } from "@/lib/dal/campaigns";
 import { PageHead, Panel } from "@/components/ui/terminal/Term";
 
 const STATUS_LABELS = { queued: "Queued", sent: "Sent", failed: "Failed", skipped_no_email: "No email" } as const;
 
 export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const { id } = await params;

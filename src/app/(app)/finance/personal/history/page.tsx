@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listPeriods, getOverallTaxTotal } from "@/lib/dal/personalFinance";
 import { createPeriodAction } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -12,7 +12,7 @@ import { PageHead, Panel } from "@/components/ui/terminal/Term";
 // Owner's Cut Calculator — nothing here was deleted in that redesign, it
 // just moved one level in.
 export default async function PersonalFinanceHistoryPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const [periods, overallTaxTotal] = await Promise.all([listPeriods(), getOverallTaxTotal()]);

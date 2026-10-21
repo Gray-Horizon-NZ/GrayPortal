@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BarChart3, Gauge, Users } from "lucide-react";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listClients } from "@/lib/dal/clients";
 import { getTotalActiveMonthlyRevenue } from "@/lib/dal/clientServices";
 import { getBusinessFinancialRollup, getClientFinancials, getXeroPaidIncomeBetween, getXeroPaidIncomeByMonth } from "@/lib/dal/xero";
@@ -18,7 +18,7 @@ const short = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1).replace(/\.0
 // + the red/amber/green badge elsewhere), never sourced from Xero.
 // Terminal layout: rules in grayhorizon-docs/Terminal UI/RULES.md.
 export default async function FinancePage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   // NZ financial year runs 1 April – 31 March.

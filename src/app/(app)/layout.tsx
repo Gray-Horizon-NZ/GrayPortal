@@ -23,7 +23,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
-import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
+import { getVerifiedUid, getCaller, NotOnAllowlistError } from "@/lib/dal/auth";
 import { listMyNotifications } from "@/lib/dal/notifications";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "./notifications/actions";
 import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
@@ -43,10 +43,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const uid = await getVerifiedUid();
   if (!uid) redirect("/login");
 
+  // Started now, awaited below — it doesn't depend on the caller lookup, so
+  // the two round trips overlap instead of queueing.
+  const notificationsPromise = listMyNotifications().catch(() => []);
+
   let callerLabel: string;
   let callerRole: string = "contractor";
   try {
-    const caller = await withCaller(async (c) => c);
+    const caller = await getCaller();
     callerLabel = caller.displayName ?? caller.email;
     callerRole = caller.role;
   } catch (err) {
@@ -85,7 +89,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Single query drives both the bell dropdown's list and its unread count
   // (count = filter of this same result) — one round trip instead of two.
-  const notifications = await listMyNotifications();
+  const notifications = await notificationsPromise;
 
   // Phase 14: pipeline/deals/vault/settings are admin-only in practice
   // (deals_admin_only RLS, credentials_admin_only RLS, settings' MFA/Google/
