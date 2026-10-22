@@ -92,10 +92,24 @@ export function ClickRow({ as = "tr", dialog, href, className, children, title }
   );
 }
 
-/** A server-action form that submits itself whenever a field changes (inline slot edits, selects). */
+/** Submits the form on the native change event: selects and checkboxes at once, typed fields on blur/Enter, a range on release. */
+function useSubmitOnChange() {
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const f = ref.current;
+    if (!f) return;
+    const on = () => f.requestSubmit();
+    f.addEventListener("change", on);
+    return () => f.removeEventListener("change", on);
+  }, []);
+  return ref;
+}
+
+/** A server-action form that submits itself whenever a field changes (inline slot edits, switches). */
 export function AutoSubmitForm({ action, className, children, style, keepOpen }: { action: (fd: FormData) => Promise<void>; className?: string; children: React.ReactNode; style?: React.CSSProperties; keepOpen?: boolean }) {
+  const ref = useSubmitOnChange();
   return (
-    <form action={action} className={className} style={style} data-keep-open={keepOpen ? "" : undefined} onChange={(e) => e.currentTarget.requestSubmit()}>
+    <form ref={ref} action={action} className={className} style={style} data-keep-open={keepOpen ? "" : undefined}>
       {children}
     </form>
   );
@@ -103,8 +117,9 @@ export function AutoSubmitForm({ action, className, children, style, keepOpen }:
 
 /** A GET filter form (next/form, so it navigates client-side) that applies on every change. */
 export function FilterForm({ action, className, children }: { action: string; className?: string; children: React.ReactNode }) {
+  const ref = useSubmitOnChange();
   return (
-    <Form action={action} className={className} scroll={false} onChange={(e) => e.currentTarget.requestSubmit()}>
+    <Form ref={ref} action={action} className={className} scroll={false}>
       {children}
     </Form>
   );

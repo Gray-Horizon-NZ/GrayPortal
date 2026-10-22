@@ -229,6 +229,16 @@ export async function listUnlinkedContractorLogins() {
   );
 }
 
+/** Every login linked to an Incrementum contractor (the bench's Contractor access view). */
+export async function listContractorLogins() {
+  return withIncrementum(async (_caller, tx) =>
+    tx
+      .select({ contractorId: users.contractorId, email: users.email, active: users.googleUid })
+      .from(users)
+      .where(and(isNull(users.deletedAt), sql`${users.contractorId} is not null`))
+  );
+}
+
 /** Attach an existing contractor login to this contractor (same lockdown gate as onboarding). */
 export async function linkContractorLogin(contractorId: string, userId: string) {
   return withIncrementum(async (caller, tx) => {
