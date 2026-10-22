@@ -9,7 +9,7 @@
 // - the Ads runway panel gains an Edit pop-up so the budget and spend can
 //   actually be entered (the concept had no way to).
 import { useState } from "react";
-import { BarChart3, CalendarCheck, Megaphone, Receipt, Info, Plus, Wallet, History, PiggyBank, Coins, Download, ShoppingBag, Pencil } from "lucide-react";
+import { BarChart3, CalendarCheck, Megaphone, Receipt, Info, Plus, Wallet, History, PiggyBank, Coins, Download, ShoppingBag, Pencil, Users } from "lucide-react";
 import { useStore } from "../store";
 import { TODAY, money, fmtDate } from "../format";
 import { PageHead, Panel, Priv, KV, Badge, Stat, Seg, Modal, go, downloadCsv } from "../ui";
@@ -17,6 +17,7 @@ import { StackedColumns, Legend, RunwayChart, Bullet } from "../charts";
 import { estimateMonthlySetAsideFromYtd } from "@/lib/nzTax";
 import { tLogAdsSpend, tSetAdsBudget } from "../actions";
 import { createBusinessExpenseAction } from "@/app/(app)/finance/expenses/actions";
+import { createDevCostAction, deleteDevCostAction } from "@/app/(app)/finance/personal/actions";
 
 // NZ financial year: 1 April – 31 March, labelled by the year it ends in.
 const FY_START = Number(TODAY.slice(5, 7)) >= 4 ? `${TODAY.slice(0, 4)}-04-01` : `${Number(TODAY.slice(0, 4)) - 1}-04-01`;
@@ -338,6 +339,29 @@ export function OwnersCut() {
           </table>
         </Panel>
       </div>
+      {/* Standing splits paid out of client revenue — the real Owner's Cut
+          page's add/remove, kept in the concept's panel + quick-add. */}
+      <Panel title="Recurring contractor costs" icon={Users} pad={false} right="Subtracted every month">
+        <form className="quickadd" style={{ flexWrap: "wrap" }} action={createDevCostAction}>
+          <input className="input" style={{ width: 160 }} name="payee" placeholder="Paid to (e.g. Yuvi)" required />
+          <input className="input" style={{ flex: 1, minWidth: 200 }} name="label" placeholder="What for (e.g. DM Rider subscription split)" required />
+          <input className="input" style={{ width: 110 }} name="monthlyAmountNzd" type="number" min="0" step="0.01" placeholder="$/mo" required />
+          <button className="btn btn-primary"><Plus size={14} /> Add</button>
+        </form>
+        <table className="table">
+          <tbody>
+            {o.contractorPayments.map((c) => (
+              <tr key={c.id}>
+                <td className="strong">{c.payee}</td>
+                <td>{c.label}{c.client && <span className="muted"> · {c.client}</span>}</td>
+                <td className="num"><Priv>{money(c.amount)}</Priv>/mo</td>
+                <td className="num"><button className="btn btn-sm btn-danger" onClick={() => deleteDevCostAction(c.id)}>Remove</button></td>
+              </tr>
+            ))}
+            {o.contractorPayments.length === 0 && <tr><td colSpan={4} className="muted">None logged yet.</td></tr>}
+          </tbody>
+        </table>
+      </Panel>
     </div>
   );
 }

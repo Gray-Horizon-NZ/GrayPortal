@@ -340,7 +340,7 @@ export async function loadOwners() {
     gross,
     expenseItems: [{ label: "Business expenses", amount: expenses }],
     writeoffExpenses: writeoff,
-    contractorPayments: devCosts.map((d) => ({ payee: d.payee, amount: num(d.monthlyAmountNzd) })),
+    contractorPayments: devCosts.map((d) => ({ id: d.id, payee: d.payee, label: d.label, client: d.clientName ?? "", amount: num(d.monthlyAmountNzd) })),
     ytdPrior: xeroPrior + (sfYtd ?? 0),
     history: periods.map((p) => ({ id: p.id, label: p.label, gross: num(p.grossIncomeNzd), tax: num(p.taxReductionPercent) })),
   };
