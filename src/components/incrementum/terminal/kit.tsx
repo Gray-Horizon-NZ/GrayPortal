@@ -16,6 +16,7 @@
 //   StockColumns nightclub dash vertical stock columns + total
 //   Tree         agency folder tree with a stats ledger at its foot
 //   Bracket      agency "[ Accept contract ]" button
+import { useId } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Lock, UserRound, FolderOpen, FileText, ChevronRight, ChevronDown, AlertTriangle, Clock, Plus, Check as CheckIcon } from "lucide-react";
@@ -256,8 +257,6 @@ export function BigAction({
   );
 }
 
-let ringSeq = 0;
-
 /** Hangar cargo ring: a thick track, a gold arc, "value/max" with the value in gold. */
 export function Ring({
   value,
@@ -278,7 +277,7 @@ export function Ring({
   sub?: React.ReactNode;
   mark?: number | null;
 }) {
-  const gid = `inc-ring-${(ringSeq = (ringSeq + 1) % 1e6)}`;
+  const gid = `inc-ring-${useId().replace(/:/g, "")}`;
   const sw = stroke ?? Math.round(size * 0.085);
   const r = (size - sw) / 2;
   const c = 2 * Math.PI * r;

@@ -15,6 +15,8 @@ import {
   computeCapacity,
   computeNextMoves,
   computeAttention,
+  capacityRules,
+  matchContractors,
   type IncrementumState,
 } from "@/lib/incrementum/compute";
 import { LAUNCH_SEED, PHASE_SEED, GOAL_SEED } from "@/lib/incrementum/seeds";
@@ -313,5 +315,114 @@ describe("quote builder", () => {
     expect(t.oneOffPrice).toBe(0);
     expect(t.oneOffCost).toBe(500);
     expect(t.waivedValue).toBe(665);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Terminal UI port (Max, 2026-10-22): bench filter, capacity thresholds,
+// payments not tracked (invoiced months), review request.
+// ---------------------------------------------------------------------------
+describe("terminal port rules", () => {
+  const roleId = "33333333-3333-3333-3333-333333333333";
+  const ana = "11111111-1111-1111-1111-111111111111";
+  const ben = "22222222-2222-2222-2222-222222222222";
+  const cara = "44444444-4444-4444-4444-444444444444";
+  const profile = { ...base, specialty: null, stageChangedAt: t0, businessName: null, email: null, phone: null, location: null, portfolioUrl: null, source: null, skills: null, roleIds: null as string[] | null, worksWithSizes: null as string[] | null, gstRegistered: null, paymentTerms: null, qualityRating: null, photoUrl: null, publicTitle: null, bio: null, payWhenPaidAcceptedAt: null, nonSolicitSignedAt: null, noticePeriodDays: null, agreementUrl: null, offRampReason: null, notes: null };
+
+  function benchState() {
+    const st = dayOne();
+    st.roles = [{ ...base, id: roleId, name: "Ads specialist", sortOrder: 0 }];
+    st.services[0].roleId = roleId;
+    const svc = st.services[0].id;
+    st.profiles = [
+      { ...profile, id: id(), contractorId: ana, name: "Ana", stage: "confirmed", worksWithSizes: ["small"] },
+      { ...profile, id: id(), contractorId: ben, name: "Ben", stage: "contacted", roleIds: [roleId] },
+      { ...profile, id: id(), contractorId: cara, name: "Cara", stage: "paused" },
+    ] as never;
+    st.contractorServices = [
+      { ...base, id: id(), contractorId: ana, serviceId: svc, rateType: "monthly", rate: "600", capacitySlots: "3", notes: null },
+      { ...base, id: id(), contractorId: cara, serviceId: svc, rateType: "monthly", rate: "400", capacitySlots: null, notes: null },
+    ] as never;
+    return st;
+  }
+
+  function engagement(over: Record<string, unknown> = {}) {
+    return { ...base, id: id(), clientId: id(), packageId: null, leadId: null, name: "Client", clientName: "Client Co", monthlyPrice: "1000", setupPrice: null, slotWeight: "1", startDate: "2026-06-01", minTermEnd: "2026-09-01", status: "active", endedAt: null, endReason: null, lessons: null, health: "good", businessSize: null, modules: null, notes: null, reviewRequestedAt: null, ...over };
+  }
+  function cycle(engagementId: string, over: Record<string, unknown> = {}) {
+    return { ...base, id: id(), engagementId, month: "2026-10-01", deliveredAt: null, approvedAt: null, reportSentAt: null, invoicedAt: null, xeroInvoiceNumber: null, invoiceAmount: "1000", clientPaidAt: null, contractorBillRef: null, payoutAmount: "600", payoutDueAt: null, payoutPaidAt: null, notes: null, ...over };
+  }
+
+  it("hides paused / not a fit unless asked, and filters by service, role, size and rate", () => {
+    const st = benchState();
+    const svc = st.services[0].id;
+    expect(matchContractors(st).map((m) => m.name)).toEqual(["Ana", "Ben"]);
+    expect(matchContractors(st, { offRamp: true }).map((m) => m.name)).toContain("Cara");
+    // Service: Ana quoted it; Ben ticked its role but has no quote (listed, missing quote).
+    const bySvc = matchContractors(st, { serviceId: svc });
+    expect(bySvc.map((m) => [m.name, m.missingQuote])).toEqual([
+      ["Ana", false],
+      ["Ben", true],
+    ]);
+    expect(matchContractors(st, { roleId }).map((m) => m.name)).toEqual(["Ben"]);
+    // Ana only takes small jobs; Ben ticked no sizes, so he takes any.
+    expect(matchContractors(st, { sizes: ["large"] }).map((m) => m.name)).toEqual(["Ben"]);
+    expect(matchContractors(st, { serviceId: svc, maxRate: 500 }).map((m) => m.name)).toEqual([]);
+    expect(matchContractors(st, { serviceId: svc, maxRate: 600 }).map((m) => m.name)).toEqual(["Ana"]);
+    expect(matchContractors(st, { benchOnly: true }).map((m) => m.name)).toEqual(["Ana"]);
+  });
+
+  it("uses the minimum bench and low-slots settings", () => {
+    const st = benchState();
+    st.settings.minBench = 1;
+    st.settings.lowSlotsWarn = 3;
+    expect(capacityRules(st)).toEqual({ slotsPer: 4, recruitDays: 21, minBench: 1, lowSlots: 3 });
+    const services = computeServices(st);
+    const packages = computePackages(st, services);
+    const phases = computePhases(st, computeMetrics(st, services, packages));
+    const [c] = computeCapacity(st, services, packages, phases.next);
+    // Only Ana is on the bench, with 3 declared slots.
+    expect(c.confirmed).toBe(1);
+    expect(c.benchOk).toBe(true);
+    expect(c.slotsTotal).toBe(3);
+    expect(c.low).toBe(true);
+    expect(c.bench[0].contractorServiceId).toBeTruthy();
+    st.settings.minBench = 2;
+    expect(computeCapacity(st, services, packages, phases.next)[0].benchOk).toBe(false);
+  });
+
+  it("asks to invoice a started month and for a review once the minimum term is served", () => {
+    const st = dayOne();
+    const served = engagement();
+    const noTerm = engagement({ startDate: "2026-10-01", minTermEnd: "2026-10-01" });
+    const asked = engagement({ reviewRequestedAt: t0 });
+    st.engagements = [served, noTerm, asked] as never;
+    st.cycles = [cycle(served.id), cycle(noTerm.id, { month: "2026-11-01" })] as never;
+    const keys = computeAttention(st, []).map((a) => a.key);
+    expect(keys).toContain(`inv-${(st.cycles[0] as { id: string }).id}`);
+    expect(keys).not.toContain(`inv-${(st.cycles[1] as { id: string }).id}`); // November hasn't started
+    expect(keys).toContain(`greview-${served.id}`);
+    expect(keys).not.toContain(`greview-${noTerm.id}`);
+    expect(keys).not.toContain(`greview-${asked.id}`);
+    expect(keys.some((k) => k.startsWith("payout") || k.startsWith("chase"))).toBe(false);
+  });
+
+  it("counts invoiced months, not payments, for paying clients, the full loop and profit vs spend", () => {
+    const st = dayOne();
+    const a = engagement();
+    const b = engagement();
+    st.engagements = [a, b] as never;
+    st.cycles = [
+      cycle(a.id, { deliveredAt: "2026-10-05", approvedAt: "2026-10-06", reportSentAt: "2026-10-07", invoicedAt: "2026-10-01" }),
+      cycle(b.id),
+    ] as never;
+    st.adMonths = [{ ...base, id: id(), month: "2026-10-01", spend: "150", clicks: 10, impressions: 100, notes: null }] as never;
+    const services = computeServices(st);
+    const m = computeMetrics(st, services, computePackages(st, services));
+    expect(m.paying_clients).toBe(1);
+    expect(m.pilot_loop_complete).toBe(1);
+    // 1000 invoiced − 600 payout − 150 ads; nothing marked paid.
+    expect(m.cumulative_profit_vs_spend).toBe(250);
+    expect("payouts_on_time_pct" in m).toBe(false);
   });
 });

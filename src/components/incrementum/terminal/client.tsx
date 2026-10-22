@@ -186,25 +186,33 @@ export function PrivacyToggle({ initial }: { initial: boolean }) {
  */
 export function Toast() {
   const params = useSearchParams();
-  const pathname = usePathname();
   const ok = params.get("ok");
   const error = params.get("error");
-  const [shown, setShown] = useState<{ text: string; bad: boolean } | null>(null);
+  // Remounts per message, so the same text arriving again shows again.
+  return ok || error ? <ToastMessage key={`${error ?? ""}|${ok ?? ""}`} text={(error ?? ok) as string} bad={Boolean(error)} /> : null;
+}
+
+function ToastMessage({ text, bad }: { text: string; bad: boolean }) {
+  const pathname = usePathname();
+  const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
-    if (!ok && !error) return;
-    setShown({ text: (error ?? ok) as string, bad: Boolean(error) });
-    const next = new URLSearchParams(params.toString());
-    next.delete("ok");
-    next.delete("error");
-    const q = next.toString();
-    window.history.replaceState(null, "", `${pathname}${q ? `?${q}` : ""}${window.location.hash}`);
-    const t = setTimeout(() => setShown(null), error ? 9000 : 3200);
+    const t = setTimeout(
+      () => {
+        setDismissed(true);
+        const next = new URLSearchParams(window.location.search);
+        next.delete("ok");
+        next.delete("error");
+        const q = next.toString();
+        window.history.replaceState(window.history.state, "", `${pathname}${q ? `?${q}` : ""}${window.location.hash}`);
+      },
+      bad ? 9000 : 3200
+    );
     return () => clearTimeout(t);
-  }, [ok, error, params, pathname]);
-  if (!shown) return null;
+  }, [bad, pathname]);
+  if (dismissed) return null;
   return (
-    <div className="flash" role={shown.bad ? "alert" : "status"} data-tone={shown.bad ? "bad" : undefined} onClick={() => setShown(null)}>
-      {shown.bad ? <AlertTriangle size={14} /> : <Check size={14} />} {shown.text}
+    <div className="flash" role={bad ? "alert" : "status"} data-tone={bad ? "bad" : undefined} onClick={() => setDismissed(true)}>
+      {bad ? <AlertTriangle size={14} /> : <Check size={14} />} {text}
     </div>
   );
 }
