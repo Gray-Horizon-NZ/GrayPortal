@@ -144,6 +144,14 @@ export async function setClientBrandColor(clientId: string, color: string | null
   });
 }
 
+/** Clears a client's logo (the banner's "Remove"). The Storage object is left in place. */
+export async function clearClientLogo(clientId: string) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return auditedUpdate(tx, clients, eq(clients.id, clientId), clientId, { logoUrl: null, updatedBy: caller.userId }, { caller, entityType: "client" });
+  });
+}
+
 export async function setClientHiddenFromTaskView(clientId: string, hidden: boolean) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");

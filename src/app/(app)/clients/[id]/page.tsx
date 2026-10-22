@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
-import { getClient, clientLogoSrc } from "@/lib/dal/clients";
-import { paymentStatus } from "@/lib/paymentStatus";
+import { getClient } from "@/lib/dal/clients";
 import { listActiveDiscounts } from "@/lib/dal/referrals";
-import { getLatestHealthScore } from "@/lib/dal/health";
 import { listIdeationItems } from "@/lib/dal/ideation";
 import { listRoadmapItems } from "@/lib/dal/roadmap";
 import { listMeetingSummaries } from "@/lib/dal/meetingSummaries";
 import { listToolStackItems } from "@/lib/dal/toolStack";
-import { listClientServices, getActiveMonthlyTotal } from "@/lib/dal/clientServices";
 import { listServiceItems } from "@/lib/dal/pricing";
 import { listClientTeamMembers } from "@/lib/dal/clientTeam";
 import { listClientHealthChannels } from "@/lib/dal/clientHealthChannels";
@@ -15,75 +12,59 @@ import { listClientActivityFeed } from "@/lib/dal/clientActivityFeed";
 import { listEmailsForClient } from "@/lib/dal/emails";
 import { getCompany } from "@/lib/dal/companies";
 import { getDefaultOnboardingInviteEmail } from "@/lib/dal/onboardingInvites";
-import { ONBOARDING_DOCUMENT_NAMES } from "@/config/onboarding";
 import { listPendingAccessRequests } from "@/lib/dal/portalAccessRequests";
 import { listGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
-import { deleteClientAction, startPortalPreviewAction } from "../actions";
-import SubmitButton from "@/components/ui/SubmitButton";
-import { ProfileHead } from "@/components/ui/terminal/Term";
-import Badge from "@/components/ui/Badge";
-import ClientDetailTabs from "./ClientDetailTabs";
-import OverviewTab from "./tabs/OverviewTab";
-import AccessTab from "./tabs/AccessTab";
-import CommercialTab from "./tabs/CommercialTab";
-import DeliveryTab from "./tabs/DeliveryTab";
-import TeamTab from "./tabs/TeamTab";
+import { daysUntil } from "@/lib/date";
+import { renderTrustedMarkdown } from "@/lib/markdown";
+import { wrapPortalInviteEmailHtml, sanitizeEmailHtml, appUrl } from "@/lib/email/chrome";
+import { StoreData } from "@/terminal/store";
+import ClientProfile from "@/terminal/screens/ClientProfile";
+import { loadClients, loadMoney } from "@/terminal/load";
+import CredentialsList from "../../vault/CredentialsList";
 
+const nz = (d: Date | string) => {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(d));
+  const p = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return `${p("year")}-${p("month")}-${p("day")} ${p("hour")}:${p("minute")}`;
+};
+
+// What each server action's redirect param means, shown above the tabs.
+const FLASH: Record<string, [string, string | null]> = {
+  invited: ["good", "Login added. Nothing's been emailed yet — send the portal-setup invite when they're ready."],
+  inviteError: ["bad", "Couldn't add that login"],
+  onboardingInviteSent: ["good", "Portal-setup invite sent."],
+  onboardingInviteError: ["bad", "Couldn't send the invite"],
+  accessRequestApproved: ["good", "Access approved."],
+  accessRequestDenied: ["neutral", "Request denied."],
+  accessRequestError: ["bad", "Couldn't approve"],
+  passwordEmailSent: ["good", "Password setup email sent."],
+  passwordEmailError: ["bad", "Couldn't send the password email"],
+};
+
+// Rendered by the terminal concept's ClientProfile (five tabs). Every
+// control is wired to the real actions in ../actions.ts.
 export default async function ClientDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{
-    inviteError?: string;
-    invited?: string;
-    onboardingInviteSent?: string;
-    onboardingInviteError?: string;
-    accessRequestApproved?: string;
-    accessRequestDenied?: string;
-    accessRequestError?: string;
-    passwordEmailSent?: string;
-    passwordEmailError?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { id } = await params;
-  const {
-    inviteError,
-    invited,
-    onboardingInviteSent,
-    onboardingInviteError,
-    accessRequestApproved,
-    accessRequestDenied,
-    accessRequestError,
-    passwordEmailSent,
-    passwordEmailError,
-  } = await searchParams;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const data = await getClient(id);
   if (!data) notFound();
   const { client, referrals, features, portalUsers, documents, onboardingInvites } = data;
-  const status = paymentStatus(client.nextPaymentDate);
-  const defaultInviteEmail = await getDefaultOnboardingInviteEmail(client.name);
 
-  // Same fixed four-name registry as the "Onboarding documents" checklist
-  // below — a portal-setup invite can't send until every one of these is
-  // attached (sendOnboardingInvite enforces this too; this is just what lets
-  // the UI block before the round trip). documents here already excludes
-  // soft-deleted rows (getClient's own query), so no extra filter needed.
-  const attachedOnboardingDocNames = new Set(documents.map((d) => d.title));
-  const missingOnboardingDocumentNames = ONBOARDING_DOCUMENT_NAMES.filter(
-    (name) => !attachedOnboardingDocNames.has(name)
-  );
-
+  const clientsP = loadClients();
   const [
+    clients,
+    money,
     activeDiscounts,
     ideas,
     roadmap,
     meetings,
     tools,
-    health,
-    clientServices,
-    serviceCatalogue,
-    activeMonthlyTotal,
+    catalogue,
     teamMembers,
     healthChannels,
     activityFeed,
@@ -91,16 +72,16 @@ export default async function ClientDetailPage({
     companyData,
     pendingAccessRequests,
     grayscaleRequests,
+    defaultInviteEmail,
   ] = await Promise.all([
+    clientsP,
+    clientsP.then(loadMoney),
     listActiveDiscounts(client.id),
     listIdeationItems(client.id),
     listRoadmapItems(client.id),
     listMeetingSummaries(client.id),
     listToolStackItems(client.id),
-    getLatestHealthScore(client.id),
-    listClientServices(client.id),
     listServiceItems(),
-    getActiveMonthlyTotal(client.id),
     listClientTeamMembers(client.id),
     listClientHealthChannels(client.id),
     listClientActivityFeed(client.id),
@@ -108,152 +89,75 @@ export default async function ClientDetailPage({
     client.companyId ? getCompany(client.companyId) : Promise.resolve(null),
     listPendingAccessRequests(client.id),
     listGrayscaleRequests(client.id),
+    getDefaultOnboardingInviteEmail(client.name),
   ]);
+  const me = clients.find((c) => c.id === client.id);
+  if (!me) notFound();
 
-  const overallDiscountPercent = Number(client.overallDiscountPercent ?? 0);
-  const finalMonthlyTotal = activeMonthlyTotal * (1 - overallDiscountPercent / 100);
+  const flashKey = Object.keys(FLASH).find((k) => sp[k]);
+  const flash = flashKey
+    ? { tone: FLASH[flashKey][0], text: sp[flashKey] && sp[flashKey] !== "1" ? `${FLASH[flashKey][1]}: ${sp[flashKey]}` : FLASH[flashKey][1] }
+    : null;
+  // A second param can ride along (approved, but the password email failed).
+  const flash2 = flashKey === "accessRequestApproved" && sp.passwordEmailError ? { tone: "bad", text: `Couldn't send the password email: ${sp.passwordEmailError}` } : null;
 
-  // Same blocker class as a missing onboarding document — an empty roadmap
-  // means the portal isn't ready to hand over (sendOnboardingInvite enforces
-  // this too, independently, via its own DB check).
-  const missingReadinessItems = roadmap.length > 0 ? missingOnboardingDocumentNames : [...missingOnboardingDocumentNames, "Roadmap"];
+  const contacts = companyData?.contacts ?? [];
+  const awaiting = portalUsers.find((u) => !u.googleUid);
 
-  const pendingSignIns = portalUsers.filter((u) => !u.googleUid).length;
-
-  // A server action redirects back here with one of these params after an
-  // access/invite mutation — all of that confirmation UI lives in the
-  // Access & credentials tab now, so that tab must be the one showing on
-  // return, or the message would land on a hidden pane.
-  const initialTabId =
-    inviteError ||
-    invited ||
-    onboardingInviteSent ||
-    onboardingInviteError ||
-    accessRequestApproved ||
-    accessRequestDenied ||
-    accessRequestError ||
-    passwordEmailSent ||
-    passwordEmailError
-      ? "access"
-      : "overview";
+  const profile = {
+    companyId: client.companyId,
+    welcome: client.portalWelcomeMessage ?? "",
+    driveUrl: client.driveFolderUrl ?? "",
+    lookerUrl: client.lookerStudioUrl ?? "",
+    taskListLinked: !!client.googleTaskListId,
+    hidden: client.hiddenFromTaskView,
+    companyName: companyData?.company.name ?? client.name,
+    postalAddress: companyData?.company.postalAddress ?? "",
+    features: features.filter((f) => f.enabled).map((f) => f.featureKey as string),
+    accessRequests: pendingAccessRequests.map((r) => ({ id: r.id, email: r.email, name: r.displayName ?? "", at: nz(r.requestedAt).slice(0, 10) })),
+    portalUsers: portalUsers.map((u) => {
+      const invite = onboardingInvites.find((i) => i.email === u.email);
+      return { id: u.id, email: u.email, name: u.displayName ?? "", active: !!u.googleUid, inviteDaysLeft: invite ? daysUntil(invite.expiresAt) : null };
+    }),
+    invite: {
+      to: awaiting?.email ?? "",
+      subject: defaultInviteEmail.subject,
+      previewHtml: wrapPortalInviteEmailHtml({
+        clientName: client.name,
+        introHtml: sanitizeEmailHtml(defaultInviteEmail.body),
+        ctaHref: `${appUrl()}/onboard/preview-token`,
+        expiresInDays: 14,
+      }),
+      resend: !!(awaiting && onboardingInvites.some((i) => i.email === awaiting.email)),
+    },
+    documents: documents.map((d) => ({ id: d.id, title: d.title ?? d.docType, type: d.docType, date: d.documentDate ?? "", external: !!d.externalUrl })),
+    roadmap: roadmap.map((r) => ({ id: r.id, title: r.title, narrative: r.description ?? "", target: r.targetDate ?? "", status: r.status })),
+    ideas: ideas.map((i) => ({ id: i.id, title: i.title, status: i.status })),
+    tools: tools.map((t) => ({ id: t.id, name: t.toolName, category: t.category ?? "", status: t.status })),
+    referrals: referrals.map((r) => ({ id: r.id, name: r.referredName, status: r.status })),
+    activeDiscount: activeDiscounts.reduce((sum, d) => sum + Number(d.discountPercent), 0),
+    grayscaleRequests: grayscaleRequests.map((r) => ({ id: r.id, product: r.products.join(", "), note: r.note ?? "", at: nz(r.createdAt).slice(0, 10), status: r.status })),
+    deals: (companyData?.deals ?? []).map((d) => ({ id: d.id, label: d.packageTier || d.nextAction, value: Number(d.valueNzd ?? 0), stage: d.stage, next: d.nextActionDate })),
+    contacts: contacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}` })),
+    catalogue: catalogue.map((s) => ({ id: s.id, label: `${s.moduleCode} — ${s.deliverable}` })),
+    team: teamMembers.map((m) => ({ id: m.id, name: m.name, role: m.role ?? "", email: m.contactEmail ?? "" })),
+    channels: healthChannels.map((c) => ({ id: c.id, name: c.channelName, status: c.status, label: c.statusLabel })),
+    emails: recentEmails.map((e) => ({
+      id: e.id,
+      subject: e.subject || "(no subject)",
+      from: `${e.contactFirstName ?? ""} ${e.contactLastName ?? ""}`.trim(),
+      direction: e.direction,
+      at: nz(e.sentAt).slice(0, 10),
+    })),
+    activity: activityFeed.map((a) => ({ id: a.id, at: nz(a.occurredAt), body: a.body })),
+    meetings: meetings.map((m) => ({ id: m.id, title: m.title, at: nz(m.occurredAt).slice(0, 10), html: renderTrustedMarkdown(m.summary) })),
+    flash: [flash, flash2].filter(Boolean),
+    initialTab: flashKey ? "access" : "overview",
+  };
 
   return (
-    <div className="gh-term-page gh-animate-fade-up">
-      <ProfileHead
-        name={client.name}
-        logoUrl={clientLogoSrc(client)}
-        meta={
-          <>
-            {status && <Badge status={status.tone}>{status.label}</Badge>}
-            {companyData?.company?.name && companyData.company.name !== client.name && <span>{companyData.company.name}</span>}
-            {client.nextPaymentDate && <span>Next payment <b>{client.nextPaymentDate}</b></span>}
-          </>
-        }
-        actions={
-          <>
-            <form action={startPortalPreviewAction.bind(null, client.id)}>
-              <SubmitButton>Access client portal</SubmitButton>
-            </form>
-            <form action={deleteClientAction.bind(null, client.id)}>
-              <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }}>
-                Remove client
-              </SubmitButton>
-            </form>
-          </>
-        }
-      />
-
-      <div className="gh-kpi-strip">
-        <div className="gh-kpi">
-          <div className="gh-kpi-n">${finalMonthlyTotal.toLocaleString("en-NZ")}</div>
-          <div className="gh-kpi-l">Estimated monthly</div>
-        </div>
-        <div className="gh-kpi">
-          <div className="gh-kpi-n">{health ? Math.round(Number(health.score)) : "—"}</div>
-          <div className="gh-kpi-l">Health score{health ? ` — ${health.trend}` : ""}</div>
-        </div>
-        <div className="gh-kpi">
-          <div className="gh-kpi-n">{clientServices.length}</div>
-          <div className="gh-kpi-l">Active services</div>
-        </div>
-        <div className="gh-kpi">
-          <div className="gh-kpi-n">{pendingSignIns}</div>
-          <div className="gh-kpi-l">Invite{pendingSignIns === 1 ? "" : "s"} awaiting sign-in</div>
-        </div>
-      </div>
-
-      <ClientDetailTabs
-        initialTabId={initialTabId}
-        tabs={[
-          {
-            id: "overview",
-            label: "Overview",
-            content: <OverviewTab client={client} companyData={companyData} features={features} />,
-          },
-          {
-            id: "access",
-            label: "Access & credentials",
-            content: (
-              <AccessTab
-                client={client}
-                pendingAccessRequests={pendingAccessRequests}
-                portalUsers={portalUsers}
-                onboardingInvites={onboardingInvites}
-                defaultInviteEmail={defaultInviteEmail}
-                missingReadinessItems={missingReadinessItems}
-                documents={documents}
-                invited={invited}
-                inviteError={inviteError}
-                onboardingInviteSent={onboardingInviteSent}
-                onboardingInviteError={onboardingInviteError}
-                accessRequestApproved={accessRequestApproved}
-                accessRequestDenied={accessRequestDenied}
-                accessRequestError={accessRequestError}
-                passwordEmailSent={passwordEmailSent}
-                passwordEmailError={passwordEmailError}
-              />
-            ),
-          },
-          {
-            id: "commercial",
-            label: "Commercial",
-            content: (
-              <CommercialTab
-                client={client}
-                clientServices={clientServices}
-                serviceCatalogue={serviceCatalogue}
-                activeMonthlyTotal={activeMonthlyTotal}
-                overallDiscountPercent={overallDiscountPercent}
-                finalMonthlyTotal={finalMonthlyTotal}
-                companyData={companyData}
-                referrals={referrals}
-                activeDiscounts={activeDiscounts}
-                grayscaleRequests={grayscaleRequests}
-              />
-            ),
-          },
-          {
-            id: "delivery",
-            label: "Delivery",
-            content: <DeliveryTab client={client} documents={documents} roadmap={roadmap} ideas={ideas} tools={tools} />,
-          },
-          {
-            id: "team",
-            label: "Team & activity",
-            content: (
-              <TeamTab
-                client={client}
-                teamMembers={teamMembers}
-                meetings={meetings}
-                healthChannels={healthChannels}
-                recentEmails={recentEmails}
-                companyData={companyData}
-                activityFeed={activityFeed}
-              />
-            ),
-          },
-        ]}
-      />
-    </div>
+    <StoreData data={{ clients: [me], oneOffs: money.oneOffs.filter((p) => p.clientId === client.id), profile }}>
+      <ClientProfile id={client.id} credentials={<CredentialsList clientId={client.id} />} />
+    </StoreData>
   );
 }

@@ -30,6 +30,13 @@ export const INTERNAL_LISTS = [
 ];
 
 // ─── Client profile ──────────────────────────────────────────────────────
+// The real feature keys (src/lib/dal/clients.ts PORTAL_FEATURE_KEYS), with the concept's labels.
+export const PORTAL_FEATURES = [
+  ["tasks", "Tasks"], ["documents", "Documents"], ["referrals", "Referrals"], ["grayscale_page", "GrayScale page"],
+  ["invoices", "Invoices"], ["ideation", "Ideation"], ["roadmap", "Roadmap"], ["meeting_summaries", "Meeting summaries"],
+  ["tool_stack", "Tool stack"], ["drive", "Drive folder"], ["reporting", "Reporting (Looker)"], ["account_team", "Account team"],
+  ["campaign_health", "Campaign health"], ["deliverables", "Deliverables"], ["activity_feed", "Activity feed"],
+];
 export const ONBOARDING_DOCUMENT_NAMES = ["Welcome Document", "Project Brief", "Delivery Guide", "Thank You Document"];
 export const REFERRAL_STATUSES = ["submitted", "contacted", "converted", "discount_applied", "declined"];
 

@@ -59,6 +59,8 @@ export async function loadClients() {
         setup: num(s.customSetupPrice ?? item.currentSetupPrice),
         monthly: num(s.customMonthlyPrice ?? item.currentMonthlyPrice),
         discount: num(s.discountPercent),
+        // The override on its own, so an edit form can tell it from the catalogue price.
+        custom: { setup: s.customSetupPrice, monthly: s.customMonthlyPrice },
         status: s.status,
         started: s.startedOn ?? "",
         notes: s.notes ?? "",

@@ -7,7 +7,8 @@ import { revalidatePath } from "next/cache";
 import { INTERNAL_LIST_KEYS, type InternalListKey, createTask, deleteTask, setTaskStatus, toggleTaskPriority, toggleTaskStar, updateTask } from "@/lib/dal/tasks";
 import { changeDealStage } from "@/lib/dal/deals";
 import { markAllNotificationsRead, markNotificationRead } from "@/lib/dal/notifications";
-import { setClientBrandColor, uploadClientLogo } from "@/lib/dal/clients";
+import { clearClientLogo, setClientBrandColor, uploadClientLogo } from "@/lib/dal/clients";
+import { updateClientServiceStatus } from "@/lib/dal/clientServices";
 import {
   createOneOffPayment,
   createPurchase,
@@ -129,5 +130,15 @@ export async function tLogAdsSpend(input: { date: string; amount: number; note?:
 }
 export async function tSetExpenseBudget(category: string, monthly: number) {
   await setExpenseBudget(category, monthly);
+  refresh();
+}
+
+// ─── Client profile ──────────────────────────────────────────────────────
+export async function tClearClientLogo(clientId: string) {
+  await clearClientLogo(clientId);
+  refresh();
+}
+export async function tSetClientServiceStatus(id: string, status: "active" | "paused" | "ended") {
+  await updateClientServiceStatus(id, status);
   refresh();
 }

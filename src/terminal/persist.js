@@ -5,6 +5,7 @@
 // apart from real uuid rows.
 import {
   tChangeDealStage,
+  tClearClientLogo,
   tCreateOneOffPayment,
   tCreatePurchase,
   tCreateTask,
@@ -73,6 +74,7 @@ export const PERSIST = {
     for (const [a, b] of diff(before, after).changed) {
       if (a.brand.color !== b.brand.color) await tSetClientBrandColor(b.id, b.brand.color || null);
       if (a.brand.logo !== b.brand.logo && b.brand.logo?.startsWith("data:")) await tUploadClientLogo(b.id, b.brand.logo, `${b.name} logo`);
+      if (a.brand.logo && !b.brand.logo) await tClearClientLogo(b.id);
     }
   },
 

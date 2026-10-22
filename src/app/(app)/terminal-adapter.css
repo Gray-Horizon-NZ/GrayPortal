@@ -34,3 +34,9 @@
    wrapper; give them the concept's screen padding so they sit right in the
    content pane until they're moved across. */
 .gh-terminal .content > :not(.screen) { padding: 18px 22px 40px; }
+
+/* Result notes after a server action redirect (client profile flash). */
+.gh-terminal .note[data-tone="good"] { border-left-color: var(--t-good); }
+.gh-terminal .note[data-tone="good"] svg { color: var(--t-good); }
+.gh-terminal .note[data-tone="bad"] { border-left-color: var(--t-bad); }
+.gh-terminal .note[data-tone="bad"] svg { color: var(--t-bad); }
