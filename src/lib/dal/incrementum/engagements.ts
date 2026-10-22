@@ -15,6 +15,9 @@ import {
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "../mutate";
 import type { Caller, Tx } from "../session";
 import { withIncrementum, actor, numOrNull, nullable } from "./core";
+import { onboardClient } from "../onboarding";
+import { addClientContact, syncEngagementServicesToGrayPortal } from "./grayportal";
+import { addPackageLines } from "./needs";
 import { BUSINESS_SIZES, ENGAGEMENT_HEALTH, ENGAGEMENT_MODULES } from "@/lib/incrementum/registry";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -233,12 +236,29 @@ export async function updateCycle(id: string, input: z.input<typeof CycleUpdate>
   );
 }
 
-/** One-click steps used on the Payouts and engagement pages. */
-export async function stampCycle(id: string, field: "deliveredAt" | "approvedAt" | "reportSentAt" | "invoicedAt" | "clientPaidAt" | "payoutPaidAt", date: string) {
+export type CycleStampField = "deliveredAt" | "approvedAt" | "reportSentAt" | "invoicedAt" | "clientPaidAt" | "payoutPaidAt" | "settled";
+
+/**
+ * One-click steps used on the Payouts and client pages. "settled" is the
+ * optional end-of-month tick (payments aren't tracked, Max 2026-10-22): it
+ * stamps the client payment and the contractor payout together, which is
+ * what the contractor workspace shows as paid.
+ */
+export async function stampCycle(id: string, field: CycleStampField, date: string) {
   const d = isoDate.parse(date);
   return withIncrementum(async (caller, tx) => {
     const [c] = await tx.select().from(incrementumEngagementCycles).where(eq(incrementumEngagementCycles.id, id)).limit(1);
     if (!c) throw new Error("Cycle not found");
+    if (field === "settled") {
+      return auditedUpdate(
+        tx,
+        incrementumEngagementCycles,
+        eq(incrementumEngagementCycles.id, id),
+        id,
+        { clientPaidAt: c.clientPaidAt ?? d, payoutDueAt: c.payoutDueAt ?? d, payoutPaidAt: d, updatedBy: caller.userId },
+        { caller, entityType: "incrementum_engagement_cycle" }
+      );
+    }
     if (field === "payoutPaidAt" && !c.clientPaidAt) throw new Error("Pay-when-paid: the client hasn't paid this month yet.");
     if (field === "approvedAt" && !c.deliveredAt) throw new Error("Mark the work delivered before approving it.");
     const values: Record<string, unknown> = { [field]: d, updatedBy: caller.userId };
@@ -255,4 +275,71 @@ export async function listClientsForEngagements() {
   return withIncrementum(async (_c, tx) =>
     tx.select({ id: clients.id, name: clients.name }).from(clients).where(isNull(clients.deletedAt)).orderBy(asc(clients.name))
   );
+}
+
+/** Capacity: how many slots this client takes (a bigger client can take 1.5 or 2). */
+export async function setEngagementSlotWeight(id: string, weight: string) {
+  const w = z.coerce.number().min(0.25).max(10).parse(weight);
+  return withIncrementum(async (caller, tx) =>
+    auditedUpdate(tx, incrementumEngagements, eq(incrementumEngagements.id, id), id, { slotWeight: String(w), updatedBy: caller.userId }, { caller, entityType: "incrementum_engagement" })
+  );
+}
+
+export const NewClientInput = z.object({
+  businessName: z.string().min(1),
+  contactName: z.string().nullable(),
+  email: z.string().email(),
+  phone: z.string().nullable(),
+  website: z.string().nullable(),
+  businessSize: z.enum(BUSINESS_SIZES).nullable(),
+  packageId: z.string().uuid().nullable(),
+  monthlyPrice: z.string(),
+  setupPrice: z.string().nullable(),
+  startDate: isoDate,
+  minTermMonths: z.coerce.number().int().min(0).max(60),
+});
+
+/**
+ * "Add client → New client" (Max, 2026-10-22): someone signed outside the
+ * lead desk, on any term. Onboards them into GrayPortal (company, client,
+ * portal login, starter tasks) like a lead conversion, adds their contact
+ * person, starts the engagement and copies the package's lines in.
+ */
+export async function addNewIncrementumClient(input: z.input<typeof NewClientInput>) {
+  const data = NewClientInput.parse(input);
+  const created = await onboardClient({
+    company: { name: data.businessName, website: data.website ?? undefined, source: "Project Incrementum (direct)" },
+    client: { name: data.businessName },
+    portalInvite: { email: data.email, displayName: data.contactName ?? undefined },
+    enabledFeatures: ["tasks", "documents", "referrals"],
+  });
+  const clientId = (created.client as { id: string }).id;
+  const companyId = (created.company as { id: string }).id;
+  const engagement = await withIncrementum(async (caller, tx) => {
+    await addClientContact(tx, caller, { companyId, name: data.contactName, email: data.email, phone: data.phone });
+    return createEngagementInTx(tx, caller, {
+      clientId,
+      packageId: data.packageId,
+      leadId: null,
+      name: data.businessName,
+      monthlyPrice: data.monthlyPrice,
+      setupPrice: data.setupPrice,
+      startDate: data.startDate,
+      minTermMonths: data.minTermMonths,
+      businessSize: data.businessSize,
+    });
+  });
+  const id = (engagement as { id: string }).id;
+  if (data.packageId) await addPackageLines({ leadId: null, engagementId: id }, data.packageId);
+  await syncEngagementServicesToGrayPortal(id);
+  return { id };
+}
+
+/** "Add client → Existing GrayPortal client": starts the engagement, copies the package's lines and writes them onto their client profile. */
+export async function startEngagementForClient(input: { clientId: string; packageId: string | null; name: string; monthlyPrice: string; setupPrice: string | null; startDate: string; minTermMonths: number }) {
+  const engagement = await createEngagement(input);
+  const id = (engagement as { id: string }).id;
+  if (input.packageId) await addPackageLines({ leadId: null, engagementId: id }, input.packageId);
+  await syncEngagementServicesToGrayPortal(id);
+  return { id };
 }

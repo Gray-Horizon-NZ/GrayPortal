@@ -65,6 +65,8 @@ function dayOne(): IncrementumState {
       responseTargetMinutes: 60,
       defaultSlotsPerContractor: "4",
       defaultRecruitDays: 21,
+      minBench: 2,
+      lowSlotsWarn: 1,
       launchDate: null,
       homeModeOverride: null,
       contractorAccessReviewedAt: null,

@@ -22,6 +22,7 @@ import { createEngagementInTx } from "./engagements";
 import { adoptLeadNeeds } from "./needs";
 import { computeNeed, quoteTotals } from "@/lib/incrementum/compute";
 import { getIncrementumSnapshot } from "./snapshot";
+import { addClientContact, copyLeadHistory, writeEngagementServices } from "./grayportal";
 import { BUSINESS_SIZES, LEAD_SOURCES, LEAD_STAGES } from "@/lib/incrementum/registry";
 
 export async function getLeadDetail(id: string) {
@@ -196,6 +197,8 @@ export const OnboardLeadInput = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   monthlyPrice: z.string().nullable(),
   setupPrice: z.string().nullable(),
+  /** Any term (Max, 2026-10-22): 0 = month to month. Defaults to the package's. */
+  minTermMonths: z.coerce.number().int().min(0).max(60).nullable().optional(),
 });
 
 /**
@@ -230,8 +233,14 @@ export async function onboardLeadAsClient(leadId: string, input: z.input<typeof 
     enabledFeatures: ["tasks", "documents", "referrals"],
   });
   const clientId = (created.client as { id: string }).id;
+  const companyId = (created.company as { id: string }).id;
 
   return withIncrementum(async (caller, tx) => {
+    // The rest of the GrayPortal client: their contact person, the lead's
+    // history on that contact's timeline, and (below) the services on the
+    // client profile, so everything about them is reachable in GrayPortal.
+    const contact = await addClientContact(tx, caller, { companyId, name: data.displayName ?? lead.contactName, email: lead.email ?? data.portalEmail, phone: lead.phone });
+    await copyLeadHistory(tx, caller, leadId, contact.id);
     const engagement = await createEngagementInTx(tx, caller, {
       clientId,
       packageId: pkg?.id ?? null,
@@ -240,10 +249,11 @@ export async function onboardLeadAsClient(leadId: string, input: z.input<typeof 
       monthlyPrice: data.monthlyPrice ?? (quote ? String(quote.monthlyPrice) : pkg ? String(pkg.totals.monthlyPrice) : "0"),
       setupPrice: data.setupPrice ?? (quote ? String(quote.oneOffPrice) : pkg ? String(pkg.totals.setupPrice) : null),
       startDate: data.startDate,
-      minTermMonths: pkg?.minTermMonths ?? 3,
+      minTermMonths: data.minTermMonths ?? pkg?.minTermMonths ?? 3,
       businessSize: lead.businessSize,
     });
     await adoptLeadNeeds(tx, caller, leadId, (engagement as { id: string }).id);
+    await writeEngagementServices(tx, caller, clientId, data.startDate, leadNeeds);
     await auditedUpdate(
       tx,
       incrementumLeads,

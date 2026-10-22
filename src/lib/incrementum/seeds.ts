@@ -188,7 +188,7 @@ export const PHASE_SEED: PhaseSeed[] = [
       { label: "Max's hours ≤ 3 per client per month", metricKey: "max_hours_per_client", comparator: "lte", target: 3 },
       { label: "Landing page conversion ≥ 3%", metricKey: "landing_conversion", target: 3 },
       { label: "Close rate ≥ 10%", metricKey: "close_rate", target: 10 },
-      { label: "100% of contractor payouts on time", metricKey: "payouts_on_time_pct", target: 100 },
+      { label: "Every contractor paid within 5 working days of the client (tick by hand)" },
       { label: "Phase 1 retro written (Experiments)" },
     ],
     milestones: [

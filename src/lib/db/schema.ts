@@ -1245,6 +1245,11 @@ export const incrementumSettings = pgTable("incrementum_settings", {
   // Assumption used by Capacity until real contractor capacity exists.
   defaultSlotsPerContractor: numeric("default_slots_per_contractor", { precision: 6, scale: 2 }).notNull().default("4"),
   defaultRecruitDays: integer("default_recruit_days").notNull().default(21),
+  // Capacity thresholds (Max, 2026-10-22): a service is "Bench OK" with at
+  // least minBench confirmed contractors; free slots at or below
+  // lowSlotsWarn show as low.
+  minBench: integer("min_bench").notNull().default(2),
+  lowSlotsWarn: integer("low_slots_warn").notNull().default(1),
   launchDate: date("launch_date"),
   // null = automatic (pre-launch until launchDate is set), else "pre"/"live".
   homeModeOverride: text("home_mode_override"),
@@ -1471,6 +1476,9 @@ export const incrementumEngagements = pgTable("incrementum_engagements", {
   businessSize: text("business_size"),
   modules: jsonb("modules").$type<Record<string, boolean>>(),
   notes: text("notes"),
+  // Set when the "Send review email" (Google review request) goes out,
+  // offered once the minimum term is served (Max, 2026-10-22).
+  reviewRequestedAt: timestamp("review_requested_at", { withTimezone: true }),
   ...softDelete,
   ...actorColumns,
 });
@@ -1489,8 +1497,10 @@ export const incrementumEngagementContractors = pgTable("incrementum_engagement_
   ...actorColumns,
 });
 
-// One row per engagement per month: deliver → approve → report → invoice →
-// client paid → contractor payout (the pay-when-paid ledger, plan §7.9).
+// One row per engagement per month: deliver → approve → report → invoice,
+// then an optional "settled" tick (Max, 2026-10-22: payments aren't tracked,
+// his Xero isn't fed from the bank). Settling stamps clientPaidAt and
+// payoutPaidAt together, which is what the contractor workspace reads.
 export const incrementumEngagementCycles = pgTable(
   "incrementum_engagement_cycles",
   {
