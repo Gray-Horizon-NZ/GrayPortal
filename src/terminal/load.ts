@@ -12,6 +12,8 @@ import { listPeriods } from "@/lib/dal/personalFinance";
 import { listDevCosts } from "@/lib/dal/devCosts";
 import { listInternalIdeationItems, listIdeationCategories } from "@/lib/dal/ideation";
 import { listAiAgents } from "@/lib/dal/aiAgents";
+import { listClientEmails, listEmailTemplates, listUnmatchedInboundEmails } from "@/lib/dal/emails";
+import { listCampaigns, listCampaignStats } from "@/lib/dal/campaigns";
 import { clientLogoSrc } from "@/lib/dal/clients";
 import { listWeekCalendarEvents, listCalendarEventsInRange } from "@/lib/google/adapter";
 import {
@@ -382,4 +384,81 @@ export async function loadIdeation() {
 
 export async function loadAgents() {
   return (await listAiAgents()).map((a) => ({ id: a.id, title: a.title, desc: a.description ?? "", status: a.status }));
+}
+
+// ─── Comms (triage, templates, campaigns) ────────────────────────────────
+const stamp = (d: Date | string) => {
+  const iso = day(d);
+  const time = new Intl.DateTimeFormat("en-NZ", { timeZone: "Pacific/Auckland", hour: "numeric", minute: "2-digit" }).format(new Date(d));
+  return iso === TODAY ? time : `${new Date(`${iso}T00:00:00`).toLocaleDateString("en-NZ", { day: "numeric", month: "short" })}, ${time}`;
+};
+
+/**
+ * The concept's triage mail list. Client mail is everything matched to a
+ * client contact; a thread "needs reply" when its newest message is inbound.
+ * Unmatched is inbound mail no contact has been matched to yet.
+ */
+export async function loadTriage() {
+  const [matched, unmatched] = await Promise.all([listClientEmails(), listUnmatchedInboundEmails()]);
+  const newest = new Map<string, string>();
+  for (const e of matched) {
+    const t = e.gmailThreadId ?? e.id;
+    if (!newest.has(t)) newest.set(t, e.id); // rows come newest first
+  }
+  const mail = [
+    ...matched.map((e) => ({
+      id: e.id,
+      kind: "client",
+      needsReply: e.direction === "inbound" && newest.get(e.gmailThreadId ?? e.id) === e.id,
+      from: e.direction === "inbound" ? `${e.contactFirstName} ${e.contactLastName}` : `To ${e.contactFirstName} ${e.contactLastName}`,
+      addr: e.direction === "inbound" ? e.fromAddress : (e.toAddresses[0] ?? ""),
+      at: stamp(e.sentAt),
+      sortAt: new Date(e.sentAt).toISOString(),
+      subject: e.subject || "(no subject)",
+      snippet: e.snippet ?? "",
+      thread: e.gmailThreadId,
+      direction: e.direction,
+      contactId: e.contactId,
+      contactFirst: e.contactFirstName,
+      link: { type: "client", id: e.clientId, name: e.clientName },
+    })),
+    ...unmatched.map((e) => ({
+      id: e.id,
+      kind: "unmatched",
+      needsReply: false,
+      from: e.fromAddress,
+      addr: e.fromAddress,
+      at: stamp(e.sentAt),
+      sortAt: new Date(e.sentAt).toISOString(),
+      subject: e.subject || "(no subject)",
+      snippet: e.snippet ?? "",
+      thread: e.gmailThreadId,
+      direction: e.direction,
+      contactId: null,
+      contactFirst: null,
+      link: null,
+    })),
+  ];
+  return mail.sort((a, b) => (a.sortAt < b.sortAt ? 1 : -1));
+}
+
+export async function loadTemplates() {
+  return (await listEmailTemplates()).map((t) => ({ id: t.id, key: t.key, name: t.name, subject: t.subject, body: t.htmlBody, updated: day(t.updatedAt) }));
+}
+
+const AUDIENCE: Record<string, string> = { clients: "Clients", clients_and_prospects: "Clients + prospects" };
+export async function loadCampaigns() {
+  const [rows, stats] = await Promise.all([listCampaigns(), listCampaignStats()]);
+  const by = new Map(stats.map((s) => [s.campaignId, s]));
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    subject: c.subject,
+    audience: AUDIENCE[c.audience] ?? c.audience,
+    status: c.status,
+    sentAt: c.sentAt ? day(c.sentAt) : c.scheduledFor ? day(c.scheduledFor) : "",
+    recipients: by.get(c.id)?.recipients ?? 0,
+    sent: by.get(c.id)?.sent ?? 0,
+    opened: by.get(c.id)?.opened ?? 0,
+  }));
 }
