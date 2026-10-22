@@ -58,3 +58,10 @@ export function hrefWith(base: string, params: Record<string, string | number | 
 }
 
 export const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+/** Plan §1.1: an offer must clear this monthly profit per client. */
+export const PASS_LINE = 700;
+
+const TINTS = ["#c2a468", "#5fb3c9", "#1f8a70", "#d9487a", "#7b5cd6", "#e8642c"];
+/** A steady tint per record for monogram art. */
+export const tintFor = (id: string) => TINTS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % TINTS.length];

@@ -242,6 +242,73 @@ export function RailFolders({ folders }: { folders: NavFolder[] }) {
   );
 }
 
+/** The concept's Seg tabs inside a pop-up: panes are server-rendered, only the choice is client state. */
+export function PaneTabs({ tabs, small }: { tabs: { key: string; label: React.ReactNode; pane: React.ReactNode }[]; small?: boolean }) {
+  const [cur, setCur] = useState(tabs[0]?.key);
+  return (
+    <>
+      <div className="seg" data-small={small || undefined} role="tablist">
+        {tabs.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={cur === t.key} data-active={cur === t.key || undefined} onClick={() => setCur(t.key)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tabs.map((t) => (
+        <div key={t.key} hidden={cur !== t.key}>
+          {t.pane}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** A panel whose header carries the Seg tabs (concept: Reach out). */
+export function TabbedPanel({ title, icon, tabs }: { title: React.ReactNode; icon?: React.ReactNode; tabs: { key: string; label: React.ReactNode; pane: React.ReactNode }[] }) {
+  const [cur, setCur] = useState(tabs[0]?.key);
+  return (
+    <section className="panel">
+      <header className="phead">
+        {icon}
+        <span className="ptitle">{title}</span>
+        <span className="r">
+          <span className="seg" data-small="" role="tablist">
+            {tabs.map((t) => (
+              <button key={t.key} type="button" role="tab" aria-selected={cur === t.key} data-active={cur === t.key || undefined} onClick={() => setCur(t.key)}>
+                {t.label}
+              </button>
+            ))}
+          </span>
+        </span>
+      </header>
+      <div className="panel-pad">
+        {tabs.map((t) => (
+          <div key={t.key} hidden={cur !== t.key}>
+            {t.pane}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Search box that hides sibling rows ([data-search]) inside the same parent that don't match. */
+export function PickSearch({ placeholder = "Search…" }: { placeholder?: string }) {
+  return (
+    <input
+      className="input"
+      placeholder={placeholder}
+      aria-label="Search"
+      onChange={(e) => {
+        const q = e.target.value.trim().toLowerCase();
+        e.target.parentElement?.querySelectorAll<HTMLElement>("[data-search]").forEach((el) => {
+          el.hidden = !!q && !(el.dataset.search ?? "").includes(q);
+        });
+      }}
+    />
+  );
+}
+
 /** "_back" for forms rendered outside a page (the rail's pop-ups): come back to wherever you were. */
 export function CurrentPathField() {
   const pathname = usePathname();

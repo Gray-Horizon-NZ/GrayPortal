@@ -353,6 +353,20 @@ export async function updateIncTaskAction(fd: FormData) {
   await act(fd, () => itasks.updateIncrementumTask(str(fd, "id"), { title: str(fd, "title") || undefined, dueDate: nul(fd, "dueDate"), priority: bool(fd, "high") ? "high" : "normal" }));
 }
 
+/** The task row's one edit form: title, due, priority, and the list it sits on. */
+export async function saveIncTaskAction(fd: FormData) {
+  const listId = nul(fd, "listId");
+  const moved = listId !== nul(fd, "currentListId");
+  await act(
+    fd,
+    async () => {
+      await itasks.updateIncrementumTask(str(fd, "id"), { title: str(fd, "title") || undefined, dueDate: nul(fd, "dueDate"), priority: bool(fd, "high") ? "high" : "normal" });
+      if (moved) await itasks.moveIncrementumTask(str(fd, "id"), listId);
+    },
+    moved ? "Saved and moved" : undefined
+  );
+}
+
 export async function deleteIncTaskAction(fd: FormData) {
   await act(fd, () => deleteTask(str(fd, "id")));
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import {
   incrementumLeads,
@@ -34,6 +34,18 @@ export async function getLeadDetail(id: string) {
       tx.select().from(incrementumStageEvents).where(and(eq(incrementumStageEvents.entityType, "lead"), eq(incrementumStageEvents.entityId, id))).orderBy(desc(incrementumStageEvents.createdAt)),
     ]);
     return { lead, activities, stageEvents };
+  });
+}
+
+/** Activity + stage changes for several leads at once (the Leads quick-view pop-ups). */
+export async function listLeadHistory(ids: string[]) {
+  if (!ids.length) return { activities: [], stageEvents: [] };
+  return withIncrementum(async (_c, tx) => {
+    const [activities, stageEvents] = await Promise.all([
+      tx.select().from(incrementumActivities).where(and(eq(incrementumActivities.entityType, "lead"), inArray(incrementumActivities.entityId, ids), isNull(incrementumActivities.deletedAt))).orderBy(desc(incrementumActivities.occurredAt)),
+      tx.select().from(incrementumStageEvents).where(and(eq(incrementumStageEvents.entityType, "lead"), inArray(incrementumStageEvents.entityId, ids))).orderBy(desc(incrementumStageEvents.createdAt)),
+    ]);
+    return { activities, stageEvents };
   });
 }
 
