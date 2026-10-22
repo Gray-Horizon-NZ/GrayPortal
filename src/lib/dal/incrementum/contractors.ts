@@ -195,6 +195,15 @@ export async function upsertContractorService(contractorId: string, input: z.inp
   });
 }
 
+/** Capacity's inline slot edit: only the slots change (null = the default), never the rate. */
+export async function setContractorServiceSlots(id: string, slots: string | null) {
+  const value = numOrNull(slots);
+  if (value !== null && (Number(value) < 0 || Number(value) > 99)) throw new Error("Slots must be between 0 and 99.");
+  return withIncrementum(async (caller, tx) =>
+    auditedUpdate(tx, incrementumContractorServices, eq(incrementumContractorServices.id, id), id, { capacitySlots: value, updatedBy: caller.userId }, { caller, entityType: "incrementum_contractor_service" })
+  );
+}
+
 export async function removeContractorService(id: string) {
   return withIncrementum(async (caller, tx) => {
     const [row] = await tx.select().from(incrementumContractorServices).where(eq(incrementumContractorServices.id, id)).limit(1);

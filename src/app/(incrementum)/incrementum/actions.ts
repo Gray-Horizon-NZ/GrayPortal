@@ -14,6 +14,7 @@ import * as leads from "@/lib/dal/incrementum/leads";
 import * as engagements from "@/lib/dal/incrementum/engagements";
 import * as outreach from "@/lib/dal/incrementum/outreach";
 import * as needs from "@/lib/dal/incrementum/needs";
+import * as grayportal from "@/lib/dal/incrementum/grayportal";
 import { setTaskStatus, deleteTask } from "@/lib/dal/tasks";
 
 function str(fd: FormData, k: string): string {
@@ -89,23 +90,15 @@ async function isCurrentPage(target: string): Promise<boolean> {
 
 // --- Settings ---------------------------------------------------------------
 export async function saveSettingsAction(fd: FormData) {
-  await act(
-    fd,
-    () =>
-      planning.updateIncrementumSettings({
-        defaultMarkupPct: nul(fd, "defaultMarkupPct"),
-        freedomTarget: nul(fd, "freedomTarget"),
-        freedomGold: nul(fd, "freedomGold"),
-        freedomDiamond: nul(fd, "freedomDiamond"),
-        adBudgetTotal: nul(fd, "adBudgetTotal"),
-        responseTargetMinutes: Number(str(fd, "responseTargetMinutes") || 60),
-        defaultSlotsPerContractor: nul(fd, "defaultSlotsPerContractor"),
-        defaultRecruitDays: Number(str(fd, "defaultRecruitDays") || 21),
-        launchDate: nul(fd, "launchDate"),
-        homeModeOverride: (nul(fd, "homeModeOverride") as "pre" | "live" | null) ?? null,
-      }),
-    "Settings saved"
-  );
+  // Each Settings view posts only its own fields; absent keys stay as they are.
+  const input: Record<string, unknown> = {};
+  for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor", "launchDate", "homeModeOverride"]) {
+    if (fd.has(k)) input[k] = nul(fd, k);
+  }
+  for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn"]) {
+    if (fd.has(k) && str(fd, k) !== "") input[k] = Number(str(fd, k));
+  }
+  await act(fd, () => planning.updateIncrementumSettings(input as never), "Settings saved");
 }
 
 export async function saveHomeLayoutAction(fd: FormData) {
@@ -120,6 +113,25 @@ export async function resetHomeLayoutAction(fd: FormData) {
 
 export async function dismissNextMoveAction(fd: FormData) {
   await act(fd, () => planning.dismissNextMove(str(fd, "moveKey"), nul(fd, "note")));
+}
+
+export async function setLaunchDateAction(fd: FormData) {
+  const date = bool(fd, "clear") ? null : nul(fd, "launchDate");
+  await act(fd, () => planning.setLaunchDate(date), date ? "Ads live date set" : "Ads live date cleared");
+}
+
+export async function saveCapacityThresholdsAction(fd: FormData) {
+  await act(
+    fd,
+    () =>
+      planning.saveCapacityThresholds({
+        defaultSlotsPerContractor: nul(fd, "defaultSlotsPerContractor"),
+        minBench: str(fd, "minBench") || 2,
+        lowSlotsWarn: str(fd, "lowSlotsWarn") || 1,
+        defaultRecruitDays: str(fd, "defaultRecruitDays") || 21,
+      }),
+    "Thresholds saved"
+  );
 }
 
 export async function markAccessReviewedAction(fd: FormData) {
@@ -507,6 +519,10 @@ export async function upsertContractorServiceAction(fd: FormData) {
   );
 }
 
+export async function setContractorSlotsAction(fd: FormData) {
+  await act(fd, () => contractorsDal.setContractorServiceSlots(str(fd, "id"), nul(fd, "slots")));
+}
+
 export async function removeContractorServiceAction(fd: FormData) {
   await act(fd, () => contractorsDal.removeContractorService(str(fd, "id")));
 }
@@ -613,9 +629,10 @@ export async function onboardLeadAction(fd: FormData) {
         startDate: str(fd, "startDate"),
         monthlyPrice: nul(fd, "monthlyPrice"),
         setupPrice: nul(fd, "setupPrice"),
+        minTermMonths: nul(fd, "minTermMonths") === null ? null : Number(str(fd, "minTermMonths")),
       }),
-    "Client onboarded and engagement started",
-    (r) => `/incrementum/engagements/${(r as { engagementId: string }).engagementId}`
+    "Client onboarded. They're in GrayPortal too.",
+    (r) => `/incrementum/clients/${(r as { engagementId: string }).engagementId}`
   );
 }
 
@@ -633,9 +650,49 @@ export async function createEngagementAction(fd: FormData) {
         startDate: str(fd, "startDate"),
         minTermMonths: Number(str(fd, "minTermMonths") || 3),
       }),
-    "Engagement started",
-    (r) => `/incrementum/engagements/${(r as { id: string }).id}`
+    "Client added",
+    (r) => `/incrementum/clients/${(r as { id: string }).id}`
   );
+}
+
+export async function addClientAction(fd: FormData) {
+  const common = {
+    packageId: nul(fd, "packageId"),
+    monthlyPrice: str(fd, "monthlyPrice") || "0",
+    setupPrice: nul(fd, "setupPrice"),
+    startDate: str(fd, "startDate"),
+    minTermMonths: Number(str(fd, "minTermMonths") || 0),
+  };
+  const mode = str(fd, "mode");
+  await act(
+    fd,
+    () =>
+      mode === "new"
+        ? engagements.addNewIncrementumClient({
+            ...common,
+            businessName: str(fd, "businessName"),
+            contactName: nul(fd, "contactName"),
+            email: str(fd, "email"),
+            phone: nul(fd, "phone"),
+            website: nul(fd, "website"),
+            businessSize: nul(fd, "businessSize") as never,
+          })
+        : engagements.startEngagementForClient({ ...common, clientId: str(fd, "clientId"), name: str(fd, "name") }),
+    mode === "new" ? "Client added. They're in GrayPortal too." : "Client added",
+    (r) => `/incrementum/clients/${(r as { id: string }).id}`
+  );
+}
+
+export async function setSlotWeightAction(fd: FormData) {
+  await act(fd, () => engagements.setEngagementSlotWeight(str(fd, "id"), str(fd, "slotWeight") || "1"));
+}
+
+export async function syncClientServicesAction(fd: FormData) {
+  await act(fd, () => grayportal.syncEngagementServicesToGrayPortal(str(fd, "id")), "Services synced to GrayPortal");
+}
+
+export async function sendReviewRequestAction(fd: FormData) {
+  await act(fd, () => outreach.sendReviewRequest(str(fd, "id"), { to: str(fd, "to"), subject: str(fd, "subject"), body: str(fd, "body") }), "Review email sent");
 }
 
 export async function updateEngagementAction(fd: FormData) {
@@ -654,7 +711,7 @@ export async function updateEngagementAction(fd: FormData) {
         status: str(fd, "status") === "paused" ? "paused" : "active",
         notes: nul(fd, "notes"),
       }),
-    "Engagement saved"
+    "Client saved"
   );
 }
 
@@ -664,11 +721,11 @@ export async function setEngagementModulesAction(fd: FormData) {
 }
 
 export async function endEngagementAction(fd: FormData) {
-  await act(fd, () => engagements.endEngagement(str(fd, "id"), { endReason: str(fd, "endReason"), lessons: nul(fd, "lessons"), endedAt: str(fd, "endedAt") }), "Engagement ended and archived");
+  await act(fd, () => engagements.endEngagement(str(fd, "id"), { endReason: str(fd, "endReason"), lessons: nul(fd, "lessons"), endedAt: str(fd, "endedAt") }), "Client ended and archived");
 }
 
 export async function reopenEngagementAction(fd: FormData) {
-  await act(fd, () => engagements.reopenEngagement(str(fd, "id")), "Engagement reopened");
+  await act(fd, () => engagements.reopenEngagement(str(fd, "id")), "Client reopened");
 }
 
 export async function addEngagementContractorAction(fd: FormData) {
@@ -695,6 +752,9 @@ export async function stampCycleAction(fd: FormData) {
 }
 
 export async function updateCycleAction(fd: FormData) {
+  // Payments aren't tracked: the one optional "Settled" date stamps both
+  // sides, which is what the contractor workspace reads as paid.
+  const settledAt = nul(fd, "settledAt");
   await act(
     fd,
     () =>
@@ -705,11 +765,11 @@ export async function updateCycleAction(fd: FormData) {
         invoicedAt: nul(fd, "invoicedAt"),
         xeroInvoiceNumber: nul(fd, "xeroInvoiceNumber"),
         invoiceAmount: nul(fd, "invoiceAmount"),
-        clientPaidAt: nul(fd, "clientPaidAt"),
+        clientPaidAt: settledAt,
         contractorBillRef: nul(fd, "contractorBillRef"),
         payoutAmount: nul(fd, "payoutAmount"),
-        payoutDueAt: nul(fd, "payoutDueAt"),
-        payoutPaidAt: nul(fd, "payoutPaidAt"),
+        payoutDueAt: nul(fd, "payoutDueAt") ?? settledAt,
+        payoutPaidAt: settledAt,
         notes: nul(fd, "notes"),
       }),
     "Month saved"
