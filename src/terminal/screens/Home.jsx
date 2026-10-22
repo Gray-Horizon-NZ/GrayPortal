@@ -11,7 +11,7 @@ import { Panel, KV, Stat, Priv, go, Meter, Modal, route } from "../ui";
 import { Sparkline, ThresholdBar, StageColumns, Cells } from "../charts";
 import { ClientCard } from "./Clients";
 
-export const fmtTime = (h) => `${Math.floor(h)}:${h % 1 ? "30" : "00"}`;
+export const fmtTime = (h) => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
 
 const monthName = (iso, offset = 0) => {
   const d = new Date(`${iso.slice(0, 7)}-01T00:00:00`);

@@ -40,3 +40,6 @@ export const short = (n) => (Math.abs(n) >= 1000 ? `$${(n / 1000).toFixed(n % 10
 export const fmtDate = (iso, opts = { day: "numeric", month: "short" }) =>
   iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("en-NZ", opts) : "—";
 export const daysBetween = (a, b) => Math.round((new Date(`${b}T00:00:00`) - new Date(`${a}T00:00:00`)) / 86400000);
+/** Month grid size from its 1st: 35 cells, or 42 when the month spills into a sixth week. */
+export const monthCells = (first) =>
+  ((first.getDay() + 6) % 7) + new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate() > 35 ? 42 : 35;

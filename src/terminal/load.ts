@@ -10,8 +10,10 @@ import { getSpiderFawcettYtdIncome } from "@/lib/spiderFawcett";
 import { nzTaxYearStart } from "@/lib/nzTax";
 import { listPeriods } from "@/lib/dal/personalFinance";
 import { listDevCosts } from "@/lib/dal/devCosts";
+import { listInternalIdeationItems, listIdeationCategories } from "@/lib/dal/ideation";
+import { listAiAgents } from "@/lib/dal/aiAgents";
 import { clientLogoSrc } from "@/lib/dal/clients";
-import { listWeekCalendarEvents } from "@/lib/google/adapter";
+import { listWeekCalendarEvents, listCalendarEventsInRange } from "@/lib/google/adapter";
 import {
   getAdsBudget,
   listExpenseBudgets,
@@ -352,4 +354,30 @@ export async function loadCompanies() {
   const prospects = await loadProspects();
   const fromClients = rows.filter((r) => r.company).map((r) => ({ id: r.company!.id, name: r.company!.name }));
   return [...fromClients, ...prospects.map((p) => ({ id: p.id, name: p.name }))].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Calendar events between two YYYY-MM-DD dates (end exclusive), concept-shaped.
+ * The window spans either NZ offset (+13 NZDT / +12 NZST); callers filter by date. */
+export async function loadEventsInRange(fromIso: string, toIso: string) {
+  const events = await listCalendarEventsInRange(new Date(`${fromIso}T00:00:00+13:00`), new Date(`${toIso}T00:00:00+12:00`), 250).catch(() => []);
+  return events.map((e) => ({
+    date: e.allDay ? e.start.slice(0, 10) : day(e.start),
+    start: e.allDay ? 8 : nzHours(e.start),
+    end: e.allDay ? 9 : nzHours(e.end),
+    title: e.summary,
+    kind: "client",
+    allDay: e.allDay,
+  }));
+}
+
+export async function loadIdeation() {
+  const [items, categories] = await Promise.all([listInternalIdeationItems(), listIdeationCategories()]);
+  return {
+    ideas: items.map((i) => ({ id: i.id, title: i.title, desc: i.description ?? "", status: i.status, category: i.category ?? "" })),
+    categories: categories.map((c) => ({ key: c.key, label: c.label })),
+  };
+}
+
+export async function loadAgents() {
+  return (await listAiAgents()).map((a) => ({ id: a.id, title: a.title, desc: a.description ?? "", status: a.status }));
 }
