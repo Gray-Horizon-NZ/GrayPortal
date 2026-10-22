@@ -9,6 +9,7 @@ import { changeDealStage } from "@/lib/dal/deals";
 import { markAllNotificationsRead, markNotificationRead } from "@/lib/dal/notifications";
 import { clearClientLogo, setClientBrandColor, uploadClientLogo } from "@/lib/dal/clients";
 import { updateClientServiceStatus } from "@/lib/dal/clientServices";
+import { markGrayscaleRequestContacted } from "@/lib/dal/grayscaleRequests";
 import {
   createOneOffPayment,
   createPurchase,
@@ -140,5 +141,11 @@ export async function tClearClientLogo(clientId: string) {
 }
 export async function tSetClientServiceStatus(id: string, status: "active" | "paused" | "ended") {
   await updateClientServiceStatus(id, status);
+  refresh();
+}
+
+// ─── GrayScale ───────────────────────────────────────────────────────────
+export async function tMarkGrayscaleContacted(id: string) {
+  await markGrayscaleRequestContacted(id);
   refresh();
 }
