@@ -1689,3 +1689,4 @@
 .gh-incrementum .flash { cursor: pointer; }
 .gh-incrementum .flash[data-tone="bad"] svg { color: var(--t-bad); }
 .gh-incrementum .flash[data-tone="bad"] { border-left-color: var(--t-bad); }
+.gh-incrementum .tree .search { margin: 0 0 12px; max-width: none; }

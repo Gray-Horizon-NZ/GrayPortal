@@ -64,7 +64,7 @@ export function Csec({ children, className = "", title, right }: { children?: Re
   );
 }
 
-export type IdRow = [string, React.ReactNode, boolean?] | null | false | undefined;
+export type IdRow = [string, React.ReactNode, boolean?] | null | false | undefined | "";
 
 export function IdCard({ art, strip, rows = [], tint }: { art?: React.ReactNode; strip?: React.ReactNode; rows?: IdRow[]; tint?: string }) {
   const shown = rows.filter(Boolean) as [string, React.ReactNode, boolean?][];
@@ -496,7 +496,7 @@ export function Bracket({ children, href, dialog, submit, disabled, wide }: { ch
   );
 }
 
-export type LedgerRow = [string, React.ReactNode, string?, string?] | null | false | undefined;
+export type LedgerRow = [string, React.ReactNode, string?, string?] | null | false | undefined | "";
 
 /** A plain rows ledger with the reference's right-aligned values. A 4th item makes the row a link. */
 export function Ledger({ rows }: { rows: LedgerRow[] }) {
@@ -567,7 +567,7 @@ export function PageHead({ title, sub, children }: { title: React.ReactNode; sub
   );
 }
 
-export type KVRow = [string, React.ReactNode, string?, boolean?] | null | false | undefined;
+export type KVRow = [string, React.ReactNode, string?, boolean?] | null | false | undefined | "";
 
 export function KV({ rows }: { rows: KVRow[] }) {
   return (

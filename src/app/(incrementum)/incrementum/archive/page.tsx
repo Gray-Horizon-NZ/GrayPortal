@@ -1,147 +1,99 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { CONTRACTOR_STAGE_LABELS, type ContractorStage } from "@/lib/incrementum/registry";
-import { money, shortDate } from "@/lib/incrementum/format";
 import { monthsBetween } from "@/lib/incrementum/evaluate";
-import { PageHead, Flash, Chip } from "@/components/incrementum/ui";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
+import { PageHead, Console, Tree } from "@/components/incrementum/terminal/kit";
+import { FilterForm } from "@/components/incrementum/terminal/client";
+import { fmtDate, longDate, hrefWith } from "@/components/incrementum/terminal/helpers";
 
-export default async function ArchivePage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; q?: string }> }) {
-  const { ok, error, q } = await searchParams;
+const BASE = "/incrementum/archive";
+const LABELS = { ended: "Past clients", phases: "Completed phases", gone: "Contractors who left", lost: "Lost leads", retired: "Retired offers & lists" } as const;
+type Folder = keyof typeof LABELS;
+type Row = { key: string; title: string; sub?: string | null; right: string; href?: string };
+
+// ─── Archive (agency database, read-only) ───────────────────────────────
+export default async function ArchivePage({ searchParams }: { searchParams: Promise<{ q?: string; folder?: string }> }) {
+  const sp = await searchParams;
   const s = await getIncrementumSnapshot();
-  const match = (t: string | null | undefined) => !q || (t ?? "").toLowerCase().includes(q.toLowerCase());
-
-  const ended = s.state.engagements.filter((e) => e.status === "ended" && (match(e.clientName) || match(e.name) || match(e.endReason)));
-  const byYear = new Map<string, typeof ended>();
-  for (const e of ended) {
-    const y = (e.endedAt ?? "").slice(0, 4) || "Undated";
-    byYear.set(y, [...(byYear.get(y) ?? []), e]);
-  }
-  const phases = s.phases.phases.filter((p) => p.status === "done" && match(p.name));
-  const retiredPackages = s.packages.filter((p) => p.status === "retired" && match(p.name));
-  const retiredServices = s.services.filter((x) => x.status !== "active" && match(x.name));
-  const gone = s.state.profiles.filter((p) => (p.stage === "not_a_fit" || p.stage === "paused") && match(p.name));
-  const lists = s.state.taskLists.filter((l) => l.archivedAt && match(l.name));
-  const lostLeads = s.state.leads.filter((l) => l.stage === "lost" && (match(l.businessName) || match(l.lostReason)));
+  const st = s.state;
+  const q = (sp.q ?? "").trim();
+  const folder: Folder = sp.folder && sp.folder in LABELS ? (sp.folder as Folder) : "ended";
+  const match = (...t: (string | null | undefined)[]) => !q || t.some((x) => (x ?? "").toLowerCase().includes(q.toLowerCase()));
+  const rows: Record<Folder, Row[]> = {
+    ended: st.engagements
+      .filter((e) => e.status === "ended" && match(e.clientName, e.name, e.endReason))
+      .map((e) => ({
+        key: e.id,
+        title: e.clientName ?? e.name,
+        sub: `${e.endReason ?? ""}${e.lessons ? ` · Lessons: ${e.lessons}` : ""}`,
+        right: `${e.startDate ? monthsBetween(e.startDate, e.endedAt ?? st.today).toFixed(1) : "—"} mo · ended ${longDate(e.endedAt)}`,
+        href: `/incrementum/clients/${e.id}`,
+      })),
+    phases: s.phases.phases.filter((p) => p.status === "done" && match(p.name)).map((p) => ({ key: p.id, title: `Phase ${p.number} · ${p.name}`, sub: p.retro, right: `exited ${longDate(p.exitedAt)}`, href: `/incrementum/roadmap?phase=${p.number}` })),
+    gone: st.profiles
+      .filter((c) => ["not_a_fit", "paused"].includes(c.stage) && match(c.name))
+      .map((c) => ({ key: c.contractorId, title: c.name, sub: c.offRampReason, right: CONTRACTOR_STAGE_LABELS[c.stage as ContractorStage] ?? c.stage, href: `/incrementum/contractors/${c.contractorId}` })),
+    lost: st.leads.filter((l) => l.stage === "lost" && match(l.businessName, l.lostReason)).map((l) => ({ key: l.id, title: l.businessName, sub: l.lostReason, right: fmtDate(l.receivedAt), href: `/incrementum/leads/${l.id}` })),
+    retired: [
+      ...s.packages.filter((p) => p.status === "retired" && match(p.name)).map((p) => ({ key: p.id, title: p.name, right: "Package", href: `/incrementum/services?pkg=${p.id}` })),
+      ...s.services.filter((x) => x.status !== "active" && match(x.name)).map((x) => ({ key: x.id, title: x.name, right: "Service", href: "/incrementum/services" })),
+      ...st.taskLists.filter((l) => l.archivedAt && match(l.name)).map((l) => ({ key: l.id, title: l.name, right: "Task list", href: `/incrementum/tasks?list=${l.id}` })),
+    ],
+  };
 
   return (
-    <>
-      <PageHead
-        eyebrow="Learn"
-        title={<>Archive</>}
-        lede="Read-only records, filed by year. Ended engagements keep their reason and lessons, so the next client benefits from the last."
-        actions={
-          <form className="inc-inline" action="/incrementum/archive">
-            <input className="gh-input" name="q" defaultValue={q ?? ""} placeholder="Search the archive" aria-label="Search" />
-            <button className="gh-btn-secondary" type="submit">
-              Search
-            </button>
-          </form>
-        }
-      />
-      <Flash ok={ok} error={error} />
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Ended <em>engagements</em>
-        </h2>
-        {ended.length === 0 ? (
-          <p className="inc-muted">None yet.</p>
-        ) : (
-          [...byYear.entries()]
-            .sort((a, b) => b[0].localeCompare(a[0]))
-            .map(([year, rows]) => (
-              <div key={year} className="inc-list">
-                <p className="gh-eyebrow">{year}</p>
-                {rows.map((e) => (
-                  <Link className="inc-row" key={e.id} href={`/incrementum/engagements/${e.id}`} style={{ alignItems: "flex-start" }}>
-                    <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <strong style={{ fontWeight: 500 }}>{e.clientName ?? e.name}</strong>
-                      <span className="inc-small">{e.endReason}</span>
-                      {e.lessons && <span className="inc-small">Lessons: {e.lessons}</span>}
-                    </span>
-                    <span className="inc-small inc-num">
-                      {money(e.monthlyPrice)}/mo · {e.startDate && e.endedAt ? `${monthsBetween(e.startDate, e.endedAt).toFixed(1)} mo` : "—"} · ended {shortDate(e.endedAt, true)}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            ))
-        )}
-      </section>
-
-      <div className="inc-grid">
-        <section className="inc-cell inc-span-6">
-          <h2 className="inc-cell-title">
-            Completed <em>phases</em>
-          </h2>
-          {phases.length === 0 ? (
-            <p className="inc-muted">None yet.</p>
-          ) : (
-            phases.map((p) => (
-              <div className="inc-row" key={p.id} style={{ flexDirection: "column", alignItems: "flex-start" }}>
-                <strong style={{ fontWeight: 500 }}>
-                  Phase {p.number} · {p.name}
-                </strong>
-                <span className="inc-small">Exited {shortDate(p.exitedAt, true)}</span>
-                {p.retro && <span className="inc-small">{p.retro}</span>}
-              </div>
-            ))
-          )}
-        </section>
-        <section className="inc-cell inc-span-6">
-          <h2 className="inc-cell-title">Contractors who left</h2>
-          {gone.length === 0 ? (
-            <p className="inc-muted">None.</p>
-          ) : (
-            gone.map((p) => (
-              <Link className="inc-row" key={p.id} href={`/incrementum/contractors/${p.contractorId}`}>
-                <span>{p.name}</span>
-                <span className="inc-small">
-                  {CONTRACTOR_STAGE_LABELS[p.stage as ContractorStage]}
-                  {p.offRampReason ? ` · ${p.offRampReason}` : ""}
-                </span>
-              </Link>
-            ))
-          )}
-        </section>
-        <section className="inc-cell inc-span-6">
-          <h2 className="inc-cell-title">Lost leads</h2>
-          {lostLeads.length === 0 ? (
-            <p className="inc-muted">None.</p>
-          ) : (
-            lostLeads.map((l) => (
-              <Link className="inc-row" key={l.id} href={`/incrementum/leads/${l.id}`}>
-                <span>{l.businessName}</span>
-                <span className="inc-small">{l.lostReason}</span>
-              </Link>
-            ))
-          )}
-        </section>
-        <section className="inc-cell inc-span-6">
-          <h2 className="inc-cell-title">Retired offers &amp; lists</h2>
-          {retiredPackages.map((p) => (
-            <div className="inc-row" key={p.id}>
-              <span>{p.name}</span>
-              <Chip>Package</Chip>
+    <div className="screen">
+      <PageHead title="Archive" sub="Read-only records. Ended clients keep their reason and lessons, so the next client benefits from the last." />
+      <Console>
+        <div className="agency two">
+          <div className="agency-side">
+            <Tree
+              value={folder}
+              head={
+                <FilterForm action={BASE} className="search" >
+                  <Search size={14} />
+                  <input name="q" defaultValue={q} placeholder="Search the archive" aria-label="Search the archive" />
+                  {folder !== "ended" && <input type="hidden" name="folder" value={folder} />}
+                </FilterForm>
+              }
+              groups={[{ label: "Records", items: (Object.keys(LABELS) as Folder[]).map((k) => ({ key: k, label: LABELS[k], count: rows[k].length, href: hrefWith(BASE, { folder: k === "ended" ? null : k, q: q || null }) })) }]}
+            />
+          </div>
+          <div className="agency-list">
+            <div className="agency-list-head">
+              {LABELS[folder]}
+              <span className="r">{rows[folder].length}</span>
             </div>
-          ))}
-          {retiredServices.map((x) => (
-            <div className="inc-row" key={x.id}>
-              <span>{x.name}</span>
-              <Chip>Service</Chip>
-            </div>
-          ))}
-          {lists.map((l) => (
-            <div className="inc-row" key={l.id}>
-              <span>{l.name}</span>
-              <Chip>Task list</Chip>
-            </div>
-          ))}
-          {retiredPackages.length + retiredServices.length + lists.length === 0 && <p className="inc-muted">None.</p>}
-        </section>
-      </div>
+            {rows[folder].length === 0 && (
+              <p className="muted small" style={{ padding: 16 }}>
+                None{q ? " matching" : " yet"}.
+              </p>
+            )}
+            {rows[folder].map((r) =>
+              r.href ? (
+                <Link key={r.key} className="agency-row" href={r.href}>
+                  <span>
+                    <b>{r.title}</b>
+                    {r.sub && <small>{r.sub}</small>}
+                  </span>
+                  <span className="r">{r.right}</span>
+                </Link>
+              ) : (
+                <div key={r.key} className="agency-row" style={{ cursor: "default" }}>
+                  <span>
+                    <b>{r.title}</b>
+                    {r.sub && <small>{r.sub}</small>}
+                  </span>
+                  <span className="r">{r.right}</span>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </Console>
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }

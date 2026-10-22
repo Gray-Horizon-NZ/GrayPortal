@@ -770,6 +770,19 @@ export async function stampCycleAction(fd: FormData) {
   await act(fd, () => engagements.stampCycle(str(fd, "id"), str(fd, "field") as never, str(fd, "date")));
 }
 
+/** Payouts' "Mark <month> settled": the optional tick on every invoiced, unticked month in one go. */
+export async function settleMonthAction(fd: FormData) {
+  const ids = str(fd, "ids").split(",").filter(Boolean);
+  const date = str(fd, "date");
+  await act(
+    fd,
+    async () => {
+      for (const id of ids) await engagements.stampCycle(id, "settled", date);
+    },
+    ids.length === 1 ? "Month ticked settled" : `${ids.length} months ticked settled`
+  );
+}
+
 export async function updateCycleAction(fd: FormData) {
   // Payments aren't tracked: the one optional "Settled" date stamps both
   // sides, which is what the contractor workspace reads as paid.

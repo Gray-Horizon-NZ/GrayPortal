@@ -1,200 +1,186 @@
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { METRICS, type MetricKey } from "@/lib/incrementum/registry";
-import { formatMetric, money, todayNz } from "@/lib/incrementum/format";
-import { toNum } from "@/lib/incrementum/pricing";
-import { PageHead, Flash, Bar, Chip } from "@/components/incrementum/ui";
-import MonthBars from "@/components/incrementum/MonthBars";
+import { formatMetric, money } from "@/lib/incrementum/format";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead, Priv, AddRow, Field, Console, Csec, LevelBars, StockColumns, Ledger, BackTo } from "@/components/incrementum/terminal/kit";
+import { monthName, n0 } from "@/components/incrementum/terminal/helpers";
 import { saveAdMonthAction } from "../actions";
 
-const BACK = "/incrementum/analytics";
+const BASE = "/incrementum/analytics";
+const PLAN = 400; // 27ADS: $400/month of ads
 
-// 27ADS estimates (§4) — shown beside the real numbers so the guesses get replaced by data.
-const BENCHMARKS: { key: MetricKey; label: string; low: number; high: number; good: "high" | "low" }[] = [
-  { key: "landing_conversion", label: "Landing conversion (27ADS: 3–8%)", low: 3, high: 8, good: "high" },
-  { key: "close_rate", label: "Close rate (27ADS: 10–20%)", low: 10, high: 20, good: "high" },
-  { key: "cost_per_lead", label: "Cost per lead (27ADS: ~$67–200, i.e. $2k for 10–30 leads)", low: 67, high: 200, good: "low" },
-];
-
-function monthLabel(iso: string) {
-  return new Date(`${iso}T12:00:00Z`).toLocaleString("en-NZ", { month: "short", timeZone: "UTC" });
-}
-
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const { ok, error } = await searchParams;
+// ─── Analytics (nightclub dash) ─────────────────────────────────────────
+export default async function AnalyticsPage() {
   const s = await getIncrementumSnapshot();
+  const st = s.state;
   const m = s.metrics;
-  const months = s.state.adMonths;
-  const leadsByMonth = new Map<string, number>();
-  for (const l of s.state.leads) {
-    if (l.source !== "google_ads" && l.source !== "meta_ads") continue;
-    const k = `${new Date(l.receivedAt).toISOString().slice(0, 7)}-01`;
-    leadsByMonth.set(k, (leadsByMonth.get(k) ?? 0) + 1);
-  }
-  const budget = toNum(s.state.settings.adBudgetTotal) ?? 2000;
+  const months = st.adMonths;
+  const adsLead = (l: (typeof st.leads)[number]) => l.source === "google_ads" || l.source === "meta_ads";
+  const leadsBy = (month: string) => st.leads.filter((l) => adsLead(l) && new Date(l.receivedAt).toISOString().slice(0, 7) === month.slice(0, 7)).length;
+  const budget = n0(st.settings.adBudgetTotal);
   const spent = m.ad_spend_total ?? 0;
-  const section = (title: React.ReactNode, keys: MetricKey[]) => (
-    <section className="inc-panel">
-      <h2 className="inc-cell-title">{title}</h2>
-      <div className="inc-stats">
-        {keys.map((k) => (
-          <div className="inc-stat" key={k}>
-            <span className="inc-small">{METRICS[k].label}</span>
-            <span className="inc-stat-value">{formatMetric(m[k], METRICS[k].unit)}</span>
-          </div>
-        ))}
-      </div>
-    </section>
+  const colMax = Math.max(600, ...months.map((x) => n0(x.spend)));
+  const ledger = (title: string, keys: MetricKey[]) => (
+    <div>
+      <p className="csec-title" style={{ marginBottom: 6 }}>
+        {title}
+      </p>
+      <Ledger rows={keys.map((k) => [METRICS[k].label, METRICS[k].unit === "currency" ? <Priv key={k}>{formatMetric(m[k], "currency")}</Priv> : formatMetric(m[k], METRICS[k].unit)])} />
+    </div>
   );
+  const band = (v: number | null, low: number, high: number, good: "high" | "low") =>
+    v === null ? "No data yet" : good === "high" ? (v > high ? "Beating estimate" : v >= low ? "In range" : "Below estimate") : v < low ? "Beating estimate" : v <= high ? "In range" : "Below estimate";
 
   return (
-    <>
-      <PageHead
-        eyebrow="Money"
-        title={<>Analytics</>}
-        lede="Incrementum's own P&L and funnel, ring-fenced from the rest of Gray Horizon. Ad figures are entered monthly by hand (at $400/month the Google Ads API isn't worth the setup)."
-      />
-      <Flash ok={ok} error={error} />
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Acquisition <em>funnel</em>
-        </h2>
-        <div className="inc-grid">
-          <div className="inc-cell inc-span-4">
-            <MonthBars title="Ad spend by month" data={months.map((x) => ({ label: monthLabel(x.month), value: toNum(x.spend) ?? 0 }))} format={(n) => money(n)} target={400} targetLabel="$400 plan" />
+    <div className="screen">
+      <PageHead title="Analytics" sub="Incrementum's own P&L and funnel, ring-fenced from the rest of Gray Horizon. Ad figures are entered monthly by hand." />
+      <Console>
+        <Csec>
+          <LevelBars
+            rows={[
+              {
+                label: "Landing conversion",
+                value: (m.landing_conversion ?? 0) / 8,
+                marks: [3 / 8],
+                right: `${formatMetric(m.landing_conversion, "percent")} · ${band(m.landing_conversion, 3, 8, "high")}`,
+                tone: m.landing_conversion === null ? "neutral" : m.landing_conversion >= 3 ? "good" : "warn",
+              },
+              {
+                label: "Close rate",
+                value: (m.close_rate ?? 0) / 20,
+                marks: [0.5],
+                right: `${formatMetric(m.close_rate, "percent")} · ${band(m.close_rate, 10, 20, "high")}`,
+                tone: m.close_rate === null ? "neutral" : m.close_rate >= 10 ? "good" : "warn",
+              },
+              {
+                label: "Cost per lead",
+                value: m.cost_per_lead ? Math.min(1, m.cost_per_lead / 300) : 0,
+                marks: [67 / 300, 200 / 300],
+                right: <Priv>{`${formatMetric(m.cost_per_lead, "currency")} · ${band(m.cost_per_lead, 67, 200, "low")}`}</Priv>,
+                tone: m.cost_per_lead === null ? "neutral" : m.cost_per_lead <= 200 ? "good" : "warn",
+              },
+              { label: "Ad budget used", value: budget ? spent / budget : 0, right: <Priv>{`${money(spent)} of ${money(budget)}`}</Priv>, tone: budget && spent / budget > 0.8 ? "warn" : undefined },
+            ]}
+          />
+          <p className="muted small" style={{ marginTop: 10 }}>
+            Marks show the 27ADS estimates: conversion 3–8%, close rate 10–20%, cost per lead ~$67–200.
+          </p>
+        </Csec>
+        <Csec>
+          <Ledger
+            rows={[
+              ["Ad clicks (to date)", m.ad_clicks_total ?? 0],
+              ["Leads from ads", st.leads.filter(adsLead).length],
+              ["Clients from ads", m.ads_clients ?? 0],
+              ["Budget left", <Priv key="l">{`${money(Math.max(0, budget - spent))} · ≈ ${Math.max(0, Math.floor((budget - spent) / PLAN))} months at $${PLAN}`}</Priv>],
+            ]}
+          />
+        </Csec>
+        <Csec className="console-total">
+          <p className="bigtotal">
+            Profit vs ad spend:{" "}
+            <b>
+              <Priv>{money(m.cumulative_profit_vs_spend)}</Priv>
+            </b>
+          </p>
+          <p className="muted small" style={{ textAlign: "center" }}>
+            Signed price − contractor payouts on every invoiced month − all ad spend. Break-even is $0.
+          </p>
+        </Csec>
+        <Csec>
+          {months.length ? (
+            <StockColumns
+              items={months.map((x) => ({ key: x.id, label: `${monthName(x.month)} · ${leadsBy(x.month)} leads`, value: n0(x.spend), max: colMax, href: `${BASE}#ad-months` }))}
+              totalLabel="Spent to date"
+              total={<Priv>{money(spent)}</Priv>}
+              totalSub={`of ${money(budget)} · $${PLAN}/mo plan`}
+            />
+          ) : (
+            <p className="muted small">No ad months yet. Enter the first month once ads are live.</p>
+          )}
+        </Csec>
+        <Csec className="flush">
+          <div className="agency-list-head" id="ad-months">
+            Ad months <span className="r">overwrites a month if it exists</span>
           </div>
-          <div className="inc-cell inc-span-4">
-            <MonthBars title="Ad clicks by month" data={months.map((x) => ({ label: monthLabel(x.month), value: x.clicks }))} format={(n) => String(n)} />
-          </div>
-          <div className="inc-cell inc-span-4">
-            <MonthBars title="Leads from ads by month" data={months.map((x) => ({ label: monthLabel(x.month), value: leadsByMonth.get(x.month) ?? 0 }))} format={(n) => String(n)} />
-          </div>
-        </div>
-        <div className="gh-table-wrap">
-          <table className="gh-table">
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th className="gh-table-num">Spend</th>
-                <th className="gh-table-num">Impressions</th>
-                <th className="gh-table-num">Clicks</th>
-                <th className="gh-table-num">CPC</th>
-                <th className="gh-table-num">Ad leads</th>
-                <th className="gh-table-num">Conversion</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {months.map((x) => {
-                const sp = toNum(x.spend) ?? 0;
-                const leads = leadsByMonth.get(x.month) ?? 0;
-                return (
-                  <tr key={x.id}>
-                    <td>{new Date(`${x.month}T12:00:00Z`).toLocaleString("en-NZ", { month: "long", year: "numeric", timeZone: "UTC" })}</td>
-                    <td className="gh-table-num">{money(sp)}</td>
-                    <td className="gh-table-num">{x.impressions}</td>
-                    <td className="gh-table-num">{x.clicks}</td>
-                    <td className="gh-table-num">{x.clicks ? money(sp / x.clicks, true) : "—"}</td>
-                    <td className="gh-table-num">{leads}</td>
-                    <td className="gh-table-num">{x.clicks ? `${((leads / x.clicks) * 100).toFixed(1)}%` : "—"}</td>
-                    <td className="inc-small">{x.notes}</td>
+          {months.length > 0 && (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th className="num">Spend</th>
+                    <th className="num">Impressions</th>
+                    <th className="num">Clicks</th>
+                    <th className="num">CPC</th>
+                    <th className="num">Ad leads</th>
+                    <th className="num">Conversion</th>
+                    <th>Notes</th>
                   </tr>
-                );
-              })}
-              {months.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="inc-muted">
-                    No months yet. Enter the first month below once ads are live.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <form action={saveAdMonthAction} className="inc-form">
-          <input type="hidden" name="_back" value={BACK} />
-          <label className="inc-field">
-            Month
-            <input className="gh-input" type="month" name="month" defaultValue={todayNz().slice(0, 7)} required />
-          </label>
-          <label className="inc-field">
-            Spend ($)
-            <input className="gh-input" name="spend" inputMode="decimal" required />
-          </label>
-          <label className="inc-field">
-            Impressions
-            <input className="gh-input" name="impressions" inputMode="numeric" defaultValue="0" />
-          </label>
-          <label className="inc-field">
-            Clicks
-            <input className="gh-input" name="clicks" inputMode="numeric" defaultValue="0" />
-          </label>
-          <label className="inc-field inc-field--wide">
-            Notes
-            <input className="gh-input" name="notes" />
-          </label>
-          <SubmitButton pendingLabel="Saving…">Save month (overwrites that month)</SubmitButton>
-        </form>
-      </section>
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Real numbers vs <em>27ADS estimates</em>
-        </h2>
-        <div className="inc-list">
-          {BENCHMARKS.map((b) => {
-            const v = m[b.key];
-            const inBand = v !== null && v >= b.low && v <= b.high;
-            const better = v !== null && (b.good === "high" ? v > b.high : v < b.low);
-            return (
-              <div className="inc-row" key={b.key}>
-                <span>{b.label}</span>
-                <span className="inc-inline">
-                  <span className="inc-num">{formatMetric(v, METRICS[b.key].unit)}</span>
-                  <Chip tone={v === null ? undefined : better ? "good" : inBand ? "accent" : "warning"}>{v === null ? "No data yet" : better ? "Beating estimate" : inBand ? "In range" : "Below estimate"}</Chip>
-                </span>
+                </thead>
+                <tbody>
+                  {months.map((x) => {
+                    const spend = n0(x.spend);
+                    const leads = leadsBy(x.month);
+                    return (
+                      <tr key={x.id}>
+                        <td>{monthName(x.month, true)}</td>
+                        <td className="num">
+                          <Priv>{money(spend)}</Priv>
+                        </td>
+                        <td className="num">{x.impressions.toLocaleString("en-NZ")}</td>
+                        <td className="num">{x.clicks}</td>
+                        <td className="num">{x.clicks ? money(spend / x.clicks, true) : "—"}</td>
+                        <td className="num">{leads}</td>
+                        <td className="num">{x.clicks ? `${((leads / x.clicks) * 100).toFixed(1)}%` : "—"}</td>
+                        <td className="muted small">{x.notes}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <AddRow label="Save a month">
+            <form className="form-grid g3" action={saveAdMonthAction}>
+              <BackTo path={BASE} />
+              <Field label="Month">
+                <input className="input" type="month" name="month" defaultValue={st.today.slice(0, 7)} required />
+              </Field>
+              <Field label="Spend ($)">
+                <input className="input" name="spend" required inputMode="decimal" />
+              </Field>
+              <Field label="Impressions">
+                <input className="input" name="impressions" defaultValue="0" inputMode="numeric" />
+              </Field>
+              <Field label="Clicks">
+                <input className="input" name="clicks" defaultValue="0" inputMode="numeric" />
+              </Field>
+              <Field label="Notes" wide>
+                <input className="input" name="notes" />
+              </Field>
+              <div className="form-actions">
+                <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                  Save month
+                </SubmitButton>
               </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">Runway</h2>
-        <div className="inc-stats">
-          <div className="inc-stat">
-            <span className="inc-small">Ad budget</span>
-            <span className="inc-stat-value">{money(budget)}</span>
+            </form>
+          </AddRow>
+        </Csec>
+        <Csec>
+          <div className="grid g-2" style={{ gap: "24px 48px" }}>
+            {ledger("Unit economics", ["mrr", "monthly_contractor_cost", "monthly_profit", "avg_profit_per_client", "avg_margin_pct", "max_hours_per_client"])}
+            {ledger("Retention", ["active_clients", "paying_clients", "ads_clients", "avg_months_retained", "max_months_retained", "clients_lost_90d"])}
+            {ledger("Contractors", ["contractors_sourced", "contractors_confirmed", "contractors_onboarded", "delivered_on_time_pct"])}
+            {ledger("Leads", ["leads_total", "leads_this_month", "qualified_leads", "leads_unanswered", "avg_response_minutes", "tracked_leads"])}
           </div>
-          <div className="inc-stat">
-            <span className="inc-small">Spent</span>
-            <span className="inc-stat-value">{money(spent)}</span>
-          </div>
-          <div className="inc-stat">
-            <span className="inc-small">Left</span>
-            <span className="inc-stat-value">{money(Math.max(0, budget - spent))}</span>
-            <span className="inc-small">≈ {Math.max(0, Math.floor((budget - spent) / 400))} months at $400</span>
-          </div>
-          <div className="inc-stat">
-            <span className="inc-small">Profit vs spend (break-even ≥ $0)</span>
-            <span className="inc-stat-value" style={{ color: (m.cumulative_profit_vs_spend ?? 0) >= 0 ? "var(--gh-success)" : undefined }}>
-              {money(m.cumulative_profit_vs_spend)}
-            </span>
-          </div>
-        </div>
-        <Bar value={spent / budget} tone={spent / budget > 0.8 ? "warn" : undefined} label="Budget used" />
-      </section>
-
-      {section(<>Unit <em>economics</em></>, ["mrr", "monthly_contractor_cost", "monthly_profit", "avg_profit_per_client", "avg_margin_pct", "max_hours_per_client"])}
-      {section(<>Retention</>, ["active_clients", "paying_clients", "ads_clients", "avg_months_retained", "max_months_retained", "clients_lost_90d"])}
-      {section(<>Contractors</>, ["contractors_sourced", "contractors_confirmed", "contractors_onboarded", "payouts_on_time_pct", "delivered_on_time_pct"])}
-      {section(<>Leads</>, ["leads_total", "leads_this_month", "qualified_leads", "leads_unanswered", "avg_response_minutes", "tracked_leads"])}
-      <p className="inc-small">
-        Growth model (27ADS §8): active clients ≈ new clients per month × average months they stay. Today: {m.active_clients ?? 0} active, average stay {formatMetric(m.avg_months_retained, "months")}.
-      </p>
+          <p className="muted small" style={{ marginTop: 16 }}>
+            Growth model (27ADS §8): active clients ≈ new clients per month × average months they stay. Today: {m.active_clients ?? 0} active, average stay {formatMetric(m.avg_months_retained, "months")}.
+          </p>
+        </Csec>
+      </Console>
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }

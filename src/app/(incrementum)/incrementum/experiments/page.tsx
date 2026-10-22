@@ -1,66 +1,173 @@
+import Link from "next/link";
+import { MessageSquare, Info } from "lucide-react";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { EXPERIMENT_TYPES, EXPERIMENT_TYPE_LABELS, METRICS, METRIC_KEYS, isMetricKey } from "@/lib/incrementum/registry";
-import { formatMetric, shortDate, todayNz } from "@/lib/incrementum/format";
-import { PageHead, Flash, Chip } from "@/components/incrementum/ui";
+import { formatMetric } from "@/lib/incrementum/format";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead, Badge, Priv, Field, Console, Tree, Bracket, Ledger, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
+import { Dialog } from "@/components/incrementum/terminal/client";
+import { fmtDate, longDate, hrefWith } from "@/components/incrementum/terminal/helpers";
 import { createExperimentAction, recordExperimentResultAction, deleteExperimentAction } from "../actions";
 
-const BACK = "/incrementum/experiments";
+const BASE = "/incrementum/experiments";
+const typeLabel = (t: string) => EXPERIMENT_TYPE_LABELS[t as keyof typeof EXPERIMENT_TYPE_LABELS] ?? t;
 
-export default async function ExperimentsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; type?: string }> }) {
-  const { ok, error, type } = await searchParams;
+// ─── Experiments (agency contract database) ─────────────────────────────
+export default async function ExperimentsPage({ searchParams }: { searchParams: Promise<{ folder?: string; sel?: string; log?: string }> }) {
+  const sp = await searchParams;
   const s = await getIncrementumSnapshot();
-  const rows = s.state.experiments.filter((e) => !type || e.type === type);
+  const st = s.state;
+  const all = st.experiments;
+  const folder = sp.folder === "due" || (EXPERIMENT_TYPES as readonly string[]).includes(sp.folder ?? "") ? (sp.folder as string) : "all";
+  const due = (e: (typeof all)[number]) => e.type === "test" && !e.verdict && !!e.endsAt && e.endsAt <= st.today;
+  const rows = all.filter((e) => (folder === "all" ? true : folder === "due" ? due(e) : e.type === folder));
+  const e = rows.find((x) => x.id === sp.sel) ?? rows[0];
+  const back = hrefWith(BASE, { folder: folder === "all" ? null : folder, sel: e?.id ?? null });
+  const folderHref = (k: string) => hrefWith(BASE, { folder: k === "all" ? null : k });
+  const metricNow = (k: string) => (isMetricKey(k) ? METRICS[k].unit === "currency" ? <Priv>{formatMetric(s.metrics[k], "currency")}</Priv> : formatMetric(s.metrics[k], METRICS[k].unit) : "—");
 
   return (
-    <>
-      <PageHead
-        eyebrow="Learn"
-        title={<>Experiments</>}
-        lede="At $400/month there's too little data for charts to say much on their own. You learn from deliberate, logged changes: what changed, why, what you expect, and the result. Tests carry pass/kill lines written in advance."
-        actions={
-          <>
-            <a className={!type ? "gh-btn-primary" : "gh-btn-secondary"} href={BACK}>
-              All
-            </a>
-            {EXPERIMENT_TYPES.map((t) => (
-              <a key={t} className={type === t ? "gh-btn-primary" : "gh-btn-secondary"} href={`${BACK}?type=${t}`}>
-                {EXPERIMENT_TYPE_LABELS[t]}
-              </a>
+    <div className="screen">
+      <PageHead title="Experiments" sub="At $400/month there's too little data for charts to say much. You learn from deliberate, logged changes. Tests carry pass/kill lines written in advance." />
+      <Console>
+        <div className="agency">
+          <div className="agency-side">
+            <Tree
+              value={folder}
+              head={
+                <Bracket wide dialog="exp-log">
+                  Log a change or test
+                </Bracket>
+              }
+              groups={[
+                { label: "Needs a verdict", items: [{ key: "due", label: "Verdict due", count: all.filter(due).length, tone: all.some(due) ? "warn" : undefined, href: folderHref("due") }] },
+                {
+                  label: "Logbook",
+                  items: [
+                    { key: "all", label: "Everything", count: all.length, href: folderHref("all") },
+                    ...EXPERIMENT_TYPES.map((t) => ({ key: t, label: EXPERIMENT_TYPE_LABELS[t], count: all.filter((x) => x.type === t).length, href: folderHref(t) })),
+                  ],
+                },
+              ]}
+              foot={
+                <Ledger
+                  rows={[
+                    ["Passed", all.filter((x) => x.verdict === "pass").length, "good"],
+                    ["Failed", all.filter((x) => x.verdict === "fail").length],
+                    ["Open tests", all.filter((x) => x.type === "test" && !x.verdict).length],
+                  ]}
+                />
+              }
+            />
+          </div>
+          <div className="agency-list">
+            <div className="agency-list-head">
+              {folder === "all" ? "Everything logged" : folder === "due" ? "Verdict due" : typeLabel(folder)}
+              <span className="r">{rows.length}</span>
+            </div>
+            {rows.length === 0 && (
+              <p className="muted small" style={{ padding: 16 }}>
+                Nothing here.
+              </p>
+            )}
+            {rows.map((x) => (
+              <Link key={x.id} className="agency-row" data-active={e?.id === x.id || undefined} href={hrefWith(BASE, { folder: folder === "all" ? null : folder, sel: x.id })} scroll={false}>
+                <span>
+                  <b>{x.title}</b>
+                  <small>
+                    {typeLabel(x.type)} · {longDate(x.startedAt ?? x.createdAt)}
+                    {x.endsAt ? ` → check ${fmtDate(x.endsAt)}` : ""}
+                  </small>
+                </span>
+                <span className="r">{x.verdict ? <Badge tone={x.verdict === "pass" ? "good" : x.verdict === "fail" ? "bad" : undefined}>{x.verdict}</Badge> : due(x) ? <Badge tone="warn">Verdict due</Badge> : null}</span>
+              </Link>
             ))}
-          </>
-        }
-      />
-      <Flash ok={ok} error={error} />
+          </div>
+          <div className="agency-brief">
+            {e ? (
+              <>
+                <div className="brief-block">
+                  <p className="brief-title">
+                    <MessageSquare size={13} /> Brief
+                  </p>
+                  <p className="brief-text">{e.body || "No notes."}</p>
+                </div>
+                <div className="brief-block">
+                  <p className="brief-title">
+                    <Info size={13} /> Details
+                  </p>
+                  <Ledger
+                    rows={[
+                      ["Type", typeLabel(e.type)],
+                      e.metricKey && isMetricKey(e.metricKey) && [`${METRICS[e.metricKey].label} now`, metricNow(e.metricKey)],
+                      e.passLine && ["Pass line", e.passLine, "good"],
+                      e.killLine && ["Kill line", e.killLine, "bad"],
+                      ["Verdict", e.verdict ?? "—", e.verdict === "pass" ? "good" : e.verdict === "fail" ? "bad" : "muted"],
+                    ]}
+                  />
+                  {e.result && (
+                    <p className="small" style={{ marginTop: 8 }}>
+                      <b>Result:</b> {e.result}
+                    </p>
+                  )}
+                </div>
+                <div className="brief-block">
+                  {e.type !== "retro" && (
+                    <form className="stack" style={{ gap: 10 }} action={recordExperimentResultAction} key={e.id}>
+                      <BackTo path={back} />
+                      <HiddenFields values={{ id: e.id }} />
+                      <Field label={e.verdict ? "Edit result" : "Record result"}>
+                        <textarea className="textarea" name="result" defaultValue={e.result ?? ""} />
+                      </Field>
+                      <Field label="Verdict">
+                        <select className="select" name="verdict" defaultValue={e.verdict ?? ""}>
+                          <option value="">—</option>
+                          <option value="pass">Pass</option>
+                          <option value="fail">Fail</option>
+                          <option value="inconclusive">Inconclusive</option>
+                        </select>
+                      </Field>
+                      <Bracket submit wide>
+                        Record verdict
+                      </Bracket>
+                    </form>
+                  )}
+                  <form action={deleteExperimentAction} style={{ marginTop: 10 }}>
+                    <BackTo path={folderHref(folder)} />
+                    <HiddenFields values={{ id: e.id }} />
+                    <button type="submit" className="linkbtn danger">
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              <p className="muted small" style={{ padding: 16 }}>
+                Pick an entry.
+              </p>
+            )}
+          </div>
+        </div>
+      </Console>
 
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Log a <em>change or test</em>
-        </h2>
-        <form action={createExperimentAction} className="inc-form">
-          <input type="hidden" name="_back" value={BACK} />
-          <label className="inc-field">
-            Type
-            <select className="gh-input" name="type" defaultValue="change">
+      <Dialog id="exp-log" title="Log a change or test" wide openOnLoad={sp.log === "1"}>
+        <form className="form-grid g3" action={createExperimentAction}>
+          <BackTo path={BASE} />
+          <Field label="Type">
+            <select className="select" name="type" defaultValue="change">
               {EXPERIMENT_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {EXPERIMENT_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="inc-field inc-field--wide">
-            What
-            <input className="gh-input" name="title" required placeholder="e.g. Added 'from $1,426/month' to headline 2" />
-          </label>
-          <label className="inc-field inc-field--wide">
-            Why / expected effect
-            <textarea className="gh-input" name="body" />
-          </label>
-          <label className="inc-field">
-            Metric to watch
-            <select className="gh-input" name="metricKey" defaultValue="">
+          </Field>
+          <Field label="What">
+            <input className="input" name="title" required placeholder="e.g. Added 'from $966/month' to headline 2" />
+          </Field>
+          <Field label="Metric to watch">
+            <select className="select" name="metricKey" defaultValue="">
               <option value="">—</option>
               {METRIC_KEYS.map((k) => (
                 <option key={k} value={k}>
@@ -68,96 +175,30 @@ export default async function ExperimentsPage({ searchParams }: { searchParams: 
                 </option>
               ))}
             </select>
-          </label>
-          <label className="inc-field">
-            Pass line
-            <input className="gh-input" name="passLine" />
-          </label>
-          <label className="inc-field">
-            Kill line
-            <input className="gh-input" name="killLine" />
-          </label>
-          <label className="inc-field">
-            Started
-            <input className="gh-input" type="date" name="startedAt" defaultValue={todayNz()} />
-          </label>
-          <label className="inc-field">
-            Check on
-            <input className="gh-input" type="date" name="endsAt" />
-          </label>
-          <SubmitButton pendingLabel="Logging…">Log it</SubmitButton>
-        </form>
-      </section>
-
-      <section className="inc-panel">
-        {rows.length === 0 ? (
-          <p className="inc-muted">Nothing logged yet.</p>
-        ) : (
-          <div className="inc-timeline">
-            {rows.map((e) => {
-              const due = e.type === "test" && !e.verdict && e.endsAt && e.endsAt <= s.state.today;
-              return (
-                <div className="inc-event" key={e.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <p className="inc-event-meta">
-                    {EXPERIMENT_TYPE_LABELS[e.type as keyof typeof EXPERIMENT_TYPE_LABELS] ?? e.type} · {shortDate(e.startedAt ?? e.createdAt, true)}
-                    {e.endsAt ? ` → check ${shortDate(e.endsAt)}` : ""}
-                  </p>
-                  <div className="inc-inline">
-                    <strong style={{ fontWeight: 500 }}>{e.title}</strong>
-                    {e.verdict && <Chip tone={e.verdict === "pass" ? "good" : e.verdict === "fail" ? "danger" : undefined}>{e.verdict}</Chip>}
-                    {due && <Chip tone="warning">Verdict due</Chip>}
-                  </div>
-                  {e.body && <p className="inc-muted" style={{ whiteSpace: "pre-wrap" }}>{e.body}</p>}
-                  {(e.passLine || e.killLine) && (
-                    <p className="inc-small">
-                      {e.passLine ? `Pass: ${e.passLine}` : ""}
-                      {e.passLine && e.killLine ? " · " : ""}
-                      {e.killLine ? `Kill: ${e.killLine}` : ""}
-                    </p>
-                  )}
-                  {isMetricKey(e.metricKey) && (
-                    <p className="inc-small">
-                      {METRICS[e.metricKey].label} now: <strong className="inc-num">{formatMetric(s.metrics[e.metricKey], METRICS[e.metricKey].unit)}</strong>
-                    </p>
-                  )}
-                  {e.result && <p>Result: {e.result}</p>}
-                  {e.type !== "retro" && (
-                    <details className="inc-disclosure">
-                      <summary>{e.verdict ? "Edit result" : "Record result"}</summary>
-                      <form action={recordExperimentResultAction} className="inc-form">
-                        <input type="hidden" name="_back" value={BACK} />
-                        <input type="hidden" name="id" value={e.id} />
-                        <label className="inc-field inc-field--wide">
-                          Result
-                          <textarea className="gh-input" name="result" defaultValue={e.result ?? ""} />
-                        </label>
-                        <label className="inc-field">
-                          Verdict
-                          <select className="gh-input" name="verdict" defaultValue={e.verdict ?? ""}>
-                            <option value="">—</option>
-                            <option value="pass">Pass</option>
-                            <option value="fail">Fail</option>
-                            <option value="inconclusive">Inconclusive</option>
-                          </select>
-                        </label>
-                        <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-                      </form>
-                      <form action={deleteExperimentAction} style={{ marginTop: "var(--gh-space-2)" }}>
-                        <input type="hidden" name="_back" value={BACK} />
-                        <input type="hidden" name="id" value={e.id} />
-                        <button className="gh-link-btn gh-link-btn--danger" type="submit">
-                          Delete
-                        </button>
-                      </form>
-                    </details>
-                  )}
-                </div>
-              );
-            })}
+          </Field>
+          <Field label="Why / expected effect" wide>
+            <textarea className="textarea" name="body" />
+          </Field>
+          <Field label="Pass line">
+            <input className="input" name="passLine" />
+          </Field>
+          <Field label="Kill line">
+            <input className="input" name="killLine" />
+          </Field>
+          <Field label="Started">
+            <input className="input" type="date" name="startedAt" defaultValue={st.today} />
+          </Field>
+          <Field label="Check on">
+            <input className="input" type="date" name="endsAt" />
+          </Field>
+          <div className="form-actions">
+            <SubmitButton className="btn btn-primary" pendingLabel="Logging…">
+              Log it
+            </SubmitButton>
           </div>
-        )}
-      </section>
+        </form>
+      </Dialog>
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }

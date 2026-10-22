@@ -10,6 +10,7 @@ import { stampCycleAction, updateCycleAction, deleteCycleAction } from "@/app/(i
 
 export type Cycle = {
   id: string;
+  engagementId: string;
   month: string;
   deliveredAt: string | null;
   approvedAt: string | null;
