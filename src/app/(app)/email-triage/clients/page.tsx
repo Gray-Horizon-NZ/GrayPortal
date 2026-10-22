@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listClientEmails } from "@/lib/dal/emails";
 import { addContactEmailAliasAction } from "../actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -12,7 +12,7 @@ import SubmitButton from "@/components/ui/SubmitButton";
 // known to email from more than one inbox still lands here automatically
 // next time, instead of back in Unmatched.
 export default async function ClientEmailsPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const clientEmails = await listClientEmails();

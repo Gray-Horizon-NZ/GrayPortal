@@ -2,8 +2,6 @@ import "server-only";
 import { rawPool } from "@/lib/db/client";
 import { drizzle, type NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as schema from "@/lib/db/schema";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 
 export type Role = "admin" | "contractor" | "client";
 
@@ -52,29 +50,39 @@ export async function withSession<T>(
     const tx = drizzle(client, { schema });
     let result: T;
     try {
-      await client.query("BEGIN");
-      await client.query("SELECT set_config('app.lookup_uid', $1, true)", [firebaseUid]);
+      // One round trip for the whole setup (the database is ~100ms away, so
+      // the previous six sequential statements cost ~0.6s on every DAL
+      // call): BEGIN, bind the lookup uid, then read the users row and bind
+      // role/user_id/client_id from it in the same SELECT. Statements in a
+      // simple-protocol batch run in order inside the one transaction, so
+      // the users RLS policy sees app.lookup_uid exactly as before. No bind
+      // parameters are allowed in a batch, hence escapeLiteral.
+      const uid = client.escapeLiteral(firebaseUid);
+      const batch = (await client.query(
+        `BEGIN;
+         SELECT set_config('app.lookup_uid', ${uid}, true);
+         SELECT set_config('app.role', u.role::text, true) AS _r,
+                set_config('app.user_id', u.id::text, true) AS _u,
+                set_config('app.client_id', coalesce(u.client_id::text, ''), true) AS _c,
+                u.id, u.role, u.client_id, u.email, u.display_name, u.deleted_at
+           FROM users u
+          WHERE u.google_uid = ${uid}
+          LIMIT 1;`
+      )) as unknown as { rows: Record<string, unknown>[] }[];
+      const row = batch[batch.length - 1]?.rows[0] as
+        | { id: string; role: Role; client_id: string | null; email: string; display_name: string | null; deleted_at: Date | null }
+        | undefined;
 
-      const [row] = await tx
-        .select()
-        .from(users)
-        .where(eq(users.googleUid, firebaseUid))
-        .limit(1);
-
-      if (!row || row.deletedAt) {
+      if (!row || row.deleted_at) {
         throw new NotOnAllowlistError(firebaseUid);
       }
-
-      await client.query("SELECT set_config('app.role', $1, true)", [row.role]);
-      await client.query("SELECT set_config('app.user_id', $1, true)", [row.id]);
-      await client.query("SELECT set_config('app.client_id', $1, true)", [row.clientId ?? ""]);
 
       const caller: Caller = {
         userId: row.id,
         role: row.role,
-        clientId: row.clientId,
+        clientId: row.client_id,
         email: row.email,
-        displayName: row.displayName,
+        displayName: row.display_name,
         firebaseUid,
       };
 

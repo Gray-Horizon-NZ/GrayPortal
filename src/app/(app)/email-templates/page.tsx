@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { createEmailTemplateAction, updateEmailTemplateAction, softDeleteEmailTemplateAction } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -13,7 +13,7 @@ import { PageHead } from "@/components/ui/terminal/Term";
 // time (src/lib/dal/emails.ts's renderTemplate/renderTemplatePreview) —
 // this page only manages the raw template content.
 export default async function EmailTemplatesPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const templates = await listEmailTemplates();

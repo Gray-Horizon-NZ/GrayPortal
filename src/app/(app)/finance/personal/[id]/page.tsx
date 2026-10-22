@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { getPeriod, computePeriodFigures, getOverallTaxTotal } from "@/lib/dal/personalFinance";
 import { getMonthlyExpenseTotal } from "@/lib/dal/businessExpenses";
 import {
@@ -20,7 +20,7 @@ function money(n: number) {
 
 export default async function PersonalFinancePeriodPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const data = await getPeriod(id);

@@ -16,7 +16,7 @@ import { listDeals } from "@/lib/dal/deals";
 import { listAllTasks, listMyAssignedTasks } from "@/lib/dal/tasks";
 import { listLatestHealthScores } from "@/lib/dal/health";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listClients, clientLogoSrc } from "@/lib/dal/clients";
 import { getTotalActiveMonthlyRevenue, getMonthlyRevenueByClient } from "@/lib/dal/clientServices";
 import { getBusinessFinancialRollup, getXeroPaidIncomeByMonth } from "@/lib/dal/xero";
@@ -67,7 +67,7 @@ export default async function HomePage({
 }) {
   const { taskList } = await searchParams;
   const taskListView = taskList === "all" ? "all" : "mine";
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   const isAdmin = caller.role === "admin";
   const [deals, tasks, myTasks, healthScores, clients, financials, monthlyRecurringRevenue, recurringRevenueByClient, recurringTemplates, googleConnection, weekEvents, incomeByMonth] =
     await Promise.all([

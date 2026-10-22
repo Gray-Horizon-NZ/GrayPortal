@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import GuidebookViewer from "./GuidebookViewer";
 import { PageHead } from "@/components/ui/terminal/Term";
 
@@ -12,7 +12,7 @@ import { PageHead } from "@/components/ui/terminal/Term";
  * clicks away instead of a file to go dig up.
  */
 export default async function BrandGuidelinesPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   return (

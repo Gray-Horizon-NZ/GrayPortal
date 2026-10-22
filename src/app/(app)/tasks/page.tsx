@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ListChecks, Repeat, Star } from "lucide-react";
 import { listAllTasks, listMyAssignedTasks, listStarredTasks, getTaskDealContext, INTERNAL_LIST_LABELS, type InternalListKey } from "@/lib/dal/tasks";
 import { listAssignableUsers } from "@/lib/dal/users";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import EmptyState from "@/components/ui/EmptyState";
 import TaskRow from "./TaskRow";
 import MasterTaskView from "./MasterTaskView";
@@ -36,7 +36,7 @@ export default async function TasksPage({
   searchParams: Promise<{ view?: string; list?: string }>;
 }) {
   const { view: viewParam, list } = await searchParams;
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   const isAdmin = caller.role === "admin";
   // Admins land on Master by default — the merged, grouped view of
   // everything, rather than a filtered "just mine" slice. Non-admin
@@ -74,7 +74,7 @@ export default async function TasksPage({
 }
 
 async function AllTasksView() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   const [tasks, assignees] = await Promise.all([
     listAllTasks(),
     caller.role === "admin" ? listAssignableUsers() : Promise.resolve([]),
@@ -116,7 +116,7 @@ async function AllTasksView() {
 }
 
 async function StarredTasksView() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   const [tasks, assignees] = await Promise.all([
     listStarredTasks(),
     caller.role === "admin" ? listAssignableUsers() : Promise.resolve([]),

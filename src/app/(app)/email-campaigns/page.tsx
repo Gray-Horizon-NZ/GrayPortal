@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { listCampaigns } from "@/lib/dal/campaigns";
 import { listEmailTemplates } from "@/lib/dal/emails";
 import { createCampaignDraftAction, queueCampaignSendAction, cancelCampaignAction, softDeleteCampaignAction } from "./actions";
@@ -13,7 +13,7 @@ import { PageHead } from "@/components/ui/terminal/Term";
 // branded HTML shell as Email Templates. No opt-out/unsubscribe machinery —
 // see schema.ts's comment on emailCampaigns for why.
 export default async function EmailCampaignsPage() {
-  const caller = await withCaller(async (c) => c);
+  const caller = await getCaller();
   if (caller.role !== "admin") redirect("/");
 
   const [campaigns, templates] = await Promise.all([listCampaigns(), listEmailTemplates()]);
