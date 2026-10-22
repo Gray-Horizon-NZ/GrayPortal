@@ -15,7 +15,7 @@ import { TODAY, money, fmtDate, clientMrr, serviceMonthly, PORTAL_FEATURES, ONBO
 import { Panel, KV, Priv, Meter, TrendGlyph, BrandBanner, Badge, Toggle, Empty, Modal, go } from "../ui";
 import {
   startPortalPreviewAction, deleteClientAction, updateCompanyDetailsAction, updatePortalWelcomeAction, toggleFeatureAction,
-  setClientHiddenFromTaskViewAction, listGoogleTasklistsAction, createGoogleTasklistAction, linkClientTasklistAction,
+  setClientHiddenFromTaskViewAction, linkClientTasklistAction,
   approvePortalAccessRequestAction, denyPortalAccessRequestAction, inviteClientAction, resendPasswordSetupEmailAction, sendOnboardingInviteAction,
   uploadDocumentAction, updateDocumentAction, deleteDocumentAction, updateClientDiscountAction, addClientServiceAction, removeClientServiceAction,
   updateClientServicePriceAction, createReferralAction, setReferralStatusAction, convertReferralAction, markGrayscaleRequestContactedAction,
@@ -25,6 +25,7 @@ import {
   deleteClientActivityFeedEntryAction, createMeetingSummaryAction, deleteMeetingSummaryAction, getClientEmailsAction, getEmailBodyAction,
 } from "@/app/(app)/clients/actions";
 import { tSetClientServiceStatus } from "../actions";
+import { TasklistSelect } from "../parts";
 
 const TABS = [
   ["overview", "Overview"],
@@ -159,7 +160,7 @@ function OverviewTab({ c, x }) {
         )}
         <Panel title="Google Tasks list" icon={ListChecks}>
           <p className="muted small" style={{ marginBottom: 10 }}>Route this client&apos;s synced tasks into their own Google Tasks list instead of the shared default list.</p>
-          <TasklistSelect clientId={c.id} linked={x.taskListLinked} name={c.name} />
+          <TasklistSelect linked={x.taskListLinked} newName={c.name} onLink={async (listId) => { await linkClientTasklistAction(c.id, listId); go(`/clients/${c.id}`); }} />
           <Toggle
             label="Hide from Master Task View"
             hint="For test or internal clients that will never have real tasks"
@@ -218,52 +219,6 @@ function OverviewTab({ c, x }) {
           </div>
         </Panel>
       </div>
-    </div>
-  );
-}
-
-/** The concept's list select, backed by the real Google Tasks lists (loaded on first open). */
-function TasklistSelect({ clientId, linked, name }) {
-  const [lists, setLists] = useState(null);
-  const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState(name);
-  if (linked) return <select className="select" disabled value="linked" aria-label="Google Tasks list"><option value="linked">Linked to its own list</option></select>;
-  const load = async () => {
-    if (lists) return;
-    try {
-      setLists(await listGoogleTasklistsAction());
-    } catch (e) {
-      setError(e?.message || "Couldn't load Google Tasks lists — is Google connected?");
-      setLists([]);
-    }
-  };
-  const link = async (listId) => {
-    await linkClientTasklistAction(clientId, listId);
-    go(`/clients/${clientId}`);
-  };
-  return (
-    <div className="stack" style={{ gap: 8 }}>
-      <select
-        className="select"
-        defaultValue=""
-        onFocus={load}
-        onMouseDown={load}
-        aria-label="Google Tasks list"
-        onChange={(e) => (e.target.value === "__new" ? setCreating(true) : e.target.value && link(e.target.value))}
-      >
-        <option value="">Shared default list</option>
-        {lists === null && <option disabled>Loading lists…</option>}
-        {(lists || []).map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
-        <option value="__new">+ New list…</option>
-      </select>
-      {creating && (
-        <div className="row">
-          <input className="input" style={{ flex: 1 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New list name" />
-          <button className="btn btn-sm btn-primary" onClick={async () => { if (title.trim()) link((await createGoogleTasklistAction(title.trim())).id); }}>Create &amp; link</button>
-        </div>
-      )}
-      {error && <p className="small tone-bad">{error}</p>}
     </div>
   );
 }
