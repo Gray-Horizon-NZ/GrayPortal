@@ -14,6 +14,7 @@ import { listInternalIdeationItems, listIdeationCategories } from "@/lib/dal/ide
 import { listAiAgents } from "@/lib/dal/aiAgents";
 import { listClientEmails, listEmailTemplates, listUnmatchedInboundEmails } from "@/lib/dal/emails";
 import { listCampaigns, listCampaignStats } from "@/lib/dal/campaigns";
+import { listWebsiteInquiries } from "@/lib/dal/leads";
 import { clientLogoSrc } from "@/lib/dal/clients";
 import { listWeekCalendarEvents, listCalendarEventsInRange } from "@/lib/google/adapter";
 import {
@@ -32,7 +33,7 @@ import {
   qInvoices,
   qLatestHealth,
 } from "@/lib/dal/terminal";
-import { TODAY, clientMrr } from "./format";
+import { TODAY, clientMrr, OPEN_STAGES } from "./format";
 
 // Real data in the terminal concept's shapes (see the concept's data.js for
 // each one). Every loader runs its queries in parallel. Pages pick the
@@ -461,4 +462,91 @@ export async function loadCampaigns() {
     sent: by.get(c.id)?.sent ?? 0,
     opened: by.get(c.id)?.opened ?? 0,
   }));
+}
+
+// ─── Analytics (series the concept's reports chart) ──────────────────────
+const monthsBack = (n: number) =>
+  Array.from({ length: n }, (_, i) => {
+    const d = new Date(`${TODAY.slice(0, 7)}-01T00:00:00`);
+    d.setMonth(d.getMonth() - (n - 1 - i));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+const monthLabel = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString("en-NZ", { month: "short" });
+const STAGE_CHANGE = "Stage changed to ";
+
+/**
+ * Everything the Analytics reports need beyond the shared loaders, derived
+ * from real records only: won/lost per month and days per stage come from
+ * the deals' "Stage changed to …" activity, lead sources from each deal's
+ * source, inquiries from website-form companies, task throughput from
+ * created/completed timestamps.
+ */
+export async function loadAnalytics() {
+  const [acts, deals, tasks, inquiries] = await Promise.all([qDealActivities(), qDeals(), listAllTasks(), listWebsiteInquiries(1000)]);
+  const months = monthsBack(6);
+
+  // Stage changes per deal, oldest first.
+  const changes = new Map<string, { stage: string; at: string }[]>();
+  for (const a of [...acts].reverse()) {
+    if (!a.dealId || !a.body?.startsWith(STAGE_CHANGE)) continue;
+    const list = changes.get(a.dealId) ?? [];
+    list.push({ stage: a.body.slice(STAGE_CHANGE.length).trim(), at: day(a.occurredAt) });
+    changes.set(a.dealId, list);
+  }
+
+  // Won / lost by the month of each deal's latest move into that stage.
+  const outcome = new Map<string, { stage: string; at: string }>();
+  for (const [dealId, list] of changes) {
+    const last = [...list].reverse().find((c) => c.stage === "Won" || c.stage === "Lost");
+    if (last) outcome.set(dealId, last);
+  }
+  const dealsByMonth = months.map((m) => ({
+    label: monthLabel(m),
+    won: [...outcome.values()].filter((o) => o.stage === "Won" && monthKey(o.at) === m).length,
+    lost: [...outcome.values()].filter((o) => o.stage === "Lost" && monthKey(o.at) === m).length,
+  }));
+
+  // Average days a deal spent in each open stage, from consecutive changes.
+  const spans = new Map<string, number[]>();
+  for (const list of changes.values()) {
+    for (let i = 0; i < list.length - 1; i++) {
+      const days = Math.max(0, Math.round((new Date(`${list[i + 1].at}T00:00:00`).getTime() - new Date(`${list[i].at}T00:00:00`).getTime()) / 86400000));
+      spans.set(list[i].stage, [...(spans.get(list[i].stage) ?? []), days]);
+    }
+  }
+  const daysInStage = OPEN_STAGES.map((stage) => {
+    const xs = spans.get(stage) ?? [];
+    return { label: stage, value: xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0, n: xs.length };
+  });
+
+  const since = `${months[0]}-01`;
+  const sourceCounts = new Map<string, number>();
+  for (const { deal, company } of deals) {
+    if (day(deal.createdAt) < since) continue;
+    const src = deal.source || company.source || "Unknown";
+    sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
+  }
+  const leadSources = [...sourceCounts].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+
+  const inquiriesByMonth = months.map((m) => ({ label: monthLabel(m), value: inquiries.filter((i) => monthKey(day(i.createdAt)) === m).length }));
+
+  // Tasks created / completed per week (Monday start), last 8 weeks.
+  const monday = new Date(`${TODAY}T00:00:00`);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const weeks = Array.from({ length: 8 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(d.getDate() - 7 * (7 - i));
+    const end = new Date(d);
+    end.setDate(end.getDate() + 7);
+    const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+    return { from: iso(d), to: iso(end), label: d.toLocaleDateString("en-NZ", { day: "numeric", month: "short" }) };
+  });
+  const visible = tasks.filter((t) => !t.incrementumListId);
+  const tasksPerWeek = weeks.map((w) => ({
+    label: w.label,
+    created: visible.filter((t) => day(t.createdAt) >= w.from && day(t.createdAt) < w.to).length,
+    done: visible.filter((t) => t.completedAt && day(t.completedAt) >= w.from && day(t.completedAt) < w.to).length,
+  }));
+
+  return { dealsByMonth, daysInStage, leadSources, inquiriesByMonth, tasksPerWeek };
 }
