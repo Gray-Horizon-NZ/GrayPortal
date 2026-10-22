@@ -128,6 +128,22 @@ export async function setClientGoogleTasklist(clientId: string, googleTaskListId
 }
 
 /** Same shape as setClientGoogleTasklist — admin toggle, e.g. for a test-only client with no real tasks. */
+/** Terminal UI banner tint (e.g. "#d9487a"); null falls back to the brand gold. */
+export async function setClientBrandColor(clientId: string, color: string | null) {
+  const value = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().parse(color);
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return auditedUpdate(
+      tx,
+      clients,
+      eq(clients.id, clientId),
+      clientId,
+      { brandColor: value, updatedBy: caller.userId },
+      { caller, entityType: "client" }
+    );
+  });
+}
+
 export async function setClientHiddenFromTaskView(clientId: string, hidden: boolean) {
   return withCaller(async (caller, tx) => {
     assertRole(caller, "admin");

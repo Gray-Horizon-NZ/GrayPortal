@@ -1,0 +1,36 @@
+/* GrayPortal-only additions around the generated concept stylesheet
+ * (terminal.css). Keep this file small: anything visual belongs in the
+ * concept first, then gets re-generated in. */
+
+/* The concept sized html/body/#root to 100%; here the terminal root is the
+   full-height box instead (the concept's body styles map onto it). */
+.gh-terminal { height: 100dvh; }
+
+/* Legacy pieces still rendered inside ported screens (forms, uploaders,
+   pickers) read the app-wide --gh-* tokens; point them at the concept's
+   theme tokens so they follow light/dark with everything else. */
+.gh-terminal[data-theme="light"] {
+  --gh-bg: var(--t-bg);
+  --gh-surface: var(--t-panel);
+  --gh-surface-hover: var(--t-panel-2);
+  --gh-surface-raised: var(--t-panel-2);
+  --gh-surface-popover: var(--t-panel);
+  --gh-border: var(--t-line);
+  --gh-border-strong: var(--t-line-strong);
+  --gh-text-primary: var(--t-text);
+  --gh-text-emphasis: var(--t-strong);
+  --gh-text-muted: var(--t-muted);
+  --gh-text-disabled: var(--t-faint);
+  --gh-accent: var(--t-accent);
+  --gh-accent-dim: var(--t-accent-dim);
+  --gh-accent-contrast: var(--t-accent-ink);
+  --gh-focus-ring: var(--t-accent);
+  --gh-success: var(--t-good);
+  --gh-warning: var(--t-warn);
+  --gh-danger: var(--t-bad);
+}
+
+/* Screens not yet ported to the concept markup render without a .screen
+   wrapper; give them the concept's screen padding so they sit right in the
+   content pane until they're moved across. */
+.gh-terminal .content > :not(.screen) { padding: 18px 22px 40px; }

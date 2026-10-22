@@ -44,6 +44,7 @@ export async function syncXeroInvoices() {
           invoiceDate: inv.Date ?? null,
           dueDate: inv.DueDate ?? null,
           currencyCode: inv.CurrencyCode ?? null,
+          invoiceNumber: inv.InvoiceNumber ?? null,
           lastSyncedAt: new Date(),
         })
         .onConflictDoUpdate({
@@ -56,6 +57,7 @@ export async function syncXeroInvoices() {
             amountPaid: inv.AmountPaid != null ? String(inv.AmountPaid) : null,
             invoiceDate: inv.Date ?? null,
             dueDate: inv.DueDate ?? null,
+            invoiceNumber: inv.InvoiceNumber ?? null,
             lastSyncedAt: new Date(),
           },
         });

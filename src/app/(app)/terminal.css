@@ -1,699 +1,930 @@
-/* GrayPortal terminal UI — the admin app in the business-terminal style
- * (approved 21 Oct 2026). Design rules, the single source of truth:
- * grayhorizon-docs/Terminal UI/RULES.md. Playground with mock data:
- * OS/grayportal-terminal-concept.
- *
- * EVERY rule here is scoped under .gh-terminal, which only the admin
- * (app)/layout.tsx sets (AppShell variant="terminal"). Next keeps a layout's
- * CSS loaded after client-side navigation, so an unscoped rule here would
- * leak into the client portal, the contractor workspace and Project
- * Incrementum — which keep their own UI.
- *
- * The "calm layer" is deliberate: one gold focal point per area, no looping
- * motion, roomy gaps, quieter secondary text, and detail numbers folded
- * behind a click rather than all on screen at once. */
+/* GENERATED — do not edit by hand.
+ * The terminal concept's stylesheet (OS/grayportal-terminal-concept/src/styles.css),
+ * copied verbatim and scoped under .gh-terminal by scripts/scope-terminal-css.mjs.
+ * Design rules: grayhorizon-docs/Terminal UI/RULES.md. GrayPortal-only
+ * additions live in terminal-adapter.css, never here. */
+
+/* Gray Portal — business terminal, v2.
+ * Brand values from grayportal/src/app/tokens.css (dark palette + the
+ * client-portal light palette). Everything below reads the --t-* theme
+ * tokens, so light/dark is one attribute flip on <html>. */
+
+.gh-terminal,
+.gh-terminal[data-theme="dark"] {
+  --t-bg: #0b0b0c;
+  --t-bg-2: #111113;
+  --t-panel: #151517;
+  --t-panel-2: #1a1a1d;
+  --t-panel-3: #1f1f22;
+  --t-line: #29282a;
+  --t-line-strong: #4a463d;
+  --t-text: #eeece6;
+  --t-strong: #f7f4ee;
+  --t-muted: #8d8a80;
+  --t-faint: #5c5a54;
+  --t-accent: #c2a468;
+  --t-accent-dim: #2a2418;
+  --t-accent-ink: #161310;
+  --t-good: #7fa583;
+  --t-warn: #bd7f45;
+  --t-bad: #c17553;
+  --t-series-2: #d9d4c6;
+  --t-track: #242326;
+  --t-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --t-pattern: 0.05;
+  color-scheme: dark;
+}
+
+.gh-terminal[data-theme="light"] {
+  --t-bg: #f7f5ef;
+  --t-bg-2: #f1eee3;
+  --t-panel: #ffffff;
+  --t-panel-2: #faf8f2;
+  --t-panel-3: #f1eee3;
+  --t-line: #e0dbca;
+  --t-line-strong: #cbc4ad;
+  --t-text: #1c1c1c;
+  --t-strong: #0b0b0c;
+  --t-muted: #8a8776;
+  --t-faint: #b3ae9b;
+  --t-accent: #9b8353;
+  --t-accent-dim: #efe8d6;
+  --t-accent-ink: #ffffff;
+  --t-good: #668469;
+  --t-warn: #976637;
+  --t-bad: #9a5e42;
+  --t-series-2: #4a463d;
+  --t-track: #ece8dc;
+  --t-shadow: 0 24px 60px rgba(60, 50, 30, 0.18);
+  --t-pattern: 0.06;
+  color-scheme: light;
+}
 
 .gh-terminal {
-  --t-bg-2: #111113;
-  --t-panel: var(--gh-surface);
-  --t-panel-2: var(--gh-800);
-  --t-panel-3: #1f1f22;
-  --t-line: var(--gh-border);
-  --t-line-soft: color-mix(in srgb, var(--gh-border) 60%, transparent);
-  --t-line-strong: var(--gh-border-strong);
-  --t-text: var(--gh-text-primary);
-  --t-strong: var(--gh-text-emphasis);
-  --t-muted: var(--gh-text-muted);
-  --t-faint: var(--gh-text-disabled);
-  --t-accent: var(--gh-accent);
-  --t-accent-dim: var(--gh-accent-dim);
-  --t-accent-ink: var(--gh-accent-contrast);
-  --t-track: #242326;
-  --t-series-2: #d9d4c6;
-  --gh-header-height: 58px;
-  position: relative;
-  isolation: isolate;
+  --f-body: "DM Sans", system-ui, sans-serif;
+  --f-display: "Cormorant", Georgia, serif;
+  --f-mono: "JetBrains Mono", ui-monospace, monospace;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --row-h: 40px;
 }
+.gh-terminal[data-density="compact"] { --row-h: 32px; }
 
-/* Repeated-mark wallpaper (the hangar terminal's), barely there. */
-.gh-terminal .gh-term-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
+.gh-terminal * { box-sizing: border-box; margin: 0; padding: 0; }
+.gh-terminal { height: 100%; }
+.gh-terminal {
+  font-family: var(--f-body);
+  font-size: 14px;
+  color: var(--t-text);
+  background: var(--t-bg);
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
-.gh-terminal .gh-term-backdrop::before {
+.gh-terminal button, .gh-terminal input, .gh-terminal select, .gh-terminal textarea { font: inherit; color: inherit; }
+.gh-terminal button { background: none; border: 0; cursor: pointer; }
+.gh-terminal a { color: inherit; text-decoration: none; }
+.gh-terminal :focus-visible { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+.gh-terminal ::selection { background: var(--t-accent); color: var(--t-accent-ink); }
+
+/* ─── Privacy blur ────────────────────────────────────────────────────── */
+.gh-terminal[data-private="on"] .priv,
+.gh-terminal[data-private="on"] .priv-svg {
+  filter: blur(7px);
+  user-select: none;
+}
+.gh-terminal .priv { transition: filter 0.2s var(--ease); }
+
+/* ─── Backdrop (hangar's repeated-mark wallpaper, toned down) ────────── */
+.gh-terminal .backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.gh-terminal .backdrop::before {
   content: "";
   position: absolute;
   inset: -50%;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23c2a468' stroke-width='1.6'%3E%3Cpath d='M44 80a26 26 0 0 1 52 0'/%3E%3Cpath d='M32 84c10-6 20-6 30-1s22 5 32 0 14-4 14-4'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 140px 140px;
-  opacity: 0.022;
+  opacity: var(--t-pattern);
   transform: rotate(-24deg);
 }
 
-/* ─── Header ──────────────────────────────────────────────────────────── */
-.gh-terminal .gh-shell-header {
+/* ─── Shell ───────────────────────────────────────────────────────────── */
+.gh-terminal .app {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.gh-terminal .header {
+  display: flex;
+  align-items: center;
   gap: 18px;
-  padding: 0 18px;
+  padding: 10px 18px;
   background: var(--t-bg-2);
-  border-bottom-color: var(--t-line);
-}
-.gh-terminal .gh-term-wordmark { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.gh-terminal .gh-term-wordmark-type { height: 22px; width: auto; filter: invert(1) sepia(0.12); mix-blend-mode: screen; }
-.gh-terminal .gh-shell-header-search {
-  max-width: 460px;
-  margin-left: 12px;
-  background: transparent;
-  border-color: var(--t-line-soft);
-}
-.gh-terminal .gh-shell-header-search:focus-within { border-color: var(--t-line-strong); }
-.gh-terminal .gh-shell-header-actions .gh-icon-btn { border-color: transparent; }
-.gh-terminal .gh-term-whoami {
-  margin-left: 8px;
-  padding-left: 14px;
-  border-left: 1px solid var(--t-line);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  line-height: 1.5;
-  text-transform: uppercase;
-  text-align: right;
-  color: var(--t-muted);
-}
-.gh-terminal .gh-term-whoami b { font-weight: 500; color: var(--t-accent); }
-@media (max-width: 860px) {
-  .gh-terminal .gh-term-whoami { display: none; }
-}
-
-/* ─── Rail ────────────────────────────────────────────────────────────── */
-.gh-terminal .gh-term-rail {
-  width: 236px;
-  flex-shrink: 0;
-  align-self: flex-start;
-  /* Sticky, no own height or scrollbar: one page scroller (Max's rule). */
-  position: sticky;
-  top: var(--gh-header-height);
-  padding: 20px 16px 24px;
-  background: var(--t-bg-2);
-  border-right: 1px solid var(--t-line);
-  min-height: calc(100dvh - var(--gh-header-height));
-}
-.gh-terminal .gh-term-nav { display: flex; flex-direction: column; gap: 8px; }
-.gh-terminal .gh-term-navbtn {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  height: 42px;
-  padding: 0 14px;
-  background: var(--t-panel-3);
-  border: 1px solid transparent;
-  font-size: 13.5px;
-  color: var(--t-text);
-  transition: background var(--gh-duration-fast) var(--gh-ease), transform var(--gh-duration-fast) var(--gh-ease);
-}
-.gh-terminal .gh-term-navbtn-icon { display: inline-flex; color: var(--t-muted); }
-.gh-terminal .gh-term-navbtn:hover { background: color-mix(in srgb, var(--t-accent) 14%, var(--t-panel-3)); transform: translateX(2px); }
-.gh-terminal .gh-term-navbtn[data-active] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); font-weight: 500; }
-.gh-terminal .gh-term-navbtn[data-active] .gh-term-navbtn-icon { color: var(--t-accent-ink); }
-/* Project Incrementum: gold icon only, so the page you're on stays the one
-   solid-gold block. */
-.gh-terminal .gh-term-navbtn[data-accent]:not([data-active]) .gh-term-navbtn-icon { color: var(--t-accent); }
-.gh-terminal .gh-term-count { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--t-muted); font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-navbtn[data-active] .gh-term-count { color: var(--t-accent-ink); }
-
-.gh-terminal .gh-term-folder-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 14px;
-  padding: 4px 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--t-faint);
-}
-.gh-terminal .gh-term-folder-head:hover { color: var(--t-strong); }
-.gh-terminal .gh-term-folder-head::after { content: ""; flex: 1; height: 1px; background: var(--t-line); order: 2; }
-.gh-terminal .gh-term-chev { order: 3; transform: rotate(-90deg); transition: transform var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-chev[data-open] { transform: none; }
-.gh-terminal .gh-term-subtree { display: grid; gap: 2px; margin: 4px 0 0 6px; padding-left: 10px; border-left: 1px solid var(--t-line-strong); }
-.gh-terminal .gh-term-subitem { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; font-size: 13px; color: var(--t-muted); }
-.gh-terminal .gh-term-subitem:hover { color: var(--t-strong); background: var(--t-panel); }
-.gh-terminal .gh-term-subitem[data-active] { color: var(--t-accent-ink); background: var(--t-accent); }
-
-.gh-terminal .gh-term-drawer { padding: 20px 16px; background: var(--t-bg-2); }
-
-/* ─── Content frame ───────────────────────────────────────────────────── */
-.gh-terminal .gh-shell-main { padding: 28px 34px 64px; }
-
-/* Panels across every admin page: gapped panels instead of hairline-joined
-   cells, room inside, small tracked titles. */
-.gh-terminal .gh-grid-joined { gap: 20px; background: none; border: 0; }
-.gh-terminal .gh-grid-joined + .gh-grid-joined { margin-top: 0; }
-.gh-terminal .gh-grid-cell { border: 1px solid var(--t-line); padding: 22px 24px; }
-.gh-terminal .gh-grid-cell--compact { padding: 16px 18px; }
-.gh-terminal .gh-card { padding: 22px 24px; }
-.gh-terminal .gh-panel-head { align-items: center; margin-bottom: 18px; }
-.gh-terminal .gh-panel-title {
-  font-family: var(--gh-font-body);
-  font-style: normal;
-  font-weight: 500;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--t-muted);
-}
-/* ─── Shared primitives (every admin page) ────────────────────────────── */
-
-/* Page title: every page's "Gray Horizon" eyebrow + h1.gh-title becomes the
-   terminal title — tracked caps with a gold square. !important beats the
-   inline font sizes the pages set. Home's welcome name keeps its serif. */
-.gh-terminal .gh-shell-main h1.gh-title:not(.gh-term-keep) {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--gh-font-body);
-  font-size: 13px !important;
-  font-style: normal;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--t-strong);
-  line-height: 1.4;
-}
-.gh-terminal .gh-shell-main h1.gh-title:not(.gh-term-keep)::before { content: ""; flex-shrink: 0; width: 9px; height: 9px; background: var(--t-accent); }
-.gh-terminal .gh-shell-main p.gh-eyebrow:has(+ h1.gh-title:not(.gh-term-keep)) { margin-bottom: 6px; padding-left: 19px; font-size: 10px; color: var(--t-faint); }
-
-/* Buttons: 34px, sentence case — caps are for titles only. */
-.gh-terminal .gh-btn-primary,
-.gh-terminal .gh-btn-secondary {
-  min-height: 34px;
-  gap: 6px;
-  padding: 0 14px;
-  font-size: 13px;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  white-space: nowrap;
-}
-.gh-terminal .gh-btn-primary { font-weight: 500; }
-.gh-terminal .gh-btn-primary:hover { opacity: 1; filter: brightness(1.08); }
-.gh-terminal .gh-btn-secondary { border-color: var(--t-line-strong); }
-.gh-terminal .gh-btn-secondary:hover { background: transparent; border-color: var(--t-accent); color: var(--t-strong); }
-.gh-terminal .gh-btn-secondary[data-active] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); }
-.gh-terminal .gh-filter { font-size: 12px; letter-spacing: 0.01em; text-transform: none; border-color: var(--t-line-strong); }
-.gh-terminal .gh-filter[data-active="true"] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); }
-
-/* Inputs */
-.gh-terminal .gh-input { min-height: 34px; background: var(--t-panel-2); border-color: var(--t-line-strong); font-size: 13px; }
-.gh-terminal textarea.gh-input { line-height: 1.5; }
-.gh-terminal .gh-input:focus { outline: none; border-color: var(--t-accent); }
-
-/* Cards: quieter interactive hover (a line, not a jump). */
-.gh-terminal .gh-card { border-color: var(--t-line); }
-.gh-terminal .gh-card--interactive:hover { transform: none; border-color: var(--t-line-strong); }
-
-/* Folded sections (<details class="gh-card">): the summary reads as a panel
-   header with a chevron. */
-.gh-terminal details.gh-card > summary { list-style: none; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.gh-terminal details.gh-card > summary::-webkit-details-marker { display: none; }
-.gh-terminal details.gh-card > summary::before { content: "›"; font-size: 14px; line-height: 1; color: var(--t-faint); transition: transform var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal details.gh-card[open] > summary::before { transform: rotate(90deg); color: var(--t-accent); }
-
-/* Tabs: underline tabs, gold rule on the active one. */
-.gh-terminal .gh-tabs { gap: 0; border-bottom-color: var(--t-line); }
-.gh-terminal .gh-tab-btn { height: 42px; padding: 0 16px; font-size: 13px; }
-.gh-terminal .gh-tab-btn[data-active="true"] { font-weight: 500; }
-
-/* Tables */
-.gh-terminal .gh-table-wrap { border-color: var(--t-line); background: var(--t-panel); }
-.gh-terminal .gh-table th { height: 34px; padding: 0 14px; font-size: 10px; letter-spacing: 0.16em; background: var(--t-panel-2); }
-.gh-terminal .gh-table td { height: 42px; padding: 8px 14px; font-size: 13px; border-bottom-color: var(--t-line-soft); }
-.gh-terminal .gh-table-num { font-family: var(--gh-font-body); }
-
-/* KPI strips: value + small label, the stat-tile look. */
-.gh-terminal .gh-kpi-strip { gap: 20px; }
-.gh-terminal .gh-kpi { padding: 18px 20px; border-color: var(--t-line); }
-.gh-terminal .gh-kpi-n { font-family: var(--gh-font-body); font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-kpi-l { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
-
-/* Rows and lists */
-.gh-terminal .gh-item-row { padding: 12px 0; border-bottom-color: var(--t-line-soft); }
-.gh-terminal .gh-add-form { border-top-color: var(--t-line-soft); }
-.gh-terminal .gh-badge { font-size: 10px; padding: 2px 7px; }
-
-@media (max-width: 1024px) {
-  .gh-terminal .gh-term-rail { width: 204px; padding: 16px 12px; }
-  .gh-terminal .gh-shell-main { padding: 22px 22px 48px; }
-}
-@media (max-width: 640px) {
-  .gh-terminal .gh-term-rail { display: none; }
-  .gh-terminal .gh-term-wordmark-type { display: none; }
-  .gh-terminal .gh-shell-main { padding: 16px 16px 40px; }
-}
-
-/* ─── Screen frame (PageHead, rows, empty states) ─────────────────────── */
-.gh-terminal .gh-term-page { display: flex; flex-direction: column; gap: 24px; max-width: 1480px; }
-.gh-terminal .gh-term-pagehead {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding-bottom: 14px;
   border-bottom: 1px solid var(--t-line);
 }
-.gh-terminal .gh-term-pagehead-sub { margin-top: 6px; padding-left: 19px; font-size: 13px; color: var(--t-muted); }
-.gh-terminal .gh-term-pagehead-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.gh-terminal .gh-term-grid--2 { grid-template-columns: 1fr 1fr; align-items: start; }
-.gh-terminal .gh-term-strong { color: var(--t-strong); font-weight: 500; }
-.gh-terminal a.gh-term-strong:hover { color: var(--t-accent); }
+.gh-terminal .wordmark { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.gh-terminal .wordmark img.icon { width: 34px; height: 34px; }
+.gh-terminal .wordmark img.type { height: 22px; filter: invert(1) sepia(0.12); mix-blend-mode: screen; }
+.gh-terminal[data-theme="light"] .wordmark img.type { filter: none; mix-blend-mode: multiply; }
+.gh-terminal .wordmark .sub { font-family: var(--f-display); font-style: italic; font-size: 15px; color: var(--t-accent); border-left: 1px solid var(--t-line-strong); padding-left: 12px; }
 
-.gh-terminal .gh-term-rows { display: grid; }
-.gh-terminal .gh-term-row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 22px; border-bottom: 1px solid var(--t-line-soft); font-size: 13px; }
-.gh-terminal .gh-term-row:last-child { border-bottom: 0; }
-.gh-terminal .gh-term-row:hover { background: var(--t-panel-2); }
-.gh-terminal .gh-term-row-go { color: var(--t-faint); flex-shrink: 0; }
-.gh-terminal .gh-term-row:hover .gh-term-row-go { color: var(--t-accent); }
-
-.gh-terminal .gh-term-empty { display: grid; justify-items: center; gap: 6px; padding: 28px 12px; text-align: center; font-size: 13px; color: var(--t-muted); }
-.gh-terminal .gh-term-empty-title { font-size: 14px; font-weight: 500; color: var(--t-strong); }
-
-/* Profile header — logo banner, name, meta, actions. */
-.gh-terminal .gh-term-profile {
-  display: grid;
-  grid-template-columns: 220px 1fr auto;
-  align-items: stretch;
-  background: var(--t-panel);
-  border: 1px solid var(--t-line);
-}
-.gh-terminal .gh-term-profile-banner { height: auto; min-height: 120px; border-bottom: 0; border-right: 1px solid color-mix(in srgb, var(--t-accent) 40%, var(--t-line)); }
-.gh-terminal .gh-term-profile-id { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 20px 24px; min-width: 0; }
-.gh-terminal .gh-term-profile-name { font-size: 24px; font-weight: 500; color: var(--t-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gh-terminal .gh-term-profile-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--t-muted); }
-.gh-terminal .gh-term-profile-meta b { color: var(--t-text); font-weight: 500; }
-.gh-terminal .gh-term-profile-actions { align-self: center; padding: 20px 24px; }
-@media (max-width: 760px) {
-  .gh-terminal .gh-term-profile { grid-template-columns: 1fr; }
-  .gh-terminal .gh-term-profile-banner { min-height: 100px; border-right: 0; border-bottom: 1px solid var(--t-line); }
-  .gh-terminal .gh-term-profile-actions { padding-top: 0; }
-}
-
-/* Serif only for the hero figure, monograms and the welcome name (RULES §2):
-   every other p.gh-title (record names, card values) uses the UI face. */
-.gh-terminal .gh-shell-main p.gh-title { font-family: var(--gh-font-body); font-weight: 500; letter-spacing: 0; }
-.gh-terminal .gh-shell-main p.gh-title em { font-style: normal; }
-
-/* Record header (deal and other detail pages): a panel strip. */
-.gh-terminal .gh-record-header { padding: 18px 22px; background: var(--t-panel); border: 1px solid var(--t-line); }
-.gh-terminal .gh-record-header .gh-avatar { width: 44px; height: 44px; }
-
-.gh-terminal .gh-term-backlink { align-self: flex-start; margin-bottom: -12px; font-size: 12px; color: var(--t-muted); }
-.gh-terminal .gh-term-backlink:hover { color: var(--t-accent); }
-.gh-terminal .gh-term-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-.gh-terminal .gh-term-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--t-text); }
-.gh-terminal .gh-term-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--t-line-strong); }
-.gh-terminal .gh-term-dot[data-on] { background: var(--t-accent); }
-
-/* Card lists inside one panel: each card becomes a row. */
-.gh-terminal .gh-term-rowcards { display: grid; }
-.gh-terminal .gh-term-rowcards > .gh-card { padding: 16px 22px; background: transparent; border: 0; border-bottom: 1px solid var(--t-line-soft); }
-.gh-terminal .gh-term-rowcards > .gh-card:last-of-type { border-bottom: 0; }
-.gh-terminal .gh-term-rowcards-empty { padding: 22px; }
-
-/* Boards (Ideation, AI agents): a panel per column, compact cards, "+ Add" at the foot. */
-.gh-terminal .gh-term-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; align-items: start; }
-.gh-terminal .gh-term-bcol { display: flex; flex-direction: column; }
-.gh-terminal .gh-term-bcol-body { display: grid; gap: 10px; padding: 16px; }
-.gh-terminal .gh-term-bcard { display: grid; gap: 6px; padding: 12px 14px; background: var(--t-panel-2); border: 1px solid var(--t-line); }
-.gh-terminal .gh-term-bcard-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
-.gh-terminal .gh-term-bcard-foot select { max-width: 70%; min-height: 28px; font-size: 12px; }
-.gh-terminal .gh-term-bcol-add { border-top: 1px solid var(--t-line-soft); }
-.gh-terminal .gh-term-bcol-add > summary { list-style: none; padding: 12px 16px; cursor: pointer; font-size: 12px; color: var(--t-muted); }
-.gh-terminal .gh-term-bcol-add > summary::-webkit-details-marker { display: none; }
-.gh-terminal .gh-term-bcol-add > summary:hover { color: var(--t-accent); }
-.gh-terminal .gh-term-bcol-add[open] { padding: 0 16px 16px; }
-.gh-terminal .gh-term-bcol-add[open] > summary { padding-left: 0; padding-right: 0; color: var(--t-accent); }
-
-/* Per-row edit inside a table: "Edit" opens a small pop-over form. */
-.gh-terminal .gh-term-rowedit { position: relative; }
-.gh-terminal .gh-term-rowedit > summary { list-style: none; cursor: pointer; font-size: 12px; color: var(--t-muted); }
-.gh-terminal .gh-term-rowedit > summary::-webkit-details-marker { display: none; }
-.gh-terminal .gh-term-rowedit > summary:hover,
-.gh-terminal .gh-term-rowedit[open] > summary { color: var(--t-accent); }
-.gh-terminal .gh-term-rowedit-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 20;
-  width: 260px;
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  background: var(--t-panel);
-  border: 1px solid var(--t-line-strong);
-  border-top: 2px solid var(--t-accent);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-}
-
-/* Calendar grid */
-.gh-terminal .gh-term-cal { background: var(--t-line) !important; border-color: var(--t-line) !important; }
-.gh-terminal .gh-term-cal-head { background: var(--t-panel-2) !important; padding: 10px 8px !important; font-size: 10px; }
-.gh-terminal .gh-term-calday { background: var(--t-panel) !important; padding: 10px !important; transition: background var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-calday:hover { background: var(--t-panel-2) !important; }
-.gh-terminal .gh-term-calday[data-today] { background: color-mix(in srgb, var(--t-accent) 6%, var(--t-panel)) !important; box-shadow: inset 0 2px 0 var(--t-accent); }
-.gh-terminal .gh-term-calev {
-  display: block;
-  max-width: 100%;
-  padding: 2px 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--t-strong);
-  background: var(--t-panel-3);
-  border-left: 2px solid var(--t-accent);
-}
-
-/* Tasks — list picker left, the selected list right (one page scroller). */
-.gh-terminal .gh-term-tasks { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
-.gh-terminal .gh-term-lists { position: sticky; top: calc(var(--gh-header-height) + 20px); padding: 6px 0 10px; }
-.gh-terminal .gh-term-lists-group { padding: 14px 16px 6px; font-size: 9px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-faint); }
-.gh-terminal .gh-term-listbtn { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 16px; font-size: 13px; color: var(--t-text); border-left: 2px solid transparent; }
-.gh-terminal .gh-term-listbtn svg { flex-shrink: 0; color: var(--t-muted); }
-.gh-terminal .gh-term-listbtn:hover { background: var(--t-panel-2); }
-.gh-terminal .gh-term-listbtn[data-active] { background: var(--t-accent-dim); border-left-color: var(--t-accent); color: var(--t-strong); font-weight: 500; }
-.gh-terminal .gh-term-listbtn[data-active] svg { color: var(--t-accent); }
-.gh-terminal .gh-term-listbtn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gh-terminal .gh-term-listbtn-count { margin-left: auto; font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-listbtn-overdue { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; background: color-mix(in srgb, var(--gh-danger) 22%, transparent); color: var(--gh-danger); font-size: 10px; font-weight: 500; }
-.gh-terminal .gh-term-listbtn-overdue + .gh-term-listbtn-count { margin-left: 6px; }
-.gh-terminal .gh-term-quickadd { display: flex; gap: 8px; padding: 14px 22px; border-bottom: 1px solid var(--t-line-soft); background: var(--t-panel-2); }
-.gh-terminal .gh-term-quickadd .gh-input { flex: 1; }
-.gh-terminal .gh-term-taskrows { display: grid; }
-.gh-terminal .gh-term-taskrow { min-height: 46px; padding: 4px 22px; border-bottom: 1px solid var(--t-line-soft); }
-.gh-terminal .gh-term-taskrow:last-child { border-bottom: 0; }
-.gh-terminal .gh-term-taskrow:hover { background: var(--t-panel-2); }
-.gh-terminal .gh-term-done { border-top: 1px solid var(--t-line-soft); }
-.gh-terminal .gh-term-done > summary { list-style: none; padding: 12px 22px; cursor: pointer; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-faint); }
-.gh-terminal .gh-term-done > summary::-webkit-details-marker { display: none; }
-.gh-terminal .gh-term-done > summary:hover { color: var(--t-strong); }
-.gh-terminal .gh-term-due-label { flex-shrink: 0; font-size: 11px; color: var(--t-muted); white-space: nowrap; }
-.gh-terminal .gh-term-due-label[data-late] { color: var(--gh-danger); }
-/* TaskRow (All / Mine / Starred / Home): rows inside a panel, not cards. */
-.gh-terminal .gh-term-tasklist { display: grid; margin: -22px -24px; }
-.gh-terminal .gh-term-tasklist .gh-term-task { padding: 12px 24px; background: transparent; border: 0; border-bottom: 1px solid var(--t-line-soft); }
-.gh-terminal .gh-term-tasklist > :last-child .gh-term-task,
-.gh-terminal .gh-term-tasklist > .gh-term-task:last-child { border-bottom: 0; }
-.gh-terminal .gh-term-tasklist .gh-term-task:hover { background: var(--t-panel-2); }
-.gh-terminal .gh-term-task .gh-eyebrow { font-size: 9px; }
-@media (max-width: 900px) {
-  .gh-terminal .gh-term-tasks { grid-template-columns: 1fr; }
-  .gh-terminal .gh-term-lists { position: static; max-height: none; }
-}
-
-/* Big-totals strip (the bunker's centred totals), one panel split four ways. */
-.gh-terminal .gh-term-split { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--t-panel); border: 1px solid var(--t-line); }
-.gh-terminal .gh-term-split > div { padding: 22px 16px; text-align: center; }
-.gh-terminal .gh-term-split > div + div { border-left: 1px solid var(--t-line-soft); }
-.gh-terminal .gh-term-split .k { font-family: var(--gh-font-display); font-size: 22px; font-weight: 600; color: var(--t-accent); }
-.gh-terminal .gh-term-split .v { margin-top: 4px; font-size: 28px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-split .h { margin-top: 2px; font-size: 12px; color: var(--t-faint); }
-.gh-terminal .gh-term-monthcols { gap: 10px; }
-.gh-terminal .gh-term-monthcols .gh-term-stagecol-track { height: 150px; max-width: 46px; }
-.gh-terminal .gh-term-monthcols .gh-term-stagecol-val { font-size: 11px; font-weight: 400; color: var(--t-muted); }
-@media (max-width: 900px) {
-  .gh-terminal .gh-term-split { grid-template-columns: 1fr 1fr; }
-  .gh-terminal .gh-term-split > div:nth-child(3) { border-left: 0; }
-  .gh-terminal .gh-term-split > div:nth-child(n + 3) { border-top: 1px solid var(--t-line-soft); }
-}
-
-/* Stage tiles (hangar layout) — the selected tile drives the table below. */
-.gh-terminal .gh-term-stagetiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.gh-terminal .gh-term-stagetile {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 140px;
-  padding: 16px;
-  background: var(--t-panel);
-  border: 1px solid var(--t-line);
-  transition: border-color var(--gh-duration-fast) var(--gh-ease), background var(--gh-duration-fast) var(--gh-ease);
-}
-.gh-terminal .gh-term-stagetile:hover { border-color: var(--t-line-strong); }
-.gh-terminal .gh-term-stagetile[data-active] { border-color: var(--t-accent); background: color-mix(in srgb, var(--t-accent) 6%, var(--t-panel)); }
-.gh-terminal .gh-term-stagetile .name { font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); }
-.gh-terminal .gh-term-stagetile[data-active] .name { color: var(--t-strong); }
-.gh-terminal .gh-term-stagetile .n { margin-top: auto; font-family: var(--gh-font-display); font-size: 52px; font-weight: 600; line-height: 1; color: var(--t-accent); }
-.gh-terminal .gh-term-stagetile .v { font-size: 14px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-stagetiles--closed { grid-template-columns: repeat(3, 1fr); margin-top: -12px; }
-.gh-terminal .gh-term-stagetiles--closed .gh-term-stagetile { min-height: 0; flex-direction: row; align-items: center; gap: 14px; padding: 12px 16px; }
-.gh-terminal .gh-term-stagetiles--closed .n { margin: 0 0 0 auto; font-size: 28px; color: var(--t-muted); }
-.gh-terminal .gh-term-stagetiles--closed .v { font-size: 13px; font-weight: 400; color: var(--t-muted); }
-
-@media (max-width: 1100px) {
-  .gh-terminal .gh-term-stagetiles { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 760px) {
-  .gh-terminal .gh-term-stagetiles,
-  .gh-terminal .gh-term-stagetiles--closed,
-  .gh-terminal .gh-term-grid--2 { grid-template-columns: 1fr 1fr; }
-  .gh-terminal .gh-term-stagetile { min-height: 110px; }
-  .gh-terminal .gh-term-stagetile .n { font-size: 40px; }
-}
-
-/* ─── Home ────────────────────────────────────────────────────────────── */
-.gh-terminal .gh-term-home { display: flex; flex-direction: column; gap: 24px; max-width: 1480px; }
-.gh-terminal .gh-term-grid { display: grid; gap: 20px; }
-.gh-terminal .gh-term-grid--4 { grid-template-columns: repeat(4, 1fr); }
-.gh-terminal .gh-term-grid--lead { grid-template-columns: 1.6fr 1fr; }
-.gh-terminal .gh-term-grid--2-1 { grid-template-columns: 2fr 1fr; }
-
-.gh-terminal .gh-term-panel { background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
-.gh-terminal .gh-term-phead {
+.gh-terminal .search {
+  flex: 1;
+  max-width: 460px;
+  margin-left: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 46px;
-  padding: 0 22px;
-  border-bottom: 1px solid var(--t-line-soft);
+  height: 36px;
+  padding: 0 12px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  color: var(--t-muted);
 }
-.gh-terminal .gh-term-phead svg { color: var(--t-accent); opacity: 0.8; }
-.gh-terminal .gh-term-ptitle { font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); }
-.gh-terminal .gh-term-phead-r { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--t-muted); }
-.gh-terminal .gh-term-pbody { padding: 22px 24px; }
-.gh-terminal .gh-term-link { color: var(--t-accent); font-size: 12px; font-weight: 500; }
-.gh-terminal .gh-term-link:hover { text-decoration: underline; }
-.gh-terminal .gh-term-muted { color: var(--t-muted); font-size: 13px; }
+.gh-terminal .search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; color: var(--t-text); }
+.gh-terminal .search kbd { font-family: var(--f-mono); font-size: 10px; border: 1px solid var(--t-line-strong); padding: 1px 5px; }
 
-.gh-terminal .gh-term-welcome { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.gh-terminal .hdr-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.gh-terminal .iconbtn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--t-line);
+  color: var(--t-muted);
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.gh-terminal .iconbtn:hover { color: var(--t-strong); border-color: var(--t-line-strong); }
+.gh-terminal .iconbtn[data-on] { color: var(--t-accent-ink); background: var(--t-accent); border-color: var(--t-accent); }
+.gh-terminal .iconbtn .pip {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: grid; place-items: center;
+  background: var(--t-bad); color: #fff; font-size: 10px; font-weight: 700;
+}
+.gh-terminal .whoami { display: flex; align-items: center; gap: 10px; margin-left: 8px; padding-left: 14px; border-left: 1px solid var(--t-line); }
+.gh-terminal .whoami .label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); text-align: right; line-height: 1.5; }
+.gh-terminal .whoami .label b { color: var(--t-accent); }
+.gh-terminal .avatar { width: 34px; height: 34px; border: 2px solid var(--t-accent); background: var(--t-panel-2) url("/brand-icon.png") center / cover; }
+
+.gh-terminal .body { min-height: 0; display: grid; grid-template-columns: 236px 1fr; }
+
+/* Rail — the original terminal rail: big boxed block buttons, gold when
+   selected, and folder-style sub-menus for the system pages. */
+.gh-terminal .rail {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 14px 20px;
+  background: var(--t-bg-2);
+  border-right: 1px solid var(--t-line);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--t-line-strong) transparent;
+}
+.gh-terminal .rail > * { flex-shrink: 0; }
+.gh-terminal .rail { overflow-x: hidden; }
+.gh-terminal .navbtn {
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; height: 42px; padding: 0 14px;
+  background: var(--t-panel-3);
+  border: 1px solid transparent;
+  font-size: 14px; color: var(--t-text);
+  text-align: left;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), transform 0.12s var(--ease);
+}
+.gh-terminal .navbtn svg { color: var(--t-muted); flex-shrink: 0; }
+.gh-terminal .navbtn:hover { background: color-mix(in srgb, var(--t-accent) 14%, var(--t-panel-3)); transform: translateX(2px); }
+.gh-terminal .navbtn[data-active] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-terminal .navbtn[data-active] svg { color: var(--t-accent-ink); }
+.gh-terminal .navbtn[data-accent]:not([data-active]) { background: var(--t-accent-dim); color: var(--t-accent); }
+.gh-terminal .navbtn[data-accent]:not([data-active]) svg { color: var(--t-accent); }
+.gh-terminal .navbtn .count { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .navbtn[data-active] .count { color: var(--t-accent-ink); }
+
+.gh-terminal .navfolder { display: flex; align-items: center; gap: 8px; width: 100%; margin: 12px 0 2px; padding: 4px 0; text-align: left; cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .navfolder svg { color: var(--t-accent); flex-shrink: 0; }
+.gh-terminal .navfolder:hover { color: var(--t-strong); }
+.gh-terminal .navfolder .chev { order: 3; color: var(--t-muted); transform: rotate(-90deg); transition: transform 0.15s var(--ease); }
+.gh-terminal .navfolder .chev[data-open] { transform: none; }
+.gh-terminal .navfolder::after { content: ""; flex: 1; height: 1px; background: var(--t-line); }
+.gh-terminal .subtree { display: grid; gap: 2px; margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--t-line-strong); }
+.gh-terminal .subitem { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted); text-align: left; width: 100%; }
+.gh-terminal .subitem:hover { color: var(--t-strong); background: var(--t-panel); }
+.gh-terminal .subitem[data-active] { color: var(--t-accent-ink); background: var(--t-accent); }
+.gh-terminal .subitem .count { margin-left: auto; letter-spacing: 0; }
+
+.gh-terminal .content { min-width: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--t-line-strong) transparent; }
+.gh-terminal .screen { max-width: 1480px; padding: 18px 22px 40px; display: flex; flex-direction: column; gap: 14px; animation: t-screen-in 0.25s var(--ease); }
+@keyframes t-screen-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.gh-terminal .pagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--t-line); }
+.gh-terminal .pagehead h1 { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .pagehead h1::before { content: ""; width: 9px; height: 9px; background: var(--t-accent); }
+.gh-terminal .pagehead .sub { margin-top: 5px; padding-left: 19px; font-size: 13px; color: var(--t-muted); }
+.gh-terminal .pagehead-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ─── Layout helpers ──────────────────────────────────────────────────── */
+.gh-terminal .grid { display: grid; gap: 14px; }
+.gh-terminal .g-2 { grid-template-columns: 1fr 1fr; }
+.gh-terminal .g-3 { grid-template-columns: repeat(3, 1fr); }
+.gh-terminal .g-4 { grid-template-columns: repeat(4, 1fr); }
+.gh-terminal .g-lead { grid-template-columns: 1.6fr 1fr; }
+.gh-terminal .g-side { grid-template-columns: 1fr 360px; }
+.gh-terminal .g-rail { grid-template-columns: 260px 1fr; }
+.gh-terminal .g-catalog { grid-template-columns: 340px 1fr; }
+.gh-terminal .health-top { grid-template-columns: 180px 1fr; align-items: center; margin-bottom: 16px; }
+.gh-terminal .stack { display: flex; flex-direction: column; gap: 14px; }
+.gh-terminal .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gh-terminal .spacer { flex: 1; }
+
+/* ─── Panels ──────────────────────────────────────────────────────────── */
+.gh-terminal .panel { background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
+.gh-terminal .phead {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 14px;
+  border-bottom: 1px solid var(--t-line);
+  background: var(--t-panel-2);
+}
+.gh-terminal .phead svg { color: var(--t-accent); }
+.gh-terminal .ptitle { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .phead .r { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--t-muted); }
+.gh-terminal .panel-pad { padding: 16px; min-width: 0; overflow-x: auto; }
+.gh-terminal .panel-foot { padding: 10px 16px; border-top: 1px solid var(--t-line); font-size: 12px; color: var(--t-muted); }
+
+/* Status line — bunker "BUSINESS STATUS: ACTIVE". */
+.gh-terminal .status { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .status em { font-style: normal; color: var(--t-good); }
+.gh-terminal .status em[data-tone="warn"] { color: var(--t-warn); }
+.gh-terminal .status em[data-tone="bad"] { color: var(--t-bad); }
+.gh-terminal .statusbar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 12px 16px; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-terminal .statusbar .meta { font-size: 12px; color: var(--t-muted); }
 
 /* Hero — the highlighted MRR. */
-.gh-terminal .gh-term-hero {
-  display: grid;
-  grid-template-columns: auto 1fr 250px;
-  gap: 6px 36px;
-  align-items: center;
-  padding: 26px 28px;
-  background: var(--t-panel);
-  border: 1px solid var(--t-line);
+.gh-terminal .hero { display: grid; grid-template-columns: auto 1fr; gap: 6px 28px; align-items: end; padding: 18px 20px; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-terminal .hero-label { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .hero-value { font-family: var(--f-display); font-size: 58px; font-weight: 600; line-height: 1; color: var(--t-accent); font-variant-numeric: lining-nums tabular-nums; }
+.gh-terminal .hero-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--t-muted); margin-top: 8px; }
+.gh-terminal .hero-meta b { color: var(--t-text); font-weight: 600; }
+.gh-terminal .hero .spark { height: 64px; width: 100%; grid-row: 1 / span 3; grid-column: 2; align-self: stretch; }
+
+.gh-terminal .stat { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
+.gh-terminal .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .stat-value { font-size: 24px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .stat-sub { font-size: 12px; color: var(--t-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gh-terminal .stat[data-tone="bad"] .stat-value { color: var(--t-bad); }
+.gh-terminal .stat[data-tone="good"] .stat-value { color: var(--t-good); }
+.gh-terminal .stat[data-accent] { border-top: 2px solid var(--t-accent); }
+
+.gh-terminal .bigtotal { padding: 16px; text-align: center; font-size: 26px; font-weight: 500; color: var(--t-strong); }
+.gh-terminal .bigtotal b { font-family: var(--f-display); font-weight: 600; font-size: 38px; color: var(--t-accent); }
+
+.gh-terminal .kv { display: grid; }
+.gh-terminal .kv > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--t-line); font-size: 14px; }
+.gh-terminal .kv > div:last-child { border-bottom: 0; }
+.gh-terminal .kv dt { color: var(--t-text); }
+.gh-terminal .kv dd { color: var(--t-strong); font-variant-numeric: tabular-nums; text-align: right; }
+.gh-terminal .kv > div[data-tone="bad"] dd { color: var(--t-bad); }
+.gh-terminal .kv > div[data-tone="warn"] dd { color: var(--t-warn); }
+.gh-terminal .kv > div[data-tone="good"] dd { color: var(--t-good); }
+.gh-terminal .kv > div[data-tone="muted"] dd { color: var(--t-muted); }
+
+.gh-terminal .split { display: grid; grid-template-columns: repeat(var(--n, 2), 1fr); }
+.gh-terminal .split > div { padding: 18px 12px; text-align: center; }
+.gh-terminal .split > div + div { border-left: 1px solid var(--t-line); }
+.gh-terminal .split .k { font-family: var(--f-display); font-size: 24px; font-weight: 600; color: var(--t-accent); }
+.gh-terminal .split .v { font-size: 30px; font-weight: 600; color: var(--t-strong); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.gh-terminal .split .h { font-size: 12px; color: var(--t-muted); margin-top: 2px; }
+
+.gh-terminal .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--t-line-strong); color: var(--t-muted); white-space: nowrap; }
+.gh-terminal .badge[data-tone="good"] { color: var(--t-good); border-color: color-mix(in srgb, var(--t-good) 50%, transparent); }
+.gh-terminal .badge[data-tone="warn"] { color: var(--t-warn); border-color: color-mix(in srgb, var(--t-warn) 50%, transparent); }
+.gh-terminal .badge[data-tone="bad"] { color: var(--t-bad); border-color: color-mix(in srgb, var(--t-bad) 50%, transparent); }
+.gh-terminal .badge[data-tone="accent"] { color: var(--t-accent); border-color: var(--t-accent); }
+.gh-terminal .badge[data-tone="solid"] { color: var(--t-accent-ink); background: var(--t-accent); border-color: var(--t-accent); }
+
+.gh-terminal .muted { color: var(--t-muted); }
+.gh-terminal .small { font-size: 12px; }
+.gh-terminal .strong { color: var(--t-strong); font-weight: 600; }
+.gh-terminal .mono { font-family: var(--f-mono); font-size: 12px; }
+.gh-terminal .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .desc { font-size: 14px; line-height: 1.55; }
+.gh-terminal .tone-bad { color: var(--t-bad); }
+.gh-terminal .tone-warn { color: var(--t-warn); }
+.gh-terminal .tone-good { color: var(--t-good); }
+
+/* ─── Buttons & forms ─────────────────────────────────────────────────── */
+.gh-terminal .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 14px;
+  border: 1px solid var(--t-line-strong);
+  font-size: 13px; font-weight: 500; color: var(--t-text);
+  white-space: nowrap;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), color 0.12s var(--ease);
 }
-.gh-terminal .gh-term-hero-label { font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
-.gh-terminal .gh-term-hero-value {
-  font-family: var(--gh-font-display);
-  font-size: 58px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--t-accent);
-  font-variant-numeric: lining-nums tabular-nums;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
+.gh-terminal .btn:hover { border-color: var(--t-accent); color: var(--t-strong); }
+.gh-terminal .btn-primary { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-terminal .btn-primary:hover { filter: brightness(1.08); color: var(--t-accent-ink); }
+.gh-terminal .btn-danger { color: var(--t-bad); border-color: color-mix(in srgb, var(--t-bad) 45%, transparent); }
+.gh-terminal .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.gh-terminal .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.gh-terminal .linkbtn { color: var(--t-accent); font-size: 12px; font-weight: 600; }
+.gh-terminal .linkbtn:hover { text-decoration: underline; }
+
+/* Big priced action — the bunker's "Sell Stock: $X". Only used for real actions. */
+.gh-terminal .cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 56px; padding: 0 18px;
+  background: var(--t-accent); color: var(--t-accent-ink);
+  font-size: 16px; font-weight: 600; text-align: left;
 }
-.gh-terminal .gh-term-hero-value:hover { filter: brightness(1.08); }
-.gh-terminal .gh-term-hero-meta { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 12px; color: var(--t-muted); }
-.gh-terminal .gh-term-hero-meta b { color: var(--t-text); font-weight: 500; }
-.gh-terminal .gh-term-spark { display: block; width: 100%; height: 64px; }
-.gh-terminal .gh-term-spark-area { fill: var(--t-accent); opacity: 0.12; }
-.gh-terminal .gh-term-spark-line { fill: none; stroke: var(--t-accent); stroke-width: 2; }
-.gh-terminal .gh-term-spark-dot { fill: var(--t-accent); }
-.gh-terminal .gh-term-spark-cap { display: block; margin-top: 4px; font-size: 10px; color: var(--t-faint); text-align: right; }
+.gh-terminal .cta:hover { filter: brightness(1.08); }
+.gh-terminal .cta small { font-size: 12px; font-weight: 500; opacity: 0.8; }
+.gh-terminal .cta[data-variant="ghost"] { background: transparent; color: var(--t-accent); border: 1px solid var(--t-accent); }
 
-.gh-terminal .gh-term-mini {
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 14px;
-  background: var(--t-panel-2);
-  border: 1px solid var(--t-line);
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  transition: border-color var(--gh-duration-fast) var(--gh-ease);
+.gh-terminal .input, .gh-terminal .select, .gh-terminal .textarea {
+  height: 34px; padding: 0 10px; width: 100%;
+  background: var(--t-panel-2); border: 1px solid var(--t-line-strong);
+  color: var(--t-text);
 }
-.gh-terminal .gh-term-mini:hover { border-color: var(--t-accent); }
-.gh-terminal .gh-term-mini-top { display: flex; justify-content: space-between; align-items: center; }
-.gh-terminal .gh-term-mini-top b { font-size: 15px; font-weight: 500; color: var(--t-strong); }
-.gh-terminal .gh-term-eyebrow { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
-.gh-terminal .gh-term-small { font-size: 12px; color: var(--t-muted); }
+.gh-terminal .textarea { height: auto; min-height: 80px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+.gh-terminal .input:focus, .gh-terminal .select:focus, .gh-terminal .textarea:focus { outline: none; border-color: var(--t-accent); }
+.gh-terminal .field { display: flex; flex-direction: column; gap: 5px; }
+.gh-terminal .field > span { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gh-terminal .colorpick { display: flex; align-items: center; gap: 8px; }
+.gh-terminal .colorpick input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid var(--t-line-strong); background: none; cursor: pointer; }
+.gh-terminal .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.gh-terminal .swatches button { width: 22px; height: 22px; border: 1px solid var(--t-line-strong); }
+.gh-terminal .swatches button[data-active] { outline: 2px solid var(--t-accent); outline-offset: 2px; }
 
-/* Meter + month cells */
-.gh-terminal .gh-term-meter { display: block; width: 100%; background: var(--t-track); overflow: hidden; }
-.gh-terminal .gh-term-meter i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--gh-ease); }
-.gh-terminal .gh-term-meter i[data-tone="neutral"] { background: var(--t-series-2); }
-.gh-terminal .gh-term-meter i[data-tone="warn"] { background: var(--gh-warning); }
-.gh-terminal .gh-term-meter i[data-tone="bad"] { background: var(--gh-danger); }
+.gh-terminal .toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--t-line); cursor: pointer; }
+.gh-terminal .toggle:last-child { border-bottom: 0; }
+.gh-terminal .toggle-text { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--t-strong); }
+.gh-terminal .toggle-text small { font-size: 12px; color: var(--t-muted); }
+.gh-terminal .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; background: var(--t-track); border: 1px solid var(--t-line-strong); }
+.gh-terminal .switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--t-muted); transition: transform 0.18s var(--ease), background 0.18s var(--ease); }
+.gh-terminal .switch[aria-checked="true"] { background: var(--t-accent-dim); border-color: var(--t-accent); }
+.gh-terminal .switch[aria-checked="true"] i { transform: translateX(18px); background: var(--t-accent); }
 
-/* Stat tiles — value + bar; the detail line folds open on click. */
-.gh-terminal .gh-term-stat {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: 20px 22px;
-  background: var(--t-panel);
-  border: 1px solid var(--t-line);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--gh-duration-fast) var(--gh-ease);
-}
-.gh-terminal .gh-term-stat:hover { border-color: var(--t-line-strong); }
-.gh-terminal .gh-term-stat-label { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); padding-right: 20px; }
-.gh-terminal .gh-term-stat-value { font-size: 24px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-stat-value[data-tone="bad"] { color: var(--gh-danger); }
-.gh-terminal .gh-term-stat-viz { display: block; margin-top: 4px; }
-.gh-terminal .gh-term-stat-sub { display: block; padding-top: 6px; font-size: 12px; color: var(--t-faint); }
-.gh-terminal .gh-term-stat-chev { position: absolute; top: 18px; right: 18px; color: var(--t-faint); transition: transform var(--gh-duration-fast) var(--gh-ease), color var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-stat:hover .gh-term-stat-chev { color: var(--t-accent); }
-.gh-terminal .gh-term-stat[data-open] .gh-term-stat-chev { transform: rotate(180deg); }
+.gh-terminal .seg { display: inline-flex; border: 1px solid var(--t-line-strong); }
+.gh-terminal .seg button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; font-size: 13px; color: var(--t-muted); }
+.gh-terminal .seg button + button { border-left: 1px solid var(--t-line-strong); }
+.gh-terminal .seg button:hover { color: var(--t-strong); }
+.gh-terminal .seg button[data-active] { background: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-terminal .seg[data-small] button { height: 26px; padding: 0 10px; font-size: 12px; }
+.gh-terminal .seg-count { font-size: 11px; font-weight: 700; opacity: 0.75; font-variant-numeric: tabular-nums; }
 
-/* Fold — grid-rows trick animates to auto height. */
-.gh-terminal .gh-term-fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.22s var(--gh-ease), opacity 0.22s var(--gh-ease); }
-.gh-terminal .gh-term-fold > * { overflow: hidden; min-height: 0; }
-.gh-terminal .gh-term-fold[data-open],
-.gh-terminal [data-open] > .gh-term-fold { grid-template-rows: 1fr; opacity: 1; }
-.gh-terminal .gh-term-more { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; font-size: 12px; color: var(--t-faint); }
-.gh-terminal .gh-term-more:hover { color: var(--t-accent); }
-.gh-terminal .gh-term-more svg { transition: transform var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-more[aria-expanded="true"] svg { transform: rotate(180deg); }
+/* ─── Tables ──────────────────────────────────────────────────────────── */
+.gh-terminal .table { width: 100%; border-collapse: collapse; }
+.gh-terminal .table th { height: 32px; padding: 0 12px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); background: var(--t-panel-2); border-bottom: 1px solid var(--t-line); white-space: nowrap; }
+.gh-terminal .table td { height: var(--row-h); padding: 6px 12px; border-bottom: 1px solid var(--t-line); font-size: 13px; vertical-align: middle; }
+.gh-terminal .table tr:last-child td { border-bottom: 0; }
+.gh-terminal .table tbody tr[data-click] { cursor: pointer; }
+.gh-terminal .table tbody tr:hover td { background: var(--t-panel-2); }
+.gh-terminal .table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gh-terminal .table .nowrap { white-space: nowrap; }
+.gh-terminal .table tfoot td { font-weight: 600; color: var(--t-strong); background: var(--t-panel-2); }
+.gh-terminal .table-wrap { overflow-x: auto; }
 
-/* Due list — the row is the link; "Open" shows where you point. */
-.gh-terminal .gh-term-due { display: grid; }
-.gh-terminal .gh-term-due a { display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--t-line-soft); font-size: 13px; }
-.gh-terminal .gh-term-due a:last-child { border-bottom: 0; }
-.gh-terminal .gh-term-due a:hover { color: var(--t-accent); }
-.gh-terminal .gh-term-due svg { flex-shrink: 0; color: var(--gh-danger); }
-.gh-terminal .gh-term-due svg[data-tone="warn"] { color: var(--gh-warning); }
-.gh-terminal .gh-term-due .go { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-accent); opacity: 0; transition: opacity var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-due a:hover .go,
-.gh-terminal .gh-term-due a:focus-visible .go { opacity: 1; }
+/* ─── Meters ──────────────────────────────────────────────────────────── */
+.gh-terminal .meter { width: 100%; background: var(--t-track); overflow: hidden; }
+.gh-terminal .meter i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-terminal .meter i[data-tone="good"] { background: var(--t-good); }
+.gh-terminal .meter i[data-tone="warn"] { background: var(--t-warn); }
+.gh-terminal .meter i[data-tone="bad"] { background: var(--t-bad); }
+.gh-terminal .meter i[data-tone="neutral"] { background: var(--t-series-2); }
+.gh-terminal .trend { font-size: 9px; }
+.gh-terminal .trend[data-trend="up"] { color: var(--t-good); }
+.gh-terminal .trend[data-trend="down"] { color: var(--t-bad); }
+.gh-terminal .trend[data-trend="flat"] { color: var(--t-muted); }
+.gh-terminal .healthcell { display: grid; grid-template-columns: 26px 1fr 12px; align-items: center; gap: 8px; min-width: 120px; font-variant-numeric: tabular-nums; }
 
-/* Ledger (key/value) */
-.gh-terminal .gh-term-kv { display: grid; }
-.gh-terminal .gh-term-kv > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--t-line-soft); font-size: 13px; }
-.gh-terminal .gh-term-kv > div:last-child { border-bottom: 0; }
-.gh-terminal .gh-term-kv dt { color: var(--t-muted); }
-.gh-terminal .gh-term-kv dd { color: var(--t-strong); font-variant-numeric: tabular-nums; text-align: right; }
-.gh-terminal .gh-term-kv > div[data-tone="bad"] dd { color: var(--gh-danger); }
-.gh-terminal .gh-term-kv > div[data-tone="warn"] dd { color: var(--gh-warning); }
+/* ─── Charts ──────────────────────────────────────────────────────────── */
+.gh-terminal .chart { width: 100%; height: auto; display: block; overflow: visible; }
+.gh-terminal .chart .grid { stroke: var(--t-line); stroke-width: 1; }
+.gh-terminal .chart .axis { fill: var(--t-muted); font-size: 11px; font-family: var(--f-body); }
+.gh-terminal .chart .axis.strong { fill: var(--t-strong); font-weight: 600; }
+.gh-terminal .chart .area { fill: var(--t-accent); opacity: 0.1; }
+.gh-terminal .chart .line { fill: none; stroke: var(--t-accent); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.gh-terminal .chart .dot { fill: var(--t-panel); stroke: var(--t-accent); stroke-width: 1.5; }
+.gh-terminal .chart .dot-last { fill: var(--t-accent); stroke: var(--t-panel); stroke-width: 2; }
+.gh-terminal .chart .col.c1 { fill: var(--t-accent); }
+.gh-terminal .chart .col.c2 { fill: var(--t-series-2); }
+.gh-terminal .chart .milestone { stroke: var(--t-line-strong); stroke-dasharray: 2 4; }
+.gh-terminal .chart .milestone.passed { stroke: var(--t-accent); stroke-dasharray: none; opacity: 0.6; }
+.gh-terminal .chart .milestone-label { font-weight: 700; letter-spacing: 0.1em; }
+.gh-terminal .chart .milestone-label.passed { fill: var(--t-accent); }
+.gh-terminal .chart .plan { stroke: var(--t-faint); stroke-dasharray: 6 5; stroke-width: 1.5; }
+.gh-terminal .chart .projection { stroke: var(--t-accent); stroke-dasharray: 4 4; stroke-width: 1.5; opacity: 0.7; }
+.gh-terminal .chart .today { stroke: var(--t-strong); stroke-width: 1; opacity: 0.35; }
+.gh-terminal .spark { display: block; }
+.gh-terminal .spark-area { fill: var(--t-accent); opacity: 0.12; }
+.gh-terminal .spark-line { fill: none; stroke: var(--t-accent); stroke-width: 2; }
+.gh-terminal .spark-dot { fill: var(--t-accent); }
+.gh-terminal .legend { display: inline-flex; gap: 14px; font-size: 11px; color: var(--t-muted); }
+.gh-terminal .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.gh-terminal .legend i { width: 10px; height: 10px; display: inline-block; }
+.gh-terminal .legend i.c1 { background: var(--t-accent); }
+.gh-terminal .legend i.c2 { background: var(--t-series-2); }
+.gh-terminal .legend i.c3 { border: 1px dashed var(--t-faint); }
+.gh-terminal .legend i.good { background: var(--t-good); }
+.gh-terminal .legend i.c4 { background: var(--t-track); border: 1px solid var(--t-line-strong); }
 
-/* Value by stage — columns, value on top, count/share on hover. */
-.gh-terminal .gh-term-stagecols { display: grid; grid-template-columns: repeat(var(--n, 5), 1fr); gap: 20px; padding-top: 4px; }
-.gh-terminal .gh-term-stagecol { display: grid; justify-items: center; gap: 10px; text-align: center; }
-.gh-terminal .gh-term-stagecol-val { font-size: 14px; font-weight: 500; color: var(--t-strong); font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-stagecol-track { display: flex; align-items: flex-end; width: 100%; max-width: 110px; height: 170px; background: var(--t-track); }
-.gh-terminal .gh-term-stagecol-track i { display: block; width: 100%; background: var(--t-accent); transition: height 0.9s var(--gh-ease), filter var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-stagecol:hover .gh-term-stagecol-track i { filter: brightness(1.12); }
-.gh-terminal .gh-term-stagecol-name { font-size: 12px; color: var(--t-muted); }
-.gh-terminal .gh-term-stagecol-more { font-size: 11px; color: var(--t-faint); opacity: 0; transition: opacity var(--gh-duration-fast) var(--gh-ease); white-space: nowrap; }
-.gh-terminal .gh-term-stagecol:hover .gh-term-stagecol-more,
-.gh-terminal .gh-term-stagecol:focus-visible .gh-term-stagecol-more { opacity: 1; }
+.gh-terminal .threshold { padding: 4px 0 22px; }
+.gh-terminal .threshold-track { position: relative; height: 14px; background: var(--t-track); }
+.gh-terminal .threshold-track > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); transition: width 1s var(--ease); }
+.gh-terminal .threshold-track > i[data-tone="warn"] { background: var(--t-warn); }
+.gh-terminal .threshold-track > i[data-tone="bad"] { background: var(--t-bad); }
+.gh-terminal .threshold-mark { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--t-line-strong); }
+.gh-terminal .threshold-mark.end { background: var(--t-bad); width: 2px; }
+.gh-terminal .threshold-mark em { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; color: var(--t-muted); white-space: nowrap; }
+.gh-terminal .threshold-mark.end em { color: var(--t-bad); font-weight: 700; transform: translateX(-100%); }
 
-/* This week — seven-day strip. */
-.gh-terminal .gh-term-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--t-line); }
-.gh-terminal .gh-term-week > div { background: var(--t-panel); padding: 14px; min-height: 104px; min-width: 0; }
-.gh-terminal .gh-term-week .d { font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); margin-bottom: 8px; }
-.gh-terminal .gh-term-week .d[data-today] { color: var(--t-accent); }
-.gh-terminal .gh-term-week .e { font-size: 12px; color: var(--t-strong); line-height: 1.3; margin-bottom: 10px; overflow-wrap: anywhere; }
-.gh-terminal .gh-term-week .e small { display: block; color: var(--t-muted); font-size: 10px; }
-.gh-terminal .gh-term-week .none { font-size: 11px; color: var(--t-faint); }
+.gh-terminal .bullets { display: grid; gap: 12px; }
+.gh-terminal .bullet { display: grid; grid-template-columns: 110px 1fr 130px; align-items: center; gap: 12px; font-size: 13px; }
+.gh-terminal .bullet-track { position: relative; height: 18px; }
+.gh-terminal .bullet-target { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-track); border: 1px solid var(--t-line-strong); }
+.gh-terminal .bullet-actual { position: absolute; left: 0; top: 5px; bottom: 5px; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-terminal .bullet-actual[data-over] { background: var(--t-bad); }
+.gh-terminal .bullet-tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--t-strong); opacity: 0.6; }
+.gh-terminal .bullet-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--t-strong); }
+.gh-terminal .bullet-val small { color: var(--t-muted); }
+.gh-terminal .bullet-val[data-over] { color: var(--t-bad); }
 
-/* Client tiles (master-control portraits). */
-.gh-terminal .gh-term-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
-.gh-terminal .gh-term-tile { display: flex; flex-direction: column; background: var(--t-panel); border: 1px solid var(--t-line); transition: border-color var(--gh-duration-fast) var(--gh-ease), transform var(--gh-duration-fast) var(--gh-ease); }
-.gh-terminal .gh-term-tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
-.gh-terminal .gh-term-tile-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
-.gh-terminal .gh-term-banner {
-  --tint: var(--t-accent);
-  position: relative;
-  display: grid;
-  place-items: center;
-  height: 104px;
-  background-color: color-mix(in srgb, var(--tint) 12%, var(--t-panel));
+.gh-terminal .stagebars { display: grid; gap: 2px; }
+.gh-terminal .stagebar { display: grid; grid-template-columns: 120px 1fr 28px 64px 64px; align-items: center; gap: 12px; padding: 7px 4px; text-align: left; font-size: 13px; }
+.gh-terminal .stagebar:hover { background: var(--t-panel-2); }
+.gh-terminal .stagebar-track { height: 12px; background: var(--t-track); }
+.gh-terminal .stagebar-track i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-terminal .stagebar-count { text-align: right; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .stagebar-val { text-align: right; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .stagebar-w { text-align: right; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .stagebars-head { display: grid; grid-template-columns: 120px 1fr 28px 64px 64px; gap: 12px; padding: 0 4px 6px; }
+.gh-terminal .stagebars-head span { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-faint); text-align: right; }
+.gh-terminal .stagebars-head span:first-child { text-align: left; }
+
+.gh-terminal .cells { display: inline-flex; gap: 3px; }
+.gh-terminal .cells i { position: relative; width: 22px; height: 10px; background: var(--t-track); overflow: hidden; }
+.gh-terminal .cells b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); }
+
+/* ─── Due / lists ─────────────────────────────────────────────────────── */
+.gh-terminal .due { display: grid; }
+.gh-terminal .due a, .gh-terminal .due button { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--t-line); font-size: 13px; text-align: left; width: 100%; }
+.gh-terminal .due > :last-child { border-bottom: 0; }
+.gh-terminal .due a:hover, .gh-terminal .due button:hover { color: var(--t-accent); }
+.gh-terminal .due svg { flex-shrink: 0; color: var(--t-bad); }
+.gh-terminal .due svg[data-tone="warn"] { color: var(--t-warn); }
+.gh-terminal .due .go { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); }
+
+/* ─── Client tiles (MCT grid) & list ──────────────────────────────────── */
+.gh-terminal .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.gh-terminal .tile { display: flex; flex-direction: column; background: var(--t-panel); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-terminal .tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
+.gh-terminal .tile-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .tile-body { padding: 10px 12px 12px; display: grid; gap: 8px; }
+.gh-terminal .tile-meter { display: grid; grid-template-columns: 62px 1fr 56px; align-items: center; gap: 8px; font-size: 11px; color: var(--t-muted); }
+.gh-terminal .tile-meter b { text-align: right; color: var(--t-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gh-terminal .tile-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--t-muted); }
+.gh-terminal .tile-manage { padding: 8px 12px; border-top: 1px solid var(--t-line); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--t-muted); }
+.gh-terminal .tile:hover .tile-manage { color: var(--t-accent); }
+
+.gh-terminal .brand-banner {
+  position: relative; display: grid; place-items: center; overflow: visible;
+  background-color: color-mix(in srgb, var(--tint) 16%, var(--t-panel));
   background-image:
-    radial-gradient(ellipse at 50% 50%, transparent 30%, color-mix(in srgb, var(--gh-bg) 55%, transparent) 100%),
-    linear-gradient(color-mix(in srgb, var(--tint) 30%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--tint) 30%, transparent) 1px, transparent 1px);
+    radial-gradient(ellipse at 50% 50%, transparent 30%, color-mix(in srgb, var(--t-bg) 55%, transparent) 100%),
+    linear-gradient(color-mix(in srgb, var(--tint) 38%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tint) 38%, transparent) 1px, transparent 1px);
   background-size: auto, 18px 18px, 18px 18px;
   background-position: center;
-  border-bottom: 1px solid color-mix(in srgb, var(--tint) 40%, var(--t-line));
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 45%, var(--t-line));
 }
-.gh-terminal .gh-term-banner img { position: relative; max-width: 54%; max-height: 58%; object-fit: contain; }
-.gh-terminal .gh-term-banner-mono { position: relative; font-family: var(--gh-font-display); font-size: 46px; font-weight: 600; color: color-mix(in srgb, var(--tint) 70%, var(--t-strong)); }
-.gh-terminal .gh-term-tile-body { padding: 10px 12px 12px; display: grid; gap: 8px; }
-.gh-terminal .gh-term-tile-meter { display: grid; grid-template-columns: 62px 1fr 56px; align-items: center; gap: 8px; font-size: 11px; color: var(--t-muted); }
-.gh-terminal .gh-term-tile-meter b { text-align: right; color: var(--t-text); font-weight: 500; font-variant-numeric: tabular-nums; }
-.gh-terminal .gh-term-trend { font-size: 9px; }
-.gh-terminal .gh-term-trend[data-trend="up"] { color: var(--gh-success); }
-.gh-terminal .gh-term-trend[data-trend="down"] { color: var(--gh-danger); }
-.gh-terminal .gh-term-trend[data-trend="flat"] { color: var(--t-muted); }
-.gh-terminal .gh-term-tile-manage { padding: 8px 12px; border-top: 1px solid var(--t-line-soft); font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--t-faint); }
-.gh-terminal .gh-term-tile:hover .gh-term-tile-manage { color: var(--t-accent); }
+.gh-terminal .brand-banner img { position: relative; max-width: 54%; max-height: 58%; object-fit: contain; }
+.gh-terminal .brand-mono { position: relative; font-family: var(--f-display); font-size: 46px; font-weight: 600; color: color-mix(in srgb, var(--tint) 70%, var(--t-strong)); text-shadow: 0 2px 18px color-mix(in srgb, var(--t-bg) 70%, transparent); }
+.gh-terminal .brand-edit { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; display: grid; place-items: center; background: color-mix(in srgb, var(--t-bg) 80%, transparent); border: 1px solid var(--t-line-strong); color: var(--t-strong); }
+.gh-terminal .brand-edit:hover { border-color: var(--t-accent); color: var(--t-accent); }
+.gh-terminal .brand-pop { position: absolute; top: 46px; right: 10px; z-index: 5; width: 290px; padding: 12px; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); box-shadow: var(--t-shadow); display: grid; gap: 8px; }
+.gh-terminal .brand-dot { width: 10px; height: 10px; flex-shrink: 0; border: 1px solid rgba(0, 0, 0, 0.2); }
 
-/* Pop-up (GST detail) */
-.gh-terminal .gh-term-scrim { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); }
-.gh-terminal .gh-term-modal { width: min(560px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); }
-.gh-terminal .gh-term-modal-head { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 8px 0 18px; border-bottom: 1px solid var(--t-line); }
-.gh-terminal .gh-term-modal-body { padding: 18px; display: grid; gap: 16px; }
-.gh-terminal .gh-term-threshold { position: relative; height: 14px; margin-bottom: 22px; background: var(--t-track); }
-.gh-terminal .gh-term-threshold > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); }
-.gh-terminal .gh-term-threshold > i[data-tone="warn"] { background: var(--gh-warning); }
-.gh-terminal .gh-term-threshold > i[data-tone="bad"] { background: var(--gh-danger); }
-.gh-terminal .gh-term-threshold span { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--t-line-strong); }
-.gh-terminal .gh-term-threshold span em { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; color: var(--t-muted); white-space: nowrap; }
+/* ─── Tasks ───────────────────────────────────────────────────────────── */
+.gh-terminal .tasklayout { display: grid; grid-template-columns: 250px 1fr; gap: 14px; align-items: start; }
+.gh-terminal .lists { position: sticky; top: 0; }
+.gh-terminal .lists .grouplabel { padding: 12px 12px 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-faint); }
+.gh-terminal .listbtn { display: flex; align-items: center; gap: 9px; width: 100%; height: 34px; padding: 0 12px; font-size: 13px; text-align: left; border-left: 2px solid transparent; }
+.gh-terminal .listbtn:hover { background: var(--t-panel-2); }
+.gh-terminal .listbtn[data-active] { background: var(--t-accent-dim); border-left-color: var(--t-accent); color: var(--t-strong); font-weight: 600; }
+.gh-terminal .listbtn .count { margin-left: auto; font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .listbtn .count[data-tone="bad"] { color: var(--t-bad); font-weight: 700; }
+.gh-terminal .listbtn svg { color: var(--t-muted); }
 
+.gh-terminal .taskrow { display: grid; grid-template-columns: auto 1fr auto auto auto auto; align-items: center; gap: 14px; min-height: 48px; padding: 6px 14px; border-bottom: 1px solid var(--t-line); }
+.gh-terminal .taskrow:hover { background: var(--t-panel-2); }
+.gh-terminal .taskrow[data-done] .task-title { color: var(--t-faint); text-decoration: line-through; }
+.gh-terminal .task-title { font-size: 14px; color: var(--t-strong); cursor: pointer; }
+.gh-terminal .task-sub { font-size: 12px; color: var(--t-muted); margin-top: 2px; }
+.gh-terminal .task-detail { grid-column: 2 / -1; padding: 4px 0 10px; font-size: 13px; color: var(--t-muted); line-height: 1.5; }
+.gh-terminal .completebtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--t-line-strong);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted);
+}
+.gh-terminal .completebtn:hover { border-color: var(--t-good); color: var(--t-good); }
+.gh-terminal .completebtn[data-done] { background: var(--t-good); border-color: var(--t-good); color: var(--t-accent-ink); }
+.gh-terminal .prio { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.gh-terminal .prio[data-p="high"] { background: var(--t-bad); }
+.gh-terminal .prio[data-p="normal"] { background: var(--t-warn); }
+.gh-terminal .prio[data-p="low"] { background: var(--t-good); }
+.gh-terminal .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; background: var(--t-panel-3); font-size: 11px; color: var(--t-text); white-space: nowrap; }
+.gh-terminal .star { color: var(--t-faint); }
+.gh-terminal .star[data-on] { color: var(--t-accent); }
+.gh-terminal .quickadd { display: flex; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--t-line); background: var(--t-panel-2); }
+
+.gh-terminal .board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.gh-terminal .bcol { background: var(--t-panel); border: 1px solid var(--t-line); min-height: 200px; }
+.gh-terminal .bcol-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .bcol-head .count { margin-left: auto; color: var(--t-muted); }
+.gh-terminal .bcard { margin: 8px; padding: 10px; background: var(--t-panel-2); border: 1px solid var(--t-line); font-size: 13px; }
+.gh-terminal .bcard:hover { border-color: var(--t-line-strong); }
+.gh-terminal .bcard .row { margin-top: 8px; font-size: 11px; color: var(--t-muted); }
+
+/* ─── Calendar ────────────────────────────────────────────────────────── */
+.gh-terminal .cal { display: grid; grid-template-columns: 56px repeat(7, 1fr); }
+.gh-terminal .cal-head { padding: 10px 8px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted); text-align: center; }
+.gh-terminal .cal-head[data-today] { color: var(--t-accent); border-bottom: 2px solid var(--t-accent); }
+.gh-terminal .cal-hours { display: grid; }
+.gh-terminal .cal-hour { height: 48px; padding: 2px 8px 0 0; font-size: 10px; color: var(--t-faint); text-align: right; border-top: 1px solid var(--t-line); }
+.gh-terminal .cal-day { position: relative; border-left: 1px solid var(--t-line); }
+.gh-terminal .cal-day .slot { height: 48px; border-top: 1px solid var(--t-line); }
+.gh-terminal .cal-day[data-today] { background: color-mix(in srgb, var(--t-accent) 5%, transparent); }
+.gh-terminal .cal-ev { position: absolute; left: 3px; right: 3px; padding: 4px 6px; font-size: 11px; line-height: 1.3; overflow: hidden; border-left: 3px solid var(--t-accent); background: var(--t-accent-dim); color: var(--t-strong); }
+.gh-terminal .cal-ev small { display: block; color: var(--t-muted); }
+.gh-terminal .cal-ev[data-kind="sales"] { border-left-color: var(--t-good); }
+.gh-terminal .cal-ev[data-kind="internal"] { border-left-color: var(--t-series-2); background: var(--t-panel-3); }
+.gh-terminal .cal-ev[data-kind="personal"] { border-left-color: var(--t-faint); background: var(--t-panel-3); }
+
+.gh-terminal .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--t-line); }
+.gh-terminal .week > div { background: var(--t-panel); padding: 10px; min-height: 86px; }
+.gh-terminal .week .d { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); margin-bottom: 6px; }
+.gh-terminal .week .d[data-today] { color: var(--t-accent); }
+.gh-terminal .week .e { font-size: 12px; color: var(--t-strong); line-height: 1.3; margin-bottom: 6px; }
+.gh-terminal .week .e small { display: block; color: var(--t-muted); font-size: 10px; }
+
+/* ─── Triage ──────────────────────────────────────────────────────────── */
+.gh-terminal .triage { display: grid; grid-template-columns: 200px 380px 1fr; min-height: 560px; }
+.gh-terminal .triage > * { min-width: 0; }
+.gh-terminal .triage .col + .col { border-left: 1px solid var(--t-line); }
+.gh-terminal .mail { display: block; width: 100%; padding: 12px 14px; border-bottom: 1px solid var(--t-line); text-align: left; }
+.gh-terminal .mail:hover { background: var(--t-panel-2); }
+.gh-terminal .mail[data-active] { background: var(--t-accent-dim); box-shadow: inset 2px 0 0 var(--t-accent); }
+.gh-terminal .mail-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--t-strong); }
+.gh-terminal .mail[data-unread] .mail-top b { font-weight: 700; }
+.gh-terminal .mail-top b { font-weight: 500; }
+.gh-terminal .mail-subj { font-size: 13px; margin-top: 2px; }
+.gh-terminal .mail-snip { font-size: 12px; color: var(--t-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gh-terminal .reader { padding: 20px 24px; }
+.gh-terminal .reader h2 { font-size: 18px; font-weight: 600; color: var(--t-strong); }
+.gh-terminal .reader .from { margin: 6px 0 18px; font-size: 13px; color: var(--t-muted); }
+.gh-terminal .reader .body { font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+
+/* ─── Kanban (ideation) & cards ───────────────────────────────────────── */
+.gh-terminal .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gh-terminal .card { padding: 14px; background: var(--t-panel); border: 1px solid var(--t-line); display: grid; gap: 8px; align-content: start; }
+.gh-terminal .card h3 { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-terminal .card p { font-size: 13px; color: var(--t-muted); line-height: 1.5; }
+
+/* ─── Portraits (nightclub staff strip) ───────────────────────────────── */
+.gh-terminal .portraits { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.gh-terminal .portrait { position: relative; aspect-ratio: 1; overflow: hidden; background: linear-gradient(180deg, var(--t-panel-3), var(--t-panel)); border: 2px solid var(--t-line); text-align: left; }
+.gh-terminal .portrait svg.bust { position: absolute; left: 12%; bottom: -6%; width: 76%; color: var(--t-line-strong); }
+.gh-terminal .portrait[data-state="active"] { border-color: var(--t-accent); }
+.gh-terminal .portrait[data-state="active"] svg.bust { color: var(--t-accent); opacity: 0.75; }
+.gh-terminal .portrait .who { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; background: color-mix(in srgb, var(--t-bg) 85%, transparent); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .portrait .who small { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--t-muted); }
+.gh-terminal .portrait .tag { position: absolute; top: 6px; left: 6px; }
+.gh-terminal .portrait[data-state="open"] { border-style: dashed; display: grid; place-items: center; color: var(--t-muted); font-size: 13px; font-weight: 600; }
+
+/* ─── Timeline / channels ─────────────────────────────────────────────── */
+.gh-terminal .timeline { display: grid; }
+.gh-terminal .timeline > div { position: relative; display: grid; grid-template-columns: 110px 1fr; gap: 14px; padding: 9px 0 9px; border-bottom: 1px solid var(--t-line); font-size: 13px; }
+.gh-terminal .timeline > div:last-child { border-bottom: 0; }
+.gh-terminal .timeline time { font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-terminal .channels { display: grid; gap: 1px; }
+.gh-terminal .channel { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--t-line); font-size: 13px; }
+.gh-terminal .channel:last-child { border-bottom: 0; }
+.gh-terminal .channel .label { margin-left: auto; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--t-good); flex-shrink: 0; }
+.gh-terminal .sdot[data-s="warn"] { background: var(--t-warn); }
+.gh-terminal .sdot[data-s="down"] { background: var(--t-bad); }
+
+.gh-terminal .healthparts { display: grid; gap: 10px; }
+.gh-terminal .healthpart { display: grid; grid-template-columns: 120px 1fr 34px; align-items: center; gap: 12px; font-size: 13px; }
+.gh-terminal .healthpart b { text-align: right; font-variant-numeric: tabular-nums; color: var(--t-strong); font-weight: 600; }
+
+/* Client profile header */
+.gh-terminal .profile-head { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; padding: 16px; border-top: 0; }
+.gh-terminal .profile-head h2 { font-size: 24px; font-weight: 600; color: var(--t-strong); }
+.gh-terminal .profile-facts { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--t-muted); }
+.gh-terminal .profile-facts b { color: var(--t-strong); font-weight: 600; }
+.gh-terminal .tabbar { display: flex; gap: 0; border-bottom: 1px solid var(--t-line); overflow-x: auto; }
+.gh-terminal .tabbar button { height: 40px; padding: 0 16px; font-size: 13px; color: var(--t-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.gh-terminal .tabbar button:hover { color: var(--t-strong); }
+.gh-terminal .tabbar button[data-active] { color: var(--t-strong); border-bottom-color: var(--t-accent); font-weight: 600; }
+
+/* Modal */
+.gh-terminal .modal-scrim { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); animation: t-fade 0.15s var(--ease); }
+.gh-terminal .modal { width: min(560px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); box-shadow: var(--t-shadow); animation: t-pop 0.18s var(--ease); }
+.gh-terminal .modal[data-wide] { width: min(820px, 100%); }
+.gh-terminal .modal-head { display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; min-height: 44px; border-bottom: 1px solid var(--t-line); background: var(--t-panel-2); }
+.gh-terminal .modal-head .iconbtn { margin-left: auto; border: 0; }
+.gh-terminal .modal-body { padding: 16px; overflow-y: auto; display: grid; gap: 16px; }
+@keyframes t-fade { from { opacity: 0; } }
+@keyframes t-pop { from { opacity: 0; transform: translateY(8px) scale(0.99); } }
+
+.gh-terminal .stepper { display: flex; gap: 3px; }
+.gh-terminal .stepper span { flex: 1; height: 26px; display: grid; place-items: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: var(--t-track); color: var(--t-muted); white-space: nowrap; overflow: hidden; padding: 0 4px; }
+.gh-terminal .stepper span[data-done] { background: var(--t-accent-dim); color: var(--t-accent); }
+.gh-terminal .stepper span[data-current] { background: var(--t-accent); color: var(--t-accent-ink); }
+
+.gh-terminal .empty { display: grid; justify-items: center; gap: 6px; padding: 36px 16px; text-align: center; color: var(--t-muted); }
+.gh-terminal .empty-title { font-size: 14px; font-weight: 600; color: var(--t-strong); }
+
+.gh-terminal .swatch-lg { height: 86px; display: flex; align-items: flex-end; padding: 8px; font-size: 11px; font-weight: 600; border: 1px solid var(--t-line); }
+
+.gh-terminal .note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; background: var(--t-accent-dim); border-left: 2px solid var(--t-accent); font-size: 12px; line-height: 1.5; color: var(--t-text); }
+.gh-terminal .note svg { color: var(--t-accent); flex-shrink: 0; margin-top: 1px; }
+
+/* ─── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 1280px) {
-  .gh-terminal .gh-term-grid--4 { grid-template-columns: repeat(2, 1fr); }
-  .gh-terminal .gh-term-hero { grid-template-columns: auto 1fr; }
-  .gh-terminal .gh-term-mini { grid-column: 1 / -1; }
+  .gh-terminal .g-4 { grid-template-columns: repeat(2, 1fr); }
+  .gh-terminal .g-side { grid-template-columns: 1fr; }
+  .gh-terminal .triage { grid-template-columns: 180px 1fr; }
+  .gh-terminal .triage .reader-col { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--t-line); }
 }
 @media (max-width: 1000px) {
-  .gh-terminal .gh-term-grid--lead,
-  .gh-terminal .gh-term-grid--2-1 { grid-template-columns: 1fr; }
-  .gh-terminal .gh-term-week { grid-template-columns: repeat(2, 1fr); }
+  .gh-terminal .search { display: none; }
+  .gh-terminal .g-lead, .gh-terminal .g-3, .gh-terminal .g-rail, .gh-terminal .g-catalog { grid-template-columns: 1fr; }
+  .gh-terminal .tasklayout { grid-template-columns: 1fr; }
+  .gh-terminal .lists { position: static; }
 }
-@media (max-width: 640px) {
-  .gh-terminal .gh-term-home { gap: 18px; }
-  .gh-terminal .gh-term-grid--4 { grid-template-columns: 1fr; }
-  .gh-terminal .gh-term-hero { grid-template-columns: 1fr; padding: 20px; }
-  .gh-terminal .gh-term-hero-value { font-size: 44px; }
-  .gh-terminal .gh-term-stagecols { gap: 8px; }
-  .gh-terminal .gh-term-stagecol-track { height: 120px; }
-  .gh-terminal .gh-term-stagecol-name { font-size: 10px; }
-  .gh-terminal .gh-term-stagecol-more { display: none; }
-  .gh-terminal .gh-term-week { grid-template-columns: 1fr; }
+@media (max-width: 860px) {
+  .gh-terminal { overflow: auto; }
+  .gh-terminal .app { height: auto; min-height: 100%; }
+  .gh-terminal .body { grid-template-columns: 1fr; }
+  .gh-terminal .rail { flex-direction: row; overflow-x: auto; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--t-line); }
+  .gh-terminal .rail .idcard, .gh-terminal .rail .navgroup { display: none; }
+  .gh-terminal .navbtn { width: auto; white-space: nowrap; }
+  .gh-terminal .content { overflow: visible; }
+  .gh-terminal .screen { padding: 14px 16px 32px; }
+  .gh-terminal .header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  .gh-terminal .whoami .label, .gh-terminal .wordmark .sub { display: none; }
+  .gh-terminal .g-2, .gh-terminal .g-4, .gh-terminal .form-grid { grid-template-columns: 1fr; }
+  .gh-terminal .hero { grid-template-columns: 1fr; }
+  .gh-terminal .hero .spark { grid-row: auto; grid-column: auto; height: 48px; }
+  .gh-terminal .hero-value { font-size: 44px; }
+  .gh-terminal .split { grid-template-columns: 1fr 1fr; }
+  .gh-terminal .split > div:nth-child(3) { border-left: 0; }
+  .gh-terminal .taskrow { grid-template-columns: auto 1fr auto; }
+  .gh-terminal .taskrow .hide-sm { display: none; }
+  .gh-terminal .triage { grid-template-columns: 1fr; }
+  .gh-terminal .triage .col + .col { border-left: 0; border-top: 1px solid var(--t-line); }
+  .gh-terminal .stagebar, .gh-terminal .stagebars-head { grid-template-columns: 96px 1fr 22px 56px; }
+  .gh-terminal .stagebar-w, .gh-terminal .stagebars-head span:last-child { display: none; }
+  .gh-terminal .bullet { grid-template-columns: 1fr; gap: 4px; }
+  .gh-terminal .bullet-val { text-align: left; }
+  .gh-terminal .cal { grid-template-columns: 40px repeat(7, minmax(90px, 1fr)); overflow-x: auto; }
+  .gh-terminal .week { grid-template-columns: 1fr; }
+  .gh-terminal .profile-head { grid-template-columns: 1fr; }
+  .gh-terminal .profile-head .stack { align-items: flex-start !important; }
+  .gh-terminal .health-top { grid-template-columns: 1fr; }
+  .gh-terminal .healthpart { grid-template-columns: 100px 1fr 30px; }
+  .gh-terminal .completebtn { padding: 0 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-terminal *, .gh-terminal *::before, .gh-terminal *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+
+/* ─── Header dropdowns (alerts, inquiries) ────────────────────────────── */
+.gh-terminal .hdr-drop { position: relative; }
+.gh-terminal .dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; max-height: 70vh; overflow-y: auto; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); box-shadow: var(--t-shadow); animation: t-pop 0.15s var(--ease); }
+.gh-terminal .dropdown-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--t-line); background: var(--t-panel-2); }
+.gh-terminal .dropdown-item { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: start; width: 100%; padding: 11px 14px; border-bottom: 1px solid var(--t-line); text-align: left; font-size: 13px; }
+.gh-terminal .dropdown-item:hover { background: var(--t-panel-2); }
+.gh-terminal .dropdown-item:last-child { border-bottom: 0; }
+.gh-terminal .dropdown-item small { display: block; color: var(--t-muted); font-size: 12px; margin-top: 2px; }
+.gh-terminal .dropdown-foot { display: block; width: 100%; padding: 10px 14px; border-top: 1px solid var(--t-line); font-size: 12px; font-weight: 600; color: var(--t-accent); text-align: center; }
+
+.gh-terminal .inq-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--t-line); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); transition: color 0.15s var(--ease), border-color 0.15s var(--ease); }
+.gh-terminal .inq-btn:hover { color: var(--t-strong); border-color: var(--t-line-strong); }
+.gh-terminal .inq-btn .n { min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; background: var(--t-track); color: var(--t-strong); font-size: 10px; letter-spacing: 0; }
+.gh-terminal .inq-btn[data-new] { color: var(--t-accent-ink); background: var(--t-accent); border-color: var(--t-accent); animation: t-inq-glow 1.6s ease-in-out infinite; }
+.gh-terminal .inq-btn[data-new] .n { background: var(--t-accent-ink); color: var(--t-accent); }
+@keyframes t-inq-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--t-accent) 0%, transparent), 0 0 8px color-mix(in srgb, var(--t-accent) 40%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--t-accent) 22%, transparent), 0 0 22px color-mix(in srgb, var(--t-accent) 65%, transparent); }
+}
+
+/* Small clickable metric inside the MRR hero (GST threshold). */
+.gh-terminal .hero { grid-template-columns: auto 1fr 250px; }
+.gh-terminal .hero .spark { grid-row: 1; grid-column: 2; }
+.gh-terminal .mini-metric { grid-row: 1; grid-column: 3; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px 14px; background: var(--t-panel-2); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease); }
+.gh-terminal .mini-metric:hover { border-color: var(--t-accent); }
+.gh-terminal .mini-metric .row { justify-content: space-between; }
+.gh-terminal .mini-metric b { font-size: 15px; color: var(--t-strong); font-weight: 600; }
+
+/* ─── Pipeline stage tiles (hangar layout, no fill rings) ─────────────── */
+.gh-terminal .stagetiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.gh-terminal .stagetile { display: flex; flex-direction: column; gap: 6px; padding: 16px 14px; background: var(--t-panel); border: 1px solid var(--t-line); text-align: left; min-height: 150px; transition: border-color 0.15s var(--ease), background 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-terminal .stagetile:hover { border-color: var(--t-line-strong); transform: translateY(-2px); }
+.gh-terminal .stagetile[data-active] { border-color: var(--t-accent); background: color-mix(in srgb, var(--t-accent) 7%, var(--t-panel)); }
+.gh-terminal .stagetile .name { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .stagetile .n { font-family: var(--f-display); font-size: 52px; font-weight: 600; line-height: 1; color: var(--t-accent); margin-top: auto; }
+.gh-terminal .stagetile .v { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-terminal .stagetile .w { font-size: 12px; color: var(--t-muted); }
+.gh-terminal .stagetiles.closed { grid-template-columns: repeat(3, 1fr); }
+.gh-terminal .stagetiles.closed .stagetile { min-height: 0; flex-direction: row; align-items: center; gap: 14px; padding: 12px 14px; }
+.gh-terminal .stagetiles.closed .n { font-size: 30px; margin: 0 0 0 auto; color: var(--t-muted); }
+
+/* ─── Calendar month view ─────────────────────────────────────────────── */
+.gh-terminal .month { display: grid; grid-template-columns: repeat(7, 1fr); }
+.gh-terminal .month-head { padding: 8px 10px; border-bottom: 1px solid var(--t-line); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .month-day { min-height: 104px; padding: 6px 8px; border-right: 1px solid var(--t-line); border-bottom: 1px solid var(--t-line); }
+.gh-terminal .month-day:nth-child(7n) { border-right: 0; }
+.gh-terminal .month-day[data-out] { background: var(--t-bg-2); }
+.gh-terminal .month-day[data-out] .dn { color: var(--t-faint); }
+.gh-terminal .month-day .dn { font-size: 12px; font-weight: 600; color: var(--t-text); margin-bottom: 4px; }
+.gh-terminal .month-day[data-today] .dn { display: inline-grid; place-items: center; min-width: 22px; height: 22px; background: var(--t-accent); color: var(--t-accent-ink); }
+.gh-terminal .month-ev { display: block; margin-bottom: 3px; padding: 2px 5px; font-size: 11px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 2px solid var(--t-accent); background: var(--t-accent-dim); color: var(--t-strong); }
+.gh-terminal .month-ev[data-kind="sales"] { border-left-color: var(--t-good); }
+.gh-terminal .month-ev[data-kind="internal"], .gh-terminal .month-ev[data-kind="personal"] { border-left-color: var(--t-series-2); background: var(--t-panel-3); }
+
+/* ─── Pricing (module tiles, like the real page) ──────────────────────── */
+.gh-terminal .modhead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding: 4px 0 10px; border-bottom: 1px solid var(--t-line); margin-bottom: 12px; }
+.gh-terminal .modcode { font-family: var(--f-display); font-size: 30px; font-weight: 600; color: var(--t-accent); line-height: 1; }
+.gh-terminal .modname { font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-terminal .modfocus { font-size: 13px; color: var(--t-muted); }
+.gh-terminal .ptiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1px; background: var(--t-line); border: 1px solid var(--t-line); }
+.gh-terminal .ptile { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--t-panel); }
+.gh-terminal .ptile:hover { background: var(--t-panel-2); }
+.gh-terminal .ptile-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.gh-terminal .ptile-name { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-terminal .rate-label { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-terminal .rate-val { font-size: 18px; font-weight: 600; color: var(--t-accent); font-variant-numeric: tabular-nums; }
+.gh-terminal .rate-val.plain { color: var(--t-strong); font-size: 15px; }
+.gh-terminal .ptile details summary { cursor: pointer; font-size: 12px; color: var(--t-muted); list-style: none; }
+.gh-terminal .ptile details summary::-webkit-details-marker { display: none; }
+.gh-terminal .ptile details[open] summary { color: var(--t-accent); margin-bottom: 10px; }
+.gh-terminal .ptile details .stack { gap: 8px; }
+.gh-terminal .suggested { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; background: var(--t-accent-dim); border: 1px dashed var(--t-accent); }
+
+/* ─── Client profile: service tiles, feature grid, readiness ──────────── */
+.gh-terminal .svc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.gh-terminal .svc-tile { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--t-panel-2); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-terminal .svc-tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
+.gh-terminal .svc-tile .nm { font-size: 14px; font-weight: 600; color: var(--t-strong); }
+.gh-terminal .svc-tile .pr { font-size: 13px; color: var(--t-accent); font-variant-numeric: tabular-nums; }
+.gh-terminal .svc-tile.add { align-items: center; justify-content: center; border-style: dashed; color: var(--t-muted); min-height: 96px; }
+.gh-terminal .feature-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+.gh-terminal .checklist { display: grid; }
+.gh-terminal .checklist > div { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--t-line); font-size: 13px; }
+.gh-terminal .checklist > div:last-child { border-bottom: 0; }
+.gh-terminal .checklist .ok { color: var(--t-good); }
+.gh-terminal .checklist .miss { color: var(--t-warn); }
+.gh-terminal .kpis { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--t-line); }
+.gh-terminal .kpis > div { padding: 14px 16px; }
+.gh-terminal .kpis > div + div { border-left: 1px solid var(--t-line); }
+.gh-terminal .kpis .n { font-size: 24px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .kpis .l { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); margin-top: 2px; }
+
+/* ─── Analytics presets (MCT tiles) ───────────────────────────────────── */
+.gh-terminal .presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.gh-terminal .preset { display: flex; flex-direction: column; gap: 6px; padding: 14px; min-height: 96px; background: var(--t-panel); border: 1px solid var(--t-line-strong); text-align: left; transition: border-color 0.15s var(--ease), background 0.15s var(--ease); }
+.gh-terminal .preset:hover { border-color: var(--t-accent); }
+.gh-terminal .preset svg { color: var(--t-accent); }
+.gh-terminal .preset b { font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); margin-top: auto; }
+.gh-terminal .preset small { font-size: 12px; color: var(--t-muted); }
+.gh-terminal .preset[data-active] { background: var(--t-accent); border-color: var(--t-accent); }
+.gh-terminal .preset[data-active] svg, .gh-terminal .preset[data-active] b, .gh-terminal .preset[data-active] small { color: var(--t-accent-ink); }
+
+.gh-terminal .hbars { display: grid; gap: 8px; }
+.gh-terminal .hbar { display: grid; grid-template-columns: 150px 1fr 60px; gap: 12px; align-items: center; font-size: 13px; }
+.gh-terminal .hbar-track { height: 12px; background: var(--t-track); }
+.gh-terminal .hbar-track i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-terminal .hbar b { text-align: right; color: var(--t-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1280px) {
+  .gh-terminal .stagetiles { grid-template-columns: repeat(3, 1fr); }
+  .gh-terminal .presets { grid-template-columns: repeat(3, 1fr); }
+  .gh-terminal .hero { grid-template-columns: auto 1fr; }
+  .gh-terminal .mini-metric { grid-row: 2; grid-column: 1 / -1; }
+}
+/* ─── Calm layer ──────────────────────────────────────────────────────────
+   Same widgets, less load: one gold focal point per area, no looping
+   motion, more air between blocks, quieter secondary text, and detail
+   numbers folded behind a click instead of all on screen at once. */
+
+/* Air */
+.gh-terminal .screen { padding: 28px 34px 64px; gap: 24px; }
+.gh-terminal .grid, .gh-terminal .stack { gap: 20px; }
+.gh-terminal .panel-pad { padding: 22px 24px; }
+.gh-terminal .phead { min-height: 46px; padding: 0 22px; background: transparent; border-bottom-color: color-mix(in srgb, var(--t-line) 70%, transparent); }
+.gh-terminal .ptitle { color: var(--t-muted); }
+.gh-terminal .phead svg { opacity: 0.8; }
+.gh-terminal .hero { padding: 26px 28px; gap: 6px 36px; }
+.gh-terminal .stat { gap: 6px; padding: 20px 22px; }
+.gh-terminal .stat[data-accent] { border-top: 1px solid var(--t-line); }
+.gh-terminal .stat-value { font-weight: 500; }
+.gh-terminal .stat-sub { color: var(--t-faint); }
+.gh-terminal .kv > div { padding: 11px 0; font-size: 13px; border-bottom-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-terminal .kv dt { color: var(--t-muted); }
+.gh-terminal .due a, .gh-terminal .due button { padding: 12px 2px; border-bottom-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-terminal .week > div { padding: 14px 14px; min-height: 104px; }
+.gh-terminal .week .e { margin-bottom: 10px; }
+.gh-terminal .tiles { gap: 16px; }
+.gh-terminal .table td { border-bottom-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+
+/* Less texture behind everything */
+.gh-terminal .backdrop::before { opacity: calc(var(--t-pattern) * 0.45); }
+
+/* Header: quieter controls, and the inquiries button marks new ones
+   without pulsing forever. */
+.gh-terminal .search { background: transparent; border-color: color-mix(in srgb, var(--t-line) 70%, transparent); }
+.gh-terminal .iconbtn { border-color: transparent; }
+.gh-terminal .iconbtn:hover { border-color: var(--t-line); }
+.gh-terminal .iconbtn .pip { background: var(--t-accent); color: var(--t-accent-ink); }
+.gh-terminal .inq-btn { border-color: transparent; }
+.gh-terminal .inq-btn[data-new] { animation: none; background: transparent; color: var(--t-accent); border-color: color-mix(in srgb, var(--t-accent) 55%, transparent); }
+.gh-terminal .inq-btn[data-new] .n { background: var(--t-accent); color: var(--t-accent-ink); }
+
+/* Rail: one gold block (the page you're on); everything else recedes. */
+.gh-terminal .rail { gap: 8px; padding: 20px 16px 24px; }
+.gh-terminal .navbtn { font-size: 13.5px; }
+.gh-terminal .navbtn[data-accent]:not([data-active]) { background: var(--t-panel-3); color: var(--t-text); }
+.gh-terminal .navfolder { margin-top: 14px; letter-spacing: 0.18em; color: var(--t-faint); }
+.gh-terminal .navfolder svg { color: var(--t-faint); }
+.gh-terminal .subitem { height: 30px; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+/* Fold — click-to-expand detail (grid-rows trick animates to auto height). */
+.gh-terminal .fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.22s var(--ease), opacity 0.22s var(--ease); }
+.gh-terminal .fold > * { overflow: hidden; min-height: 0; }
+.gh-terminal .fold[data-open], .gh-terminal [data-open] > .fold { grid-template-rows: 1fr; opacity: 1; }
+.gh-terminal .morebtn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--t-faint); }
+.gh-terminal .morebtn:hover { color: var(--t-accent); }
+.gh-terminal .morebtn svg { transition: transform 0.18s var(--ease); }
+.gh-terminal .morebtn svg[data-open] { transform: rotate(180deg); }
+.gh-terminal .hero .fold .hero-meta { margin-top: 6px; }
+
+.gh-terminal .stat-fold { position: relative; width: 100%; text-align: left; transition: border-color 0.15s var(--ease); }
+.gh-terminal .stat-fold:hover { border-color: var(--t-line-strong); }
+.gh-terminal .stat-chev { position: absolute; top: 18px; right: 18px; color: var(--t-faint); transition: transform 0.18s var(--ease), color 0.15s var(--ease); }
+.gh-terminal .stat-fold:hover .stat-chev { color: var(--t-accent); }
+.gh-terminal .stat-fold[data-open] .stat-chev { transform: rotate(180deg); }
+.gh-terminal .stat-viz { display: block; margin-top: 4px; }
+.gh-terminal .stat-fold .stat-sub { padding-top: 6px; }
+
+/* Due: the row is the link, so "Open" only shows where you're pointing. */
+.gh-terminal .due .go { display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s var(--ease); color: var(--t-accent); }
+.gh-terminal .due a:hover .go, .gh-terminal .due a:focus-visible .go { opacity: 1; }
+
+/* Value by stage — first-draft columns. */
+.gh-terminal .stagecols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; padding-top: 4px; }
+.gh-terminal .stagecol { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.gh-terminal .stagecol-val { font-size: 14px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-terminal .stagecol-track { display: flex; align-items: flex-end; width: 100%; max-width: 110px; height: 170px; background: var(--t-track); }
+.gh-terminal .stagecol-track i { display: block; width: 100%; background: var(--t-accent); transition: height 0.9s var(--ease), filter 0.15s var(--ease); }
+.gh-terminal .stagecol:hover .stagecol-track i { filter: brightness(1.12); }
+.gh-terminal .stagecol-name { font-size: 12px; color: var(--t-muted); }
+.gh-terminal .stagecol-more { font-size: 11px; color: var(--t-faint); opacity: 0; transition: opacity 0.15s var(--ease); white-space: nowrap; }
+.gh-terminal .stagecol:hover .stagecol-more, .gh-terminal .stagecol:focus-visible .stagecol-more { opacity: 1; }
+
+/* Client tiles: the whole tile opens the account, so its label sits back
+   until hover; Home drops the small print. */
+.gh-terminal .tile-manage { color: var(--t-faint); border-top-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-terminal .home .tile-meta { display: none; }
+.gh-terminal .tile-meter b { font-weight: 500; color: var(--t-text); }
+
+@media (max-width: 860px) {
+  .gh-terminal .screen { padding: 18px 16px 40px; gap: 18px; }
+  .gh-terminal .stagecols { gap: 8px; }
+  .gh-terminal .stagecol-track { height: 120px; }
+  .gh-terminal .stagecol-more { display: none; }
+  .gh-terminal .rail { flex-direction: row; overflow-x: auto; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--t-line); }
+  .gh-terminal .rail .navfolder, .gh-terminal .rail .subtree { display: none; }
+  .gh-terminal .navbtn { width: auto; white-space: nowrap; height: 38px; }
+  .gh-terminal .hero { grid-template-columns: 1fr; }
+  .gh-terminal .hero .spark, .gh-terminal .mini-metric { grid-row: auto; grid-column: auto; }
+  .gh-terminal .stagetiles, .gh-terminal .stagetiles.closed, .gh-terminal .presets { grid-template-columns: 1fr 1fr; }
+  .gh-terminal .kpis { grid-template-columns: 1fr 1fr; }
+  .gh-terminal .kpis > div:nth-child(3) { border-left: 0; }
+  .gh-terminal .feature-grid { grid-template-columns: 1fr; }
+  .gh-terminal .hbar { grid-template-columns: 100px 1fr 44px; }
+  .gh-terminal .month-day { min-height: 70px; }
+  .gh-terminal .month-ev { font-size: 9px; }
+  .gh-terminal .inq-btn span.lbl { display: none; }
 }

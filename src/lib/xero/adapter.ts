@@ -15,6 +15,7 @@ export type XeroInvoice = {
   AmountDue?: number;
   AmountPaid?: number;
   CurrencyCode?: string;
+  InvoiceNumber?: string;
 };
 
 export type XeroContact = { ContactID: string; Name: string; EmailAddress?: string };

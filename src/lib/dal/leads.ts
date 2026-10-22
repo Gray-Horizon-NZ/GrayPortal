@@ -1,7 +1,8 @@
 import "server-only";
 import { companies, contacts, emailTemplates } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
-import { withAdminScope, type Tx } from "./session";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { withAdminScope, assertRole, type Tx } from "./session";
+import { withCaller } from "./auth";
 import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/chrome";
 import { renderTemplate } from "./emails";
@@ -85,4 +86,36 @@ async function sendInquiryAcknowledgment(tx: Tx, email: string, firstName: strin
   } catch (err) {
     console.error("Inquiry acknowledgment email failed", err);
   }
+}
+
+/**
+ * Website-form inquiries for the terminal header's Inquiries button: the
+ * companies createLead() made (source "Website inquiry form"), newest
+ * first, each with the contact it created. Admin-only. Which ones Max has
+ * opened is remembered per browser on the client, as in the concept.
+ */
+export async function listWebsiteInquiries(limit = 20) {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    const rows = await tx
+      .select({
+        id: companies.id,
+        companyName: companies.name,
+        website: companies.website,
+        message: companies.notes,
+        createdAt: companies.createdAt,
+        firstName: contacts.firstName,
+        lastName: contacts.lastName,
+        email: contacts.email,
+        phone: contacts.phone,
+      })
+      .from(companies)
+      .leftJoin(contacts, and(eq(contacts.companyId, companies.id), isNull(contacts.deletedAt)))
+      .where(and(eq(companies.source, "Website inquiry form"), isNull(companies.deletedAt)))
+      .orderBy(desc(companies.createdAt))
+      .limit(limit * 2);
+    // One row per company (a company can have more than one contact).
+    const seen = new Set<string>();
+    return rows.filter((r) => !seen.has(r.id) && seen.add(r.id)).slice(0, limit);
+  });
 }
