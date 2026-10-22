@@ -92,6 +92,23 @@ Max`,
   },
 ];
 
+// Google review request, offered once a client's minimum term is served
+// (Max, 2026-10-22). A placeholder until the template is designed.
+export const REVIEW_DRAFTS: EmailDraft[] = [
+  {
+    key: "google_review_request",
+    label: "Google review request (placeholder)",
+    subject: "How are we doing, {{first_name}}?",
+    body: `Hi {{first_name}},
+
+Thanks for working with Gray Horizon. If you've been happy with the work, a quick Google review would mean a lot to a small agency:
+
+[Google review link]
+
+Max`,
+  },
+];
+
 export function fillDraft(text: string, vars: { name: string | null; business?: string | null }): string {
   const first = (vars.name ?? "").trim().split(/\s+/)[0] || "there";
   return text.replaceAll("{{first_name}}", first).replaceAll("{{business}}", vars.business ?? "your business");

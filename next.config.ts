@@ -34,6 +34,13 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "200mb",
     },
   },
+  // Project Incrementum: "Engagements" became "Clients" (Max, 2026-10-22).
+  async redirects() {
+    return [
+      { source: "/incrementum/engagements", destination: "/incrementum/clients", permanent: true },
+      { source: "/incrementum/engagements/:id", destination: "/incrementum/clients/:id", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

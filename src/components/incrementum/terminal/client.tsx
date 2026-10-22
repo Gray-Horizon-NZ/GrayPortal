@@ -243,13 +243,13 @@ export function RailFolders({ folders }: { folders: NavFolder[] }) {
 }
 
 /** The concept's Seg tabs inside a pop-up: panes are server-rendered, only the choice is client state. */
-export function PaneTabs({ tabs, small }: { tabs: { key: string; label: React.ReactNode; pane: React.ReactNode }[]; small?: boolean }) {
+export function PaneTabs({ tabs, small, hangar }: { tabs: { key: string; label: React.ReactNode; pane: React.ReactNode }[]; small?: boolean; hangar?: boolean }) {
   const [cur, setCur] = useState(tabs[0]?.key);
   return (
     <>
-      <div className="seg" data-small={small || undefined} role="tablist">
+      <div className={hangar ? "hangtabs" : "seg"} data-small={small || undefined} role="tablist">
         {tabs.map((t) => (
-          <button key={t.key} type="button" role="tab" aria-selected={cur === t.key} data-active={cur === t.key || undefined} onClick={() => setCur(t.key)}>
+          <button key={t.key} type="button" role="tab" className={hangar ? "hangtab" : undefined} aria-selected={cur === t.key} data-active={cur === t.key || undefined} onClick={() => setCur(t.key)}>
             {t.label}
           </button>
         ))}

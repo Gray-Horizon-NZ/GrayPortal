@@ -3,6 +3,7 @@
 // ("2026-10-22") or timestamps; everything renders in Pacific/Auckland.
 import { money } from "@/lib/incrementum/format";
 import { toNum } from "@/lib/incrementum/pricing";
+import type { IncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 
 /** numeric column (string) → number, null stays null. */
 export const num = (v: string | number | null | undefined) => toNum(v);
@@ -65,3 +66,9 @@ export const PASS_LINE = 700;
 const TINTS = ["#c2a468", "#5fb3c9", "#1f8a70", "#d9487a", "#7b5cd6", "#e8642c"];
 /** A steady tint per record for monogram art. */
 export const tintFor = (id: string) => TINTS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % TINTS.length];
+
+export const healthTone = (h: string) => (h === "good" ? "good" : h === "watch" ? "warn" : "bad");
+/** A client's monthly contractor cost (main + backup). */
+export const engagementCost = (s: IncrementumSnapshot, id: string) => s.state.engagementContractors.filter((ec) => ec.engagementId === id).reduce((a, ec) => a + n0(ec.monthlyCost), 0);
+/** The review email unlocks once the minimum term is served. */
+export const reviewOpen = (e: { minTermEnd: string | null }, today: string) => !!e.minTermEnd && e.minTermEnd <= today;
