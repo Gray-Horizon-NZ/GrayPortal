@@ -11,9 +11,7 @@ import TerminalShell from "@/terminal/Shell";
 import { PREFS_COOKIE } from "@/terminal/prefs";
 import LogoutButton from "./LogoutButton";
 import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
-// Order matters: legacy skin first, then the concept stylesheet (its tokens
-// win), then GrayPortal-only adapter rules.
-import "./terminal-legacy.css";
+// Order matters: the concept stylesheet, then GrayPortal-only adapter rules.
 import "./terminal.css";
 import "./terminal-adapter.css";
 

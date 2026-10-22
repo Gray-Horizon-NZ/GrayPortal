@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getContact } from "@/lib/dal/contacts";
 import { getCompany } from "@/lib/dal/companies";
 import { listEmailTemplates } from "@/lib/dal/emails";
-import { logContactActivityAction, sendContactEmailAction } from "../actions";
-import EmailComposeFields from "@/components/EmailComposeFields";
-import SubmitButton from "@/components/ui/SubmitButton";
+import { StoreData } from "@/terminal/store";
+import { ContactDetail } from "@/terminal/screens/Detail";
 
+const day = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(d);
+
+// One contact: details, linked deals, activity, email and log, in the
+// terminal concept's parts.
 export default async function ContactDetailPage({
   params,
   searchParams,
@@ -14,89 +16,38 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ emailSent?: string; emailError?: string }>;
 }) {
-  const { id } = await params;
-  const { emailSent, emailError } = await searchParams;
+  const [{ id }, { emailSent, emailError }] = await Promise.all([params, searchParams]);
   const data = await getContact(id);
   if (!data) notFound();
   const { contact, activities } = data;
-
-  const companyData = await getCompany(contact.companyId);
-  const relatedDeals = companyData?.deals.filter((d) => d.primaryContactId === contact.id) ?? [];
-  const templates = await listEmailTemplates();
+  const [companyData, templates] = await Promise.all([getCompany(contact.companyId), listEmailTemplates()]);
+  const deals = companyData?.deals.filter((d) => d.primaryContactId === contact.id) ?? [];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-8)", maxWidth: 700 }}>
-      <div>
-        <p className="gh-eyebrow">{contact.roleTitle ?? "Contact"}</p>
-        <h1 className="gh-title" style={{ fontSize: "var(--gh-text-2xl)" }}>
-          {contact.firstName} {contact.lastName}
-        </h1>
-        {companyData && (
-          <Link href={`/companies/${companyData.company.id}`} style={{ color: "var(--gh-text-muted)" }}>
-            {companyData.company.name}
-          </Link>
-        )}
-      </div>
-
-      {emailSent && <p style={{ color: "var(--gh-success)" }}>Email sent and logged.</p>}
-      {emailError && <p style={{ color: "var(--gh-danger)" }}>Couldn&apos;t send: {emailError}</p>}
-
-      <section className="gh-card">
-        <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>Details</p>
-        <p>{contact.email ?? "No email"}</p>
-        <p>{contact.phone ?? "No phone"}</p>
-        {contact.notes && <p style={{ marginTop: "var(--gh-space-2)" }}>{contact.notes}</p>}
-      </section>
-
-      <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Linked deals</p>
-        {relatedDeals.map((d) => (
-          <Link key={d.id} href={`/deals/${d.id}`} className="gh-card" style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{d.stage}</span>
-            <span>{d.valueNzd ? `$${d.valueNzd} NZD` : "—"}</span>
-          </Link>
-        ))}
-        {relatedDeals.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No deals linked to this contact.</p>}
-      </section>
-
-      <section style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Activity timeline</p>
-        {activities
-          .slice()
-          .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
-          .map((a) => (
-            <div key={a.id} className="gh-card">
-              <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)" }}>
-                {a.type} · {new Date(a.occurredAt).toLocaleString("en-NZ", { timeZone: "Pacific/Auckland" })}
-              </p>
-              <p>{a.body}</p>
-            </div>
-          ))}
-        {activities.length === 0 && <p style={{ color: "var(--gh-text-muted)" }}>No activity logged yet.</p>}
-        <details className="gh-card">
-          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Send email</summary>
-          <form action={sendContactEmailAction.bind(null, contact.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
-            <EmailComposeFields templates={templates} />
-            <SubmitButton disabled={!contact.email} pendingLabel="Sending…">
-              {contact.email ? "Send" : "No email on file"}
-            </SubmitButton>
-          </form>
-        </details>
-        <details className="gh-card">
-          <summary className="gh-eyebrow" style={{ cursor: "pointer" }}>Log activity</summary>
-          <form action={logContactActivityAction.bind(null, contact.id)} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)", marginTop: "var(--gh-space-4)" }}>
-            <select className="gh-input" name="type" defaultValue="note">
-              <option value="call">Call</option>
-              <option value="email">Email</option>
-              <option value="meeting">Meeting</option>
-              <option value="note">Note</option>
-            </select>
-            <textarea className="gh-input" name="body" placeholder="What happened" rows={3} />
-            <input className="gh-input" name="outcome" placeholder="Outcome" />
-            <SubmitButton pendingLabel="Logging…">Log activity</SubmitButton>
-          </form>
-        </details>
-      </section>
-    </div>
+    <StoreData
+      data={{
+        contact: {
+          id: contact.id,
+          name: `${contact.firstName} ${contact.lastName}`,
+          role: contact.roleTitle ?? "",
+          email: contact.email ?? "",
+          phone: contact.phone ?? "",
+          notes: contact.notes ?? "",
+          companyId: companyData?.company.id ?? null,
+          company: companyData?.company.name ?? "",
+          deals: deals.map((d) => ({ id: d.id, label: d.packageTier || d.nextAction, stage: d.stage, value: d.valueNzd ? Number(d.valueNzd) : 0 })),
+          activity: [...activities]
+            .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+            .map((a) => ({ id: a.id, at: day(a.occurredAt), type: a.type[0].toUpperCase() + a.type.slice(1), body: a.body ?? "", outcome: a.outcome ?? "" })),
+        },
+        templates: templates.map((t) => ({ key: t.key, name: t.name, subject: t.subject, htmlBody: t.htmlBody })),
+        flash: [
+          emailSent && { tone: "good", text: "Email sent and logged." },
+          emailError && { tone: "bad", text: `Couldn't send: ${emailError}` },
+        ].filter(Boolean),
+      }}
+    >
+      <ContactDetail />
+    </StoreData>
   );
 }

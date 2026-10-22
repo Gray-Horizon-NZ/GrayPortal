@@ -30,13 +30,14 @@
   --gh-danger: var(--t-bad);
 }
 
-/* Screens not yet ported to the concept markup render without a .screen
-   wrapper; give them the concept's screen padding so they sit right in the
-   content pane until they're moved across. */
-.gh-terminal .content > :not(.screen) { padding: 18px 22px 40px; }
 
 /* Result notes after a server action redirect (client profile flash). */
 .gh-terminal .note[data-tone="good"] { border-left-color: var(--t-good); }
 .gh-terminal .note[data-tone="good"] svg { color: var(--t-good); }
 .gh-terminal .note[data-tone="bad"] { border-left-color: var(--t-bad); }
 .gh-terminal .note[data-tone="bad"] svg { color: var(--t-bad); }
+
+/* Loading placeholder (app/(app)/loading.tsx). */
+.gh-terminal .t-skel { display: block; background: var(--t-panel-2); animation: t-skel-pulse 1.2s ease-in-out infinite; }
+@keyframes t-skel-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .gh-terminal .t-skel { animation: none; } }
