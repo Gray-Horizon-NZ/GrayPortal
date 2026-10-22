@@ -32,6 +32,49 @@ Run everything from the worktree. `npx tsc --noEmit -p .`, `npx vitest run`, `np
 - **Leads** = the GrayPortal Pipeline layout (from `OS/grayportal-terminal-concept/src/screens/Pipeline.jsx`), already ported in the concept's `Leads.jsx`.
 - **Don't deploy, push or merge without Max.** The DB change must be applied by Max first (paste the APPLY file).
 
+## Status (23 Oct 2026): port done, not yet checked in a browser
+
+Everything in the old to-do list below is built on branch `incrementum-terminal-ui` (commits up to the "tests" commit; `git log --oneline 0470a68..` lists them). Checks run:
+
+- `npx tsc --noEmit -p .`: clean apart from the old `tests/dal/requireClientScope.test.ts` error (there before this work).
+- `npx eslint` over everything Incrementum: clean.
+- `npx vitest run`: 9 files, 70 tests pass (new: bench filter, capacity thresholds, invoice/review attention items, invoiced-only metrics).
+- `npx next build`: passes. **Needs `NODE_OPTIONS=--max-old-space-size=8192` locally**; the TypeScript step ran out of Node's default heap on this machine. Check the App Hosting build has the same headroom before deploying.
+
+**Not done: the browser check (step 8).** It needs two things only Max can do:
+1. Paste `db/APPLY-incrementum-terminal-2026-10-22.sql` into Neon. Until then every Incrementum page errors, because the snapshot reads the three new columns. The change is additive, so the live app is unaffected by applying it early.
+2. Sign in on the worktree's dev server (`npx next dev -p 3010`, then `http://localhost:3010/login`). The session isn't shared with other ports' tabs.
+Then check every route light and dark, side by side with the concept on `localhost:5191`.
+
+### What was built
+
+- **CSS:** `app/(incrementum)/incrementum/incrementum.css` is the concept's three stylesheets scoped under `.gh-incrementum` by a postcss script (keyframes prefixed `inc-`), plus a short "Next.js adaptations" block at the end: next/font variables (DM Sans, Cormorant, JetBrains Mono, loaded in the layout), `<dialog>` and `<details>` styling, link versions of buttons, and fill-on-load bars as CSS keyframes.
+- **Kit** (`components/incrementum/terminal/`): `kit.tsx` (server components: Console, IdCard, Blocks, LevelBars, BigAction, Ring, StageTiles, Tree, RowFold…), `client.tsx` (Dialog, OpenDialog, ClickRow, AutoSubmitForm, FilterForm, RangeField, PaneTabs, TabbedPanel, PickSearch, ThemeToggle, PrivacyToggle, Toast, RailFolders), `helpers.ts`, and the shared parts: `services-team.tsx`, `outreach.tsx`, `email-form.tsx`, `cycle-row.tsx`, `goals.tsx`, `playbooks.tsx`.
+- **Shell:** `layout.tsx` + `IncrementumRail.tsx`. Theme and privacy are cookies (`inc_theme`, `inc_private`) so the server renders the right one; folders remember their state in localStorage.
+- **Pages:** all 20, each copying its concept screen. Views, tabs, filters and selections are URL params. Engagements moved to `/incrementum/clients` with permanent redirects in `next.config.ts`.
+- **Also added:** `saveIncTaskAction` (one edit form saves and moves a task), `settleMonthAction` (Payouts' "Mark <month> settled"), `listLeadHistory`, `listContractorLogins`, `REVIEW_DRAFTS` (placeholder Google review email), Home sections in `registry.ts` (`HOME_SECTIONS`/`HOME_ORDER` replace the old widget list), and the weekly review now keeps earlier actions when updated.
+- **Removed:** the old Incrementum components (`ui.tsx`, `widgets.tsx`, `ClientServices`, `CycleRow`, `Outreach`, `AddLinesDialog`, `RoleAssignDialog`, `EmailComposer`, `MonthBars`, `OpenHashTarget`).
+
+### Deliberate differences from the concept
+
+- Leads list rows: "In stage" counts from the lead's `stageChangedAt`.
+- Add package / service pop-up stays open after each add (the real app's behaviour), with "On profile" badges.
+- Client "In GrayPortal" view shows the real linked records and a "Sync services to GrayPortal" button.
+- The concept's "Concept only" settings view is dropped; Settings → Connections links to GrayPortal Settings.
+- The "Shown in GrayPortal's Clients list with an Incrementum badge" checklist line is left out, because the badge isn't built yet.
+
+### Still open after the browser check
+
+- Incrementum badge + link on GrayPortal's Clients list and client page (left out so it doesn't clash with `terminal-exact`).
+- Lines without a catalogue item can't be written to `client_services`.
+- The review email template is a placeholder until Max designs it.
+- Migration number 0040 may clash with `terminal-exact`; renumber at merge if so.
+- Then: RULES.md §8 "live", the PR, Max's approval, deploy (SQL first).
+
+---
+
+## History: the original handoff (22 Oct)
+
 ## Done so far (uncommitted at handoff → committed as "WIP" on the branch)
 
 **Database**
