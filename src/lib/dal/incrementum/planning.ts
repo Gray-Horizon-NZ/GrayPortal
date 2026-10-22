@@ -26,8 +26,8 @@ import {
   METRIC_KEYS,
   EXPERIMENT_TYPES,
   EXPERIMENT_VERDICTS,
-  WIDGETS,
-  type WidgetKey,
+  HOME_SECTIONS,
+  type HomeSectionKey,
 } from "@/lib/incrementum/registry";
 import { mondayOf } from "@/lib/incrementum/evaluate";
 import { getIncrementumSnapshot } from "./snapshot";
@@ -346,7 +346,8 @@ export async function completeWeeklyReview(input: { notes: string | null; wins: 
       .from(incrementumWeeklyReviews)
       .where(and(eq(incrementumWeeklyReviews.weekOf, weekOf), isNull(incrementumWeeklyReviews.deletedAt)))
       .limit(1);
-    const values = { notes: input.notes, wins: input.wins, actions: createdTaskTitles, completedAt: new Date() };
+    // Updating this week's review adds to the actions already committed.
+    const values = { notes: input.notes, wins: input.wins, actions: [...(existing?.actions ?? []), ...createdTaskTitles], completedAt: new Date() };
     if (existing) {
       return auditedUpdate(tx, incrementumWeeklyReviews, eq(incrementumWeeklyReviews.id, existing.id), existing.id, { ...values, updatedBy: caller.userId }, { caller, entityType: "incrementum_weekly_review" });
     }
@@ -441,7 +442,7 @@ export async function getHomeLayout() {
 }
 
 export async function saveHomeLayout(widgets: { order: string[]; hidden: string[] } | null) {
-  const valid = (k: string): k is WidgetKey => k in WIDGETS;
+  const valid = (k: string): k is HomeSectionKey => k in HOME_SECTIONS;
   return withIncrementum(async (caller, tx) => {
     const [row] = await tx.select().from(incrementumHomeLayouts).where(eq(incrementumHomeLayouts.userId, caller.userId)).limit(1);
     const clean = widgets ? { order: widgets.order.filter(valid), hidden: widgets.hidden.filter(valid) } : null;

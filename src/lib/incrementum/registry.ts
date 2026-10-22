@@ -177,35 +177,22 @@ export function isMetricKey(key: string | null | undefined): key is MetricKey {
 }
 
 // ---------------------------------------------------------------------------
-// Home widgets (plan §5)
+// Home sections (plan §5; the Terminal UI's six, Max 2026-10-22). One saved
+// layout per user (incrementum_home_layouts.widgets = { order, hidden }).
 // ---------------------------------------------------------------------------
 export type WidgetMode = "pre" | "live";
-export type WidgetDef = { label: string; span: number; preSpan?: number; modes: WidgetMode[] };
-export const WIDGETS = {
-  phase: { label: "Phase progress", span: 12, modes: ["pre", "live"] },
-  next_moves: { label: "Recommended next moves", span: 12, modes: ["pre", "live"] },
-  launch: { label: "Launch readiness", span: 4, preSpan: 8, modes: ["pre", "live"] },
-  freedom: { label: "Freedom number", span: 8, preSpan: 12, modes: ["pre", "live"] },
-  review: { label: "Weekly review", span: 4, modes: ["pre", "live"] },
-  attention: { label: "Needs attention", span: 6, modes: ["pre", "live"] },
-  goals: { label: "Goals pace", span: 6, modes: ["pre", "live"] },
-  leads: { label: "Lead inbox", span: 4, modes: ["live"] },
-  pipeline: { label: "Sales pipeline", span: 4, modes: ["live"] },
-  payouts: { label: "Payouts", span: 4, modes: ["live"] },
-  team: { label: "Gray Horizon Team", span: 12, modes: ["pre", "live"] },
-  engagements: { label: "Engagement health", span: 8, modes: ["live"] },
-  economics: { label: "Unit economics", span: 4, modes: ["live"] },
-  capacity: { label: "Capacity", span: 6, modes: ["pre", "live"] },
-  deadlines: { label: "Deadlines", span: 6, modes: ["pre", "live"] },
-  tasks: { label: "Main task list", span: 6, modes: ["pre", "live"] },
-  runway: { label: "Runway", span: 3, modes: ["live"] },
-  experiments: { label: "Experiments", span: 3, modes: ["pre", "live"] },
-  roadmap: { label: "Roadmap strip", span: 12, modes: ["pre", "live"] },
-} as const satisfies Record<string, WidgetDef>;
-export type WidgetKey = keyof typeof WIDGETS;
-export const DEFAULT_WIDGET_ORDER: Record<WidgetMode, WidgetKey[]> = {
-  pre: ["phase", "launch", "review", "next_moves", "attention", "tasks", "deadlines", "goals", "freedom", "team", "capacity", "experiments", "roadmap"],
-  live: ["phase", "freedom", "review", "next_moves", "attention", "goals", "leads", "pipeline", "payouts", "team", "engagements", "economics", "capacity", "deadlines", "tasks", "runway", "experiments", "launch", "roadmap"],
+export const HOME_SECTIONS = {
+  console: "Scheme console",
+  tiles: "Business tiles",
+  next: "Next up",
+  team: "Gray Horizon Team",
+  goals: "Goals",
+  roadmap: "Roadmap",
+} as const;
+export type HomeSectionKey = keyof typeof HOME_SECTIONS;
+export const HOME_ORDER: Record<WidgetMode, HomeSectionKey[]> = {
+  pre: ["console", "next", "tiles", "team", "goals", "roadmap"],
+  live: ["console", "tiles", "next", "team", "goals", "roadmap"],
 };
 
 // ---------------------------------------------------------------------------

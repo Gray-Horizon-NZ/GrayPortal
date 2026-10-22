@@ -101,10 +101,15 @@ export async function saveSettingsAction(fd: FormData) {
   await act(fd, () => planning.updateIncrementumSettings(input as never), "Settings saved");
 }
 
+// Customise Home: the switches post on change, the arrows post `move=<key>:up|down`.
 export async function saveHomeLayoutAction(fd: FormData) {
   const order = str(fd, "order").split(",").filter(Boolean);
+  const [moveKey, dir] = str(fd, "move").split(":");
+  const i = order.indexOf(moveKey);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (i >= 0 && j >= 0 && j < order.length) [order[i], order[j]] = [order[j], order[i]];
   const hidden = order.filter((k) => !bool(fd, `show_${k}`));
-  await act(fd, () => planning.saveHomeLayout({ order, hidden }), "Home layout saved");
+  await act(fd, () => planning.saveHomeLayout({ order, hidden }));
 }
 
 export async function resetHomeLayoutAction(fd: FormData) {
