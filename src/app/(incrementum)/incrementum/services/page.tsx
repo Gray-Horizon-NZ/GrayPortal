@@ -114,6 +114,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                           {sv.name}
                         </span>{" "}
                         {sv.usuallyWaived && <Badge tone="accent">Usually waived</Badge>}
+                        {sv.isAddon && <Badge>Add-on</Badge>}
                         {!sv.serviceItemId && <Badge tone="warn">Not linked to GrayPortal</Badge>}
                         <small>{roleName(sv.roleId) ?? "No contractor role (you)"}</small>
                       </span>
@@ -400,6 +401,9 @@ function ServiceForm({ sv, catalogue, roles }: { sv?: ServiceView; catalogue: Ca
           </label>
           <label className="inline-check">
             <input type="checkbox" name="usuallyWaived" defaultChecked={sv?.usuallyWaived ?? false} /> Usually waived
+          </label>
+          <label className="inline-check" title="Sold on top of a package (GrayScale, email, SEO). Counts toward the add-on attach rate.">
+            <input type="checkbox" name="isAddon" defaultChecked={sv?.isAddon ?? false} /> Add-on
           </label>
         </span>
         <Field label="Tags (match contractors to client needs)" wide>

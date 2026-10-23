@@ -864,20 +864,20 @@ export function Avatar({ name, size = 34, active }: { name: string | null; size?
 }
 
 // Freedom number bar: profit against Diamond, with Target and Gold marks.
-export function FreedomBar({ profit, target, gold, diamond }: { profit: number; target: number; gold: number; diamond: number }) {
-  const pct = diamond > 0 ? clamp01(profit / diamond) : 0;
+export function FreedomBar({ profit, base, stretch }: { profit: number; base: number; stretch: number }) {
+  const end = Math.max(base, stretch);
+  const pct = end > 0 ? clamp01(profit / end) : 0;
   return (
-    <div className="tierbar" aria-label="Progress to the freedom number">
+    <div className="tierbar" aria-label="Progress to the base and the stretch">
       <div className="tierbar-track">
         <i style={{ width: `${pct * 100}%` }} />
         {(
           [
-            ["Target", target],
-            ["Gold", gold],
-            ["Diamond", diamond],
+            ["Base", base],
+            ["Stretch", stretch],
           ] as const
         ).map(([l, v]) => (
-          <span key={l} className="tier-mark" data-end={v === diamond || undefined} style={{ left: `${diamond > 0 ? (v / diamond) * 100 : 0}%` }}>
+          <span key={l} className="tier-mark" data-end={v === end || undefined} style={{ left: `${end > 0 ? (v / end) * 100 : 0}%` }}>
             <em>
               {l} <Priv>{money(v)}</Priv>
             </em>

@@ -8,7 +8,7 @@ import { monthName, n0 } from "@/components/incrementum/terminal/helpers";
 import { saveAdMonthAction } from "../actions";
 
 const BASE = "/incrementum/analytics";
-const PLAN = 400; // 27ADS: $400/month of ads
+const PLAN = 850; // 27ADS §1 (2026-10-24): the $2k runway paced at ~$700–1,000/month
 
 // ─── Analytics (nightclub dash) ─────────────────────────────────────────
 export default async function AnalyticsPage() {
@@ -174,6 +174,8 @@ export default async function AnalyticsPage() {
             {ledger("Retention", ["active_clients", "paying_clients", "ads_clients", "avg_months_retained", "max_months_retained", "clients_lost_90d"])}
             {ledger("Contractors", ["contractors_sourced", "contractors_confirmed", "contractors_onboarded", "delivered_on_time_pct"])}
             {ledger("Leads", ["leads_total", "leads_this_month", "qualified_leads", "leads_unanswered", "avg_response_minutes", "tracked_leads"])}
+            {ledger("Growth drivers", ["new_clients_month", "new_clients_avg_3m", "referral_share_pct", "partner_share_pct", "addon_attach_pct", "upgrades_count", "outreach_week", "max_hours_week"])}
+            {ledger("Ad budget ladder", ["ad_spend_latest_month", "cost_per_ads_client", "ads_payback_months", "suggested_ad_budget", "one_off_profit_3m", "avg_profit_partner", "avg_profit_essentials"])}
           </div>
           <p className="muted small" style={{ marginTop: 16 }}>
             Growth model (27ADS §8): active clients ≈ new clients per month × average months they stay. Today: {m.active_clients ?? 0} active, average stay {formatMetric(m.avg_months_retained, "months")}.

@@ -10,6 +10,7 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import { PageHead, Panel, Badge, Priv, DueList, FreedomBar, MiniBar, Portrait, Console, Csec, TermStatus, LevelBars, Ledger, BigAction, StockColumns, Toggle, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
 import { Dialog, OpenDialog, AutoSubmitForm, CloseDialog } from "@/components/incrementum/terminal/client";
 import { GoalRingTile } from "@/components/incrementum/terminal/goals";
+import { etaLabel } from "@/components/incrementum/terminal/path";
 import { longDate, fmtDate, daysBetween, relativeTo, n0 } from "@/components/incrementum/terminal/helpers";
 import { saveHomeLayoutAction, resetHomeLayoutAction, dismissNextMoveAction } from "./actions";
 
@@ -96,6 +97,7 @@ function SchemeConsole({ s }: { s: S }) {
   const profit = m.monthly_profit ?? 0;
   const per = m.avg_profit_per_client;
   const freedom = n0(set.freedomTarget);
+  const stretch = n0(set.freedomDiamond);
   const needed = per && per > 0 ? Math.max(0, Math.ceil((freedom - profit) / per)) : null;
   const slots = s.capacity.reduce((a, c) => [a[0] + c.slotsUsed, a[1] + c.slotsTotal], [0, 0]);
   const confirmed = m.contractors_confirmed ?? 0;
@@ -153,10 +155,12 @@ function SchemeConsole({ s }: { s: S }) {
           </b>
         </p>
         <p className="muted small" style={{ textAlign: "center", marginBottom: 18 }}>
-          Freedom number <Priv>{money(freedom)}</Priv>
-          {needed !== null && profit < freedom ? ` · ≈ ${needed} more clients at today's profit per client` : ""}
+          Base <Priv>{money(freedom)}</Priv> · Stretch <Priv>{money(stretch)}</Priv>
+          {needed !== null && profit < freedom ? ` · ≈ ${needed} more clients to the base at today's profit per client` : ""}
+          <br />
+          At current pace: base {etaLabel(s.path.base, "base")} · stretch {etaLabel(s.path.stretch, "stretch")}
         </p>
-        <FreedomBar profit={profit} target={freedom} gold={n0(set.freedomGold)} diamond={n0(set.freedomDiamond)} />
+        <FreedomBar profit={profit} base={freedom} stretch={stretch} />
       </Csec>
       {s.capacity.length > 0 && (
         <Csec>
@@ -289,7 +293,7 @@ function Team({ s }: { s: S }) {
 }
 
 function GoalsStrip({ s }: { s: S }) {
-  const goals = s.goals.filter((g) => !g.isFreedom && g.metricKey).slice(0, 4);
+  const goals = s.goals.filter((g) => !g.isFreedom && !g.isStretch && g.metricKey).slice(0, 4);
   return (
     <Panel
       title="Goals"

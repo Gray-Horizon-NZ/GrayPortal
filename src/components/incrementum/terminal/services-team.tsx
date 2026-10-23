@@ -271,6 +271,11 @@ function LineRow({ n, readOnly, back }: { n: NeedView; readOnly: boolean; back: 
             <Field label="Tags">
               <input className="input" name="tags" defaultValue={(n.tags ?? []).join(", ")} />
             </Field>
+            {n.billing !== "monthly" && n.engagementId && (
+              <Field label="Invoiced on (counts toward one-off profit)">
+                <input className="input" type="date" name="invoicedAt" defaultValue={n.invoicedAt ?? ""} />
+              </Field>
+            )}
             <Field label="Notes" wide>
               <input className="input" name="notes" defaultValue={n.notes ?? ""} />
             </Field>

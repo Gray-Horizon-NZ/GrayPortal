@@ -60,7 +60,12 @@ export function shortDateTime(d: string | Date | null | undefined): string {
 
 /** Today in Pacific/Auckland as an ISO date. */
 export function todayNz(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(new Date());
+  return dateNz(new Date());
+}
+
+/** A moment's calendar date in Pacific/Auckland, as an ISO date. */
+export function dateNz(d: Date | string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(new Date(d));
 }
 
 export function daysUntil(iso: string, from: string = todayNz()): number {

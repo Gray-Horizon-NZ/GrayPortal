@@ -1263,6 +1263,33 @@ export const incrementumSettings = pgTable("incrementum_settings", {
   // §7.4's blocker). "Onboard to GrayPortal" stays disabled until then.
   contractorAccessReviewedAt: timestamp("contractor_access_reviewed_at", { withTimezone: true }),
   seededAt: timestamp("seeded_at", { withTimezone: true }),
+  // The $20k stretch (Change-Plan-20k-Stretch.md, Max 2026-10-24).
+  // freedomTarget is the Base and freedomDiamond the Stretch; freedomGold
+  // is no longer shown. Both lines share one by-date.
+  freedomByDate: date("freedom_by_date").default("2027-12-31"),
+  // Reinvestment rule: this share of retainer profit + of one-off profit
+  // (3-month average) is the suggested ad budget, held while ads payback
+  // runs longer than maxPaybackMonths.
+  reinvestRetainerPct: numeric("reinvest_retainer_pct", { precision: 6, scale: 2 }).notNull().default("25"),
+  reinvestOneOffPct: numeric("reinvest_one_off_pct", { precision: 6, scale: 2 }).notNull().default("50"),
+  maxPaybackMonths: numeric("max_payback_months", { precision: 6, scale: 2 }).notNull().default("3"),
+  // Proof lines per tier (plan §1.1). Small business = Essentials, else Partner.
+  partnerPassLine: numeric("partner_pass_line", { precision: 12, scale: 2 }).notNull().default("700"),
+  partnerKillLine: numeric("partner_kill_line", { precision: 12, scale: 2 }).notNull().default("400"),
+  essentialsPassLine: numeric("essentials_pass_line", { precision: 12, scale: 2 }).notNull().default("450"),
+  essentialsKillLine: numeric("essentials_kill_line", { precision: 12, scale: 2 }).notNull().default("300"),
+  weeklyOutreachTarget: integer("weekly_outreach_target").notNull().default(20),
+  // Max's hours per week that raise the account-manager next move.
+  amHoursTrigger: numeric("am_hours_trigger", { precision: 6, scale: 2 }).notNull().default("25"),
+  // Monthly NZ searches × CPC for the chosen keywords: the most Google can
+  // usefully take. Null until recorded (Gate F).
+  searchCeiling: numeric("search_ceiling", { precision: 12, scale: 2 }),
+  // Planning assumptions the Path view runs on until live numbers exist.
+  planProfitPerClient: numeric("plan_profit_per_client", { precision: 12, scale: 2 }).notNull().default("850"),
+  planStayMonths: numeric("plan_stay_months", { precision: 6, scale: 2 }).notNull().default("12"),
+  planCloseRatePct: numeric("plan_close_rate_pct", { precision: 6, scale: 2 }).notNull().default("15"),
+  planPartnerSharePct: numeric("plan_partner_share_pct", { precision: 6, scale: 2 }).notNull().default("60"),
+  planAddonAttachPct: numeric("plan_addon_attach_pct", { precision: 6, scale: 2 }).notNull().default("50"),
   ...softDelete,
   ...actorColumns,
 });
@@ -1306,6 +1333,8 @@ export const incrementumServices = pgTable("incrementum_services", {
   // e.g. "google-ads", "shopify"). A contractor matches a need when they've
   // quoted the need's service, or when their skills share one of its tags.
   tags: text("tags").array(),
+  // Sold on top of a package (GrayScale, email, SEO): counts toward the add-on attach rate.
+  isAddon: boolean("is_addon").notNull().default(false),
   // The contractor role that delivers it; null = no contractor (e.g. Max's own Creative Strategy).
   roleId: uuid("role_id").references(() => incrementumContractorRoles.id),
   status: text("status").notNull().default("active"),
@@ -1639,6 +1668,9 @@ export const incrementumGoals = pgTable("incrementum_goals", {
   manualDoneAt: timestamp("manual_done_at", { withTimezone: true }),
   phaseId: uuid("phase_id").references(() => incrementumPhases.id),
   isFreedom: boolean("is_freedom").notNull().default(false),
+  // Stretch goals are where effort aims, not what results are judged on:
+  // they show against the base but never raise "off pace" (2026-10-24).
+  isStretch: boolean("is_stretch").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   ...softDelete,
   ...actorColumns,
@@ -1752,6 +1784,9 @@ export const incrementumNeeds = pgTable("incrementum_needs", {
   contractorRate: numeric("contractor_rate", { precision: 12, scale: 2 }),
   markupPct: numeric("markup_pct", { precision: 6, scale: 2 }),
   sellPrice: numeric("sell_price", { precision: 12, scale: 2 }),
+  // One-off lines: the month it was invoiced (not paid; payments aren't
+  // tracked). Feeds one-off profit (3-month average).
+  invoicedAt: date("invoiced_at"),
   notes: text("notes"),
   sortOrder: integer("sort_order").notNull().default(0),
   ...softDelete,

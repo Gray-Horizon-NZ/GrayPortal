@@ -1,13 +1,15 @@
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { METRICS, type MetricKey } from "@/lib/incrementum/registry";
-import { formatMetric } from "@/lib/incrementum/format";
+import { formatMetric, money, dateNz } from "@/lib/incrementum/format";
 import { mondayOf } from "@/lib/incrementum/evaluate";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import { PageHead, Panel, Priv, Field, DueList, Console, Csec, TermStatus, Ledger, BigAction, BackTo } from "@/components/incrementum/terminal/kit";
 import { longDate, fmtDate, addDays, GOAL_STATUS_LABELS } from "@/components/incrementum/terminal/helpers";
 import { completeReviewAction } from "../actions";
 
-const KEY_METRICS: MetricKey[] = ["monthly_profit", "active_clients", "leads_this_month", "leads_unanswered", "contractors_confirmed", "launch_readiness_pct", "max_hours_per_client"];
+// Split in two (2026-10-24): effort is in Max's control, so it's read against
+// the $20k stretch pace; results are read against the $10k base.
+const RESULT_METRICS: MetricKey[] = ["leads_this_month", "leads_unanswered", "ads_payback_months", "launch_readiness_pct", "max_hours_per_client"];
 const TONE = { danger: "bad", warning: "warn", neutral: undefined } as const;
 
 export default async function ReviewPage() {
@@ -29,6 +31,13 @@ export default async function ReviewPage() {
   const friday = addDays(monday, 4);
   const done = !!thisWeek?.completedAt;
   const streak = s.metrics.weekly_review_streak ?? 0;
+  const m = s.metrics;
+  const outreachTarget = st.settings.weeklyOutreachTarget ?? 20;
+  const proposalsThisWeek = st.leads.filter((l) => l.stage === "proposal" && dateNz(l.stageChangedAt) >= monday).length;
+  const referralAsks = s.nextMoves.filter((mv) => mv.key.startsWith("referral-")).length;
+  const pipeline = st.profiles.filter((p) => ["sourced", "contacted", "meeting_booked", "vetting"].includes(p.stage)).length;
+  const stretch = s.path.stretch;
+  const base = s.path.base;
 
   return (
     <div className="screen">
@@ -42,9 +51,27 @@ export default async function ReviewPage() {
         <div className="console-split">
           <Csec>
             <p className="csec-title" style={{ marginBottom: 8 }}>
-              This week&apos;s numbers
+              Effort vs the stretch
             </p>
-            <Ledger rows={KEY_METRICS.map((k) => [METRICS[k].label, METRICS[k].unit === "currency" ? <Priv key={k}>{formatMetric(s.metrics[k], "currency")}</Priv> : formatMetric(s.metrics[k], METRICS[k].unit)])} />
+            <Ledger
+              rows={[
+                ["Outreach this week", `${m.outreach_week ?? 0} / ${outreachTarget}`, (m.outreach_week ?? 0) >= outreachTarget ? "good" : "warn", "/incrementum/leads"],
+                ["Referral asks due", referralAsks, referralAsks ? "warn" : undefined, "/incrementum"],
+                ["Proposals sent this week", proposalsThisWeek, undefined, "/incrementum/leads"],
+                ["Contractors in the pipeline", pipeline, undefined, "/incrementum/contractors"],
+                ["New clients / month", `${formatMetric(m.new_clients_avg_3m, "count")} vs ${stretch.newPerMonth.needed.toFixed(1)} stretch pace`],
+              ]}
+            />
+            <p className="csec-title" style={{ margin: "16px 0 8px" }}>
+              Results vs the base
+            </p>
+            <Ledger
+              rows={[
+                ["Monthly profit", <Priv key="p">{`${money(m.monthly_profit ?? 0)} / ${money(base.target)}`}</Priv>],
+                ["Active clients", `${m.active_clients ?? 0} / ${base.clientsNeeded}`],
+                ...RESULT_METRICS.map((k) => [METRICS[k].label, METRICS[k].unit === "currency" ? <Priv key={k}>{formatMetric(m[k], "currency")}</Priv> : formatMetric(m[k], METRICS[k].unit)] as [string, React.ReactNode]),
+              ]}
+            />
           </Csec>
           <Csec>
             <p className="csec-title" style={{ marginBottom: 8 }}>

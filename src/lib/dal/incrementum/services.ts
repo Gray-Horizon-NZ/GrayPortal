@@ -103,6 +103,7 @@ export const ServiceInput = z.object({
   catalogueFloor: z.boolean(),
   manualPrice: z.string().nullable(),
   usuallyWaived: z.boolean(),
+  isAddon: z.boolean().default(false),
   gstBasis: z.enum(["exclusive", "inclusive"]),
   competitorNotes: z.string().nullable(),
   notes: z.string().nullable(),

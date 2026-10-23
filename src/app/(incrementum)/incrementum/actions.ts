@@ -109,10 +109,10 @@ async function isCurrentPage(target: string): Promise<boolean> {
 export async function saveSettingsAction(fd: FormData) {
   // Each Settings view posts only its own fields; absent keys stay as they are.
   const input: Record<string, unknown> = {};
-  for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor", "launchDate", "homeModeOverride"]) {
+  for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor", "launchDate", "homeModeOverride", "freedomByDate", "searchCeiling", "reinvestRetainerPct", "reinvestOneOffPct", "maxPaybackMonths", "partnerPassLine", "partnerKillLine", "essentialsPassLine", "essentialsKillLine", "amHoursTrigger", "planProfitPerClient", "planStayMonths", "planCloseRatePct", "planPartnerSharePct", "planAddonAttachPct"] as const) {
     if (fd.has(k)) input[k] = nul(fd, k);
   }
-  for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn"]) {
+  for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn", "weeklyOutreachTarget"]) {
     if (fd.has(k) && str(fd, k) !== "") input[k] = Number(str(fd, k));
   }
   await act(fd, () => planning.updateIncrementumSettings(input as never), "Settings saved");
@@ -256,6 +256,7 @@ export async function createGoalAction(fd: FormData) {
         periodStart: nul(fd, "periodStart"),
         periodEnd: nul(fd, "periodEnd"),
         phaseId: nul(fd, "phaseId"),
+        isStretch: bool(fd, "isStretch"),
       }),
     "Goal added"
   );
@@ -264,7 +265,7 @@ export async function createGoalAction(fd: FormData) {
 export async function updateGoalAction(fd: FormData) {
   await act(
     fd,
-    () => planning.updateGoal(str(fd, "id"), { title: str(fd, "title"), target: nul(fd, "target"), periodStart: nul(fd, "periodStart"), periodEnd: nul(fd, "periodEnd") }),
+    () => planning.updateGoal(str(fd, "id"), { title: str(fd, "title"), target: nul(fd, "target"), periodStart: nul(fd, "periodStart"), periodEnd: nul(fd, "periodEnd"), isStretch: bool(fd, "isStretch") }),
     "Goal saved"
   );
 }
@@ -416,6 +417,7 @@ function serviceFromForm(fd: FormData) {
     catalogueFloor: bool(fd, "catalogueFloor"),
     manualPrice: nul(fd, "manualPrice"),
     usuallyWaived: bool(fd, "usuallyWaived"),
+    isAddon: bool(fd, "isAddon"),
     gstBasis: (str(fd, "gstBasis") || "exclusive") as "exclusive" | "inclusive",
     competitorNotes: nul(fd, "competitorNotes"),
     notes: nul(fd, "notes"),
@@ -927,6 +929,7 @@ export async function updateNeedAction(fd: FormData) {
           markupPct: nul(fd, "markupPct"),
           sellPrice: nul(fd, "sellPrice"),
           notes: nul(fd, "notes"),
+          ...(fd.has("invoicedAt") ? { invoicedAt: nul(fd, "invoicedAt") } : {}),
         })
       ),
     "Quote line saved"

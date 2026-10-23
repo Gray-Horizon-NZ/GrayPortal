@@ -25,6 +25,7 @@ import {
   incrementumNextMoveDismissals,
   incrementumNeeds,
   incrementumContractorRoles,
+  incrementumStageEvents,
   contractors,
   clients,
   tasks,
@@ -45,6 +46,7 @@ import {
   computeDeadlines,
   computeAttention,
   computeNextMoves,
+  computePath,
   resolveLaunchDates,
   type IncrementumState,
 } from "@/lib/incrementum/compute";
@@ -87,6 +89,7 @@ export const getIncrementumSnapshot = cache(async () => {
       dismissals,
       needs,
       roles,
+      packageEvents,
     ] = await Promise.all([
       tx.select().from(incrementumServices).where(notDeleted(incrementumServices.deletedAt)).orderBy(asc(incrementumServices.sortOrder), asc(incrementumServices.createdAt)),
       tx
@@ -145,6 +148,10 @@ export const getIncrementumSnapshot = cache(async () => {
       tx.select({ moveKey: incrementumNextMoveDismissals.moveKey }).from(incrementumNextMoveDismissals).where(notDeleted(incrementumNextMoveDismissals.deletedAt)),
       tx.select().from(incrementumNeeds).where(notDeleted(incrementumNeeds.deletedAt)).orderBy(asc(incrementumNeeds.sortOrder), asc(incrementumNeeds.createdAt)),
       tx.select().from(incrementumContractorRoles).where(notDeleted(incrementumContractorRoles.deletedAt)).orderBy(asc(incrementumContractorRoles.sortOrder)),
+      tx
+        .select({ entityId: incrementumStageEvents.entityId, fromStage: incrementumStageEvents.fromStage, toStage: incrementumStageEvents.toStage })
+        .from(incrementumStageEvents)
+        .where(and(eq(incrementumStageEvents.entityType, "engagement_package"), notDeleted(incrementumStageEvents.deletedAt))),
     ]);
 
     // Is db/sql/031 (contractor lockdown + views) applied? Onboarding a
@@ -182,6 +189,7 @@ export const getIncrementumSnapshot = cache(async () => {
       needs,
       contractorLockdownApplied,
       dismissedMoves: dismissals.map((d) => d.moveKey),
+      packageEvents,
     };
     return resolveLaunchDates(s);
   });
@@ -195,7 +203,9 @@ export const getIncrementumSnapshot = cache(async () => {
   const capacity = computeCapacity(state, services, packages, phases.next);
   const deadlines = computeDeadlines(state, launch, goals, capacity);
   const attention = computeAttention(state, goals);
-  const nextMoves = computeNextMoves(state, metrics, phases, capacity);
+  const path = { base: computePath(state, metrics, "base"), stretch: computePath(state, metrics, "stretch") };
+  // The biggest lever is measured against the stretch pace: effort aims there.
+  const nextMoves = computeNextMoves(state, metrics, phases, capacity, path.stretch);
   const mode: "pre" | "live" =
     state.settings.homeModeOverride === "pre" || state.settings.homeModeOverride === "live"
       ? state.settings.homeModeOverride
@@ -203,7 +213,7 @@ export const getIncrementumSnapshot = cache(async () => {
         ? "live"
         : "pre";
 
-  return { state, services, packages, metrics, launch, phases, goals, capacity, deadlines, attention, nextMoves, mode };
+  return { state, services, packages, metrics, launch, phases, goals, capacity, deadlines, attention, nextMoves, path, mode };
 });
 
 export type IncrementumSnapshot = Awaited<ReturnType<typeof getIncrementumSnapshot>>;

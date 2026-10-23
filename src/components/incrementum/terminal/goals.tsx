@@ -24,7 +24,7 @@ export function GoalRingTile({ g, size = 132, href, dialog, active }: { g: GoalV
       </>
     );
   return (
-    <RingTile name={g.title} active={active} href={href} dialog={dialog} done={g.status === "hit"} foot={<Badge tone={goalTone(g.status)}>{GOAL_STATUS_LABELS[g.status] ?? g.status}</Badge>}>
+    <RingTile name={g.title} active={active} href={href} dialog={dialog} done={g.status === "hit"} foot={<Badge tone={g.isStretch ? undefined : goalTone(g.status)}>{g.isStretch ? "Stretch · " : ""}{GOAL_STATUS_LABELS[g.status] ?? g.status}</Badge>}>
       <Ring
         value={unit ? g.progress : g.manualDoneAt ? 1 : 0}
         max={1}
