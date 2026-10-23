@@ -37,11 +37,17 @@ export default function Home() {
 
   const mrr = clients.reduce((a, c) => a + clientMrr(c), 0);
   const retainers = clients.filter((c) => clientMrr(c) > 0);
-  const mrrDelta = mrr - incomeByMonth[incomeByMonth.length - 2].recurring;
 
   const oneOffMonth = oneOffs.filter((p) => p.date.startsWith(month));
   const oneOffPaid = oneOffMonth.filter((p) => p.status === "paid").reduce((a, p) => a + p.amount, 0);
   const oneOffAwaiting = oneOffMonth.filter((p) => p.status !== "paid").reduce((a, p) => a + p.amount, 0);
+  const oneOffTotal = oneOffPaid + oneOffAwaiting;
+
+  // Hero: MRR plus every one-off recorded this month, paid or not — Xero
+  // status only shows on the tiles below.
+  const monthTotal = mrr + oneOffTotal;
+  const prev = incomeByMonth[incomeByMonth.length - 2];
+  const totalDelta = monthTotal - (prev.recurring + prev.oneoff);
   const billed = billing.filter((b) => b.invoice).reduce((a, b) => a + b.amount, 0);
   const paid = billing.filter((b) => b.xero === "PAID").reduce((a, b) => a + b.amount, 0);
 
@@ -90,22 +96,23 @@ export default function Home() {
     <div className="screen home">
       <div className="hero">
         <div>
-          <p className="hero-label">Monthly recurring revenue</p>
-          <p className="hero-value"><Priv>{money(mrr)}</Priv></p>
+          <p className="hero-label">Total this month</p>
+          <p className="hero-value"><Priv>{money(monthTotal)}</Priv></p>
           <div className="hero-meta">
-            <span><b className={mrrDelta >= 0 ? "tone-good" : "tone-bad"}><Priv>{mrrDelta >= 0 ? "+" : "−"}{money(Math.abs(mrrDelta))}</Priv></b> vs {lastMonth}</span>
+            <span><b className={totalDelta >= 0 ? "tone-good" : "tone-bad"}><Priv>{totalDelta >= 0 ? "+" : "−"}{money(Math.abs(totalDelta))}</Priv></b> vs {lastMonth}</span>
             <button className="morebtn" onClick={() => setHeroOpen(!heroOpen)} aria-expanded={heroOpen}>
               {heroOpen ? "Less" : "More"} <ChevronDown size={12} data-open={heroOpen || undefined} />
             </button>
           </div>
           <div className="fold" data-open={heroOpen || undefined}>
             <div className="hero-meta">
+              <span><b><Priv>{money(mrr)}</Priv></b> MRR + <b><Priv>{money(oneOffTotal)}</Priv></b> one-off & setup</span>
               <span><b><Priv>{money(mrr * 12)}</Priv></b> annual run-rate</span>
               <span><b>{retainers.length}</b> retainers</span>
             </div>
           </div>
         </div>
-        <Sparkline values={incomeByMonth.map((m) => m.recurring)} />
+        <Sparkline values={incomeByMonth.map((m) => m.recurring + m.oneoff)} />
         <button className="mini-metric" onClick={() => setGstOpen(true)} aria-label="GST threshold details">
           <span className="row"><span className="eyebrow"><Landmark size={10} /> GST threshold</span><b>{Math.round(gstPct)}%</b></span>
           <Meter value={gstPct} height={8} label="Turnover towards the GST threshold" />
@@ -116,8 +123,8 @@ export default function Home() {
       {/* Calm view: each tile shows its value and a bar; a click on any tile
           opens the detail line on all four so the row stays level. */}
       <div className="grid g-4">
-        <Stat label={`One-off & setup · ${thisMonth}`} value={money(oneOffPaid)} viz={<Meter value={(oneOffPaid / Math.max(1, oneOffPaid + oneOffAwaiting)) * 100} height={4} label="Paid of one-off income this month" />} sub={<>paid · <Priv>{money(oneOffAwaiting)}</Priv> awaiting (Xero)</>} {...statFold} />
-        <Stat label={`Retainers · ${thisMonth}`} value={money(paid)} viz={<Meter value={(paid / Math.max(1, billed)) * 100} height={4} label="Paid of retainers invoiced" />} sub={<>paid of <Priv>{money(billed)}</Priv> invoiced (Xero)</>} {...statFold} />
+        <Stat label={`MRR · ${thisMonth}`} value={money(mrr)} viz={<Meter value={(paid / Math.max(1, billed)) * 100} height={4} label="Paid of retainers invoiced" />} sub={<><Priv>{money(paid)}</Priv> paid of <Priv>{money(billed)}</Priv> invoiced (Xero)</>} {...statFold} />
+        <Stat label={`One-off & setup · ${thisMonth}`} value={money(oneOffTotal)} viz={<Meter value={(oneOffPaid / Math.max(1, oneOffTotal)) * 100} height={4} label="Paid of one-off income this month" />} sub={<><Priv>{money(oneOffPaid)}</Priv> paid · <Priv>{money(oneOffAwaiting)}</Priv> awaiting (Xero)</>} {...statFold} />
         <Stat label="Weighted pipeline" value={money(weighted)} viz={<Meter value={(weighted / Math.max(1, pipelineValue)) * 100} height={4} label="Weighted share of open pipeline" />} sub={<><Priv>{money(pipelineValue)}</Priv> open across {open.length} deals</>} {...statFold} />
         {ads.isSet ? (
           <Stat label="Ads runway" value={`${adsMonths.toFixed(1)} months`} priv={false} viz={<Cells total={Math.ceil(ads.budget / ads.monthly)} remaining={adsMonths} />} sub={<><Priv>{money(adsLeft)}</Priv> left of <Priv>{money(ads.budget)}</Priv></>} {...statFold} />
