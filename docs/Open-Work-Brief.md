@@ -622,4 +622,45 @@ Per §16's lens: `portal_announcement_views` also produces a real engagement sig
 
 ## 19. Project Incrementum (BUILT 2026-10-18)
 
-Lives in its own doc: **`docs/Project-Incrementum-Plan.md`**, the single source of truth (plan, build status §14, open items §13–14.3). Built on branch `incrementum`; database applied 2026-10-18 (`db/APPLY-incrementum-2026-10-18.sql`); app code awaiting deploy. It also includes the **contractor lockdown + contractor workspace** (`db/sql/031_contractor_scoping.sql`, `/work`), which changes what the contractor role can reach across the whole app (see `Master-Brief.md` §2).
+Lives in its own doc: **`OS/grayhorizon-docs/Project Incrementum/Project-Incrementum-Plan.md`** (moved out of this repo 2026-10-21; `docs/Project-Incrementum-Plan.md` is now a pointer), the single source of truth (plan, build status §14, open items §13–14.3). Built on branch `incrementum`; database applied 2026-10-18 (`db/APPLY-incrementum-2026-10-18.sql`); app code merged to `main` and pushed 2026-10-18 (CI green). It also includes the **contractor lockdown + contractor workspace** (`db/sql/031_contractor_scoping.sql`, `/work`), which changes what the contractor role can reach across the whole app (see `Master-Brief.md` §2).
+
+### 19.1 Open items from the Terminal UI port (2026-10-23)
+
+The whole `/incrementum` area was rebuilt in the Terminal UI and tied into GrayPortal on branch `incrementum-terminal-ui` (status and how it's built: `docs/INCREMENTUM-TERMINAL-HANDOFF.md`). Built with it: every signed client is a full GrayPortal client (contact, lead history, portal login); an **Incrementum badge** and an "Open in Incrementum" link on GrayPortal's client tiles, list and profile; and each client's Incrementum lines are written to their GrayPortal **Services tab** (tagged "Incrementum", kept in step whenever a line or the client's status changes; services added in GrayPortal are never touched). Only the services Max picks in Incrementum's Services & Pricing go across, never the whole catalogue. Still open:
+
+1. **Google review request email.** "Send review email" on an Incrementum client (offered once the minimum term is served) sends a **placeholder** draft from `src/lib/incrementum/drafts.ts` (`REVIEW_DRAFTS`), editable before sending. Open: Max designs the real email, and it moves into GrayPortal's email templates (`google_review_request`) so it can be edited in Settings rather than in code. Needs the real Google review link.
+2. **"Website build" isn't linked to a GrayPortal service**, so it can't appear on a client's Services tab (it's flagged on Services & Pricing). Max to pick its catalogue item, or confirm it stays Incrementum-only.
+3. **See every Incrementum page running**, light and dark. Nothing has been checked in a browser yet (localhost needs Max's sign-in).
+4. **Build memory.** `next build` ran out of Node's default heap during type-checking on Max's machine; it passes with `NODE_OPTIONS=--max-old-space-size=8192`. Make sure the App Hosting build has the same headroom.
+
+## 20. Terminal UI follow-ups (GrayPortal admin)
+
+Every admin screen is on the Terminal UI (PR #49, 23 Oct 2026; design rules: `OS/grayhorizon-docs/Terminal UI/RULES.md`). Moved here from `docs/Terminal-UI-Followups.md` (21 Oct) and the 22–23 Oct port handoff (`docs/SESSION-HANDOFF-2026-10-22-terminal-port.md`), with what PR #49 already built marked.
+
+### 20.1 From the port
+1. **See every screen running.** None had been checked in a browser at merge (localhost needs Max's sign-in). Priority: client profile, Settings (re-auth, TOTP, MCP), Vault reveal, triage.
+2. **Retire the old shell pieces.** `TerminalRail.tsx` and the `variant="terminal"` branches in `AppShell`/`ShellHeader` are unused by the admin app, but `AppShell` is the contractor workspace's shell: remove them in a separate change checked against `/work`.
+3. **Move Neon to `aws-ap-southeast-1`** (Singapore, next to App Hosting). The biggest speed gain left; needs Max's Neon console.
+
+### 20.2 Client health score needs more room
+New clients score about 30 (red): Tasks scores 0 when onboarding tasks aren't done yet, and Activity scores 0 with no `activities` row (`src/lib/dal/health.ts`). To work through:
+- **Grace period:** for a client's first 30 days, score components with no history as neutral (60%) and label the score "Settling in" instead of a colour.
+- **Tasks:** score the share of tasks *not overdue*, not done ÷ total.
+- **Activity:** also count portal logins, linked emails, meeting summaries, activity-feed entries and onboarding-wizard completion.
+- **Wider bands:** good 65+, watch 40–64, at risk below 40 (today 75 / 55).
+- **Smoothing:** rolling average of the last 3 nightly scores.
+- **Explainability:** store a short reason per component ("2 tasks overdue") so the profile can say why.
+
+### 20.3 Email triage linked to clients
+Built in PR #49: triage folders (Needs reply, Clients, Unmatched) and Reply opening the Gmail thread. Open:
+- A Gmail sync (Pub/Sub watch or a cron poll) that matches senders against client contacts, team members and extra addresses and writes `emails` rows, so client mail arrives without manual steps. Unmatched mail stays in Gmail.
+- Replying from GrayPortal itself through the Gmail API `threadId`, so the reply stays in the thread.
+
+### 20.4 Website inquiries
+Built: the header "Inquiries" button and dropdown. "Seen" is per browser (localStorage). Open: an `acknowledged_at` column on leads so it's shared across devices, and the pop-up setting it.
+
+### 20.5 Finance
+Built: one-off/setup payments on the client profile (paid status from the matching Xero invoice, never by hand), the one-off purchases log, the ads budget, expense budgets and owner withdrawals. Open: **CSV export for tax**: one file each for recurring expenses, one-off purchases and income (recurring + one-off) for a chosen tax year, plus "Export all for tax".
+
+### 20.6 Pricing
+Keep the module-tile layout; remove the item ID line under each title; show Suggested prices only inside the expanded Edit panel. Check against the live Pricing screen before building: PR #49 may already cover some of it.

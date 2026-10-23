@@ -28,7 +28,7 @@ function subject(s: IncrementumSnapshot, kind: Kind, id: string) {
   if (!e) return null;
   const rows = s.state.needs.filter((n) => n.engagementId === id);
   const company = e.clientName ?? e.name;
-  return { company, contact: company, adBudget: null, rows, back: `/incrementum/engagements/${id}` };
+  return { company, contact: company, adBudget: null, rows, back: `/incrementum/clients/${id}` };
 }
 
 /** Package copy is written for Services & Pricing; tidy the one internal marker for a client's eyes. */

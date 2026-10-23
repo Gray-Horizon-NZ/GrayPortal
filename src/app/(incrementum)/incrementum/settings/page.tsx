@@ -1,162 +1,255 @@
 import Link from "next/link";
+import { SlidersHorizontal, Gauge, UserCog, Timer, Plug } from "lucide-react";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { listRecentHours } from "@/lib/dal/incrementum/planning";
-import { shortDate, todayNz } from "@/lib/incrementum/format";
-import { PageHead, Flash } from "@/components/incrementum/ui";
+import { capacityRules } from "@/lib/incrementum/compute";
+import { money } from "@/lib/incrementum/format";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
-import { saveSettingsAction, logHoursAction, createRoleAction, updateRoleAction, deleteRoleAction } from "../actions";
+import { PageHead, Field, RowFold, AddRow, Console, Csec, IdCard, Blocks, TermStatus, Ledger, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
+import { fmtDate, longDate, n0 } from "@/components/incrementum/terminal/helpers";
+import { saveSettingsAction, saveCapacityThresholdsAction, logHoursAction, deleteHoursAction, createRoleAction, updateRoleAction, deleteRoleAction } from "../actions";
 
-const BACK = "/incrementum/settings";
+const BASE = "/incrementum/settings";
+const VIEWS = ["assumptions", "capacity", "roles", "hours", "connections"] as const;
+type View = (typeof VIEWS)[number];
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const { ok, error } = await searchParams;
-  const [s, hours] = await Promise.all([getIncrementumSnapshot(), listRecentHours(15)]);
-  const st = s.state.settings;
-  const roles = s.state.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
-  const servicesOn = (roleId: string) => s.services.filter((x) => x.status === "active" && x.roleId === roleId).map((x) => x.name);
-  const contractorsOn = (roleId: string) => s.state.profiles.filter((p) => (p.roleIds ?? []).includes(roleId)).length;
+// ─── Settings (console with views) ──────────────────────────────────────
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const sp = await searchParams;
+  const s = await getIncrementumSnapshot();
+  const st = s.state;
+  const set = st.settings;
+  const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "assumptions";
+  const back = view === "assumptions" ? BASE : `${BASE}?view=${view}`;
+  const viewHref = (v: View) => (v === "assumptions" ? BASE : `${BASE}?view=${v}`);
+  const rules = capacityRules(st);
+  const generalHours = st.hours.filter((h) => !h.engagementId).sort((a, b) => b.workDate.localeCompare(a.workDate));
+  const roles = [...st.roles].sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
-    <>
-      <PageHead eyebrow="Learn" title={<>Settings</>} lede="The assumptions everything else is calculated from. Every change is in the audit log." />
-      <Flash ok={ok} error={error} />
-
-      <section className="inc-panel">
-        <form action={saveSettingsAction} className="inc-form">
-          <input type="hidden" name="_back" value={BACK} />
-          <p className="gh-eyebrow inc-field--wide">Pricing</p>
-          <label className="inc-field">
-            Default markup on contractor quotes (%)
-            <input className="gh-input" name="defaultMarkupPct" defaultValue={st.defaultMarkupPct} />
-          </label>
-          <p className="gh-eyebrow inc-field--wide">Freedom number (monthly Incrementum profit)</p>
-          <label className="inc-field">
-            Target
-            <input className="gh-input" name="freedomTarget" defaultValue={st.freedomTarget} />
-          </label>
-          <label className="inc-field">
-            Gold
-            <input className="gh-input" name="freedomGold" defaultValue={st.freedomGold} />
-          </label>
-          <label className="inc-field">
-            Diamond
-            <input className="gh-input" name="freedomDiamond" defaultValue={st.freedomDiamond} />
-          </label>
-          <p className="gh-eyebrow inc-field--wide">Ads &amp; leads</p>
-          <label className="inc-field">
-            Ad budget (runway, $)
-            <input className="gh-input" name="adBudgetTotal" defaultValue={st.adBudgetTotal} />
-          </label>
-          <label className="inc-field">
-            Lead response target (minutes)
-            <input className="gh-input" type="number" name="responseTargetMinutes" defaultValue={st.responseTargetMinutes} />
-          </label>
-          <label className="inc-field">
-            Ads go live (sets every launch-relative date)
-            <input className="gh-input" type="date" name="launchDate" defaultValue={st.launchDate ?? ""} />
-          </label>
-          <label className="inc-field">
-            Home mode
-            <select className="gh-input" name="homeModeOverride" defaultValue={st.homeModeOverride ?? ""}>
-              <option value="">Automatic (live from launch date)</option>
-              <option value="pre">Always pre-launch</option>
-              <option value="live">Always live</option>
-            </select>
-          </label>
-          <p className="gh-eyebrow inc-field--wide">Capacity assumptions</p>
-          <label className="inc-field">
-            Client slots per contractor (until declared)
-            <input className="gh-input" name="defaultSlotsPerContractor" defaultValue={st.defaultSlotsPerContractor} />
-          </label>
-          <label className="inc-field">
-            Days to recruit (until measured)
-            <input className="gh-input" type="number" name="defaultRecruitDays" defaultValue={st.defaultRecruitDays} />
-          </label>
-          <SubmitButton pendingLabel="Saving…">Save settings</SubmitButton>
-        </form>
-      </section>
-
-      <section className="inc-panel" id="roles">
-        <div className="inc-cell-head">
-          <h2 className="inc-cell-title">
-            Contractor <em>roles</em>
-          </h2>
-          <span className="inc-small">Each service picks one role (Services &amp; Pricing); each contractor ticks the roles they fill (their profile)</span>
-        </div>
-        <div className="inc-list">
-          {roles.map((r) => (
-            <div className="inc-row" key={r.id} style={{ flexWrap: "wrap" }}>
-              <form action={updateRoleAction} className="inc-inline" style={{ flex: "1 1 320px" }}>
-                <input type="hidden" name="_back" value={`${BACK}#roles`} />
-                <input type="hidden" name="id" value={r.id} />
-                <input className="gh-input" name="sortOrder" type="number" defaultValue={r.sortOrder} aria-label="Order" style={{ width: 64 }} />
-                <input className="gh-input" name="name" defaultValue={r.name} aria-label="Role name" required style={{ flex: 1 }} />
-                <SubmitButton className="gh-btn-secondary" pendingLabel="…">
-                  Save
+    <div className="screen">
+      <PageHead title="Settings" sub="The assumptions everything else is calculated from. Every change is in the audit log." />
+      <Console
+        side={
+          <>
+            <IdCard
+              // eslint-disable-next-line @next/next/no-img-element
+              art={<img src="/brand-icon.png" alt="" />}
+              strip="System settings"
+              rows={[
+                ["Markup", `${n0(set.defaultMarkupPct)}%`],
+                ["Freedom number", money(set.freedomTarget)],
+                ["Ads live", set.launchDate ? longDate(set.launchDate) : "Date not set"],
+              ]}
+            />
+            <Blocks
+              value={view}
+              items={[
+                { key: "assumptions", label: "Pricing & targets", icon: SlidersHorizontal, href: viewHref("assumptions") },
+                { key: "capacity", label: "Capacity thresholds", icon: Gauge, href: viewHref("capacity") },
+                { key: "roles", label: "Contractor roles", icon: UserCog, count: roles.length, href: viewHref("roles") },
+                { key: "hours", label: "Your hours", icon: Timer, href: viewHref("hours") },
+                { key: "connections", label: "Connections", icon: Plug, href: viewHref("connections") },
+              ]}
+            />
+          </>
+        }
+      >
+        {view === "assumptions" && (
+          <Csec>
+            <TermStatus label="Home mode" value={set.homeModeOverride ? (set.homeModeOverride === "pre" ? "Always pre-launch" : "Always live") : "Automatic"}>
+              switches to live on the launch date
+            </TermStatus>
+            <form className="form-grid g3" style={{ marginTop: 18 }} action={saveSettingsAction}>
+              <BackTo path={back} />
+              <p className="eyebrow" style={{ gridColumn: "1 / -1" }}>
+                Pricing
+              </p>
+              <Field label="Default markup on contractor quotes (%)">
+                <input className="input" name="defaultMarkupPct" defaultValue={set.defaultMarkupPct} inputMode="decimal" />
+              </Field>
+              <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                Freedom number (monthly Incrementum profit)
+              </p>
+              <Field label="Target">
+                <input className="input" name="freedomTarget" defaultValue={set.freedomTarget} inputMode="decimal" />
+              </Field>
+              <Field label="Gold">
+                <input className="input" name="freedomGold" defaultValue={set.freedomGold} inputMode="decimal" />
+              </Field>
+              <Field label="Diamond">
+                <input className="input" name="freedomDiamond" defaultValue={set.freedomDiamond} inputMode="decimal" />
+              </Field>
+              <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                Ads &amp; leads
+              </p>
+              <Field label="Ad budget (runway, $)">
+                <input className="input" name="adBudgetTotal" defaultValue={set.adBudgetTotal} inputMode="decimal" />
+              </Field>
+              <Field label="Lead response target (minutes)">
+                <input className="input" name="responseTargetMinutes" type="number" min={1} defaultValue={set.responseTargetMinutes} />
+              </Field>
+              <Field label="Ads go live (sets every launch-relative date)">
+                <input className="input" type="date" name="launchDate" defaultValue={set.launchDate ?? ""} />
+              </Field>
+              <Field label="Home mode">
+                <select className="select" name="homeModeOverride" defaultValue={set.homeModeOverride ?? ""}>
+                  <option value="">Automatic (live from launch date)</option>
+                  <option value="pre">Always pre-launch</option>
+                  <option value="live">Always live</option>
+                </select>
+              </Field>
+              <div className="form-actions">
+                <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                  Save settings
                 </SubmitButton>
-              </form>
-              <span className="inc-small" style={{ flex: "1 1 240px" }}>
-                {contractorsOn(r.id)} contractor{contractorsOn(r.id) === 1 ? "" : "s"} · {servicesOn(r.id).join(", ") || "no services yet"}
-              </span>
-              <form action={deleteRoleAction}>
-                <input type="hidden" name="_back" value={`${BACK}#roles`} />
-                <input type="hidden" name="id" value={r.id} />
-                <button className="gh-link-btn gh-link-btn--danger" type="submit">
-                  Remove
-                </button>
-              </form>
+              </div>
+            </form>
+          </Csec>
+        )}
+        {view === "capacity" && (
+          <Csec>
+            <form className="form-grid g3" action={saveCapacityThresholdsAction}>
+              <BackTo path={back} />
+              <Field label="Client slots per contractor (until declared)">
+                <input className="input" name="defaultSlotsPerContractor" type="number" min={1} step="any" defaultValue={rules.slotsPer} />
+              </Field>
+              <Field label="Minimum bench per service">
+                <input className="input" name="minBench" type="number" min={0} defaultValue={rules.minBench} />
+              </Field>
+              <Field label="Warn when free slots ≤">
+                <input className="input" name="lowSlotsWarn" type="number" min={0} defaultValue={rules.lowSlots} />
+              </Field>
+              <Field label="Days to recruit (until measured)">
+                <input className="input" name="defaultRecruitDays" type="number" min={1} defaultValue={rules.recruitDays} />
+              </Field>
+              <div className="form-actions">
+                <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                  Save thresholds
+                </SubmitButton>
+                <Link className="linkbtn" href="/incrementum/capacity">
+                  Per-contractor slots and client slot weights are on Capacity ›
+                </Link>
+              </div>
+            </form>
+          </Csec>
+        )}
+        {view === "roles" && (
+          <Csec className="flush">
+            <div className="agency-list-head">
+              Contractor roles <span className="r">Each service picks one role; each contractor ticks the roles they fill</span>
             </div>
-          ))}
-        </div>
-        <form action={createRoleAction} className="inc-inline">
-          <input type="hidden" name="_back" value={`${BACK}#roles`} />
-          <input className="gh-input" name="name" placeholder="New role, e.g. Copywriter" required aria-label="New role" style={{ flex: 1 }} />
-          <SubmitButton className="gh-btn-secondary" pendingLabel="…">
-            Add role
-          </SubmitButton>
-        </form>
-      </section>
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Your <em>hours</em> (not tied to a client)
-        </h2>
-        <p className="inc-small">Recruiting, sales calls, admin. Client-specific hours are logged on each engagement.</p>
-        <form action={logHoursAction} className="inc-inline">
-          <input type="hidden" name="_back" value={BACK} />
-          <input className="gh-input" type="date" name="workDate" defaultValue={todayNz()} aria-label="Date" />
-          <input className="gh-input" name="hours" placeholder="Hours" inputMode="decimal" required style={{ width: 90 }} />
-          <input className="gh-input" name="note" placeholder="What for" style={{ flex: 1 }} />
-          <SubmitButton className="gh-btn-secondary" pendingLabel="…">Log</SubmitButton>
-        </form>
-        <div className="inc-list">
-          {hours.map((h) => (
-            <div className="inc-row" key={h.id}>
-              <span>
-                {shortDate(h.workDate)} · {h.hours} h {h.note ? <span className="inc-small">· {h.note}</span> : null}
-              </span>
-              <span className="inc-small">{h.engagementId ? "client" : "general"}</span>
+            <div className="rowlist">
+              {roles.map((r) => {
+                const people = st.profiles.filter((c) => (c.roleIds ?? []).includes(r.id)).length;
+                const svcs = s.services.filter((x) => x.status === "active" && x.roleId === r.id).map((x) => x.name);
+                return (
+                  <RowFold
+                    key={r.id}
+                    summary={
+                      <>
+                        <span className="rowfold-main">
+                          <span>
+                            <span className="strong" style={{ fontWeight: 500 }}>
+                              {r.name}
+                            </span>
+                            <small>{svcs.join(", ") || "no services yet"}</small>
+                          </span>
+                        </span>
+                        <span className="muted small">
+                          {people} contractor{people === 1 ? "" : "s"}
+                        </span>
+                      </>
+                    }
+                  >
+                    <form className="form-grid g3" action={updateRoleAction}>
+                      <BackTo path={back} />
+                      <HiddenFields values={{ id: r.id }} />
+                      <Field label="Name">
+                        <input className="input" name="name" defaultValue={r.name} required />
+                      </Field>
+                      <Field label="Order">
+                        <input className="input" name="sortOrder" defaultValue={r.sortOrder} inputMode="numeric" />
+                      </Field>
+                      <div className="form-actions">
+                        <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                          Save
+                        </SubmitButton>
+                      </div>
+                    </form>
+                    <form action={deleteRoleAction} className="row">
+                      <BackTo path={back} />
+                      <HiddenFields values={{ id: r.id }} />
+                      <span className="spacer" />
+                      <button type="submit" className="linkbtn danger">
+                        Remove
+                      </button>
+                    </form>
+                  </RowFold>
+                );
+              })}
+              <AddRow label="Add a role">
+                <form className="row" action={createRoleAction}>
+                  <BackTo path={back} />
+                  <input className="input" name="name" placeholder="e.g. Copywriter" required style={{ flex: 1, width: "auto" }} />
+                  <SubmitButton className="btn btn-primary" pendingLabel="Adding…">
+                    Add role
+                  </SubmitButton>
+                </form>
+              </AddRow>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">Connections</h2>
-        <ul className="inc-small" style={{ paddingLeft: "var(--gh-space-4)", display: "flex", flexDirection: "column", gap: 4 }}>
-          <li>
-            Email and meeting invites use the Google account connected in{" "}
-            <Link className="inc-link" href="/settings">
-              GrayPortal Settings
-            </Link>
-            . Pick a Google Tasks list for &quot;Project Incrementum&quot; there too, or main-list tasks sync to your default list.
-          </li>
-          <li>Landing page forms post JSON to /api/incrementum/leads (businessName, contactName, email, phone, message, gclid, utm_*). Optional x-lead-capture-key header if LEAD_CAPTURE_SECRET is set.</li>
-          <li>Lead acknowledgement emails only send once you create an email template with key incrementum_lead_acknowledgement (Email Templates). Variables: client_name, business_name.</li>
-        </ul>
-      </section>
+          </Csec>
+        )}
+        {view === "hours" && (
+          <Csec>
+            <p className="muted small" style={{ marginBottom: 12 }}>
+              Recruiting, sales calls, admin. Client hours are logged on each client.
+            </p>
+            <form className="row" action={logHoursAction}>
+              <BackTo path={back} />
+              <input className="input" type="date" name="workDate" defaultValue={st.today} style={{ width: 150 }} aria-label="Date" />
+              <input className="input" name="hours" placeholder="Hours" required style={{ width: 80 }} inputMode="decimal" />
+              <input className="input" name="note" placeholder="What for" style={{ flex: 1, width: "auto" }} />
+              <SubmitButton className="btn" pendingLabel="…">
+                Log
+              </SubmitButton>
+            </form>
+            <dl className="ledger">
+              {generalHours.slice(0, 15).map((h) => (
+                <div key={h.id}>
+                  <dt>
+                    {fmtDate(h.workDate)}
+                    {h.note ? <span className="muted"> · {h.note}</span> : null}
+                  </dt>
+                  <dd className="row" style={{ gap: 8, flexWrap: "nowrap", justifyContent: "flex-end" }}>
+                    {n0(h.hours).toFixed(1)} h
+                    <form action={deleteHoursAction} style={{ display: "contents" }}>
+                      <BackTo path={back} />
+                      <HiddenFields values={{ id: h.id }} />
+                      <button type="submit" className="linkbtn muted" aria-label="Remove hours">
+                        ×
+                      </button>
+                    </form>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Csec>
+        )}
+        {view === "connections" && (
+          <Csec>
+            <Ledger
+              rows={[
+                ["Email and meeting invites", <Link key="g" className="linkbtn" href="/settings">Google account in GrayPortal Settings ›</Link>],
+                ["Main-list task sync", 'Google Tasks · "Project Incrementum"'],
+                ["Landing page forms", "POST /api/incrementum/leads"],
+                ["Lead acknowledgement email", "template incrementum_lead_acknowledgement"],
+              ]}
+            />
+          </Csec>
+        )}
+      </Console>
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }

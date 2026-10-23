@@ -26,8 +26,8 @@ import {
   METRIC_KEYS,
   EXPERIMENT_TYPES,
   EXPERIMENT_VERDICTS,
-  WIDGETS,
-  type WidgetKey,
+  HOME_SECTIONS,
+  type HomeSectionKey,
 } from "@/lib/incrementum/registry";
 import { mondayOf } from "@/lib/incrementum/evaluate";
 import { getIncrementumSnapshot } from "./snapshot";
@@ -50,35 +50,50 @@ async function softDeleteById(table: PgTable, entityType: string, id: string) {
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
+// Partial: only the keys a form sends are written, so each Settings view can
+// save its own fields without resetting the others.
 export const SettingsInput = z.object({
-  defaultMarkupPct: z.string().nullable(),
-  freedomTarget: z.string().nullable(),
-  freedomGold: z.string().nullable(),
-  freedomDiamond: z.string().nullable(),
-  adBudgetTotal: z.string().nullable(),
-  responseTargetMinutes: z.coerce.number().int().min(1).max(10_000),
-  defaultSlotsPerContractor: z.string().nullable(),
-  defaultRecruitDays: z.coerce.number().int().min(1).max(365),
-  launchDate: isoDate,
-  homeModeOverride: z.enum(["pre", "live"]).nullable(),
+  defaultMarkupPct: z.string().nullable().optional(),
+  freedomTarget: z.string().nullable().optional(),
+  freedomGold: z.string().nullable().optional(),
+  freedomDiamond: z.string().nullable().optional(),
+  adBudgetTotal: z.string().nullable().optional(),
+  responseTargetMinutes: z.coerce.number().int().min(1).max(10_000).optional(),
+  defaultSlotsPerContractor: z.string().nullable().optional(),
+  defaultRecruitDays: z.coerce.number().int().min(1).max(365).optional(),
+  minBench: z.coerce.number().int().min(0).max(50).optional(),
+  lowSlotsWarn: z.coerce.number().int().min(0).max(50).optional(),
+  launchDate: isoDate.optional(),
+  homeModeOverride: z.enum(["pre", "live"]).nullable().optional(),
 });
 
 export async function updateIncrementumSettings(input: z.input<typeof SettingsInput>) {
   const data = SettingsInput.parse(input);
   return withIncrementum(async (caller, tx) => {
     const [row] = await tx.select({ id: incrementumSettings.id }).from(incrementumSettings).where(eq(incrementumSettings.key, "singleton")).limit(1);
-    const values: Record<string, unknown> = {
-      responseTargetMinutes: data.responseTargetMinutes,
-      defaultRecruitDays: data.defaultRecruitDays,
-      launchDate: data.launchDate,
-      homeModeOverride: data.homeModeOverride,
-      updatedBy: caller.userId,
-    };
+    const values: Record<string, unknown> = { updatedBy: caller.userId };
+    for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn", "launchDate", "homeModeOverride"] as const) {
+      if (data[k] !== undefined) values[k] = data[k];
+    }
     for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor"] as const) {
       const v = numOrNull(data[k]);
       if (v !== null) values[k] = v;
     }
     return auditedUpdate(tx, incrementumSettings, eq(incrementumSettings.id, row.id), row.id, values, { caller, entityType: "incrementum_settings" });
+  });
+}
+
+/** ADS LIVE pop-up on the rail: set, change or clear the launch date. */
+export async function setLaunchDate(date: string | null) {
+  return updateIncrementumSettings({ launchDate: isoDate.parse(date) });
+}
+
+export async function saveCapacityThresholds(input: { defaultSlotsPerContractor: string | null; minBench: number | string; lowSlotsWarn: number | string; defaultRecruitDays: number | string }) {
+  return updateIncrementumSettings({
+    defaultSlotsPerContractor: input.defaultSlotsPerContractor,
+    minBench: Number(input.minBench),
+    lowSlotsWarn: Number(input.lowSlotsWarn),
+    defaultRecruitDays: Number(input.defaultRecruitDays),
   });
 }
 
@@ -331,7 +346,8 @@ export async function completeWeeklyReview(input: { notes: string | null; wins: 
       .from(incrementumWeeklyReviews)
       .where(and(eq(incrementumWeeklyReviews.weekOf, weekOf), isNull(incrementumWeeklyReviews.deletedAt)))
       .limit(1);
-    const values = { notes: input.notes, wins: input.wins, actions: createdTaskTitles, completedAt: new Date() };
+    // Updating this week's review adds to the actions already committed.
+    const values = { notes: input.notes, wins: input.wins, actions: [...(existing?.actions ?? []), ...createdTaskTitles], completedAt: new Date() };
     if (existing) {
       return auditedUpdate(tx, incrementumWeeklyReviews, eq(incrementumWeeklyReviews.id, existing.id), existing.id, { ...values, updatedBy: caller.userId }, { caller, entityType: "incrementum_weekly_review" });
     }
@@ -426,7 +442,7 @@ export async function getHomeLayout() {
 }
 
 export async function saveHomeLayout(widgets: { order: string[]; hidden: string[] } | null) {
-  const valid = (k: string): k is WidgetKey => k in WIDGETS;
+  const valid = (k: string): k is HomeSectionKey => k in HOME_SECTIONS;
   return withIncrementum(async (caller, tx) => {
     const [row] = await tx.select().from(incrementumHomeLayouts).where(eq(incrementumHomeLayouts.userId, caller.userId)).limit(1);
     const clean = widgets ? { order: widgets.order.filter(valid), hidden: widgets.hidden.filter(valid) } : null;

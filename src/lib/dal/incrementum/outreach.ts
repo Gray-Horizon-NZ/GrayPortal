@@ -1,7 +1,7 @@
 import "server-only";
 import { and, count, eq, gt } from "drizzle-orm";
 import { z } from "zod";
-import { incrementumActivities, incrementumContractorProfiles, incrementumLeads, incrementumStageEvents } from "@/lib/db/schema";
+import { incrementumActivities, incrementumContractorProfiles, incrementumEngagements, incrementumLeads, incrementumStageEvents } from "@/lib/db/schema";
 import { auditedInsert, auditedUpdate } from "../mutate";
 import { assertUnderRateLimit } from "../emails";
 import { sendGmail } from "@/lib/google/gmailAdapter";
@@ -97,6 +97,37 @@ export async function sendOutreachEmail(input: { entityType: OutreachEntity; ent
     if (data.entityType === "lead") await markLeadResponded(tx, caller, data.entityId);
     await autoAdvance(tx, caller, data.entityType, data.entityId, data.entityType === "lead" ? ["new"] : ["sourced"], "contacted", "Email sent");
     return { to: target.email };
+  });
+}
+
+/**
+ * "Send review email": asks a client for a Google review once their minimum
+ * term is served. Same Gmail path and rate limit as outreach; logged on the
+ * client's Incrementum timeline and stamped on the engagement.
+ */
+export async function sendReviewRequest(engagementId: string, input: { to: string; subject: string; body: string }) {
+  const data = z.object({ to: z.string().email(), subject: z.string().min(1), body: z.string().min(1) }).parse(input);
+  return withIncrementum(async (caller, tx) => {
+    await assertUnderRateLimit(tx);
+    const [recent] = await tx
+      .select({ n: count() })
+      .from(incrementumActivities)
+      .where(and(eq(incrementumActivities.type, "email"), gt(incrementumActivities.occurredAt, new Date(Date.now() - 3_600_000))));
+    if ((recent?.n ?? 0) >= 30) throw new Error("Outbound email rate limit reached (30/hour). Try again shortly.");
+
+    const [eng] = await tx.select({ id: incrementumEngagements.id }).from(incrementumEngagements).where(eq(incrementumEngagements.id, engagementId)).limit(1);
+    if (!eng) throw new Error("Client not found");
+    const sent = await sendGmail({ to: data.to, subject: data.subject, bodyText: data.body, bodyHtml: wrapEmailHtml(textToHtml(data.body)) });
+    if (!sent) throw new Error("Gmail is not connected. Connect it from Settings first.");
+
+    await auditedInsert(
+      tx,
+      incrementumActivities,
+      { entityType: "engagement", entityId: engagementId, type: "email", subject: data.subject, body: data.body, ...actor(caller) },
+      { caller, entityType: "incrementum_activity" }
+    );
+    await auditedUpdate(tx, incrementumEngagements, eq(incrementumEngagements.id, engagementId), engagementId, { reviewRequestedAt: new Date(), updatedBy: caller.userId }, { caller, entityType: "incrementum_engagement" });
+    return { to: data.to };
   });
 }
 

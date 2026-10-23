@@ -1,71 +1,129 @@
+import Link from "next/link";
+import { FileClock, Send, CheckCheck, Users, type LucideIcon } from "lucide-react";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import { money } from "@/lib/incrementum/format";
-import { toNum } from "@/lib/incrementum/pricing";
-import { PageHead, Flash } from "@/components/incrementum/ui";
-import { CycleRow } from "@/components/incrementum/CycleRow";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
+import { PageHead, Priv, Avatar, Console, Csec, TermStatus, TotalSplit, BigAction } from "@/components/incrementum/terminal/kit";
+import { CycleRow, type Cycle } from "@/components/incrementum/terminal/cycle-row";
+import { monthName, n0 } from "@/components/incrementum/terminal/helpers";
+import { settleMonthAction } from "../actions";
 
-const BACK = "/incrementum/payouts";
+const BASE = "/incrementum/payouts";
 
-export default async function PayoutsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const { ok, error } = await searchParams;
+// ─── Payouts (a schedule, not a bank ledger) ────────────────────────────
+// Nothing here reads the bank or Xero: Max's Xero isn't fed from the bank, so
+// tracking every payment would mean re-recording it. The page works out what
+// to invoice and who to pay from the signed prices; ticks are optional.
+export default async function PayoutsPage() {
   const s = await getIncrementumSnapshot();
-  const name = new Map(s.state.engagements.map((e) => [e.id, e.clientName ?? e.name]));
-  const cycles = s.state.cycles;
-  const due = cycles.filter((c) => c.clientPaidAt && !c.payoutPaidAt);
-  const awaiting = cycles.filter((c) => c.invoicedAt && !c.clientPaidAt);
-  const notInvoiced = cycles.filter((c) => !c.invoicedAt);
+  const st = s.state;
+  const month = `${st.today.slice(0, 7)}-01`;
+  const engById = new Map(st.engagements.map((e) => [e.id, e]));
+  const name = (eid: string) => {
+    const e = engById.get(eid);
+    return e ? (e.clientName ?? e.name) : "Client";
+  };
+  const cycles = [...st.cycles].sort((a, b) => b.month.localeCompare(a.month));
+  const toInvoice = cycles.filter((c) => !c.invoicedAt && c.month <= st.today);
+  const open = cycles.filter((c) => c.invoicedAt && !c.payoutPaidAt);
   const settled = cycles.filter((c) => c.payoutPaidAt).slice(0, 12);
-  const sum = (rows: typeof cycles, k: "invoiceAmount" | "payoutAmount") => rows.reduce((a, r) => a + (toNum(r[k]) ?? 0), 0);
+  const later = cycles.filter((c) => !c.invoicedAt && c.month > st.today);
 
+  // Who to pay this month: every contractor on an active client, at their signed rate.
+  const active = st.engagements.filter((e) => e.status === "active");
+  const activeIds = new Set(active.map((e) => e.id));
+  const profileName = new Map(st.profiles.map((p) => [p.contractorId, p.name]));
+  const payees = new Map<string, { name: string; amount: number; clients: string[] }>();
+  for (const ec of st.engagementContractors) {
+    if (!activeIds.has(ec.engagementId) || !n0(ec.monthlyCost)) continue;
+    const cur = payees.get(ec.contractorId) ?? { name: profileName.get(ec.contractorId) ?? "Contractor", amount: 0, clients: [] };
+    cur.amount += n0(ec.monthlyCost);
+    const client = name(ec.engagementId);
+    if (!cur.clients.includes(client)) cur.clients.push(client);
+    payees.set(ec.contractorId, cur);
+  }
+  const payeeRows = [...payees.entries()].sort((a, b) => b[1].amount - a[1].amount);
+  const invoiceTotal = active.reduce((a, e) => a + n0(e.monthlyPrice), 0);
+  const payTotal = payeeRows.reduce((a, [, p]) => a + p.amount, 0);
+  const unsettledThisMonth = cycles.filter((c) => c.month === month && c.invoicedAt && !c.payoutPaidAt);
+
+  const groups: [string, LucideIcon, Cycle[], string][] = [
+    ["To invoice", FileClock, toInvoice, "Every month that has started is invoiced."],
+    ["Invoiced · not ticked settled", Send, open, "Nothing waiting. (Settled is optional.)"],
+    ["Settled", CheckCheck, settled, "Nothing ticked yet. That's fine: the tick is optional."],
+    ["Coming up", FileClock, later, "No future months opened."],
+  ];
   return (
-    <>
-      <PageHead
-        eyebrow="Money"
-        title={
-          <>
-            Pay-when-<em>paid</em>
-          </>
-        }
-        lede="Client invoiced in advance → client pays → contractor payout due (7 days) → paid. The client paying is what unlocks the payout, so a late payer holds the contractor's money, not yours. Xero stays the books; record invoice numbers here."
-      />
-      <Flash ok={ok} error={error} />
-      <div className="inc-stats">
-        <div className="inc-stat">
-          <span className="inc-small">Payouts due now</span>
-          <span className="inc-stat-value">{money(sum(due, "payoutAmount"))}</span>
-          <span className="inc-small">{due.length} month(s)</span>
-        </div>
-        <div className="inc-stat">
-          <span className="inc-small">Awaiting client payment</span>
-          <span className="inc-stat-value">{money(sum(awaiting, "invoiceAmount"))}</span>
-          <span className="inc-small">{awaiting.length} invoice(s)</span>
-        </div>
-        <div className="inc-stat">
-          <span className="inc-small">Payouts on time</span>
-          <span className="inc-stat-value">{s.metrics.payouts_on_time_pct === null ? "—" : `${Math.round(s.metrics.payouts_on_time_pct)}%`}</span>
-        </div>
-        <div className="inc-stat">
-          <span className="inc-small">Profit vs ad spend</span>
-          <span className="inc-stat-value">{money(s.metrics.cumulative_profit_vs_spend)}</span>
-        </div>
-      </div>
-      <Group names={name} title={<>Pay the <em>contractor</em></>} rows={due} empty="Nothing to pay. Every client payment received has been passed on." />
-      <Group names={name} title={<>Awaiting the <em>client</em></>} rows={awaiting} empty="No unpaid invoices." />
-      <Group names={name} title={<>Not yet <em>invoiced</em></>} rows={notInvoiced} empty="Every open month has been invoiced. Open months from an engagement page." />
-      <Group names={name} title={<>Settled</>} rows={settled} empty="No settled months yet." />
+    <div className="screen">
+      <PageHead title="Payouts" sub="What to invoice and who to pay each month, worked out from the signed prices. Nothing here reads your bank or Xero, so there's nothing to re-record: it's a schedule, and the ticks are optional." />
+      <Console>
+        <Csec>
+          <TermStatus label={monthName(month, true)} value={toInvoice.length ? `${toInvoice.length} to invoice` : "All invoiced"} tone={toInvoice.length ? "warn" : undefined}>
+            Billed in advance · contractors paid within 5 working days of the client (pay-when-paid)
+          </TermStatus>
+        </Csec>
+        <TotalSplit
+          items={[
+            { label: "Invoice clients", value: money(invoiceTotal), priv: true, sub: `${active.length} active client${active.length === 1 ? "" : "s"} · per month` },
+            { label: "Pay contractors", value: money(payTotal), priv: true, sub: `${payeeRows.length} contractor${payeeRows.length === 1 ? "" : "s"} · per month` },
+            { label: "You keep", value: money(invoiceTotal - payTotal), priv: true, tone: "good", sub: "before ad spend" },
+          ]}
+        />
+        <Csec className="flush">
+          <div className="agency-list-head">
+            <Users size={14} /> Who to pay · {monthName(month, true)}
+            <span className="r">from the signed contractor rates</span>
+          </div>
+          {payeeRows.length === 0 ? (
+            <p className="muted small" style={{ padding: "14px 16px" }}>
+              No contractors on active clients yet.
+            </p>
+          ) : (
+            <div style={{ padding: "4px 16px" }}>
+              <dl className="ledger">
+                {payeeRows.map(([cid, p]) => (
+                  <Link key={cid} href={`/incrementum/contractors/${cid}`} data-click>
+                    <dt className="row" style={{ gap: 10, flexWrap: "nowrap" }}>
+                      <Avatar name={p.name} size={26} active /> {p.name} <small className="muted">{p.clients.join(", ")}</small>
+                    </dt>
+                    <dd>
+                      <Priv>{money(p.amount)}</Priv>
+                    </dd>
+                  </Link>
+                ))}
+              </dl>
+            </div>
+          )}
+        </Csec>
+        {groups.map(([title, Icon, rows, empty]) => (
+          <Csec key={title} className="flush">
+            <div className="agency-list-head">
+              <Icon size={14} /> {title}
+              <span className="r">{rows.length}</span>
+            </div>
+            {rows.length === 0 ? (
+              <p className="muted small" style={{ padding: "14px 16px" }}>
+                {empty}
+              </p>
+            ) : (
+              <div className="rowlist">
+                {rows.map((c) => (
+                  <CycleRow key={c.id} c={c} title={name(c.engagementId)} back={BASE} today={st.today} />
+                ))}
+              </div>
+            )}
+          </Csec>
+        ))}
+        <BigAction
+          label={`Mark ${monthName(month, true)} settled`}
+          sub={unsettledThisMonth.length ? "Optional · tick once you've paid everyone for the month" : "Nothing invoiced and unticked this month"}
+          value={<Priv>{money(unsettledThisMonth.reduce((a, c) => a + n0(c.payoutAmount), 0))}</Priv>}
+          disabled={!unsettledThisMonth.length}
+          action={settleMonthAction}
+          hidden={{ _back: BASE, ids: unsettledThisMonth.map((c) => c.id).join(","), date: st.today }}
+        />
+      </Console>
       <IncrementumReadySignal />
-    </>
-  );
-}
-
-type Cycle = Awaited<ReturnType<typeof getIncrementumSnapshot>>["state"]["cycles"][number];
-
-function Group({ title, rows, empty, names }: { title: React.ReactNode; rows: Cycle[]; empty: string; names: Map<string, string> }) {
-  return (
-    <section className="inc-panel">
-      <h2 className="inc-cell-title">{title}</h2>
-      {rows.length === 0 ? <p className="inc-muted">{empty}</p> : rows.map((c) => <CycleRow key={c.id} c={c} back={BACK} title={names.get(c.engagementId)} />)}
-    </section>
+    </div>
   );
 }

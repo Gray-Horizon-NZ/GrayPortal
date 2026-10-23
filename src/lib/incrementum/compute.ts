@@ -261,8 +261,10 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
   const leads = state.leads.filter((l) => !l.deletedAt);
   const leadById = new Map(leads.map((l) => [l.id, l]));
 
+  // Payments aren't tracked (Max, 2026-10-22: his Xero isn't fed from the
+  // bank), so "paying" means at least one month invoiced.
   const paidClients = new Set(
-    active.filter((e) => cycles.some((c) => c.engagementId === e.id && c.clientPaidAt)).map((e) => e.clientId)
+    active.filter((e) => cycles.some((c) => c.engagementId === e.id && c.invoicedAt)).map((e) => e.clientId)
   );
   const adsClients = new Set(
     active
@@ -303,15 +305,6 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
     .filter((h) => !h.deletedAt && h.workDate >= sixtyAgo && h.userId && adminSet.has(h.userId))
     .reduce((a, h) => a + n(h.hours), 0);
 
-  let payoutOnTime = 0;
-  let payoutLate = 0;
-  for (const c of cycles) {
-    if (!c.payoutDueAt) continue;
-    if (c.payoutPaidAt) {
-      if (c.payoutPaidAt <= c.payoutDueAt) payoutOnTime++;
-      else payoutLate++;
-    } else if (c.payoutDueAt < today) payoutLate++;
-  }
   let deliveredOnTime = 0;
   let deliveredDue = 0;
   for (const c of cycles) {
@@ -321,8 +314,10 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
     if (c.deliveredAt && c.deliveredAt <= end) deliveredOnTime++;
   }
 
-  const paidIn = cycles.filter((c) => c.clientPaidAt).reduce((a, c) => a + n(c.invoiceAmount), 0);
-  const paidOut = cycles.filter((c) => c.payoutPaidAt).reduce((a, c) => a + n(c.payoutAmount), 0);
+  // From the signed prices on invoiced months, not bank receipts.
+  const invoiced = cycles.filter((c) => c.invoicedAt);
+  const invoicedIn = invoiced.reduce((a, c) => a + n(c.invoiceAmount), 0);
+  const invoicedOut = invoiced.reduce((a, c) => a + n(c.payoutAmount), 0);
 
   const m: Metrics = {
     contractors_sourced: profiles.filter((p) => p.stage !== "not_a_fit").length,
@@ -344,7 +339,7 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
     avg_margin_pct: mrr > 0 ? (grossProfit / mrr) * 100 : null,
     // Null until there's any spend or income — otherwise $0 − $0 would read
     // as "break-even reached" before the scheme has started.
-    cumulative_profit_vs_spend: spendTotal === 0 && paidIn === 0 ? null : paidIn - paidOut - spendTotal,
+    cumulative_profit_vs_spend: spendTotal === 0 && invoicedIn === 0 ? null : invoicedIn - invoicedOut - spendTotal,
     leads_total: leads.length,
     leads_this_month: leads.filter((l) => new Date(l.receivedAt).toISOString().slice(0, 7) === today.slice(0, 7)).length,
     qualified_leads: qualified.length,
@@ -356,14 +351,13 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
     landing_conversion: clicksTotal ? (adsLeads.length / clicksTotal) * 100 : null,
     avg_response_minutes: responseMins.length ? responseMins.reduce((a, b) => a + b, 0) / responseMins.length : null,
     max_hours_per_client: activeClientCount ? maxHours / 2 / activeClientCount : null,
-    payouts_on_time_pct: payoutOnTime + payoutLate ? (payoutOnTime / (payoutOnTime + payoutLate)) * 100 : null,
     delivered_on_time_pct: deliveredDue ? (deliveredOnTime / deliveredDue) * 100 : null,
     weekly_review_streak: reviewStreak(
       state.reviews.filter((r) => !r.deletedAt && r.completedAt).map((r) => r.weekOf),
       new Date(`${today}T12:00:00Z`)
     ),
     launch_readiness_pct: null, // filled below — depends on the other metrics
-    pilot_loop_complete: cycles.filter((c) => c.deliveredAt && c.approvedAt && c.clientPaidAt && c.payoutPaidAt).length,
+    pilot_loop_complete: cycles.filter((c) => c.deliveredAt && c.approvedAt && c.reportSentAt && c.invoicedAt).length,
     tracked_leads: leads.filter((l) => l.gclid || (l.utm && Object.keys(l.utm).length > 0)).length,
     contractor_lockdown_applied: state.contractorLockdownApplied ? 1 : 0,
   };
@@ -477,11 +471,35 @@ export function computeGoals(state: IncrementumState, metrics: Metrics): GoalVie
 // ---------------------------------------------------------------------------
 // Capacity
 // ---------------------------------------------------------------------------
-export type CapacityView = ServiceCapacity & { needed: number | null; gap: number | null; recruitBy: string | null; targetDate: string | null };
+export type CapacityView = ServiceCapacity & {
+  needed: number | null;
+  gap: number | null;
+  recruitBy: string | null;
+  targetDate: string | null;
+  /** Free slots at or below the low-slots warning. */
+  low: boolean;
+  /** Bench contractors on this service, with their declared slots (null = default). */
+  bench: { contractorId: string; contractorServiceId: string; name: string; capacitySlots: number | null }[];
+  /** Active clients with a main contractor on this service. */
+  clients: { engagementId: string; name: string; slotWeight: number; businessSize: string | null }[];
+};
+
+/**
+ * The capacity rules, all editable (Capacity page / Settings): default slots
+ * per contractor until they declare one, days to recruit until measured,
+ * the minimum bench per service, and the "low on slots" warning.
+ */
+export function capacityRules(state: IncrementumState) {
+  return {
+    slotsPer: n(state.settings.defaultSlotsPerContractor) || 4,
+    recruitDays: state.settings.defaultRecruitDays ?? 21,
+    minBench: state.settings.minBench ?? 2,
+    lowSlots: state.settings.lowSlotsWarn ?? 1,
+  };
+}
 
 export function computeCapacity(state: IncrementumState, services: ServiceView[], packages: PackageView[], nextPhase: PhaseView | null): CapacityView[] {
-  const slotsPer = n(state.settings.defaultSlotsPerContractor) || 4;
-  const recruitDays = state.settings.defaultRecruitDays ?? 21;
+  const { slotsPer, recruitDays, minBench, lowSlots } = capacityRules(state);
   const profileByContractor = new Map(state.profiles.filter((p) => !p.deletedAt).map((p) => [p.contractorId, p]));
   const activeEng = new Map(state.engagements.filter((e) => !e.deletedAt && e.status === "active").map((e) => [e.id, e]));
 
@@ -497,17 +515,23 @@ export function computeCapacity(state: IncrementumState, services: ServiceView[]
           const p = profileByContractor.get(cs.contractorId);
           return p && isBench(p.stage);
         })
-        .map((cs) => ({ contractorId: cs.contractorId, capacitySlots: toNum(cs.capacitySlots) }));
-      const slotsUsed = state.engagementContractors
-        .filter((ec) => !ec.deletedAt && ec.role === "main" && ec.serviceId === s.id && activeEng.has(ec.engagementId))
-        .reduce((a, ec) => a + n(activeEng.get(ec.engagementId)!.slotWeight), 0);
-      const cap = serviceCapacity({ serviceId: s.id, serviceName: s.name, benchContractors, slotsUsed, defaultSlotsPerContractor: slotsPer, minBench: 2 });
+        .map((cs) => ({ contractorId: cs.contractorId, contractorServiceId: cs.id, name: profileByContractor.get(cs.contractorId)!.name, capacitySlots: toNum(cs.capacitySlots) }));
+      const mains = state.engagementContractors.filter((ec) => !ec.deletedAt && ec.role === "main" && ec.serviceId === s.id && activeEng.has(ec.engagementId));
+      const clientIds = [...new Set(mains.map((ec) => ec.engagementId))];
+      const slotsUsed = clientIds.reduce((a, id) => a + n(activeEng.get(id)!.slotWeight), 0);
+      const cap = serviceCapacity({ serviceId: s.id, serviceName: s.name, benchContractors, slotsUsed, defaultSlotsPerContractor: slotsPer, minBench });
       const avgSlots = benchContractors.length ? cap.slotsTotal / benchContractors.length : slotsPer;
       const target = nextPhase?.clientMax ?? nextPhase?.clientMin ?? null;
-      const needed = target !== null ? contractorsNeeded(target, 1, avgSlots, 2) : null;
+      const needed = target !== null ? contractorsNeeded(target, 1, avgSlots, minBench) : null;
       const targetDate = nextPhase?.targetDate ?? null;
       return {
         ...cap,
+        low: cap.slotsTotal > 0 && cap.slotsFree <= lowSlots,
+        bench: benchContractors,
+        clients: clientIds.map((id) => {
+          const e = activeEng.get(id)!;
+          return { engagementId: id, name: e.clientName ?? e.name, slotWeight: n(e.slotWeight), businessSize: e.businessSize };
+        }),
         needed,
         gap: needed !== null ? Math.max(0, needed - cap.confirmed) : null,
         recruitBy: targetDate ? recruitByDate(targetDate, recruitDays) : null,
@@ -567,14 +591,18 @@ export function computeAttention(state: IncrementumState, goals: GoalView[]): At
   for (const c of state.cycles) {
     if (c.deletedAt) continue;
     const name = engName.get(c.engagementId) ?? "Engagement";
-    if (c.deliveredAt && !c.approvedAt) out.push({ key: `appr-${c.id}`, tone: "warning", title: `Approve ${name}'s deliverables`, href: `/incrementum/engagements/${c.engagementId}` });
-    if (c.clientPaidAt && !c.payoutPaidAt) {
-      const overdue = c.payoutDueAt && c.payoutDueAt < state.today;
-      out.push({ key: `pay-${c.id}`, tone: overdue ? "danger" : "warning", title: `Pay contractor for ${name}`, detail: c.payoutDueAt ? `Due ${c.payoutDueAt}` : undefined, href: "/incrementum/payouts" });
+    if (c.deliveredAt && !c.approvedAt) out.push({ key: `appr-${c.id}`, tone: "warning", title: `Approve ${name}'s deliverables`, href: `/incrementum/clients/${c.engagementId}` });
+    // Billed in advance: once a month starts its invoice should be out.
+    // (Payments aren't tracked, so there's no "unpaid" chasing here.)
+    const eng = state.engagements.find((e) => e.id === c.engagementId);
+    if (!c.invoicedAt && c.month <= state.today && eng?.status === "active") {
+      out.push({ key: `inv-${c.id}`, tone: "warning", title: `Invoice ${name} for ${monthLabel(c.month)}`, detail: "Billed in advance", href: "/incrementum/payouts" });
     }
-    if (c.invoicedAt && !c.clientPaidAt && c.invoicedAt < addDaysIso(state.today, -14)) {
-      out.push({ key: `inv-${c.id}`, tone: "danger", title: `${name} invoice unpaid 14+ days`, detail: "Contractor payout on hold", href: "/incrementum/payouts" });
-    }
+  }
+  for (const e of state.engagements) {
+    if (e.deletedAt || e.status !== "active" || !e.minTermEnd || e.minTermEnd > state.today || e.reviewRequestedAt) continue;
+    if (e.startDate && e.minTermEnd <= e.startDate) continue; // no minimum term: nothing to wait for, offered on the client page
+    out.push({ key: `greview-${e.id}`, tone: "neutral", title: `Ask ${e.clientName ?? e.name} for a Google review`, detail: "Minimum term served", href: `/incrementum/clients/${e.id}` });
   }
   for (const t of state.tasks) {
     if (t.status === "done" || !t.dueDate || t.dueDate >= state.today) continue;
@@ -597,6 +625,10 @@ export function computeAttention(state: IncrementumState, goals: GoalView[]): At
 
 export type NextMove = { key: string; title: string; detail?: string; href: string };
 
+function monthLabel(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleString("en-NZ", { month: "short", timeZone: "UTC" });
+}
+
 export function computeNextMoves(
   state: IncrementumState,
   metrics: Metrics,
@@ -613,10 +645,11 @@ export function computeNextMoves(
       href: "/incrementum/roadmap",
     });
   }
+  const { minBench } = capacityRules(state);
   for (const c of capacity) {
     if (!c.benchOk) {
-      out.push({ key: `bench-${c.serviceId}`, title: `${c.serviceName} has no backup contractor yet.`, detail: `${c.confirmed} confirmed. Recruit at least ${2 - c.confirmed} more so a contractor leaving can't stall a client.`, href: "/incrementum/contractors" });
-    } else if (c.slotsTotal > 0 && c.slotsFree <= 1) {
+      out.push({ key: `bench-${c.serviceId}`, title: `${c.serviceName} has no backup contractor yet.`, detail: `${c.confirmed} confirmed. Recruit at least ${minBench - c.confirmed} more so a contractor leaving can't stall a client.`, href: "/incrementum/contractors" });
+    } else if (c.low) {
       out.push({ key: `full-${c.serviceId}`, title: `${c.serviceName} bench is nearly full.`, detail: `${c.slotsFree} slot${c.slotsFree === 1 ? "" : "s"} free. Start sourcing another contractor${c.recruitBy ? ` by ${c.recruitBy}` : ""}.`, href: "/incrementum/capacity" });
     }
   }
@@ -624,12 +657,12 @@ export function computeNextMoves(
     if (e.deletedAt || e.status !== "active" || !e.startDate) continue;
     const months = monthsBetween(e.startDate, state.today);
     if (months >= 3 && e.health === "good") {
-      out.push({ key: `referral-${e.id}`, title: `${e.clientName ?? e.name} is ${Math.floor(months)} months in and healthy. Ask for a referral.`, href: `/incrementum/engagements/${e.id}` });
+      out.push({ key: `referral-${e.id}`, title: `${e.clientName ?? e.name} is ${Math.floor(months)} months in and healthy. Ask for a referral.`, href: `/incrementum/clients/${e.id}` });
     }
     const cost = state.engagementContractors.filter((ec) => ec.engagementId === e.id && !ec.deletedAt).reduce((a, ec) => a + n(ec.monthlyCost), 0);
     const profit = n(e.monthlyPrice) - cost;
     if (n(e.monthlyPrice) > 0 && profit < 400) {
-      out.push({ key: `price-${e.id}`, title: `${e.clientName ?? e.name} makes ${money(profit)}/month, under the $400 kill line.`, detail: "Review the price at renewal or move it to a cheaper bench contractor.", href: `/incrementum/engagements/${e.id}` });
+      out.push({ key: `price-${e.id}`, title: `${e.clientName ?? e.name} makes ${money(profit)}/month, under the $400 kill line.`, detail: "Review the price at renewal or move it to a cheaper bench contractor.", href: `/incrementum/clients/${e.id}` });
     }
   }
   const freedom = n(state.settings.freedomTarget);
@@ -929,4 +962,74 @@ export function previewRole(state: IncrementumState, services: ServiceView[], ro
     roleOneOffPrice: sum("one_off", "price"),
     roleOneOffProfit: sum("one_off", "profit"),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Contractor bench filter (Contractors page, Max 2026-10-22): every
+// contractor, narrowed by service, role, business size and rate, using the
+// same rules as roleCandidates so the page and the "Add contractor" popup
+// always agree.
+// ---------------------------------------------------------------------------
+export type BenchFilter = { serviceId?: string | null; roleId?: string | null; sizes?: string[]; maxRate?: number | null; offRamp?: boolean; benchOnly?: boolean };
+export type BenchMatch = {
+  contractorId: string;
+  name: string;
+  specialty: string | null;
+  stage: string;
+  onBench: boolean;
+  roleMatch: boolean;
+  /** Their rate for the chosen service, else their lowest monthly quote. */
+  rate: number | null;
+  rateType: string | null;
+  missingQuote: boolean;
+  jobs: number;
+};
+
+/**
+ *   service  quoted it, or ticked the service's role (no quote yet = "missing")
+ *   role     ticked that role
+ *   sizes    works with one of them (none ticked on the profile = any size)
+ *   maxRate  rate as above is at most this
+ * Paused and not-a-fit only show with offRamp. Bench first, then role match,
+ * then quoted before missing, then cheapest.
+ */
+export function matchContractors(state: IncrementumState, f: BenchFilter = {}): BenchMatch[] {
+  const service = f.serviceId ? state.services.find((s) => s.id === f.serviceId && !s.deletedAt) : null;
+  const activeEng = new Set(state.engagements.filter((e) => e.status === "active" && !e.deletedAt).map((e) => e.id));
+  const openLeads = new Set(state.leads.filter((l) => !l.deletedAt && !l.convertedClientId && l.stage !== "lost").map((l) => l.id));
+  const out: BenchMatch[] = [];
+  for (const p of state.profiles) {
+    if (p.deletedAt) continue;
+    if (!f.offRamp && (p.stage === "paused" || p.stage === "not_a_fit")) continue;
+    const onBench = isBench(p.stage);
+    if (f.benchOnly && !onBench) continue;
+    const roleIds = p.roleIds ?? [];
+    if (f.roleId && !roleIds.includes(f.roleId)) continue;
+    const quotes = state.contractorServices.filter((cs) => cs.contractorId === p.contractorId && !cs.deletedAt);
+    const quote = service ? quotes.find((q) => q.serviceId === service.id) : undefined;
+    const roleMatch = service ? !!service.roleId && roleIds.includes(service.roleId) : true;
+    if (service && !quote && !roleMatch) continue;
+    const sizes = p.worksWithSizes ?? [];
+    if (f.sizes?.length && sizes.length && !f.sizes.some((z) => sizes.includes(z as never))) continue;
+    const monthly = quotes.filter((q) => q.rateType === "monthly" && q.rate !== null).map((q) => n(q.rate));
+    const rate = service ? (quote && quote.rate !== null ? n(quote.rate) : null) : monthly.length ? Math.min(...monthly) : null;
+    if (f.maxRate !== null && f.maxRate !== undefined && (rate === null || rate > f.maxRate)) continue;
+    const engagements = new Set(state.engagementContractors.filter((ec) => !ec.deletedAt && ec.contractorId === p.contractorId && activeEng.has(ec.engagementId)).map((ec) => ec.engagementId));
+    const leads = new Set(state.needs.filter((nd) => !nd.deletedAt && nd.contractorId === p.contractorId && nd.leadId && !nd.engagementId && openLeads.has(nd.leadId)).map((nd) => nd.leadId));
+    out.push({
+      contractorId: p.contractorId,
+      name: p.name,
+      specialty: p.specialty,
+      stage: p.stage,
+      onBench,
+      roleMatch,
+      rate,
+      rateType: service ? (quote?.rateType ?? null) : rate !== null ? "monthly" : null,
+      missingQuote: !!service && !quote,
+      jobs: engagements.size + leads.size,
+    });
+  }
+  return out.sort(
+    (a, b) => Number(b.onBench) - Number(a.onBench) || Number(b.roleMatch) - Number(a.roleMatch) || Number(a.missingQuote) - Number(b.missingQuote) || (a.rate ?? 1e9) - (b.rate ?? 1e9)
+  );
 }

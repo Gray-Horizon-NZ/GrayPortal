@@ -141,17 +141,17 @@ export const METRICS = {
   bench_top_service: { label: "Deepest bench (one service)", unit: "count", description: "The most confirmed contractors on any single service." },
   bench_weakest_live: { label: "Weakest bench (live services)", unit: "count", description: "The fewest confirmed contractors on any service sold in a live package." },
   active_clients: { label: "Active clients", unit: "count", description: "Clients with an active engagement." },
-  paying_clients: { label: "Paying clients", unit: "count", description: "Active clients with at least one paid invoice recorded." },
+  paying_clients: { label: "Paying clients", unit: "count", description: "Active clients with at least one month invoiced (payments aren't tracked)." },
   ads_clients: { label: "Clients from ads", unit: "count", description: "Active clients whose lead came from Google or Meta ads." },
   max_months_retained: { label: "Longest client stay", unit: "months", description: "Longest an engagement has run (active or ended)." },
   avg_months_retained: { label: "Average client stay", unit: "months", description: "Average engagement length so far." },
   clients_lost_90d: { label: "Clients lost (90 days)", unit: "count", description: "Engagements ended in the last 90 days." },
-  mrr: { label: "Incrementum MRR", unit: "currency", description: "Signed monthly price of every active engagement." },
+  mrr: { label: "Monthly revenue (MRR)", unit: "currency", description: "Signed monthly price of every active client, added up." },
   monthly_contractor_cost: { label: "Monthly contractor cost", unit: "currency", description: "Monthly cost of every contractor on active engagements." },
   monthly_profit: { label: "Monthly profit", unit: "currency", description: "MRR − contractor costs − this month's ad spend." },
   avg_profit_per_client: { label: "Avg profit per client", unit: "currency", description: "(MRR − contractor costs) ÷ active clients." },
   avg_margin_pct: { label: "Avg margin", unit: "percent", description: "(MRR − contractor costs) ÷ MRR." },
-  cumulative_profit_vs_spend: { label: "Profit vs ad spend (to date)", unit: "currency", description: "Paid client invoices − contractor payouts − all ad spend. ≥ 0 means break-even." },
+  cumulative_profit_vs_spend: { label: "Profit vs ad spend (to date)", unit: "currency", description: "Signed price − contractor payouts on every invoiced month − all ad spend. ≥ 0 means break-even." },
   leads_total: { label: "Leads (all time)", unit: "count", description: "Every Incrementum lead." },
   leads_this_month: { label: "Leads this month", unit: "count", description: "Leads received this calendar month." },
   qualified_leads: { label: "Qualified leads", unit: "count", description: "Leads that reached Qualified or beyond." },
@@ -163,11 +163,10 @@ export const METRICS = {
   landing_conversion: { label: "Landing page conversion", unit: "percent", description: "Leads from ads ÷ ad clicks." },
   avg_response_minutes: { label: "Avg first response", unit: "minutes", description: "Average time from a lead arriving to first contact." },
   max_hours_per_client: { label: "Max's hours per client / month", unit: "hours", description: "Max's logged hours over the last 60 days ÷ 2 ÷ active clients." },
-  payouts_on_time_pct: { label: "Payouts on time", unit: "percent", description: "Contractor payouts paid on or before their due date." },
   delivered_on_time_pct: { label: "Delivery on time", unit: "percent", description: "Monthly cycles delivered by the end of their month." },
   weekly_review_streak: { label: "Weekly review streak", unit: "count", description: "Consecutive weeks with a completed review." },
   launch_readiness_pct: { label: "Launch readiness", unit: "percent", description: "Launch-critical items done or N/A (Gates A–I)." },
-  pilot_loop_complete: { label: "Full loops completed", unit: "count", description: "Monthly cycles that went all the way: delivered, approved, client paid, contractor paid." },
+  pilot_loop_complete: { label: "Full loops completed", unit: "count", description: "Months that went all the way: delivered, approved, report sent, invoiced." },
   tracked_leads: { label: "Leads with ad tracking", unit: "count", description: "Leads that arrived with a gclid or UTM tags." },
   contractor_lockdown_applied: { label: "Contractor lockdown applied", unit: "count", description: "1 once db/sql/031 is in: contractor logins only reach their own workspace." },
 } as const satisfies Record<string, MetricDef>;
@@ -178,35 +177,22 @@ export function isMetricKey(key: string | null | undefined): key is MetricKey {
 }
 
 // ---------------------------------------------------------------------------
-// Home widgets (plan §5)
+// Home sections (plan §5; the Terminal UI's six, Max 2026-10-22). One saved
+// layout per user (incrementum_home_layouts.widgets = { order, hidden }).
 // ---------------------------------------------------------------------------
 export type WidgetMode = "pre" | "live";
-export type WidgetDef = { label: string; span: number; preSpan?: number; modes: WidgetMode[] };
-export const WIDGETS = {
-  phase: { label: "Phase progress", span: 12, modes: ["pre", "live"] },
-  next_moves: { label: "Recommended next moves", span: 12, modes: ["pre", "live"] },
-  launch: { label: "Launch readiness", span: 4, preSpan: 8, modes: ["pre", "live"] },
-  freedom: { label: "Freedom number", span: 8, preSpan: 12, modes: ["pre", "live"] },
-  review: { label: "Weekly review", span: 4, modes: ["pre", "live"] },
-  attention: { label: "Needs attention", span: 6, modes: ["pre", "live"] },
-  goals: { label: "Goals pace", span: 6, modes: ["pre", "live"] },
-  leads: { label: "Lead inbox", span: 4, modes: ["live"] },
-  pipeline: { label: "Sales pipeline", span: 4, modes: ["live"] },
-  payouts: { label: "Payouts", span: 4, modes: ["live"] },
-  team: { label: "Gray Horizon Team", span: 12, modes: ["pre", "live"] },
-  engagements: { label: "Engagement health", span: 8, modes: ["live"] },
-  economics: { label: "Unit economics", span: 4, modes: ["live"] },
-  capacity: { label: "Capacity", span: 6, modes: ["pre", "live"] },
-  deadlines: { label: "Deadlines", span: 6, modes: ["pre", "live"] },
-  tasks: { label: "Main task list", span: 6, modes: ["pre", "live"] },
-  runway: { label: "Runway", span: 3, modes: ["live"] },
-  experiments: { label: "Experiments", span: 3, modes: ["pre", "live"] },
-  roadmap: { label: "Roadmap strip", span: 12, modes: ["pre", "live"] },
-} as const satisfies Record<string, WidgetDef>;
-export type WidgetKey = keyof typeof WIDGETS;
-export const DEFAULT_WIDGET_ORDER: Record<WidgetMode, WidgetKey[]> = {
-  pre: ["phase", "launch", "review", "next_moves", "attention", "tasks", "deadlines", "goals", "freedom", "team", "capacity", "experiments", "roadmap"],
-  live: ["phase", "freedom", "review", "next_moves", "attention", "goals", "leads", "pipeline", "payouts", "team", "engagements", "economics", "capacity", "deadlines", "tasks", "runway", "experiments", "launch", "roadmap"],
+export const HOME_SECTIONS = {
+  console: "Scheme console",
+  tiles: "Business tiles",
+  next: "Next up",
+  team: "Gray Horizon Team",
+  goals: "Goals",
+  roadmap: "Roadmap",
+} as const;
+export type HomeSectionKey = keyof typeof HOME_SECTIONS;
+export const HOME_ORDER: Record<WidgetMode, HomeSectionKey[]> = {
+  pre: ["console", "next", "tiles", "team", "goals", "roadmap"],
+  live: ["console", "tiles", "next", "team", "goals", "roadmap"],
 };
 
 // ---------------------------------------------------------------------------
