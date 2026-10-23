@@ -5,6 +5,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { auditedInsert, auditedSoftDelete } from "./mutate";
 import { z } from "zod";
+import { nzToday } from "@/lib/date";
 
 export const RecurrenceInterval = z.enum(["monthly", "quarterly", "custom"]);
 
@@ -60,7 +61,7 @@ function advance(date: Date, interval: "monthly" | "quarterly" | "custom", inter
  */
 export async function runDueRecurringTemplates() {
   return withAdminScope("Scheduled recurring template run", async (tx) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = nzToday();
     const due = await tx
       .select()
       .from(recurringTemplates)

@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { grayscaleRequests, grayscaleProducts, notifications, users, emailTemplates, clients } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { assertRole, requireRealClientScope } from "./session";
@@ -140,6 +140,19 @@ export async function listGrayscaleRequests(clientId: string) {
       .from(grayscaleRequests)
       .where(eq(grayscaleRequests.clientId, clientId))
       .orderBy(grayscaleRequests.createdAt);
+  });
+}
+
+/** Every client's requests, newest first, with the client name — the GrayScale screen's Requests tab. */
+export async function listAllGrayscaleRequests() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return tx
+      .select({ request: grayscaleRequests, clientName: clients.name })
+      .from(grayscaleRequests)
+      .innerJoin(clients, eq(clients.id, grayscaleRequests.clientId))
+      .where(isNull(clients.deletedAt))
+      .orderBy(desc(grayscaleRequests.createdAt));
   });
 }
 

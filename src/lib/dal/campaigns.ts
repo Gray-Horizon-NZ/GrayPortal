@@ -50,6 +50,22 @@ export async function listCampaigns() {
   });
 }
 
+/** Recipient, sent and opened counts per campaign, for the campaigns table. */
+export async function listCampaignStats() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return tx
+      .select({
+        campaignId: campaignRecipients.campaignId,
+        recipients: sql<number>`count(*)::int`,
+        sent: sql<number>`count(*) filter (where ${campaignRecipients.status} = 'sent')::int`,
+        opened: sql<number>`count(${campaignRecipients.openedAt})::int`,
+      })
+      .from(campaignRecipients)
+      .groupBy(campaignRecipients.campaignId);
+  });
+}
+
 export async function createCampaignDraft(input: CampaignInputT) {
   const data = CampaignInput.parse(input);
   return withCaller(async (caller, tx) => {

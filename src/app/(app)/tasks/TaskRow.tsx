@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Star, AlertTriangle } from "lucide-react";
 import { setTaskStatusAction, assignTaskAction, toggleTaskStarAction, toggleTaskPriorityAction } from "./actions";
+import { nzToday } from "@/lib/date";
 
 type Task = {
   id: string;
@@ -33,7 +34,7 @@ const INTERNAL_LIST_LABELS: Record<string, string> = {
 
 // "Due 21 Oct", red once it's past and the task isn't done.
 export function DueLabel({ due, done }: { due: string; done?: boolean }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = nzToday();
   const late = !done && due < today;
   const label = new Date(`${due}T00:00:00`).toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
   return (

@@ -25,6 +25,7 @@ import type { Tx } from "./session";
 import { auditedInsert } from "./mutate";
 import { PORTAL_FEATURE_KEYS, type PortalFeatureKey } from "./clients";
 import { z } from "zod";
+import { nzToday } from "@/lib/date";
 
 /**
  * Client portal task ordering, Max's ask: high-priority marked tasks first,
@@ -145,7 +146,7 @@ async function getHomeWidgetPreviews(
       ),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = nzToday();
   const activeDiscountPercent = discountRows
     .filter((d) => d.startsOn <= today && d.endsOn >= today)
     .reduce((sum, d) => sum + Number(d.discountPercent), 0);
@@ -415,7 +416,7 @@ export async function getReferralStats() {
     // referral_discounts windows are currently live for this client, not
     // just the most recent one. A $ figure isn't computable here since
     // retainer value doesn't live on the client record.
-    const today = new Date().toISOString().slice(0, 10);
+    const today = nzToday();
     const discountRows = await tx
       .select()
       .from(referralDiscounts)

@@ -1,101 +1,34 @@
+import { StoreData } from "@/terminal/store";
+import { Calendar } from "@/terminal/screens/Work";
+import { loadEventsInRange, loadTasks } from "@/terminal/load";
+import { getGoogleConnection } from "@/lib/dal/googleConnection";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCaller } from "@/lib/dal/auth";
-import { listAllTasks } from "@/lib/dal/tasks";
-import { getGoogleConnectionForSync } from "@/lib/dal/googleConnection";
-import { listCalendarEventsInRange } from "@/lib/google/adapter";
-import CalendarGrid from "./CalendarGrid";
-import { PageHead } from "@/components/ui/terminal/Term";
-import { addDays, addMonths, buildMonthGrid, buildWeekDays, parseDateStr, toDateStr } from "./dateGrid";
+import { TODAY, monthCells } from "@/terminal/format";
 
-export default async function CalendarPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string; date?: string }>;
-}) {
-  const { view: viewParam, date: dateParam } = await searchParams;
-  const caller = await getCaller();
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// Rendered by the terminal concept's Calendar (week / month / agenda). The
+// view and anchor date live in the URL so prev/next/today are navigation.
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ view?: string; date?: string }> }) {
+  const [{ view: v, date }, caller] = await Promise.all([searchParams, getCaller()]);
   if (caller.role !== "admin") redirect("/");
-
-  const view = viewParam === "month" ? "month" : "week";
-  const todayStr = toDateStr(new Date());
-  const anchor = parseDateStr(dateParam ?? todayStr);
-  const anchorStr = toDateStr(anchor);
-
-  const dayDates = view === "week" ? buildWeekDays(anchor) : buildMonthGrid(anchor);
-  const days = dayDates.map(toDateStr);
-  const rangeStart = dayDates[0];
-  const rangeEnd = addDays(dayDates[dayDates.length - 1], 1);
+  const view = v === "month" || v === "agenda" ? v : "week";
+  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? (date as string) : TODAY;
+  const a = new Date(`${anchor}T00:00:00`);
+  // Month view shows a 5-week grid from the Monday on/before the 1st.
+  const from = view === "month" ? new Date(a.getFullYear(), a.getMonth(), 1 - ((new Date(a.getFullYear(), a.getMonth(), 1).getDay() + 6) % 7)) : a;
+  const to = new Date(from);
+  to.setDate(to.getDate() + (view === "month" ? monthCells(new Date(a.getFullYear(), a.getMonth(), 1)) : 7));
 
   const [connection, events, tasks] = await Promise.all([
-    getGoogleConnectionForSync(),
-    listCalendarEventsInRange(rangeStart, rangeEnd),
-    listAllTasks(),
+    getGoogleConnection().catch(() => null),
+    loadEventsInRange(iso(from), iso(to)),
+    loadTasks(),
   ]);
-
-  const prevDate = toDateStr(view === "week" ? addDays(anchor, -7) : addMonths(anchor, -1));
-  const nextDate = toDateStr(view === "week" ? addDays(anchor, 7) : addMonths(anchor, 1));
-
-  const title =
-    view === "month"
-      ? anchor.toLocaleDateString("en-NZ", { month: "long", year: "numeric", timeZone: "UTC" })
-      : `${dayDates[0].toLocaleDateString("en-NZ", { day: "numeric", month: "short", timeZone: "UTC" })} – ${dayDates[6].toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
-
   return (
-    <div className="gh-term-page">
-      <PageHead title="Calendar" sub={connection ? title : "Business calendar (Google)"}>
-        {connection && (
-          <>
-            <Link href={`/calendar?view=week&date=${anchorStr}`} className="gh-btn-secondary" data-active={view === "week" || undefined}>
-              Week
-            </Link>
-            <Link href={`/calendar?view=month&date=${anchorStr}`} className="gh-btn-secondary" data-active={view === "month" || undefined}>
-              Month
-            </Link>
-          </>
-        )}
-      </PageHead>
-
-      {!connection ? (
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          No Google account connected. <Link href="/settings">Connect Google →</Link>
-        </p>
-      ) : (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--gh-space-3)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-              <Link
-                href={`/calendar?view=${view}&date=${prevDate}`}
-                className="gh-btn-secondary"
-                aria-label="Previous"
-                style={{ padding: "var(--gh-space-1) var(--gh-space-2)" }}
-              >
-                <ChevronLeft size={16} strokeWidth={1.75} />
-              </Link>
-              <Link href={`/calendar?view=${view}&date=${todayStr}`} className="gh-btn-secondary">Today</Link>
-              <Link
-                href={`/calendar?view=${view}&date=${nextDate}`}
-                className="gh-btn-secondary"
-                aria-label="Next"
-                style={{ padding: "var(--gh-space-1) var(--gh-space-2)" }}
-              >
-                <ChevronRight size={16} strokeWidth={1.75} />
-              </Link>
-              <p className="gh-panel-title" style={{ marginLeft: "var(--gh-space-2)" }}>{title}</p>
-            </div>
-          </div>
-
-          <CalendarGrid
-            view={view}
-            days={days}
-            monthAnchor={anchorStr.slice(0, 7)}
-            todayStr={todayStr}
-            events={events}
-            tasks={tasks}
-          />
-        </>
-      )}
-    </div>
+    <StoreData data={{ events, tasks, view, anchor, connected: !!connection, accountEmail: caller.email }}>
+      <Calendar />
+    </StoreData>
   );
 }

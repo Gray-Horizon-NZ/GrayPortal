@@ -5,6 +5,7 @@ import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { paymentStatus } from "@/lib/paymentStatus";
 import { isClosedStage } from "@/config/pipeline";
+import { nzToday } from "@/lib/date";
 
 const COMPONENT_MAX = 25;
 
@@ -33,7 +34,7 @@ function activityComponentFor(lastActivityAt: Date | null): number {
 
 function dealMomentumComponentFor(openDeals: { nextActionDate: string }[]): number {
   if (openDeals.length === 0) return COMPONENT_MAX * 0.6; // no open deals — neutral, not a red flag on its own
-  const today = new Date().toISOString().slice(0, 10);
+  const today = nzToday();
   const stalled = openDeals.filter((d) => d.nextActionDate < today).length;
   return Math.max(0, (1 - stalled / openDeals.length)) * COMPONENT_MAX;
 }

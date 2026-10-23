@@ -252,6 +252,9 @@ export const clients = pgTable("clients", {
   // or finished (whichever comes first); stamped once by markPortalTourSeen
   // so it never re-plays for this client's portal on later logins.
   portalTourSeenAt: timestamp("portal_tour_seen_at", { withTimezone: true }),
+  // Terminal UI: the tint behind this client's logo on its banner and tile
+  // (e.g. "#d9487a"). Null = the brand gold.
+  brandColor: text("brand_color"),
   ...softDelete,
   ...actorColumns,
 });
@@ -908,6 +911,9 @@ export const xeroInvoices = pgTable("xero_invoices", {
   invoiceDate: date("invoice_date"),
   dueDate: date("due_date"),
   currencyCode: text("currency_code"),
+  // Xero's human invoice number (e.g. "INV-0042") — shown on Finance and
+  // used to match one-off payments to their invoice status.
+  invoiceNumber: text("invoice_number"),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -1738,6 +1744,77 @@ export const incrementumNeeds = pgTable("incrementum_needs", {
   sellPrice: numeric("sell_price", { precision: 12, scale: 2 }),
   notes: text("notes"),
   sortOrder: integer("sort_order").notNull().default(0),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// ---------------------------------------------------------------------------
+// Terminal UI finance records (22 Oct 2026, docs/Terminal-UI-Followups.md §4).
+// All admin-only (db/sql/033_terminal_finance.sql). Money in NZD.
+// ---------------------------------------------------------------------------
+
+// One-off and setup payments, recorded on a client's profile (Commercial
+// tab) and listed read-only on Finance. Paid/awaiting comes from the Xero
+// invoice with this number — never marked by hand.
+export const oneOffPayments = pgTable("one_off_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  label: text("label").notNull(),
+  amountNzd: numeric("amount_nzd", { precision: 12, scale: 2 }).notNull(),
+  paymentDate: date("payment_date").notNull(),
+  xeroInvoiceNumber: text("xero_invoice_number"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// One-off business purchases (e.g. a phone) — separate from the recurring
+// business_expenses table so each has its own tax export.
+export const businessPurchases = pgTable("business_purchases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  purchasedOn: date("purchased_on").notNull(),
+  item: text("item").notNull(),
+  category: text("category").notNull(),
+  amountNzd: numeric("amount_nzd", { precision: 12, scale: 2 }).notNull(),
+  gstNzd: numeric("gst_nzd", { precision: 12, scale: 2 }),
+  isWriteoff: boolean("is_writeoff").notNull().default(false),
+  notes: text("notes"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// The ads budget (a single row) and the spend logged against it.
+export const adsBudget = pgTable("ads_budget", {
+  id: integer("id").primaryKey().default(1),
+  budgetNzd: numeric("budget_nzd", { precision: 12, scale: 2 }).notNull(),
+  monthlyNzd: numeric("monthly_nzd", { precision: 12, scale: 2 }).notNull(),
+  startedOn: date("started_on").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const adsSpend = pgTable("ads_spend", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  spentOn: date("spent_on").notNull(),
+  amountNzd: numeric("amount_nzd", { precision: 12, scale: 2 }).notNull(),
+  note: text("note"),
+  ...softDelete,
+  ...actorColumns,
+});
+
+// Monthly budget per expense category (Finance "Expenses vs budget").
+export const expenseBudgets = pgTable("expense_budgets", {
+  category: text("category").primaryKey(),
+  monthlyNzd: numeric("monthly_nzd", { precision: 12, scale: 2 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Money Max has actually moved to himself (Owner's Cut withdrawals log).
+export const ownerWithdrawals = pgTable("owner_withdrawals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  withdrawnOn: date("withdrawn_on").notNull(),
+  amountNzd: numeric("amount_nzd", { precision: 12, scale: 2 }).notNull(),
+  note: text("note"),
   ...softDelete,
   ...actorColumns,
 });
