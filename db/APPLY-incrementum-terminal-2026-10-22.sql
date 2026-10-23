@@ -1,5 +1,5 @@
 -- GrayPortal: Incrementum Terminal UI (Max, 2026-10-22). ONE paste, run ONCE, then deploy.
--- = db/migrations/0040_incrementum_terminal.sql + one data fix. Additive: three
+-- = db/migrations/0041_incrementum_terminal.sql + one data fix. Additive: three
 -- columns with defaults, no security changes (the tables are already admin-only
 -- under 030).
 

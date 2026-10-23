@@ -8,6 +8,7 @@ import {
   softDeleteCampaign,
   previewCampaignHtml,
 } from "@/lib/dal/campaigns";
+import { nzLocalToIso } from "@/lib/date";
 
 export async function createCampaignDraftAction(formData: FormData) {
   const scheduledFor = String(formData.get("scheduledFor") ?? "");
@@ -16,7 +17,8 @@ export async function createCampaignDraftAction(formData: FormData) {
     subject: String(formData.get("subject") ?? ""),
     htmlBody: String(formData.get("htmlBody") ?? ""),
     audience: formData.get("audience") === "clients_and_prospects" ? "clients_and_prospects" : "clients",
-    scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+    // The field is NZ wall-clock time; the server runs in UTC.
+    scheduledFor: scheduledFor ? nzLocalToIso(scheduledFor) : null,
   });
   revalidatePath("/email-campaigns");
 }
@@ -28,7 +30,8 @@ export async function updateCampaignDraftAction(id: string, formData: FormData) 
     subject: String(formData.get("subject") ?? ""),
     htmlBody: String(formData.get("htmlBody") ?? ""),
     audience: formData.get("audience") === "clients_and_prospects" ? "clients_and_prospects" : "clients",
-    scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+    // The field is NZ wall-clock time; the server runs in UTC.
+    scheduledFor: scheduledFor ? nzLocalToIso(scheduledFor) : null,
   });
   revalidatePath("/email-campaigns");
 }

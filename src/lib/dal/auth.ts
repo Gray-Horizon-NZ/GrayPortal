@@ -39,12 +39,38 @@ export const getVerifiedUid = cache(async (): Promise<string | null> => {
 
   if (!token) return null;
   try {
-    const decoded = await adminAuth.verifySessionCookie(token, true);
+    // Signature/expiry is checked locally on every request. The revocation
+    // check is a network call to Firebase Auth (~0.2–0.5s from the server),
+    // so its result is reused per uid for REVOCATION_TTL_MS; "revoke all
+    // sessions" clears this memo (forgetRevocationCheck) so it bites at
+    // once on this instance and within the TTL on any other.
+    const decoded = await adminAuth.verifySessionCookie(token, false);
+    const seen = revocationCheckedAt.get(decoded.uid);
+    if (!seen || Date.now() - seen > REVOCATION_TTL_MS) {
+      await adminAuth.verifySessionCookie(token, true);
+      revocationCheckedAt.set(decoded.uid, Date.now());
+    }
     return decoded.uid;
   } catch {
+    revocationCheckedAt.clear();
     return null;
   }
 });
+
+/**
+ * The current caller, resolved once per request (React `cache`). Layouts and
+ * pages that only need "who is this / what role" share one lookup instead of
+ * each opening its own transaction.
+ */
+export const getCaller = cache(async (): Promise<Caller> => withCaller(async (c) => c));
+
+const REVOCATION_TTL_MS = 60_000;
+const revocationCheckedAt = new Map<string, number>();
+
+/** Drop the revocation memo so the next request re-checks with Firebase. */
+export function forgetRevocationCheck() {
+  revocationCheckedAt.clear();
+}
 
 /**
  * Runs `fn` with the current request's caller resolved and RLS-bound.

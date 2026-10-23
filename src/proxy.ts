@@ -144,7 +144,10 @@ export default async function proxy(request: NextRequest) {
   }
 
   try {
-    const decoded = await adminAuth.verifySessionCookie(cookie, true);
+    // Routing hint only (RLS and the DAL's getVerifiedUid enforce access),
+    // so a local signature/expiry check is enough here — the revocation
+    // check is a network round trip to Firebase that every page paid twice.
+    const decoded = await adminAuth.verifySessionCookie(cookie, false);
     // Sessions minted before this claims-stamping existed (or any edge case
     // where the claim didn't propagate) carry no role claim — fail open on
     // routing only, not on data: RLS still fully governs what the session

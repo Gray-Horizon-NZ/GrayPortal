@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { LayoutDashboard, Briefcase, ListChecks, Wallet, BookOpen, Users, UserRound, type LucideIcon } from "lucide-react";
-import { getVerifiedUid, withCaller, NotOnAllowlistError } from "@/lib/dal/auth";
+import { getVerifiedUid, getCaller, NotOnAllowlistError } from "@/lib/dal/auth";
 import { listMyNotifications } from "@/lib/dal/notifications";
 import AppShell, { type ShellNavItem } from "@/components/ui/AppShell";
 import SessionBootOverlay from "@/components/ui/SessionBootOverlay";
@@ -22,7 +22,7 @@ export default async function WorkLayout({ children }: { children: React.ReactNo
 
   let label: string;
   try {
-    const caller = await withCaller(async (c) => c);
+    const caller = await getCaller();
     if (caller.role === "client") redirect("/portal");
     if (caller.role !== "contractor") redirect("/");
     label = caller.displayName ?? caller.email;

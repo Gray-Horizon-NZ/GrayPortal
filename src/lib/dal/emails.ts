@@ -458,6 +458,7 @@ function clientEmailsQuery(tx: Tx, clientId?: string) {
       subject: emails.subject,
       snippet: emails.snippet,
       sentAt: emails.sentAt,
+      gmailThreadId: emails.gmailThreadId,
       contactId: contacts.id,
       contactFirstName: contacts.firstName,
       contactLastName: contacts.lastName,

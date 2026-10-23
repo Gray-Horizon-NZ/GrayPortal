@@ -1,226 +1,69 @@
 import { redirect } from "next/navigation";
-import { withCaller } from "@/lib/dal/auth";
+import { getCaller } from "@/lib/dal/auth";
 import { getGoogleConnection, getInternalTasklistMappings } from "@/lib/dal/googleConnection";
 import { listConnectedCalendars } from "@/lib/google/adapter";
-import { INTERNAL_LIST_KEYS, INTERNAL_LIST_LABELS } from "@/lib/dal/tasks";
 import { listIdeationCategories } from "@/lib/dal/ideation";
-import {
-  disconnectGoogleAction,
-  disconnectXeroAction,
-  revokeSessionsAction,
-  listGoogleTasklistsAction,
-  createGoogleTasklistAction,
-  setInternalTasklistMappingAction,
-  createIdeationCategoryAction,
-  deleteIdeationCategoryAction,
-} from "./actions";
-import McpTokenButton from "./McpTokenButton";
-import TotpEnrollment from "./TotpEnrollment";
-import CalendarPicker from "./CalendarPicker";
-import GoogleTasklistPicker from "@/components/ui/GoogleTasklistPicker";
 import { getXeroConnection } from "@/lib/dal/xeroConnection";
-import SubmitButton from "@/components/ui/SubmitButton";
-import { PageHead } from "@/components/ui/terminal/Term";
+import { StoreData } from "@/terminal/store";
+import { Settings } from "@/terminal/screens/System";
+import { loadExpenses } from "@/terminal/load";
 
+// The OAuth callbacks redirect back here with ?google= / ?xero=.
+function flashFor(google?: string, reason?: string, xero?: string) {
+  const out: { tone: string; text: string }[] = [];
+  if (google === "connected") out.push({ tone: "good", text: "Google Calendar, Tasks & Gmail connected." });
+  if (google === "error")
+    out.push({
+      tone: "bad",
+      text: `Couldn't connect Google${reason ? ` (${reason})` : ""}. If you've granted access before, remove Gray Portal at myaccount.google.com/permissions and try again. An "Error 401: invalid_client" on Google's own screen means the OAuth client in Cloud Console needs checking.`,
+    });
+  if (google === "notconfigured") out.push({ tone: "bad", text: "Google isn't configured on this deployment — the GOOGLE_OAUTH_* secrets are unset." });
+  if (xero === "connected") out.push({ tone: "good", text: "Xero connected." });
+  if (xero === "error") out.push({ tone: "bad", text: "Couldn't connect Xero. Try again." });
+  return out;
+}
+
+// Rendered by the terminal concept's Settings screen: browser preferences,
+// then every real integration and security control. Only display strings
+// and flags leave the server — never the stored refresh tokens.
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ google?: "connected" | "error" | "notconfigured"; reason?: string; xero?: string }>;
+  searchParams: Promise<{ google?: string; reason?: string; xero?: string }>;
 }) {
-  const { google, reason, xero } = await searchParams;
-  const caller = await withCaller(async (c) => c);
+  const [{ google, reason, xero }, caller] = await Promise.all([searchParams, getCaller()]);
   if (caller.role !== "admin") redirect("/");
 
-  const connection = await getGoogleConnection();
-  const xeroConnection = await getXeroConnection();
-  const availableCalendars = connection ? await listConnectedCalendars() : [];
-  const internalTasklistMappings = connection ? await getInternalTasklistMappings() : {};
-  const ideationCategories = await listIdeationCategories();
+  const [connection, xeroConnection, categories, exp] = await Promise.all([
+    getGoogleConnection(),
+    getXeroConnection(),
+    listIdeationCategories(),
+    loadExpenses(),
+  ]);
+  const [calendars, tasklists] = connection
+    ? await Promise.all([listConnectedCalendars().catch(() => []), getInternalTasklistMappings()])
+    : [[], {} as Record<string, string>];
+  const budgetCategories = [...new Set([...exp.expenses.map((e) => e.category), ...Object.keys(exp.expenseBudgets)])].sort();
 
   return (
-    <div className="gh-term-page" style={{ maxWidth: 760 }}>
-      <PageHead title="Settings" sub="Integrations, security and the ideation categories" />
-
-      {google === "connected" && (
-        <p style={{ color: "var(--gh-success)" }}>Google Calendar & Tasks connected.</p>
-      )}
-      {google === "error" && (
-        <p style={{ color: "var(--gh-danger)" }}>
-          Couldn&apos;t connect Google.
-          {reason && (
-            <>
-              {" "}Reason: <code>{reason}</code>.
-            </>
-          )}
-          {" "}If you&apos;ve granted this before, remove Gray Portal&apos;s access at
-          myaccount.google.com/permissions and try again. If Google shows &quot;Error 401:
-          invalid_client&quot; on its own consent screen (before you get back here at all), that&apos;s
-          not something a retry fixes — the OAuth 2.0 client registered in Google Cloud Console for
-          this app has been deleted, recreated under a different ID, or belongs to the wrong project.
-          Verify it in Cloud Console → APIs &amp; Services → Credentials, then update the
-          <code> GOOGLE_OAUTH_CLIENT_ID</code>/<code>GOOGLE_OAUTH_CLIENT_SECRET</code> secrets.
-        </p>
-      )}
-      {google === "notconfigured" && (
-        <p style={{ color: "var(--gh-danger)" }}>
-          Google isn&apos;t configured on this deployment — <code>GOOGLE_OAUTH_CLIENT_ID</code>,
-          <code> GOOGLE_OAUTH_CLIENT_SECRET</code>, or <code>GOOGLE_OAUTH_REDIRECT_URI</code> is unset.
-        </p>
-      )}
-
-      {xero === "connected" && (
-        <p style={{ color: "var(--gh-success)" }}>Xero connected.</p>
-      )}
-      {xero === "error" && (
-        <p style={{ color: "var(--gh-danger)" }}>Couldn&apos;t connect Xero. Try again.</p>
-      )}
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Xero (financial snapshot, read-only)</p>
-        {xeroConnection ? (
-          <>
-            <span className="gh-badge" data-status="success">Connected — {xeroConnection.tenantName ?? xeroConnection.tenantId}</span>
-            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-              Invoice status/amounts/due dates sync one-way, on a schedule. GrayPortal never writes to Xero.
-            </p>
-            <form action={disconnectXeroAction}>
-              <SubmitButton className="gh-btn-secondary" pendingLabel="Disconnecting…">Disconnect</SubmitButton>
-            </form>
-          </>
-        ) : (
-          <>
-            <span className="gh-badge">Not connected</span>
-            <a className="gh-btn-primary" href="/api/xero/oauth/start" style={{ alignSelf: "flex-start" }}>
-              Connect Xero
-            </a>
-          </>
-        )}
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Google Calendar, Tasks & Gmail</p>
-        {connection ? (
-          <>
-            <span className="gh-badge" data-status="success">Connected</span>
-            <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-              Deals&apos; next actions sync one-way to Calendar; tasks sync one-way to Google Tasks.
-              Email sends/receives from a Deal or Contact record go through this same connected
-              account (Phase 10). If you connected before Gmail was added, disconnect and reconnect
-              once to grant the new scope.
-            </p>
-            <form action={disconnectGoogleAction}>
-              <SubmitButton className="gh-btn-secondary" pendingLabel="Disconnecting…">Disconnect</SubmitButton>
-            </form>
-
-            <div style={{ borderTop: "1px solid var(--gh-border)", paddingTop: "var(--gh-space-3)" }}>
-              <p className="gh-eyebrow">Calendars to merge in</p>
-              <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)", marginBottom: "var(--gh-space-2)" }}>
-                Other calendars this Google account can already see — shared/subscribed accounts, or a
-                personal calendar once you share it in — show up here to merge into GrayPortal&apos;s
-                calendar views. Each ticked calendar gets its own color, shown on its events so
-                different accounts stay visually distinct. Nothing ticked means primary only, same as
-                before.
-              </p>
-              <CalendarPicker calendars={availableCalendars} settings={connection.calendarSettings} />
-            </div>
-
-            <div style={{ borderTop: "1px solid var(--gh-border)", paddingTop: "var(--gh-space-3)", display: "flex", flexDirection: "column", gap: "var(--gh-space-4)" }}>
-              <div>
-                <p className="gh-eyebrow">Internal task lists</p>
-                <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-                  Route Master Task View&apos;s two internal columns into their own Google Tasks lists.
-                  Per-client routing is set on each client&apos;s own page.
-                </p>
-              </div>
-              {INTERNAL_LIST_KEYS.map((key) => (
-                <div key={key} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-                  <p className="gh-panel-title" style={{ fontSize: "var(--gh-text-sm)" }}>{INTERNAL_LIST_LABELS[key]}</p>
-                  <GoogleTasklistPicker
-                    currentTasklistId={internalTasklistMappings[key] ?? null}
-                    listAction={listGoogleTasklistsAction}
-                    createAction={createGoogleTasklistAction}
-                    onLink={setInternalTasklistMappingAction.bind(null, key)}
-                  />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <span className="gh-badge">Not connected</span>
-            <a className="gh-btn-primary" href="/api/google/oauth/start" style={{ alignSelf: "flex-start" }}>
-              Connect Google
-            </a>
-          </>
-        )}
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Two-factor authentication</p>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Required to reveal a stored credential in the vault — a fresh code from your authenticator app,
-          not just an active session.
-        </p>
-        <TotpEnrollment />
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">MCP access</p>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Connect an MCP client (Claude Desktop, Claude Code) to read pipeline data and log
-          activities directly from a chat. Read-only tools are auto-approved by most clients;
-          logging an activity or updating a task status will prompt.
-        </p>
-        <McpTokenButton />
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Ideation categories</p>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Controls the columns on the internal Ideation page. Add as many as you need — each one
-          becomes its own column there.
-        </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--gh-space-2)" }}>
-          {ideationCategories.map((c) => (
-            <span key={c.id} className="gh-badge" style={{ display: "inline-flex", alignItems: "center", gap: "var(--gh-space-2)" }}>
-              {c.label}
-              <form action={deleteIdeationCategoryAction.bind(null, c.id)}>
-                <button
-                  type="submit"
-                  aria-label={`Remove ${c.label}`}
-                  className="gh-btn-secondary"
-                  style={{ color: "var(--gh-danger)", padding: "0 4px", fontSize: "var(--gh-text-micro)", lineHeight: 1 }}
-                >
-                  ×
-                </button>
-              </form>
-            </span>
-          ))}
-          {ideationCategories.length === 0 && (
-            <span style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>No categories yet.</span>
-          )}
-        </div>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-xs)" }}>
-          Removing a category doesn&apos;t touch its existing ideas — they still show up on the Ideation page, grouped under &quot;Other&quot;.
-        </p>
-        <form action={createIdeationCategoryAction} style={{ display: "flex", gap: "var(--gh-space-2)" }}>
-          <input className="gh-input" name="label" placeholder="New category name" required style={{ flex: 1 }} />
-          <SubmitButton pendingLabel="Adding…">Add</SubmitButton>
-        </form>
-      </section>
-
-      <section className="gh-card" style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-        <p className="gh-eyebrow">Emergency</p>
-        <p style={{ color: "var(--gh-text-muted)", fontSize: "var(--gh-text-sm)" }}>
-          Revokes your browser session and every MCP token you&apos;ve generated. Use this if a
-          token leaks — you&apos;ll need to sign in again afterward.
-        </p>
-        <form action={revokeSessionsAction}>
-          <SubmitButton className="gh-btn-secondary" style={{ color: "var(--gh-danger)" }} pendingLabel="Revoking…">
-            Revoke all sessions
-          </SubmitButton>
-        </form>
-      </section>
-    </div>
+    <StoreData
+      data={{
+        settings: {
+          flash: flashFor(google, reason, xero),
+          google: !!connection,
+          email: caller.email,
+          xero: xeroConnection ? (xeroConnection.tenantName ?? xeroConnection.tenantId) : null,
+          calendars: calendars.map((c) => ({ id: c.id, summary: c.summary, primary: c.primary })),
+          calendarSettings: connection?.calendarSettings ?? null,
+          tasklists,
+          categories: categories.map((c) => ({ id: c.id, label: c.label })),
+          budgetCategories,
+          budgets: exp.expenseBudgets,
+          spent: exp.expenses.reduce((a, e) => a + e.monthly, 0),
+        },
+      }}
+    >
+      <Settings />
+    </StoreData>
   );
 }

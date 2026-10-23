@@ -4,6 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { auditedInsert, auditedUpdate } from "./mutate";
 import { z } from "zod";
+import { nzMonthsFromToday, nzToday } from "@/lib/date";
 
 // Referrals are manually managed by Gray Horizon staff for now (confirmed
 // with Max) — status is a plain admin-set field, not computed from any
@@ -85,10 +86,6 @@ export async function convertReferral(id: string) {
       { caller, entityType: "referral" }
     );
 
-    const startsOn = new Date();
-    const endsOn = new Date(startsOn);
-    endsOn.setMonth(endsOn.getMonth() + DISCOUNT_MONTHS);
-
     await auditedInsert(
       tx,
       referralDiscounts,
@@ -96,8 +93,8 @@ export async function convertReferral(id: string) {
         clientId: referral.clientId,
         referralId: id,
         discountPercent: DISCOUNT_PERCENT,
-        startsOn: startsOn.toISOString().slice(0, 10),
-        endsOn: endsOn.toISOString().slice(0, 10),
+        startsOn: nzToday(),
+        endsOn: nzMonthsFromToday(DISCOUNT_MONTHS),
         createdBy: caller.userId,
         updatedBy: caller.userId,
       },
@@ -117,7 +114,7 @@ export async function convertReferral(id: string) {
 
 export async function listActiveDiscounts(clientId: string) {
   return withCaller(async (_caller, tx) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = nzToday();
     const rows = await tx
       .select()
       .from(referralDiscounts)

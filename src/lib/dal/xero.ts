@@ -6,6 +6,7 @@ import { withAdminScope, assertRole } from "./session";
 import { auditedUpdate } from "./mutate";
 import { fetchAccountsReceivableInvoices, searchXeroContacts } from "@/lib/xero/adapter";
 import { z } from "zod";
+import { nzToday } from "@/lib/date";
 
 /**
  * Scheduled pull (brief §5), same admin-scope pattern as the other
@@ -44,6 +45,7 @@ export async function syncXeroInvoices() {
           invoiceDate: inv.Date ?? null,
           dueDate: inv.DueDate ?? null,
           currencyCode: inv.CurrencyCode ?? null,
+          invoiceNumber: inv.InvoiceNumber ?? null,
           lastSyncedAt: new Date(),
         })
         .onConflictDoUpdate({
@@ -56,6 +58,7 @@ export async function syncXeroInvoices() {
             amountPaid: inv.AmountPaid != null ? String(inv.AmountPaid) : null,
             invoiceDate: inv.Date ?? null,
             dueDate: inv.DueDate ?? null,
+            invoiceNumber: inv.InvoiceNumber ?? null,
             lastSyncedAt: new Date(),
           },
         });
@@ -75,7 +78,7 @@ export async function getClientFinancials(clientId: string) {
       currentRetainer: nextDue?.total ?? null,
       nextInvoiceDueDate: nextDue?.dueDate ?? null,
       nextInvoiceAmountDue: nextDue?.amountDue ?? null,
-      hasOverdue: unpaid.some((r) => r.dueDate && r.dueDate < new Date().toISOString().slice(0, 10)),
+      hasOverdue: unpaid.some((r) => r.dueDate && r.dueDate < nzToday()),
     };
   });
 }
@@ -84,7 +87,7 @@ export async function getBusinessFinancialRollup() {
   return withCaller(async (_caller, tx) => {
     const rows = await tx.select().from(xeroInvoices);
     const unpaid = rows.filter((r) => r.status === "AUTHORISED" && Number(r.amountDue ?? 0) > 0);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = nzToday();
     const overdue = unpaid.filter((r) => r.dueDate && r.dueDate < today);
     return {
       totalOutstandingNzd: unpaid.reduce((sum, r) => sum + Number(r.amountDue ?? 0), 0),

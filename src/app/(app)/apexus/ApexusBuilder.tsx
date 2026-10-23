@@ -1,6 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import "./apexus-tool.css";
+import "./apexus-menu.css";
+import { PageHead } from "@/terminal/ui";
 
 // The builder's markup, unchanged from the original standalone tool
 // (public/apexus/quote-builder.html) — every id here is a real DOM
@@ -289,17 +291,41 @@ const BUILDER_MARKUP = `
  * (public/apexus/quote-builder.js) is injected fresh on every mount and
  * removed on unmount, so leaving /apexus and coming back re-fetches live
  * pricing and rebuilds the catalogue rather than running on stale state.
+ * As in the terminal concept's Apexus screen, only the left-hand setup menu
+ * is restyled (apexus-menu.css) and given a step navigator.
  */
+// The builder's step headings, read once from the static markup for the step navigator.
+const STEPS = [...BUILDER_MARKUP.matchAll(/<section[^>]*>\s*<h2[^>]*>([^<]*)<\/h2>/g)].map((m, i) => ({
+  id: `apx-step-${i}`,
+  label: m[1].replace(/&amp;/g, "&").replace(/\s*\(.*\)$/, ""),
+}));
+
 export default function ApexusBuilder() {
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "/apexus/quote-builder.js";
     script.async = false;
     document.body.appendChild(script);
+    const sections = [...document.querySelectorAll<HTMLElement>(".apexus-tool .builder section")];
+    sections.forEach((s, i) => (s.id = `apx-step-${i}`));
     return () => {
       script.remove();
     };
   }, []);
 
-  return <div className="apexus-tool" dangerouslySetInnerHTML={{ __html: BUILDER_MARKUP }} />;
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  return (
+    <div className="screen" style={{ maxWidth: "none" }}>
+      <PageHead title="Apexus · live quote builder" sub="Reads live prices from Pricing and GrayScale, then exports the client-facing quote document">{null}</PageHead>
+      <nav className="apx-steps" aria-label="Builder steps">
+        {STEPS.map((s, i) => (
+          <button key={s.id} onClick={() => jump(s.id)}>
+            <b>{String(i + 1).padStart(2, "0")}</b> {s.label}
+          </button>
+        ))}
+      </nav>
+      <div className="apexus-tool" dangerouslySetInnerHTML={{ __html: BUILDER_MARKUP }} />
+    </div>
+  );
 }

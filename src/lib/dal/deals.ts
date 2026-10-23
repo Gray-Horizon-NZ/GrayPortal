@@ -11,6 +11,7 @@ import { renderTemplate } from "./emails";
 import { z } from "zod";
 import { numericString } from "./validation";
 import { STAGES, STAGE_TASK_RULES, type Stage } from "@/config/pipeline";
+import { nzDaysFromToday } from "@/lib/date";
 
 /**
  * The immediate confirmation the moment a deal closes — deliberately
@@ -213,14 +214,12 @@ export async function changeDealStage(id: string, newStage: Stage, closeReason?:
 
     const rule = STAGE_TASK_RULES[newStage];
     if (rule) {
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + rule.dueInDays);
       const [autoTask] = await tx
         .insert(tasks)
         .values({
           dealId: id,
           title: rule.title,
-          dueDate: dueDate.toISOString().slice(0, 10),
+          dueDate: nzDaysFromToday(rule.dueInDays),
           status: "not_started",
           createdBy: caller.userId,
           updatedBy: caller.userId,

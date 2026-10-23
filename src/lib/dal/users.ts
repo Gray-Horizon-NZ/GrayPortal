@@ -1,7 +1,7 @@
 import "server-only";
 import { users, contractors } from "@/lib/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { withCaller } from "./auth";
+import { withCaller, forgetRevocationCheck } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert } from "./mutate";
 import { adminAuth } from "@/lib/firebase/admin";
@@ -148,5 +148,6 @@ export async function revokeMySessions() {
       .limit(1);
     if (!row?.googleUid) return;
     await adminAuth.revokeRefreshTokens(row.googleUid);
+    forgetRevocationCheck();
   });
 }

@@ -79,8 +79,8 @@ Then check every route light and dark, side by side with the concept on `localho
 
 **Database**
 - `src/lib/db/schema.ts`: `incrementum_settings.min_bench` (int, default 2), `incrementum_settings.low_slots_warn` (int, default 1), `incrementum_engagements.review_requested_at` (timestamptz).
-- `db/migrations/0040_incrementum_terminal.sql` (+ meta snapshot/journal) generated with drizzle-kit.
-- `db/APPLY-incrementum-terminal-2026-10-22.sql`: the one-paste file for Max (the columns + switches the "payouts on time" phase criterion to tick-by-hand). **Not applied yet.** Note: `terminal-exact` may also add migration 0040; renumber at merge if so.
+- `db/migrations/0041_incrementum_terminal.sql` (+ meta snapshot/journal) generated with drizzle-kit.
+- `db/APPLY-incrementum-terminal-2026-10-22.sql`: the one-paste file for Max (the columns + switches the "payouts on time" phase criterion to tick-by-hand). **Not applied yet.** Note: Renumbered to migration 0041 when main (terminal-exact, 0040) was merged in.
 
 **Logic** (`src/lib/incrementum/`)
 - `registry.ts`: `payouts_on_time_pct` removed; MRR label "Monthly revenue (MRR)"; paying clients / profit vs spend / full loop descriptions updated.

@@ -1,0 +1,101 @@
+/* Apexus — menu touch-up only. apexus-tool.css is the real tool's file,
+ * copied unchanged; this maps the --gh-* tokens it reads onto the terminal
+ * theme and reworks the left-hand builder for readability. Nothing here
+ * touches .page (the client-facing document preview). */
+
+.apexus-tool {
+  --gh-bg: transparent;
+  --gh-surface: var(--t-panel-2);
+  --gh-surface-raised: var(--t-panel);
+  --gh-border: var(--t-line);
+  --gh-border-strong: var(--t-line-strong);
+  --gh-text-primary: var(--t-text);
+  --gh-text-emphasis: var(--t-strong);
+  --gh-text-muted: var(--t-muted);
+  --gh-mid: var(--t-faint);
+  --gh-accent: var(--t-accent);
+  --gh-accent-contrast: var(--t-accent-ink);
+  --gh-focus-ring: var(--t-accent);
+  --gh-danger: var(--t-bad);
+  --gh-font-body: var(--f-body);
+  --gh-font-display: var(--f-display);
+  --gh-radius: 0;
+  --gh-ease: var(--ease);
+  --gh-duration-fast: 0.15s;
+  --gh-tracking-wide: 0.14em;
+  --gh-tracking-wider: 0.22em;
+  --gh-text-micro: 11px;
+  --gh-text-xs: 13px;
+  --gh-space-2: 8px;
+  --gh-space-3: 12px;
+  --gh-space-4: 16px;
+  --gh-space-6: 20px;
+  --gh-space-8: 32px;
+  padding-top: 0;
+}
+
+/* Step navigator above the tool. */
+.apx-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.apx-steps button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--t-line-strong); background: var(--t-panel); font-size: 12px; color: var(--t-text); }
+.apx-steps button:hover { border-color: var(--t-accent); color: var(--t-strong); }
+.apx-steps b { color: var(--t-accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Builder: numbered section cards with clear headers. */
+.apexus-tool .builder {
+  flex: 0 0 540px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  counter-reset: apx-step;
+  max-height: calc(100vh - 210px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--t-line-strong) transparent;
+}
+.apexus-tool .builder > h1,
+.apexus-tool .builder > .sub { display: none; }
+.apexus-tool .builder section {
+  counter-increment: apx-step;
+  margin: 0 0 10px;
+  padding: 0 16px 16px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  scroll-margin-top: 8px;
+}
+.apexus-tool .builder section:last-of-type { border-bottom: 1px solid var(--t-line); }
+.apexus-tool .builder h2 {
+  margin: 0 -16px 14px;
+  min-height: 38px;
+  padding: 0 16px;
+  background: var(--t-panel-2);
+  border-bottom: 1px solid var(--t-line);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--t-strong);
+}
+.apexus-tool .builder h2::before {
+  content: counter(apx-step, decimal-leading-zero);
+  width: auto;
+  height: auto;
+  padding: 2px 6px;
+  background: var(--t-accent);
+  color: var(--t-accent-ink);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.apexus-tool .builder label.field { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--t-muted); margin-top: 12px; margin-bottom: 5px; }
+.apexus-tool .builder input[type="text"],
+.apexus-tool .builder input[type="number"],
+.apexus-tool .builder input[type="month"],
+.apexus-tool .builder textarea,
+.apexus-tool .builder select { font-size: 13px; padding: 8px 10px; border-color: var(--t-line-strong); }
+.apexus-tool .builder .note { font-size: 12px; line-height: 1.5; }
+.apexus-tool table.admin-table th { font-size: 10px !important; letter-spacing: 0.14em; }
+.apexus-tool table.admin-table td { font-size: 13px !important; padding-top: 7px !important; padding-bottom: 7px !important; }
+.apexus-tool .pkg-btn { padding: 10px 12px !important; font-size: 12px !important; }
+.apexus-tool .print-btn { position: sticky; bottom: 0; padding: 16px; font-size: 13px; font-weight: 700; box-shadow: 0 -12px 24px var(--t-bg); }
+
+@media (max-width: 1100px) {
+  .apexus-tool .app { flex-direction: column; }
+  .apexus-tool .builder { flex: none; width: 100%; max-height: none; position: static; }
+}

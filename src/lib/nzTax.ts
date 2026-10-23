@@ -1,3 +1,4 @@
+import { nzToday } from "@/lib/date";
 // NZ resident individual income tax brackets and ACC earner's levy — both set annually by IRD/ACC
 // for the tax year 1 Apr–31 Mar. Currently pinned to 2026/27. Update at the start of each tax year:
 // https://www.ird.govt.nz/income-tax/income-tax-for-individuals/tax-codes-and-tax-rates-for-individuals
@@ -38,7 +39,9 @@ export function annualAccEarnerLevy(annualTaxableIncome: number): number {
 
 /** Start (UTC midnight, 1 Apr) of the NZ income tax year containing `date`. */
 export function nzTaxYearStart(date: Date): Date {
-  const year = date.getUTCMonth() >= 3 ? date.getUTCFullYear() : date.getUTCFullYear() - 1;
+  // By the NZ calendar date, so 1 April starts the year at NZ midnight, not 11am–1pm.
+  const [y, m] = nzToday(date).split("-").map(Number);
+  const year = m >= 4 ? y : y - 1;
   return new Date(Date.UTC(year, 3, 1));
 }
 

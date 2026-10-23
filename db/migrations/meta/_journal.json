@@ -285,8 +285,15 @@
     {
       "idx": 40,
       "version": "7",
-      "when": 1792643713594,
-      "tag": "0040_incrementum_terminal",
+      "when": 1792603688654,
+      "tag": "0040_terminal_finance",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792715709625,
+      "tag": "0041_incrementum_terminal",
       "breakpoints": true
     }
   ]
