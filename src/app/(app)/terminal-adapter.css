@@ -41,3 +41,17 @@
 .gh-terminal .t-skel { display: block; background: var(--t-panel-2); animation: t-skel-pulse 1.2s ease-in-out infinite; }
 @keyframes t-skel-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .gh-terminal .t-skel { animation: none; } }
+
+/* Real logos are large raster images. The concept's percentage limits only
+   work once the banner's grid track has a definite size, so pin it to the
+   banner's own height and width (the banner keeps overflow visible for the
+   tint/logo pop-over). Without this a big logo spills over the page and
+   covers the "All clients" link. */
+.gh-terminal .brand-banner { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.gh-terminal .brand-banner > img { width: auto; height: auto; max-width: 54%; max-height: 58%; min-height: 0; }
+
+/* Month grid: columns must not grow to fit a long event title (that pushed
+   Saturday and Sunday off the screen). */
+.gh-terminal .month { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.gh-terminal .month-day, .gh-terminal .month-head { min-width: 0; }
+.gh-terminal .screen > button.eyebrow { position: relative; z-index: 2; align-self: flex-start; }
