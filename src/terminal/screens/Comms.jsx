@@ -342,7 +342,7 @@ function Composer({ title, templates = [], start, defaults, action, onClose }) {
         )}
         <div className="form-grid">
           <label className="field"><span>Campaign name (internal)</span><input className="input" name="name" defaultValue={defaults?.name} required /></label>
-          <label className="field"><span>Send at (blank = when queued)</span><input className="input" name="scheduledFor" type="datetime-local" defaultValue={defaults?.scheduledFor?.slice(0, 16) ?? ""} /></label>
+          <label className="field"><span>Send at, NZ time (blank = when queued)</span><input className="input" name="scheduledFor" type="datetime-local" defaultValue={defaults?.scheduledFor?.slice(0, 16) ?? ""} /></label>
         </div>
         <label className="field"><span>Subject — supports {"{{variables}}"}</span><input className="input" name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} required /></label>
         <label className="field"><span>HTML body — supports {"{{variables}}"}</span><textarea className="textarea mono" name="htmlBody" rows={12} value={html} onChange={(e) => setHtml(e.target.value)} required style={{ fontSize: 12 }} /></label>

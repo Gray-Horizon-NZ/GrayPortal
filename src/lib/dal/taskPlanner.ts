@@ -3,6 +3,7 @@ import { tasks, deals } from "@/lib/db/schema";
 import { and, isNull, ne } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { listLatestHealthScores } from "./health";
+import { nzToday } from "@/lib/date";
 
 /**
  * Phase 20 — read-only task prioritization (brief §16). Proposes an order,
@@ -29,7 +30,7 @@ export async function prioritizeTasks() {
     const healthScores = await listLatestHealthScores();
     const decliningClientIds = new Set(healthScores.filter((h) => h.trend === "down").map((h) => h.clientId));
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = nzToday();
 
     const scored = openTasks.map((task) => {
       let score = 0;

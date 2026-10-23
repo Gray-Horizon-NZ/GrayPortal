@@ -3,6 +3,7 @@ import { getCaller } from "@/lib/dal/auth";
 import { getCampaign, listCampaignRecipients } from "@/lib/dal/campaigns";
 import { StoreData } from "@/terminal/store";
 import { CampaignDetail } from "@/terminal/screens/Comms";
+import { isoToNzLocal } from "@/lib/date";
 
 const day = (d: Date | null) => (d ? new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(d) : "");
 
@@ -24,8 +25,8 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           body: campaign.htmlBody,
           audience: campaign.audience,
           status: campaign.status,
-          // ISO (UTC), as the draft action reads the datetime-local field back.
-          scheduledFor: campaign.scheduledFor ? campaign.scheduledFor.toISOString() : null,
+          // NZ wall-clock time for the datetime-local field (the action reads it back as NZ).
+          scheduledFor: campaign.scheduledFor ? isoToNzLocal(campaign.scheduledFor) : null,
         },
         recipients: recipients.map((r) => ({ id: r.id, name: `${r.firstName} ${r.lastName}`, status: r.status, error: r.error ?? "", opened: day(r.openedAt) })),
       }}

@@ -17,6 +17,10 @@ import { createRecurringTemplateAction, softDeleteRecurringTemplateAction } from
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 8am–8pm
 const SLOT = 48;
+// A calendar's Settings colour, as the event's edge and a light tint (concept accent when unset).
+const evStyle = (e, base) => (e.color ? { ...base, borderLeftColor: e.color, background: `color-mix(in srgb, ${e.color} 18%, var(--t-panel))` } : base);
+const Dot = ({ color }) => <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, marginRight: 6, verticalAlign: 0 }} />;
+
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** `anchor` (YYYY-MM-DD) and `view` come from the URL so prev/next/today are real navigation. */
@@ -33,10 +37,15 @@ export function Calendar() {
     d.setDate(d.getDate() + i);
     return d;
   });
+  const calendars = [...new Map(events.filter((e) => e.color).map((e) => [e.calendar, e.color]))];
   return (
     <div className="screen">
       <PageHead title="Calendar" sub={connected ? `Google Calendar · ${accountEmail}` : "No Google account connected — connect one in Settings"}>
-        <Legend items={[["Event", "c1"], ["Task due", "c2"]]} />
+        {calendars.length > 1 ? (
+          <span className="row small muted" style={{ gap: 12 }}>{calendars.map(([name, color]) => <span key={name}><Dot color={color} />{name}</span>)}</span>
+        ) : (
+          <Legend items={[["Event", "c1"], ["Task due", "c2"]]} />
+        )}
         <Seg value={view} onChange={(v) => go(`/calendar?view=${v}&date=${anchor}`)} options={[["week", "Week"], ["month", "Month"], ["agenda", "Agenda"]]} />
         <button className="iconbtn" aria-label="Previous" onClick={() => shift(-1)}><ChevronLeft size={16} /></button>
         <button className="btn btn-sm" onClick={() => go(`/calendar?view=${view}&date=${TODAY}`)}>Today</button>
@@ -65,7 +74,7 @@ export function Calendar() {
                     key={`${e.title}-${e.start}`}
                     className="cal-ev"
                     data-kind={e.kind}
-                    style={{ top: (Math.max(8, e.start) - 8) * SLOT + 1, height: Math.max(24, (Math.min(20, e.end) - Math.max(8, e.start)) * SLOT - 2) }}
+                    style={evStyle(e, { top: (Math.max(8, e.start) - 8) * SLOT + 1, height: Math.max(24, (Math.min(20, e.end) - Math.max(8, e.start)) * SLOT - 2) })}
                   >
                     {e.title}
                     <small>{e.allDay ? "All day" : `${fmtTime(e.start)}–${fmtTime(e.end)}`}</small>
@@ -87,7 +96,7 @@ export function Calendar() {
                   evs.map((e, j) => (
                     <tr key={`${iso(d)}-${j}`}>
                       <td className="nowrap" style={{ width: 140 }}>{j === 0 ? d.toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" }) : ""}</td>
-                      <td className="strong">{e.title}</td>
+                      <td className="strong">{e.color && <Dot color={e.color} />}{e.title}</td>
                       <td className="num muted">{e.allDay ? "All day" : `${fmtTime(e.start)}–${fmtTime(e.end)}`}</td>
                     </tr>
                   ))
@@ -111,7 +120,7 @@ function MonthView({ anchor, events, tasks }) {
     return d;
   });
   const all = [
-    ...events.map((e) => ({ date: e.date, title: e.title, kind: e.kind, time: e.allDay ? "" : fmtTime(e.start) })),
+    ...events.map((e) => ({ date: e.date, title: e.title, kind: e.kind, color: e.color, time: e.allDay ? "" : fmtTime(e.start) })),
     ...tasks.filter((t) => t.due && t.status !== "done").map((t) => ({ date: t.due, title: t.title, kind: "internal", time: "" })),
   ];
   return (
@@ -125,7 +134,7 @@ function MonthView({ anchor, events, tasks }) {
           return (
             <div key={key} className="month-day" data-out={d.getMonth() !== first.getMonth() || undefined} data-today={key === TODAY || undefined}>
               <div className="dn">{d.getDate()}</div>
-              {evs.map((e, i) => <span key={`${e.title}-${i}`} className="month-ev" data-kind={e.kind} title={e.title}>{e.time ? `${e.time} ` : ""}{e.title}</span>)}
+              {evs.map((e, i) => <span key={`${e.title}-${i}`} className="month-ev" data-kind={e.kind} title={e.title} style={evStyle(e)}>{e.time ? `${e.time} ` : ""}{e.title}</span>)}
             </div>
           );
         })}

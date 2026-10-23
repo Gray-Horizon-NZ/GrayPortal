@@ -166,7 +166,7 @@ export default function Home() {
             <div key={label}>
               <p className="d" data-today={i === 0 || undefined}>{label}</p>
               {events.filter((e) => e.day === i).map((e) => (
-                <p key={`${e.title}-${e.start}`} className="e">
+                <p key={`${e.title}-${e.start}`} className="e" style={e.color ? { borderLeft: `2px solid ${e.color}`, paddingLeft: 6 } : undefined}>
                   {e.title}
                   {!e.allDay && <small>{fmtTime(e.start)}–{fmtTime(e.end)}</small>}
                 </p>

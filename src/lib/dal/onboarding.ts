@@ -9,6 +9,7 @@ import { syncTaskToGoogle } from "@/lib/google/adapter";
 import { resolveGoogleTasklistId } from "./googleConnection";
 import { ONBOARDING_TASK_TEMPLATE } from "@/config/onboarding";
 import { z } from "zod";
+import { nzDaysFromToday } from "@/lib/date";
 
 export const OnboardClientInput = z
   .object({
@@ -136,14 +137,12 @@ export async function onboardClient(input: OnboardClientInputT) {
 
     const createdTasks = [];
     for (const item of ONBOARDING_TASK_TEMPLATE) {
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + item.dueInDays);
       const [task] = await tx
         .insert(tasks)
         .values({
           clientId,
           title: item.title,
-          dueDate: dueDate.toISOString().slice(0, 10),
+          dueDate: nzDaysFromToday(item.dueInDays),
           status: "not_started",
           createdBy: caller.userId,
           updatedBy: caller.userId,

@@ -4,6 +4,7 @@ import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { withAdminScope, assertRole } from "./session";
 import { CLOSED_STAGES } from "@/config/pipeline";
+import { nzToday } from "@/lib/date";
 
 export async function listMyNotifications() {
   return withCaller(async (caller, tx) => {
@@ -69,7 +70,7 @@ export async function markAllNotificationsRead() {
  */
 export async function generateNotifications() {
   return withAdminScope("Scheduled notification generation", async (tx) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = nzToday();
     let created = 0;
 
     const stalledDeals = await tx

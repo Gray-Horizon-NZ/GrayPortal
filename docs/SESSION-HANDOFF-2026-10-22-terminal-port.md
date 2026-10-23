@@ -34,10 +34,10 @@ All committed to `terminal-exact`, in order: Work screens (`41a0564`), client pr
 - **Detail pages** (`screens/Detail.jsx`): deal, company, contact, contractor, onboard client, past periods, period — concept parts, same actions. Deal tasks reuse the Tasks screen's rows.
 - **Cleanup:** `terminal-legacy.css`, `components/ui/terminal/*`, and unused calendar grid / Owner's Cut calculator / Master Task View / Xero link / status selects are deleted. One concept-styled `loading.tsx` replaces the old skeletons. `TerminalRail.tsx` and the `variant="terminal"` branches in `AppShell`/`ShellHeader` are **left in place**: AppShell is the contractor workspace's shell, which stays untouched unless Max asks. Remove them in a separate, contractor-checked change.
 
-### Parked (found, not fixed — one issue at a time)
+### NZ time and calendar colours (23 Oct, before merge)
 
-- **Campaign "Send at" time zone.** `createCampaignDraftAction`/`updateCampaignDraftAction` do `new Date(datetime-local)` on the server, which runs in UTC, so a time typed as NZ time is read as UTC (13 h out in summer). This is how it behaved before the port; the port keeps it consistent. Fix: interpret the field as Pacific/Auckland in the action.
-- The Calendar screen draws every event in one colour (`kind: "client"`); the per-calendar colours chosen in Settings aren't applied there or on Home's week strip yet (`loadWeekEvents` already carries `color`).
+- **NZ time everywhere.** `src/lib/date.ts` now has `nzToday()`, `nzDaysFromToday()`, `nzMonthsFromToday()`, `nzLocalToIso()` and `isoToNzLocal()`. Servers run in UTC, so `new Date().toISOString().slice(0, 10)` said "yesterday" until 11am–1pm NZ. Switched: health, notifications, portal discounts, recurring reminders, referral discounts, task planner, Xero overdue, deal and onboarding starter-task due dates, the tax-year start, and the task row. Campaign "Send at" is read and shown as NZ wall-clock time. Incrementum's own date code was left alone. **Rule for new code: never use `toISOString()` for a date a person sees or a "today" comparison.**
+- **Calendar colours.** Events carry their Settings colour; the Calendar (week, month, agenda) and Home's week strip draw it, and the Calendar header lists each merged calendar.
 
 ## Architecture (how the port works)
 
@@ -82,6 +82,5 @@ All committed to `terminal-exact`, in order: Work screens (`41a0564`), client pr
 
 1. Max: press **Merge** on #49, or sign in once at localhost:3000 first so it can be checked before going live.
 2. With a sign-in, walk every screen against the concept (`localhost:5190/#/<route>`) and fix differences. Priority: client profile (most actions), Settings (re-auth, TOTP, MCP), Vault reveal, triage.
-3. Fix the parked campaign time-zone bug.
-4. Separately, with the contractor workspace checked: drop `TerminalRail.tsx` and AppShell's terminal variant.
-5. Moving Neon to Singapore is still the biggest remaining speed gain (needs Max's Neon console).
+3. Separately, with the contractor workspace checked: drop `TerminalRail.tsx` and AppShell's terminal variant.
+4. Moving Neon to Singapore is still the biggest remaining speed gain (needs Max's Neon console).

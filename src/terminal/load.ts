@@ -372,6 +372,9 @@ export async function loadEventsInRange(fromIso: string, toIso: string) {
     title: e.summary,
     kind: "client",
     allDay: e.allDay,
+    // The colour picked for this calendar in Settings (null = primary only, concept accent).
+    color: e.color ?? null,
+    calendar: e.calendarSummary,
   }));
 }
 
