@@ -114,6 +114,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                           {sv.name}
                         </span>{" "}
                         {sv.usuallyWaived && <Badge tone="accent">Usually waived</Badge>}
+                        {!sv.serviceItemId && <Badge tone="warn">Not linked to GrayPortal</Badge>}
                         <small>{roleName(sv.roleId) ?? "No contractor role (you)"}</small>
                       </span>
                     </span>
@@ -136,7 +137,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                 }
               >
                 <p className="muted small">
-                  {sv.catalogueName ? `Catalogue: ${sv.catalogueName}` : "Incrementum-only service"} · Catalogue price {sv.billing === "range" ? (sv.cataloguePriceText ?? "by size") : <Priv>{money(sv.price.cataloguePrice)}</Priv>} · price from {SOURCE_LABEL[sv.price.priceSource]}
+                  {sv.catalogueName ? `GrayPortal service: ${sv.catalogueName}` : "Not linked to a GrayPortal service, so clients' GrayPortal Services tab won't show it. Pick its catalogue item below"} · Catalogue price {sv.billing === "range" ? (sv.cataloguePriceText ?? "by size") : <Priv>{money(sv.price.cataloguePrice)}</Priv>} · price from {SOURCE_LABEL[sv.price.priceSource]}
                   {sv.benchQuotes.length > 0 && <> · bench quotes: {sv.benchQuotes.map((q) => `${q.name} ${money(q.rate)}/${q.rateType === "monthly" ? "mo" : q.rateType}`).join(" · ")}</>}
                 </p>
                 {sv.notes && <p className="small">{sv.notes}</p>}
@@ -374,7 +375,7 @@ function ServiceForm({ sv, catalogue, roles }: { sv?: ServiceView; catalogue: Ca
         <Field label="Markup % (blank = default)">
           <input className="input" name="markupPct" defaultValue={sv?.markupPct ?? ""} inputMode="decimal" />
         </Field>
-        <Field label="Catalogue item (its price is the floor)">
+        <Field label="GrayPortal service (catalogue item; its price is the floor)">
           <select className="select" name="serviceItemId" defaultValue={sv?.serviceItemId ?? ""}>
             <option value="">None (Incrementum-only)</option>
             {catalogue.map((c) => (

@@ -53,7 +53,7 @@ function message(err: unknown): string {
 }
 
 /** redirect() throws, so it must stay outside the try. */
-async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string, goTo?: (result: unknown) => string | null) {
+async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string | ((result: unknown) => string), goTo?: (result: unknown) => string | null) {
   const back = backPath(fd);
   let error: string | null = null;
   let result: unknown;
@@ -67,13 +67,30 @@ async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string, goTo?:
   revalidatePath("/");
   if (error) redirect(withParam(back, "error", error));
   const target = goTo?.(result) ?? back;
-  if (ok) redirect(withParam(target, "ok", ok));
+  const okText = typeof ok === "function" ? ok(result) : ok;
+  if (okText) redirect(withParam(target, "ok", okText));
   // No message and the target is the page the form sits on: let the
   // revalidation above re-render it in place. Redirecting to the same URL
   // plus a #hash (e.g. waive / remove on a package line) is a hash-only
   // navigation to the router, which left the old rows on screen.
   if (await isCurrentPage(target)) return;
   redirect(target);
+}
+
+/**
+ * A live client's lines are mirrored on their GrayPortal Services tab, so
+ * every change to the lines (or the client's status) re-syncs them. Runs
+ * after the change itself, inside the same act().
+ */
+async function syncClient(engagementId: string | null) {
+  if (engagementId) await grayportal.syncEngagementServicesToGrayPortal(engagementId);
+}
+
+/** Runs a change to one line, then re-syncs the client it belongs to (if any). */
+async function changeLine(needId: string, fn: () => Promise<unknown>) {
+  const engagementId = await grayportal.engagementOfNeed(needId);
+  await fn();
+  await syncClient(engagementId);
 }
 
 async function isCurrentPage(target: string): Promise<boolean> {
@@ -707,7 +724,14 @@ export async function setSlotWeightAction(fd: FormData) {
 }
 
 export async function syncClientServicesAction(fd: FormData) {
-  await act(fd, () => grayportal.syncEngagementServicesToGrayPortal(str(fd, "id")), "Services synced to GrayPortal");
+  await act(
+    fd,
+    () => grayportal.syncEngagementServicesToGrayPortal(str(fd, "id")),
+    (r) => {
+      const { written, unlinked } = r as { written: number; unlinked: string[] };
+      return `${written} service${written === 1 ? "" : "s"} on the GrayPortal Services tab${unlinked.length ? `. Not linked to a GrayPortal service yet: ${unlinked.join(", ")}` : ""}`;
+    }
+  );
 }
 
 export async function sendReviewRequestAction(fd: FormData) {
@@ -717,8 +741,8 @@ export async function sendReviewRequestAction(fd: FormData) {
 export async function updateEngagementAction(fd: FormData) {
   await act(
     fd,
-    () =>
-      engagements.updateEngagement(str(fd, "id"), {
+    async () => {
+      await engagements.updateEngagement(str(fd, "id"), {
         name: str(fd, "name"),
         monthlyPrice: str(fd, "monthlyPrice") || "0",
         setupPrice: nul(fd, "setupPrice"),
@@ -727,9 +751,12 @@ export async function updateEngagementAction(fd: FormData) {
         minTermEnd: nul(fd, "minTermEnd"),
         health: (str(fd, "health") || "good") as never,
         businessSize: nul(fd, "businessSize") as never,
-        status: str(fd, "status") === "paused" ? "paused" : "active",
+        status: fd.has("status") ? (str(fd, "status") === "paused" ? "paused" : "active") : undefined,
         notes: nul(fd, "notes"),
-      }),
+      });
+      // Start date and paused/active carry over to the GrayPortal Services tab.
+      await syncClient(str(fd, "id"));
+    },
     "Client saved"
   );
 }
@@ -740,11 +767,25 @@ export async function setEngagementModulesAction(fd: FormData) {
 }
 
 export async function endEngagementAction(fd: FormData) {
-  await act(fd, () => engagements.endEngagement(str(fd, "id"), { endReason: str(fd, "endReason"), lessons: nul(fd, "lessons"), endedAt: str(fd, "endedAt") }), "Client ended and archived");
+  await act(
+    fd,
+    async () => {
+      await engagements.endEngagement(str(fd, "id"), { endReason: str(fd, "endReason"), lessons: nul(fd, "lessons"), endedAt: str(fd, "endedAt") });
+      await syncClient(str(fd, "id"));
+    },
+    "Client ended and archived"
+  );
 }
 
 export async function reopenEngagementAction(fd: FormData) {
-  await act(fd, () => engagements.reopenEngagement(str(fd, "id")), "Client reopened");
+  await act(
+    fd,
+    async () => {
+      await engagements.reopenEngagement(str(fd, "id"));
+      await syncClient(str(fd, "id"));
+    },
+    "Client reopened"
+  );
 }
 
 export async function addEngagementContractorAction(fd: FormData) {
@@ -820,8 +861,8 @@ function scopeFromForm(fd: FormData) {
 }
 
 export async function createNeedAction(fd: FormData) {
-  await act(fd, () =>
-    needs.createNeed({
+  await act(fd, async () => {
+    await needs.createNeed({
       ...scopeFromForm(fd),
       serviceId: nul(fd, "serviceId"),
       serviceItemId: nul(fd, "serviceItemId"),
@@ -830,24 +871,34 @@ export async function createNeedAction(fd: FormData) {
       tags: nul(fd, "tags"),
       quantity: nul(fd, "quantity"),
       notes: nul(fd, "notes"),
-    })
-  );
+    });
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 export async function addPackageLinesAction(fd: FormData) {
-  await act(fd, () => needs.addPackageLines(scopeFromForm(fd), str(fd, "packageId")));
+  await act(fd, async () => {
+    await needs.addPackageLines(scopeFromForm(fd), str(fd, "packageId"));
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 export async function setNeedWaivedAction(fd: FormData) {
-  await act(fd, () => needs.setNeedWaived(str(fd, "id"), bool(fd, "waived")));
+  await act(fd, () => changeLine(str(fd, "id"), () => needs.setNeedWaived(str(fd, "id"), bool(fd, "waived"))));
 }
 
 export async function assignRoleAction(fd: FormData) {
-  await act(fd, () => needs.assignRole(scopeFromForm(fd), nul(fd, "roleId"), str(fd, "contractorId")));
+  await act(fd, async () => {
+    await needs.assignRole(scopeFromForm(fd), nul(fd, "roleId"), str(fd, "contractorId"));
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 export async function unassignRoleAction(fd: FormData) {
-  await act(fd, () => needs.unassignRole(scopeFromForm(fd), nul(fd, "roleId")));
+  await act(fd, async () => {
+    await needs.unassignRole(scopeFromForm(fd), nul(fd, "roleId"));
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 // --- Contractor roles (Settings) -------------------------------------------------
@@ -867,19 +918,21 @@ export async function updateNeedAction(fd: FormData) {
   await act(
     fd,
     () =>
-      needs.updateNeed(str(fd, "id"), {
-        title: nul(fd, "title"),
-        tags: nul(fd, "tags"),
-        quantity: nul(fd, "quantity"),
-        contractorRate: nul(fd, "contractorRate"),
-        markupPct: nul(fd, "markupPct"),
-        sellPrice: nul(fd, "sellPrice"),
-        notes: nul(fd, "notes"),
-      }),
+      changeLine(str(fd, "id"), () =>
+        needs.updateNeed(str(fd, "id"), {
+          title: nul(fd, "title"),
+          tags: nul(fd, "tags"),
+          quantity: nul(fd, "quantity"),
+          contractorRate: nul(fd, "contractorRate"),
+          markupPct: nul(fd, "markupPct"),
+          sellPrice: nul(fd, "sellPrice"),
+          notes: nul(fd, "notes"),
+        })
+      ),
     "Quote line saved"
   );
 }
 
 export async function deleteNeedAction(fd: FormData) {
-  await act(fd, () => needs.deleteNeed(str(fd, "id")));
+  await act(fd, () => changeLine(str(fd, "id"), () => needs.deleteNeed(str(fd, "id"))));
 }

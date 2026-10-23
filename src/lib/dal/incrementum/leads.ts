@@ -265,7 +265,7 @@ export async function onboardLeadAsClient(leadId: string, input: z.input<typeof 
       businessSize: lead.businessSize,
     });
     await adoptLeadNeeds(tx, caller, leadId, (engagement as { id: string }).id);
-    await writeEngagementServices(tx, caller, clientId, data.startDate, leadNeeds);
+    await writeEngagementServices(tx, caller, engagement as { id: string; clientId: string; startDate: string | null; status: string }, leadNeeds);
     await auditedUpdate(
       tx,
       incrementumLeads,

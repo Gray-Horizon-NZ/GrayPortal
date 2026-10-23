@@ -115,7 +115,8 @@ export const EngagementUpdate = z.object({
   minTermEnd: isoDate.nullable(),
   health: z.enum(ENGAGEMENT_HEALTH),
   businessSize: z.enum(BUSINESS_SIZES).nullable(),
-  status: z.enum(["active", "paused"]),
+  // Omitted = unchanged: an ended client's details save keeps it ended (Reopen is the way back).
+  status: z.enum(["active", "paused"]).optional(),
   notes: z.string().nullable(),
 });
 

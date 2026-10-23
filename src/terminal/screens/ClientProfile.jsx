@@ -25,6 +25,7 @@ import {
   deleteClientActivityFeedEntryAction, createMeetingSummaryAction, deleteMeetingSummaryAction, getClientEmailsAction, getEmailBodyAction,
 } from "@/app/(app)/clients/actions";
 import { tSetClientServiceStatus } from "../actions";
+import { IncrementumBadge } from "./Clients";
 import { TasklistSelect } from "../parts";
 
 const TABS = [
@@ -86,6 +87,7 @@ export default function ClientProfile({ id, credentials }) {
               <h2>{c.name}</h2>
               {status && <Badge tone={status.tone}>{status.label}</Badge>}
               <Badge>{c.status}</Badge>
+              {c.incrementum && <IncrementumBadge />}
             </div>
             <div className="profile-facts">
               {c.company.industry && <span>{c.company.industry}</span>}
@@ -102,6 +104,9 @@ export default function ClientProfile({ id, credentials }) {
               </>
             ) : (
               <button className="btn btn-danger" onClick={() => setConfirmRemove(true)}><Trash2 size={13} /> Remove client</button>
+            )}
+            {c.incrementum && (
+              <button className="btn" onClick={() => go(`/incrementum/clients/${c.incrementum.id}`)}>Open in Incrementum</button>
             )}
             <button className="btn btn-primary" onClick={() => startPortalPreviewAction(c.id)}><ExternalLink size={14} /> Access client portal</button>
           </div>
@@ -352,7 +357,7 @@ function CommercialTab({ c, x }) {
         <div className="svc-tiles">
           {c.services.map((s) => (
             <button key={s.id} className="svc-tile" onClick={() => setSvc(s.id)}>
-              <span className="row" style={{ justifyContent: "space-between" }}><span className="nm">{s.name}</span><Badge tone={s.status === "active" ? "good" : "warn"}>{s.status}</Badge></span>
+              <span className="row" style={{ justifyContent: "space-between" }}><span className="nm">{s.name}</span><span className="row" style={{ gap: 6, flexWrap: "nowrap" }}>{s.notes.startsWith("Incrementum:") && <IncrementumBadge />}<Badge tone={s.status === "active" ? "good" : "warn"}>{s.status}</Badge></span></span>
               <span className="pr"><Priv>{[s.setup && `${money(s.setup)} setup`, s.monthly && `${money(s.monthly)}/mo`].filter(Boolean).join(" + ") || "—"}</Priv></span>
               {s.discount > 0 && <span className="muted small">{s.discount}% off this item</span>}
             </button>
@@ -443,6 +448,14 @@ function CommercialTab({ c, x }) {
       </div>
 
       <Modal open={!!service} onClose={() => setSvc(null)} title={service?.name || ""}>
+        {service?.notes.startsWith("Incrementum:") && (
+          <p className="note">
+            <span>
+              Sold through Project Incrementum. Its price follows the line there and is re-written whenever the line changes, so edit it in Incrementum.{" "}
+              {c.incrementum && <button type="button" className="linkbtn" onClick={() => go(`/incrementum/clients/${c.incrementum.id}?view=quote`)}>Open the line ›</button>}
+            </span>
+          </p>
+        )}
         {service && (
           <form
             className="stack"

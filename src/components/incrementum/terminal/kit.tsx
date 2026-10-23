@@ -936,15 +936,17 @@ export function GrayPortalChecklist({ existing }: { existing?: boolean }) {
   const rows = existing
     ? [
         ["Linked to their existing client record", "company, contacts and history stay where they are"],
-        ["Services added to their client profile", "monthly lines and one-offs at the signed prices, tagged Incrementum"],
+        ["Services added to their client profile", "monthly lines and one-offs at the line prices, tagged Incrementum, kept in step as lines change"],
+        ["Shown in GrayPortal's Clients list", "with an Incrementum badge and a link back here"],
       ]
     : [
         ["Company + client record", "with the website, source and size"],
         ["Contact person", "name, email and phone"],
         ["Client portal login", "invite sent to the portal email"],
         ["Starter tasks", "the onboarding checklist"],
-        ["Services on the client profile", "monthly lines and one-offs at the signed prices, tagged Incrementum"],
+        ["Services on the client profile", "monthly lines and one-offs at the line prices, tagged Incrementum, kept in step as lines change"],
         ["Lead history", "their message, notes, emails and calls copied to the client timeline (from a lead)"],
+        ["Shown in GrayPortal's Clients list", "with an Incrementum badge and a link back here"],
       ];
   return (
     <div className="gpcheck">

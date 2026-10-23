@@ -20,7 +20,10 @@ export function ClientCard({ client: c, minimal, mrrTotal }) {
     <button className="tile" onClick={() => go(`/clients/${c.id}`)}>
       <div className="tile-name">
         <span>{c.name}</span>
-        <Badge tone={statusTone(c.status)}>{c.status}</Badge>
+        <span className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+          {c.incrementum && <IncrementumBadge />}
+          <Badge tone={statusTone(c.status)}>{c.status}</Badge>
+        </span>
       </div>
       {!minimal && <BrandBanner client={c} height={104} />}
       <div className="tile-body">
@@ -45,6 +48,13 @@ export function ClientCard({ client: c, minimal, mrrTotal }) {
     </button>
   );
 }
+
+// A Project Incrementum client (run month by month through contractors).
+export const IncrementumBadge = () => (
+  <Badge tone="accent">
+    <span title="Project Incrementum client">Incrementum</span>
+  </Badge>
+);
 
 export const statusTone = (s) =>
   ({ Live: "good", Retainer: "good", Onboarded: "accent", "Active build": "accent", "Compliance review": "warn", "Internal product": undefined })[s];
@@ -101,7 +111,7 @@ export default function Clients() {
                 {shown.map((c) => (
                   <tr key={c.id} data-click onClick={() => go(`/clients/${c.id}`)}>
                     <td>
-                      <b className="strong">{c.name}</b>
+                      <b className="strong">{c.name}</b> {c.incrementum && <IncrementumBadge />}
                     </td>
                     <td><Priv>{c.mainContact.name || "—"}</Priv></td>
                     <td className="muted">{c.services.filter((s) => s.status === "active").length} active</td>

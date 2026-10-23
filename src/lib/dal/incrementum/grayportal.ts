@@ -9,10 +9,11 @@ import {
   incrementumActivities,
   incrementumEngagements,
   incrementumLeads,
+  incrementumNeeds,
   serviceItems,
   users,
 } from "@/lib/db/schema";
-import { auditedInsert, auditedUpdate } from "../mutate";
+import { auditedInsert, auditedUpdate, auditedSoftDelete } from "../mutate";
 import type { Caller, Tx } from "../session";
 import { withIncrementum, actor } from "./core";
 import { getIncrementumSnapshot } from "./snapshot";
@@ -68,48 +69,79 @@ export async function copyLeadHistory(tx: Tx, caller: Caller, leadId: string, co
 }
 
 /**
- * Writes the engagement's lines onto the GrayPortal client profile as client
- * services at the line prices (monthly lines as a monthly price, one-offs as
- * a setup price). Only lines linked to a catalogue item can go across
- * (client_services needs one); re-running updates the Incrementum rows.
+ * Writes an engagement's lines onto the GrayPortal client profile, so the
+ * client's Services tab shows what they're sold through Incrementum: monthly
+ * lines as a monthly price, one-offs as a setup price, at the line prices.
+ * Only Incrementum's own rows are touched (tagged "Incrementum: … (line
+ * xxxxxxxx)" in their notes); services added in GrayPortal are left alone.
+ * A line removed from the engagement removes its row, and the rows follow the
+ * engagement's status (active / paused / ended). A line can only go across if
+ * its Incrementum service (or off-list item) is linked to a catalogue item.
  */
-export async function writeEngagementServices(tx: Tx, caller: Caller, clientId: string, startDate: string | null, views: NeedView[]) {
+export async function writeEngagementServices(
+  tx: Tx,
+  caller: Caller,
+  engagement: { id: string; clientId: string; startDate: string | null; status: string },
+  views: NeedView[]
+) {
+  const status = engagement.status === "paused" ? "paused" : engagement.status === "ended" ? "ended" : "active";
+  const tagOf = (lineId: string) => `(line ${lineId.slice(0, 8)})`;
+  const existing = await tx
+    .select({ id: clientServices.id, notes: clientServices.notes })
+    .from(clientServices)
+    .where(and(eq(clientServices.clientId, engagement.clientId), like(clientServices.notes, `${SERVICE_TAG}:%`), isNull(clientServices.deletedAt)));
+  const unlinked: string[] = [];
   let written = 0;
-  let skipped = 0;
   for (const v of views) {
     const itemId = v.service?.serviceItemId ?? v.serviceItemId ?? null;
     if (!itemId || v.price === null) {
-      skipped++;
+      unlinked.push(v.name);
       continue;
     }
-    const tag = `${SERVICE_TAG}: ${v.name} (line ${v.id.slice(0, 8)})`;
     const values = {
+      serviceItemId: itemId,
       customMonthlyPrice: v.billing === "monthly" ? String(v.price) : null,
       customSetupPrice: v.billing === "monthly" ? null : String(v.price),
-      startedOn: startDate,
-      status: "active" as const,
-      notes: tag,
+      startedOn: engagement.startDate,
+      status,
+      notes: `${SERVICE_TAG}: ${v.name} ${tagOf(v.id)}`,
     };
-    const [existing] = await tx
-      .select({ id: clientServices.id })
-      .from(clientServices)
-      .where(and(eq(clientServices.clientId, clientId), eq(clientServices.serviceItemId, itemId), like(clientServices.notes, `${SERVICE_TAG}:%(line ${v.id.slice(0, 8)})`), isNull(clientServices.deletedAt)))
-      .limit(1);
-    if (existing) await auditedUpdate(tx, clientServices, eq(clientServices.id, existing.id), existing.id, { ...values, updatedBy: caller.userId }, { caller, entityType: "client_service" });
-    else await auditedInsert(tx, clientServices, { clientId, serviceItemId: itemId, ...values, ...actor(caller) }, { caller, entityType: "client_service" });
+    const row = existing.find((r) => r.notes?.endsWith(tagOf(v.id)));
+    if (row) await auditedUpdate(tx, clientServices, eq(clientServices.id, row.id), row.id, { ...values, updatedBy: caller.userId }, { caller, entityType: "client_service" });
+    else await auditedInsert(tx, clientServices, { clientId: engagement.clientId, ...values, ...actor(caller) }, { caller, entityType: "client_service" });
     written++;
   }
-  return { written, skipped };
+  // Rows for this engagement's lines that are gone (deleted, or no longer linkable).
+  const everLines = await tx.select({ id: incrementumNeeds.id }).from(incrementumNeeds).where(eq(incrementumNeeds.engagementId, engagement.id));
+  const kept = new Set(views.filter((v) => !unlinked.includes(v.name)).map((v) => tagOf(v.id)));
+  const mine = new Set(everLines.map((l) => tagOf(l.id)));
+  let removed = 0;
+  for (const r of existing) {
+    const tag = r.notes?.match(/\(line [0-9a-f]{8}\)$/)?.[0];
+    if (tag && mine.has(tag) && !kept.has(tag)) {
+      await auditedSoftDelete(tx, clientServices, r.id, { caller, entityType: "client_service" });
+      removed++;
+    }
+  }
+  return { written, removed, unlinked };
 }
 
-/** The "Sync services to GrayPortal" button on a client: re-writes every line at today's line prices. */
+/** Re-writes one engagement's lines onto the client's GrayPortal Services tab (see writeEngagementServices). */
 export async function syncEngagementServicesToGrayPortal(engagementId: string) {
   const snap = await getIncrementumSnapshot();
   const views = snap.state.needs.filter((n) => n.engagementId === engagementId && !n.deletedAt).map((n) => computeNeed(snap.state, snap.services, n));
   return withIncrementum(async (caller, tx) => {
     const [e] = await tx.select().from(incrementumEngagements).where(eq(incrementumEngagements.id, engagementId)).limit(1);
     if (!e) throw new Error("Client not found");
-    return writeEngagementServices(tx, caller, e.clientId, e.startDate, views);
+    return writeEngagementServices(tx, caller, e, views);
+  });
+}
+
+/** The engagement a line belongs to (deleted lines too), so a line edit can re-sync its client. */
+export async function engagementOfNeed(needId: string) {
+  return withIncrementum(async (_c, tx) => {
+    const [n] = await tx.select({ engagementId: incrementumNeeds.engagementId }).from(incrementumNeeds).where(eq(incrementumNeeds.id, needId)).limit(1);
+    return n?.engagementId ?? null;
   });
 }
 

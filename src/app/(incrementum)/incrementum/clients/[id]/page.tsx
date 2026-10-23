@@ -402,7 +402,7 @@ export default async function ClientProfile({ params, searchParams }: { params: 
                       Sync services to GrayPortal
                     </SubmitButton>
                     <p className="muted small" style={{ marginTop: 6 }}>
-                      Re-writes the client profile&apos;s Incrementum lines at today&apos;s line prices. Lines without a catalogue item can&apos;t be written yet.
+                      Happens on its own whenever a line or the client&apos;s status changes; this re-runs it. Only Incrementum&apos;s own rows are touched, and a service not linked to a GrayPortal service (Services &amp; Pricing) is skipped.
                     </p>
                   </form>
                 )}
