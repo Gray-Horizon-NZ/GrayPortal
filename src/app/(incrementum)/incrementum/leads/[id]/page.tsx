@@ -1,260 +1,327 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MessageSquare, Users, Mail, History, PenLine, Reply, XCircle } from "lucide-react";
 import { getLeadDetail } from "@/lib/dal/incrementum/leads";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
+import { computeNeed, quoteTotals } from "@/lib/incrementum/compute";
 import { LEAD_STAGES, LEAD_STAGE_LABELS, LEAD_SOURCES, LEAD_SOURCE_LABELS, BUSINESS_SIZES, BUSINESS_SIZE_LABELS, type LeadStage, type BusinessSize } from "@/lib/incrementum/registry";
 import { LEAD_DRAFTS } from "@/lib/incrementum/drafts";
-import { formatMetric, money, shortDateTime, todayNz, minutesSince } from "@/lib/incrementum/format";
-import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
-import { OutreachPanel, Timeline } from "@/components/incrementum/Outreach";
-import ClientServices from "@/components/incrementum/ClientServices";
+import { formatMetric, money, minutesSince } from "@/lib/incrementum/format";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { Priv, Field, Stepper, Back, GrayPortalChecklist, Console, Csec, IdCard, Monogram, Blocks, TermStatus, LevelBars, BigAction, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
+import { Dialog } from "@/components/incrementum/terminal/client";
+import ServicesTeam from "@/components/incrementum/terminal/services-team";
+import { Outreach, Timeline } from "@/components/incrementum/terminal/outreach";
+import { longDate, tintFor, PASS_LINE } from "@/components/incrementum/terminal/helpers";
 import { setLeadStageAction, updateLeadAction, markLeadRespondedAction, onboardLeadAction, deleteLeadAction } from "../../actions";
 
-export default async function LeadDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
+const VIEWS = ["quote", "outreach", "timeline", "details"] as const;
+type View = (typeof VIEWS)[number];
+
+export default async function LeadProfile({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ view?: string; onboard?: string }> }) {
   const { id } = await params;
-  const { ok, error } = await searchParams;
+  const sp = await searchParams;
   const [d, s] = await Promise.all([getLeadDetail(id), getIncrementumSnapshot()]);
   if (!d) notFound();
   const l = d.lead;
-  const back = `/incrementum/leads/${id}`;
-  const stage = l.stage as LeadStage;
-  const target = s.state.settings.responseTargetMinutes ?? 60;
+  const base = `/incrementum/leads/${id}`;
+  const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "quote";
+  const back = view === "quote" ? base : `${base}?view=${view}`;
+  const st = s.state;
+  const target = st.settings.responseTargetMinutes ?? 60;
   const waitingMins = l.firstResponseAt ? null : minutesSince(l.receivedAt);
-  const responseMins = l.firstResponseAt ? Math.round((new Date(l.firstResponseAt).getTime() - new Date(l.receivedAt).getTime()) / 60_000) : null;
+  const replyMins = l.firstResponseAt ? (new Date(l.firstResponseAt).getTime() - new Date(l.receivedAt).getTime()) / 60_000 : null;
+  const clockMins = waitingMins ?? replyMins ?? 0;
+  const lines = st.needs.filter((n) => n.leadId === id && !n.engagementId);
+  const views = lines.map((n) => computeNeed(st, s.services, n));
+  const quote = quoteTotals(views);
   // The package their lines were copied from, else the one they asked about; never a guess.
-  const quotePackageId = s.state.needs.find((n) => n.leadId === l.id && !n.engagementId && n.packageId)?.packageId;
-  const pkg = s.packages.find((p) => p.id === (quotePackageId ?? l.packageId));
-  const engagement = l.convertedClientId ? s.state.engagements.find((e) => e.leadId === l.id) : null;
+  const pkgId = lines.find((n) => n.packageId)?.packageId ?? l.packageId;
+  const pkg = s.packages.find((p) => p.id === pkgId);
+  const engagement = st.engagements.find((e) => e.leadId === l.id) ?? null;
+  const assigned = views.filter((v) => !v.roleId || v.contractorId).length;
+  const price = quote.monthlyPrice || pkg?.totals.monthlyPrice || 0;
+  const stage = l.stage as LeadStage;
+  const sourceLabel = LEAD_SOURCE_LABELS[l.source as keyof typeof LEAD_SOURCE_LABELS] ?? l.source;
+  const viewHref = (v: View) => (v === "quote" ? base : `${base}?view=${v}`);
 
   return (
-    <>
-      <Link href="/incrementum/leads" className="inc-link">
-        ← Leads
-      </Link>
-      <ProfileHead
-        eyebrow={`Lead · ${LEAD_SOURCE_LABELS[l.source as keyof typeof LEAD_SOURCE_LABELS] ?? l.source} · arrived ${shortDateTime(l.receivedAt)}`}
-        name={l.businessName}
-        meta={[
-          l.contactName,
-          l.email && <a href={`mailto:${l.email}`}>{l.email}</a>,
-          l.phone && <a href={`tel:${l.phone}`}>{l.phone}</a>,
-          l.website && (
-            <a href={l.website.startsWith("http") ? l.website : `https://${l.website}`} target="_blank" rel="noreferrer">
-              {l.website.replace(/^https?:\/\//, "")}
-            </a>
-          ),
-        ]}
-        badges={
+    <div className="screen">
+      <Back href="/incrementum/leads" label="Leads" />
+      <Console
+        side={
           <>
-            <Chip tone={stage === "won" ? "good" : stage === "lost" ? "danger" : "accent"}>{LEAD_STAGE_LABELS[stage]}</Chip>
-            <Chip tone={l.businessSize ? undefined : "warning"}>{l.businessSize ? BUSINESS_SIZE_LABELS[l.businessSize as BusinessSize] : "Size not set"}</Chip>
-            {waitingMins !== null && stage !== "lost" && <Chip tone={waitingMins > target ? "danger" : "warning"}>Waiting {formatMetric(waitingMins, "minutes")}</Chip>}
-            {responseMins !== null && <Chip tone={responseMins <= target ? "good" : "warning"}>Replied in {formatMetric(responseMins, "minutes")}</Chip>}
-          </>
-        }
-      />
-      <Flash ok={ok} error={error} />
-
-      <section className="inc-panel">
-        <div className="inc-steps" style={{ gridTemplateColumns: `repeat(${LEAD_STAGES.length}, minmax(0, 1fr))` }}>
-          {LEAD_STAGES.map((st, i) => (
-            <form key={st} action={setLeadStageAction} className="inc-step" data-state={st === stage ? "active" : LEAD_STAGES.indexOf(stage) > i && stage !== "lost" ? "done" : undefined}>
-              <input type="hidden" name="_back" value={back} />
-              <input type="hidden" name="id" value={id} />
-              <input type="hidden" name="stage" value={st} />
-              {st === "lost" && st !== stage && <input className="gh-input" name="note" placeholder="Why lost?" style={{ marginBottom: 4 }} aria-label="Lost reason" />}
-              <button type="submit" className="inc-step-name" style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", fontSize: "var(--gh-text-sm)" }} disabled={st === stage || st === "won"}>
-                {LEAD_STAGE_LABELS[st]}
-              </button>
-            </form>
-          ))}
-        </div>
-        <p className="inc-small">&quot;Won&quot; is set by Onboard client below. Any move past New stops the response clock.</p>
-        {l.lostReason && <p className="inc-small">Lost because: {l.lostReason}</p>}
-        {!l.firstResponseAt && (
-          <form action={markLeadRespondedAction}>
-            <input type="hidden" name="_back" value={back} />
-            <input type="hidden" name="id" value={id} />
-            <SubmitButton className="gh-btn-secondary" pendingLabel="…">I&apos;ve replied (outside GrayPortal)</SubmitButton>
-          </form>
-        )}
-      </section>
-
-      <div className="inc-two">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", minWidth: 0 }}>
-          {!l.convertedClientId && <ClientServices s={s} leadId={id} back={back} />}
-          {l.message && (
-            <section className="inc-panel">
-              <h2 className="inc-cell-title">Their message</h2>
-              <p style={{ whiteSpace: "pre-wrap" }}>{l.message}</p>
-            </section>
-          )}
-          <OutreachPanel
-            entityType="lead"
-            entityId={id}
-            back={back}
-            drafts={LEAD_DRAFTS}
-            name={l.contactName}
-            business={l.businessName}
-            email={l.email}
-            meetingTitle={`Discovery call · ${l.businessName} × Gray Horizon`}
-          />
-          <Timeline activities={d.activities} stageEvents={d.stageEvents} labels={LEAD_STAGE_LABELS} />
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", minWidth: 0 }}>
-          <section className="inc-panel" style={{ borderColor: "var(--gh-accent)" }}>
-            <h2 className="inc-cell-title">
-              Onboard <em>client</em>
-            </h2>
-            {l.convertedClientId ? (
-              <>
-                <p className="inc-muted">Onboarded. This lead is now a GrayPortal client.</p>
-                <div className="inc-inline">
-                  <Link className="gh-btn-secondary" href={`/clients/${l.convertedClientId}`}>
-                    Client record ↗
-                  </Link>
-                  {engagement && (
-                    <Link className="gh-btn-primary" href={`/incrementum/engagements/${engagement.id}`}>
-                      Engagement
-                    </Link>
-                  )}
-                </div>
-              </>
-            ) : (
-              <form action={onboardLeadAction} className="inc-form">
-                <input type="hidden" name="_back" value={back} />
-                <input type="hidden" name="id" value={id} />
-                <p className="inc-small inc-field--wide">
-                  Creates the company, client, portal login and starter tasks in the main GrayPortal, starts the engagement at the package&apos;s current price (locked from then on), and marks the lead Won.
-                </p>
-                <label className="inc-field">
-                  Portal login email
-                  <input className="gh-input" type="email" name="portalEmail" defaultValue={l.email ?? ""} required />
-                </label>
-                <label className="inc-field">
-                  Display name
-                  <input className="gh-input" name="displayName" defaultValue={l.contactName ?? ""} />
-                </label>
-                <label className="inc-field">
-                  Package
-                  <select className="gh-input" name="packageId" defaultValue={pkg?.id ?? ""}>
-                    <option value="">None</option>
-                    {s.packages.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · {money(p.totals.monthlyPrice)}/mo
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="inc-field">
-                  Start date
-                  <input className="gh-input" type="date" name="startDate" defaultValue={todayNz()} required />
-                </label>
-                <label className="inc-field">
-                  Signed monthly price (blank = quote total, else package)
-                  <input className="gh-input" name="monthlyPrice" inputMode="decimal" />
-                </label>
-                <label className="inc-field">
-                  Signed setup fee (blank = quote one-offs, else package)
-                  <input className="gh-input" name="setupPrice" inputMode="decimal" />
-                </label>
-                <SubmitButton pendingLabel="Onboarding…">Onboard client</SubmitButton>
+            <IdCard
+              tint={tintFor(l.id)}
+              art={<Monogram text={l.businessName.trim()[0]?.toUpperCase() ?? "?"} big />}
+              strip={l.businessName}
+              rows={[
+                ["Contact", l.contactName || "—", true],
+                ["Source", sourceLabel],
+                ["Size", l.businessSize ? BUSINESS_SIZE_LABELS[l.businessSize as BusinessSize] : "Not set"],
+                ["Arrived", longDate(l.receivedAt)],
+              ]}
+            />
+            <Blocks
+              value={view}
+              items={[
+                { key: "quote", label: "Services & team", icon: Users, count: quote.unassigned || undefined, href: viewHref("quote") },
+                { key: "outreach", label: "Reach out", icon: Mail, href: viewHref("outreach") },
+                { key: "timeline", label: "Timeline", icon: History, href: viewHref("timeline") },
+                { key: "details", label: "Details", icon: PenLine, href: viewHref("details") },
+                !["won", "lost"].includes(stage) && { label: "Mark lost", icon: XCircle, tone: "danger", dialog: "lead-lost" },
+              ]}
+            />
+            {!l.firstResponseAt && (
+              <form action={markLeadRespondedAction} className="blocks">
+                <BackTo path={back} />
+                <HiddenFields values={{ id }} />
+                <button type="submit" className="block">
+                  <Reply size={15} strokeWidth={1.75} />
+                  <span>I&apos;ve replied</span>
+                </button>
               </form>
             )}
-          </section>
+          </>
+        }
+      >
+        <Csec>
+          <TermStatus label="Lead status" value={LEAD_STAGE_LABELS[stage] ?? l.stage} tone={stage === "lost" ? "bad" : stage === "won" ? undefined : "warn"}>
+            {waitingMins !== null && stage !== "lost" ? `Waiting ${formatMetric(waitingMins, "minutes")}` : replyMins !== null ? `Replied in ${formatMetric(replyMins, "minutes")}` : ""}
+          </TermStatus>
+        </Csec>
+        <Csec className="tight">
+          <Stepper
+            steps={LEAD_STAGES.map((x) => ({ key: x, label: LEAD_STAGE_LABELS[x], off: stage === "lost" }))}
+            current={stage}
+            disabled={["won", "lost"]}
+            action={setLeadStageAction}
+            hidden={{ _back: back, id }}
+          />
+          <p className="muted small" style={{ marginTop: 8 }}>
+            &quot;Won&quot; is set by Onboard client. Any move past New stops the response clock.{l.lostReason && ` Lost because: ${l.lostReason}`}
+          </p>
+        </Csec>
+        <Csec>
+          <LevelBars
+            rows={[
+              {
+                label: waitingMins !== null ? "Reply clock" : "First reply",
+                value: Math.min(1, clockMins / (target * 2)),
+                marks: [0.5],
+                tone: clockMins > target ? "bad" : "good",
+                right: `${formatMetric(clockMins, "minutes")} / ${target} min target`,
+              },
+              {
+                label: "Quote profit",
+                value: quote.monthlyProfit / (PASS_LINE * 1.5),
+                marks: [1 / 1.5],
+                tone: quote.monthlyPrice ? (quote.monthlyProfit >= PASS_LINE ? "good" : "bad") : "neutral",
+                right: <Priv>{`${money(quote.monthlyProfit)} / ${money(PASS_LINE)} pass`}</Priv>,
+              },
+              { label: "Contractors assigned", value: views.length ? assigned / views.length : 0, right: `${assigned}/${views.length} lines` },
+            ]}
+          />
+        </Csec>
+        {l.message && view === "quote" && (
+          <Csec className="tight">
+            <p className="brief-title">
+              <MessageSquare size={13} /> Their message
+            </p>
+            <p className="brief-text">
+              <Priv>{l.message}</Priv>
+            </p>
+          </Csec>
+        )}
+        <Csec className="inset">
+          {view === "quote" && (engagement || l.convertedClientId ? <p className="muted">Onboarded: the lines moved to the client.</p> : <ServicesTeam s={s} leadId={id} back={back} />)}
+          {view === "outreach" && (
+            <Outreach
+              entityType="lead"
+              entityId={id}
+              back={back}
+              drafts={LEAD_DRAFTS}
+              name={l.contactName}
+              business={l.businessName}
+              email={l.email}
+              meetingTitle={`Discovery call · ${l.businessName} × Gray Horizon`}
+              today={st.today}
+            />
+          )}
+          {view === "timeline" && <Timeline activities={d.activities} stageEvents={d.stageEvents} labels={LEAD_STAGE_LABELS} />}
+          {view === "details" && <LeadDetails l={l} s={s} back={back} />}
+        </Csec>
+        {engagement ? (
+          <BigAction label="Open the client" sub="This lead is now a client" value="→" href={`/incrementum/clients/${engagement.id}`} />
+        ) : l.convertedClientId ? (
+          <BigAction label="Open the client record" sub="This lead is now a GrayPortal client" value="→" href={`/clients/${l.convertedClientId}`} />
+        ) : (
+          <BigAction
+            label="Onboard client"
+            sub="Creates the client in GrayPortal and Incrementum, and starts the work at this price"
+            value={<Priv>{`${money(price)}/mo`}</Priv>}
+            disabled={stage === "lost"}
+            dialog="lead-onboard"
+          />
+        )}
+      </Console>
 
-          <section className="inc-panel">
-            <h2 className="inc-cell-title">Details</h2>
-            {(l.gclid || l.utm) && (
-              <p className="inc-small">
-                Tracking: {l.gclid ? `gclid ${l.gclid.slice(0, 12)}…` : ""} {l.utm ? Object.entries(l.utm).map(([k, v]) => `${k}=${v}`).join(" · ") : ""}
-              </p>
-            )}
-            <form action={updateLeadAction} className="inc-form">
-              <input type="hidden" name="_back" value={back} />
-              <input type="hidden" name="id" value={id} />
-              <label className="inc-field">
-                Business
-                <input className="gh-input" name="businessName" defaultValue={l.businessName} required />
-              </label>
-              <label className="inc-field">
-                Contact
-                <input className="gh-input" name="contactName" defaultValue={l.contactName ?? ""} />
-              </label>
-              <label className="inc-field">
-                Email
-                <input className="gh-input" type="email" name="email" defaultValue={l.email ?? ""} />
-              </label>
-              <label className="inc-field">
-                Phone
-                <input className="gh-input" name="phone" defaultValue={l.phone ?? ""} />
-              </label>
-              <label className="inc-field">
-                Website
-                <input className="gh-input" name="website" defaultValue={l.website ?? ""} />
-              </label>
-              <label className="inc-field">
-                Source
-                <select className="gh-input" name="source" defaultValue={l.source}>
-                  {LEAD_SOURCES.map((x) => (
-                    <option key={x} value={x}>
-                      {LEAD_SOURCE_LABELS[x]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="inc-field">
-                Package of interest
-                <select className="gh-input" name="packageId" defaultValue={l.packageId ?? ""}>
-                  <option value="">—</option>
-                  {s.packages.map((p) => (
+      {!engagement && !l.convertedClientId && stage !== "lost" && (
+        <Dialog id="lead-onboard" title={`Onboard ${l.businessName}`} wide openOnLoad={sp.onboard === "1"}>
+          <form className="form-grid g3" action={onboardLeadAction}>
+            <BackTo path={base} />
+            <HiddenFields values={{ id }} />
+            <p className="muted small" style={{ gridColumn: "1 / -1" }}>
+              Any term, including month to month. The price is locked from here on; Services &amp; Pricing changes never move it.
+            </p>
+            <Field label="Portal login email">
+              <input className="input" type="email" name="portalEmail" defaultValue={l.email ?? ""} required />
+            </Field>
+            <Field label="Display name">
+              <input className="input" name="displayName" defaultValue={l.contactName ?? ""} />
+            </Field>
+            <Field label="Package">
+              <select className="select" name="packageId" defaultValue={pkg?.id ?? ""}>
+                <option value="">None</option>
+                {s.packages
+                  .filter((p) => p.status !== "retired")
+                  .map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name} · {money(p.totals.monthlyPrice)}/mo
                     </option>
                   ))}
-                </select>
-              </label>
-              <label className="inc-field">
-                Service interest
-                <input className="gh-input" name="serviceInterest" defaultValue={l.serviceInterest ?? ""} />
-              </label>
-              <label className="inc-field">
-                Ad budget
-                <input className="gh-input" name="adBudget" defaultValue={l.adBudget ?? ""} />
-              </label>
-              <label className="inc-field">
-                Business size
-                <select className="gh-input" name="businessSize" defaultValue={l.businessSize ?? ""}>
-                  <option value="">Not set</option>
-                  {BUSINESS_SIZES.map((z) => (
-                    <option key={z} value={z}>
-                      {BUSINESS_SIZE_LABELS[z]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <input type="hidden" name="message" value={l.message ?? ""} />
-              <label className="inc-field inc-field--wide">
-                Notes
-                <textarea className="gh-input" name="notes" defaultValue={l.notes ?? ""} />
-              </label>
-              <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-            </form>
-          </section>
-
-          <form action={deleteLeadAction}>
-            <input type="hidden" name="_back" value={back} />
-            <input type="hidden" name="id" value={id} />
-            <button className="gh-link-btn gh-link-btn--danger" type="submit">
-              Delete lead (spam / duplicate)
-            </button>
+              </select>
+            </Field>
+            <Field label="Start date">
+              <input className="input" type="date" name="startDate" defaultValue={st.today} required />
+            </Field>
+            <Field label="Signed monthly (blank = quote)">
+              <input className="input" name="monthlyPrice" placeholder={quote.monthlyPrice ? String(quote.monthlyPrice) : ""} inputMode="decimal" />
+            </Field>
+            <Field label="Signed setup (blank = quote)">
+              <input className="input" name="setupPrice" placeholder={quote.oneOffPrice ? String(quote.oneOffPrice) : ""} inputMode="decimal" />
+            </Field>
+            <Field label="Minimum term">
+              <select className="select" name="minTermMonths" defaultValue={String(pkg?.minTermMonths ?? 3)}>
+                <option value="0">None (month to month)</option>
+                {[1, 3, 6, 12].map((m) => (
+                  <option key={m} value={m}>
+                    {m} month{m === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <GrayPortalChecklist />
+            </div>
+            <div className="form-actions">
+              <SubmitButton className="btn btn-primary" pendingLabel="Onboarding…">
+                Onboard into GrayPortal + Incrementum
+              </SubmitButton>
+            </div>
           </form>
-        </div>
-      </div>
+        </Dialog>
+      )}
+
+      {!["won", "lost"].includes(stage) && (
+        <Dialog id="lead-lost" title={`Mark ${l.businessName} as lost`}>
+          <form className="form-grid" action={setLeadStageAction}>
+            <BackTo path={back} />
+            <HiddenFields values={{ id, stage: "lost" }} />
+            <Field label="Why lost?" wide>
+              <input className="input" name="note" required placeholder="e.g. Budget under $300/mo" />
+            </Field>
+            <div className="form-actions">
+              <SubmitButton className="btn btn-danger" pendingLabel="…">
+                Mark lost
+              </SubmitButton>
+            </div>
+          </form>
+        </Dialog>
+      )}
       <IncrementumReadySignal />
+    </div>
+  );
+}
+
+function LeadDetails({ l, s, back }: { l: NonNullable<Awaited<ReturnType<typeof getLeadDetail>>>["lead"]; s: Awaited<ReturnType<typeof getIncrementumSnapshot>>; back: string }) {
+  return (
+    <>
+      <form className="form-grid g3" action={updateLeadAction}>
+        <BackTo path={back} />
+        <HiddenFields values={{ id: l.id, message: l.message ?? "" }} />
+        {(l.gclid || l.utm) && (
+          <p className="muted small" style={{ gridColumn: "1 / -1" }}>
+            Tracking: {l.gclid ? `gclid ${l.gclid.slice(0, 12)}…` : ""} {l.utm ? Object.entries(l.utm).map(([k, v]) => `${k}=${v}`).join(" · ") : ""}
+          </p>
+        )}
+        {(
+          [
+            ["businessName", "Business", l.businessName],
+            ["contactName", "Contact", l.contactName],
+            ["email", "Email", l.email],
+            ["phone", "Phone", l.phone],
+            ["website", "Website", l.website],
+            ["serviceInterest", "Service interest", l.serviceInterest],
+            ["adBudget", "Ad budget", l.adBudget],
+          ] as const
+        ).map(([k, label, v]) => (
+          <Field key={k} label={label}>
+            <input className="input" name={k} type={k === "email" ? "email" : undefined} defaultValue={v ?? ""} required={k === "businessName"} />
+          </Field>
+        ))}
+        <Field label="Source">
+          <select className="select" name="source" defaultValue={l.source}>
+            {LEAD_SOURCES.map((x) => (
+              <option key={x} value={x}>
+                {LEAD_SOURCE_LABELS[x]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Package of interest">
+          <select className="select" name="packageId" defaultValue={l.packageId ?? ""}>
+            <option value="">—</option>
+            {s.packages.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Business size">
+          <select className="select" name="businessSize" defaultValue={l.businessSize ?? ""}>
+            <option value="">Not set</option>
+            {BUSINESS_SIZES.map((z) => (
+              <option key={z} value={z}>
+                {BUSINESS_SIZE_LABELS[z]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Notes" wide>
+          <textarea className="textarea" name="notes" defaultValue={l.notes ?? ""} />
+        </Field>
+        <div className="form-actions">
+          <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+            Save
+          </SubmitButton>
+          {l.convertedClientId && (
+            <Link className="btn" href={`/clients/${l.convertedClientId}`}>
+              GrayPortal client record ↗
+            </Link>
+          )}
+        </div>
+      </form>
+      <form action={deleteLeadAction} className="row">
+        <BackTo path="/incrementum/leads" />
+        <HiddenFields values={{ id: l.id }} />
+        <span className="spacer" />
+        <button type="submit" className="linkbtn danger">
+          Delete lead (spam / duplicate)
+        </button>
+      </form>
     </>
   );
 }

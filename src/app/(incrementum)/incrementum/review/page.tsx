@@ -1,122 +1,101 @@
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
+import { METRICS, type MetricKey } from "@/lib/incrementum/registry";
+import { formatMetric } from "@/lib/incrementum/format";
 import { mondayOf } from "@/lib/incrementum/evaluate";
-import { METRICS } from "@/lib/incrementum/registry";
-import { formatMetric, shortDate } from "@/lib/incrementum/format";
-import { PageHead, Flash, Chip, Dot, goalTone, GOAL_STATUS_LABELS } from "@/components/incrementum/ui";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
-import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead, Panel, Priv, Field, DueList, Console, Csec, TermStatus, Ledger, BigAction, BackTo } from "@/components/incrementum/terminal/kit";
+import { longDate, fmtDate, addDays, GOAL_STATUS_LABELS } from "@/components/incrementum/terminal/helpers";
 import { completeReviewAction } from "../actions";
 
-const BACK = "/incrementum/review";
-const KEY_METRICS = ["monthly_profit", "active_clients", "leads_this_month", "leads_unanswered", "contractors_confirmed", "launch_readiness_pct", "max_hours_per_client"] as const;
+const KEY_METRICS: MetricKey[] = ["monthly_profit", "active_clients", "leads_this_month", "leads_unanswered", "contractors_confirmed", "launch_readiness_pct", "max_hours_per_client"];
+const TONE = { danger: "bad", warning: "warn", neutral: undefined } as const;
 
-export default async function ReviewPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const { ok, error } = await searchParams;
+export default async function ReviewPage() {
   const s = await getIncrementumSnapshot();
-  const monday = mondayOf(new Date(`${s.state.today}T12:00:00Z`));
-  const thisWeek = s.state.reviews.find((r) => r.weekOf === monday);
-  const past = s.state.reviews.filter((r) => r.weekOf !== monday && r.completedAt).slice(0, 8);
+  const st = s.state;
+  const monday = mondayOf(new Date(`${st.today}T12:00:00Z`));
+  const thisWeek = st.reviews.find((r) => r.weekOf === monday);
+  const past = st.reviews.filter((r) => r.weekOf !== monday && r.completedAt).slice(0, 8);
   const offPace = s.goals.filter((g) => g.status === "at_risk" || g.status === "missed");
-  const pendingTests = s.state.experiments.filter((e) => e.type === "test" && !e.verdict && e.endsAt && e.endsAt <= s.state.today);
+  const pendingTests = st.experiments.filter((e) => e.type === "test" && !e.verdict && e.endsAt && e.endsAt <= st.today);
+  const own = [
+    ...offPace.map((g) => ({ key: `g${g.id}`, title: g.title, detail: (GOAL_STATUS_LABELS[g.status] ?? g.status).toLowerCase(), tone: "warn", href: "/incrementum/goals" })),
+    ...s.attention
+      .filter((a) => !a.key.startsWith("review-") && !a.key.startsWith("goal-"))
+      .slice(0, 8)
+      .map((a) => ({ key: a.key, title: a.title, detail: a.detail, tone: TONE[a.tone], href: a.href })),
+    ...pendingTests.map((t) => ({ key: `x${t.id}`, title: `Verdict due: ${t.title}`, detail: "test", tone: "warn", href: "/incrementum/experiments" })),
+  ];
+  const friday = addDays(monday, 4);
+  const done = !!thisWeek?.completedAt;
+  const streak = s.metrics.weekly_review_streak ?? 0;
 
   return (
-    <>
-      <PageHead
-        eyebrow={`Week of ${shortDate(monday, true)}`}
-        title={
-          <>
-            Weekly <em>review</em>
-          </>
-        }
-        lede="Monday ritual: look at the numbers, own what's off pace, commit to three actions. The actions land on the Incrementum main list (and the Master Task View), due Friday."
-        actions={<Chip tone={thisWeek?.completedAt ? "good" : "warning"}>{thisWeek?.completedAt ? "Done this week" : "Due"}</Chip>}
-      />
-      <Flash ok={ok} error={error} />
-
-      <div className="inc-stats">
-        {KEY_METRICS.map((k) => (
-          <div className="inc-stat" key={k}>
-            <span className="inc-small">{METRICS[k].label}</span>
-            <span className="inc-stat-value">{formatMetric(s.metrics[k], METRICS[k].unit)}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="inc-two">
-        <section className="inc-panel">
-          <h2 className="inc-cell-title">
-            What needs <em>owning</em>
-          </h2>
-          <div className="inc-list">
-            {offPace.map((g) => (
-              <div className="inc-row" key={g.id}>
-                <span>{g.title}</span>
-                <Chip tone={goalTone(g.status)}>{GOAL_STATUS_LABELS[g.status]}</Chip>
-              </div>
-            ))}
-            {s.attention.slice(0, 8).map((a) => (
-              <a className="inc-row" href={a.href} key={a.key}>
-                <span className="inc-row-main">
-                  <Dot tone={a.tone} />
-                  <span>{a.title}</span>
-                </span>
-                {a.detail && <span className="inc-small">{a.detail}</span>}
-              </a>
-            ))}
-            {pendingTests.map((t) => (
-              <a className="inc-row" href="/incrementum/experiments" key={t.id}>
-                <span>Verdict due: {t.title}</span>
-                <Chip tone="warning">Test</Chip>
-              </a>
-            ))}
-            {offPace.length + s.attention.length + pendingTests.length === 0 && <p className="inc-muted">Nothing off pace. Good week.</p>}
-          </div>
-        </section>
-
-        <section className="inc-panel">
-          <h2 className="inc-cell-title">
-            This week&apos;s <em>review</em>
-          </h2>
-          <form action={completeReviewAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-3)" }}>
-            <input type="hidden" name="_back" value={BACK} />
-            <label className="inc-field">
-              Wins
-              <textarea className="gh-input" name="wins" defaultValue={thisWeek?.wins ?? ""} />
-            </label>
-            <label className="inc-field">
-              What happened / what I learned
-              <textarea className="gh-input" name="notes" defaultValue={thisWeek?.notes ?? ""} />
-            </label>
+    <div className="screen">
+      <PageHead title="Weekly review" sub="Look at the numbers, own what's off pace, commit to three actions. Actions land on the main task list, due Friday." />
+      <Console>
+        <Csec>
+          <TermStatus label="Weekly review" value={done ? "Done" : "Due"} tone={done ? undefined : "warn"}>
+            Week of {longDate(monday)} · streak {streak} week{streak === 1 ? "" : "s"}
+          </TermStatus>
+        </Csec>
+        <div className="console-split">
+          <Csec>
+            <p className="csec-title" style={{ marginBottom: 8 }}>
+              This week&apos;s numbers
+            </p>
+            <Ledger rows={KEY_METRICS.map((k) => [METRICS[k].label, METRICS[k].unit === "currency" ? <Priv key={k}>{formatMetric(s.metrics[k], "currency")}</Priv> : formatMetric(s.metrics[k], METRICS[k].unit)])} />
+          </Csec>
+          <Csec>
+            <p className="csec-title" style={{ marginBottom: 8 }}>
+              What needs owning
+            </p>
+            <DueList items={own} empty="Nothing off pace. Good week." />
+          </Csec>
+        </div>
+        <Csec>
+          <form id="review-form" className="form-grid" action={completeReviewAction}>
+            <BackTo path="/incrementum/review" />
+            <Field label="Wins">
+              <textarea className="textarea" name="wins" defaultValue={thisWeek?.wins ?? ""} />
+            </Field>
+            <Field label="What happened / what I learned">
+              <textarea className="textarea" name="notes" defaultValue={thisWeek?.notes ?? ""} />
+            </Field>
             {[1, 2, 3].map((n) => (
-              <label className="inc-field" key={n}>
-                Action {n}
-                <input className="gh-input" name={`action${n}`} placeholder={n === 1 ? "The one thing that moves the phase forward" : ""} />
-              </label>
+              <Field key={n} label={`Action ${n}${n === 1 ? " · the one thing that moves the phase" : ""}`} wide>
+                <input className="input" name={`action${n}`} />
+              </Field>
             ))}
-            <SubmitButton pendingLabel="Saving…">{thisWeek?.completedAt ? "Update review" : "Complete review"}</SubmitButton>
-            {thisWeek?.actions?.length ? <p className="inc-small">Already committed: {thisWeek.actions.join(" · ")}</p> : null}
+            {thisWeek?.actions?.length ? (
+              <p className="muted small" style={{ gridColumn: "1 / -1" }}>
+                Already committed: {thisWeek.actions.join(" · ")}
+              </p>
+            ) : null}
           </form>
-        </section>
-      </div>
-
+        </Csec>
+        <BigAction label={done ? "Update this week's review" : "Complete review"} sub={`Actions go to the main list, due ${fmtDate(friday)}`} value="→" formId="review-form" />
+      </Console>
       {past.length > 0 && (
-        <section className="inc-panel">
-          <h2 className="inc-cell-title">
-            Past <em>reviews</em>
-          </h2>
-          <div className="inc-timeline">
+        <Panel title="Past reviews">
+          <div className="timeline">
             {past.map((r) => (
-              <div className="inc-event" key={r.id}>
-                <p className="inc-event-meta">Week of {shortDate(r.weekOf, true)}</p>
-                {r.wins && <p>Wins: {r.wins}</p>}
-                {r.notes && <p className="inc-muted">{r.notes}</p>}
-                {r.actions?.length ? <p className="inc-small">Actions: {r.actions.join(" · ")}</p> : null}
+              <div key={r.id}>
+                <time>Week of {fmtDate(r.weekOf)}</time>
+                <span>
+                  {r.wins && <>Wins: {r.wins}</>}
+                  {r.actions?.length ? (
+                    <small className="muted" style={{ display: "block" }}>
+                      Actions: {r.actions.join(" · ")}
+                    </small>
+                  ) : null}
+                </span>
               </div>
             ))}
           </div>
-        </section>
+        </Panel>
       )}
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }

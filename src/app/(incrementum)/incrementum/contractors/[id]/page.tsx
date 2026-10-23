@@ -1,14 +1,16 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Tags, Mail, History, IdCard as IdIcon, Briefcase, PauseCircle, Trash2, Link2 } from "lucide-react";
 import { getContractorDetail, listUnlinkedContractorLogins } from "@/lib/dal/incrementum/contractors";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { ALL_CONTRACTOR_STAGES, CONTRACTOR_STAGES, CONTRACTOR_STAGE_LABELS, CONTRACTOR_RATE_TYPES, BUSINESS_SIZES, BUSINESS_SIZE_LABELS, type ContractorStage } from "@/lib/incrementum/registry";
+import { CONTRACTOR_STAGES, ALL_CONTRACTOR_STAGES, CONTRACTOR_STAGE_LABELS, CONTRACTOR_RATE_TYPES, BENCH_STAGES, BUSINESS_SIZES, BUSINESS_SIZE_LABELS, type ContractorStage } from "@/lib/incrementum/registry";
 import { CONTRACTOR_DRAFTS } from "@/lib/incrementum/drafts";
-import { money, shortDate } from "@/lib/incrementum/format";
-import { ProfileHead, Flash, Chip } from "@/components/incrementum/ui";
-import { OutreachPanel, Timeline } from "@/components/incrementum/Outreach";
+import { money } from "@/lib/incrementum/format";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { Priv, Field, Stepper, Back, RowFold, AddRow, Console, Csec, IdCard, Monogram, Blocks, TermStatus, LevelBars, TotalSplit, BigAction, Ledger, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
+import { Dialog } from "@/components/incrementum/terminal/client";
+import { Outreach, Timeline } from "@/components/incrementum/terminal/outreach";
+import { fmtDate, longDate, tintFor, n0 } from "@/components/incrementum/terminal/helpers";
 import {
   setContractorStageAction,
   updateContractorProfileAction,
@@ -19,349 +21,395 @@ import {
   linkContractorLoginAction,
 } from "../../actions";
 
-export default async function ContractorDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
+const VIEWS = ["quotes", "outreach", "timeline", "profile", "clients"] as const;
+type View = (typeof VIEWS)[number];
+
+export default async function ContractorProfile({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ view?: string }> }) {
   const { id } = await params;
-  const { ok, error } = await searchParams;
+  const sp = await searchParams;
   const [d, s, unlinked] = await Promise.all([getContractorDetail(id), getIncrementumSnapshot(), listUnlinkedContractorLogins()]);
   if (!d) notFound();
   const { profile: p, contractor: c } = d;
-  const back = `/incrementum/contractors/${id}`;
+  const st = s.state;
+  const base = `/incrementum/contractors/${id}`;
+  const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "quotes";
+  const back = view === "quotes" ? base : `${base}?view=${view}`;
+  const viewHref = (v: View) => (v === "quotes" ? base : `${base}?view=${v}`);
   const stage = p.stage as ContractorStage;
-  const idx = CONTRACTOR_STAGES.indexOf(stage as (typeof CONTRACTOR_STAGES)[number]);
+  const idx = (CONTRACTOR_STAGES as readonly string[]).indexOf(stage);
   const nextStage = idx >= 0 && idx < CONTRACTOR_STAGES.length - 2 ? CONTRACTOR_STAGES[idx + 1] : null;
-  const agreementsDone = Boolean(p.payWhenPaidAcceptedAt && p.nonSolicitSignedAt);
-  const reviewed = Boolean(s.state.contractorLockdownApplied);
-  const canOnboard = stage === "confirmed" && agreementsDone && reviewed && d.portalUsers.length === 0;
+  const agreements = [p.payWhenPaidAcceptedAt, p.nonSolicitSignedAt].filter(Boolean).length;
+  const lockdown = Boolean(st.contractorLockdownApplied);
+  const login = d.portalUsers[0] ?? null;
+  const canOnboard = stage === "confirmed" && agreements === 2 && lockdown && !login;
+  const activeIds = new Set(st.engagements.filter((e) => e.status === "active").map((e) => e.id));
+  const activeClients = new Set(st.engagementContractors.filter((ec) => ec.contractorId === id && activeIds.has(ec.engagementId)).map((ec) => ec.engagementId)).size;
+  const openLeadIds = new Set(st.leads.filter((l) => !l.convertedClientId && l.stage !== "lost").map((l) => l.id));
+  const openQuotes = new Set(st.needs.filter((n) => n.contractorId === id && n.leadId && !n.engagementId && openLeadIds.has(n.leadId)).map((n) => n.leadId)).size;
+  const defaultSlots = n0(st.settings.defaultSlotsPerContractor) || 4;
+  const slotsTotal = d.services.filter((x) => x.link.rateType === "monthly").reduce((a, x) => a + (n0(x.link.capacitySlots) || defaultSlots), 0);
+  const engs = [...new Map(d.engagements.map((e) => [e.link.engagementId, e])).values()];
+  const roles = st.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
   const activeServices = s.services.filter((x) => x.status === "active");
-  const roles = s.state.roles.filter((r) => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
-  const activeEngagementIds = new Set(s.state.engagements.filter((e) => e.status === "active").map((e) => e.id));
-  const activeClients = new Set(s.state.engagementContractors.filter((ec) => ec.contractorId === id && activeEngagementIds.has(ec.engagementId)).map((ec) => ec.engagementId)).size;
-  const openLeadIds = new Set(s.state.leads.filter((l) => !l.convertedClientId && l.stage !== "lost").map((l) => l.id));
-  const openQuotes = new Set(s.state.needs.filter((n) => n.contractorId === id && n.leadId && !n.engagementId && openLeadIds.has(n.leadId)).map((n) => n.leadId)).size;
-  const quotedCount = s.state.contractorServices.filter((cs) => cs.contractorId === id).length;
+
+  const action: React.ComponentProps<typeof BigAction> = nextStage
+    ? {
+        label: `Advance → ${CONTRACTOR_STAGE_LABELS[nextStage]}`,
+        sub: `${CONTRACTOR_STAGE_LABELS[stage]} since ${fmtDate(p.stageChangedAt)}`,
+        value: `${idx + 1}/6`,
+        action: setContractorStageAction,
+        hidden: { _back: back, contractorId: id, stage: nextStage },
+      }
+    : stage === "confirmed"
+      ? {
+          label: "Onboard to GrayPortal",
+          sub: canOnboard ? "Sends their login invite; they join the Gray Horizon Team" : `Needs: ${[agreements < 2 && "both agreements", !lockdown && "contractor lockdown"].filter(Boolean).join(", ")}`,
+          value: "6/6",
+          disabled: !canOnboard,
+          dialog: "contractor-onboard",
+        }
+      : stage === "onboarded"
+        ? { label: "On the Gray Horizon Team", sub: login ? `${login.email} · ${login.googleUid ? "active" : "invited, awaiting first sign-in"}` : "", value: "◆", variant: "ghost", href: viewHref("outreach") }
+        : { label: "Bring back into the pipeline", sub: p.offRampReason ?? "", value: "→", variant: "ghost", action: setContractorStageAction, hidden: { _back: back, contractorId: id, stage: "contacted" } };
 
   return (
-    <>
-      <Link href="/incrementum/contractors" className="inc-link">
-        ← Contractors
-      </Link>
-      <ProfileHead
-        eyebrow={`Contractor${p.businessName ?? c.specialty ? ` · ${p.businessName ?? c.specialty}` : ""}`}
-        name={c.name}
-        photoUrl={p.photoUrl}
-        meta={[p.email && <a href={`mailto:${p.email}`}>{p.email}</a>, p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>, p.location]}
-        stats={[
-          { label: "Active clients", value: activeClients },
-          { label: "Open quotes", value: openQuotes },
-          { label: "Services quoted", value: quotedCount },
-          { label: "Quality", value: p.qualityRating ? `${p.qualityRating}/5` : "—" },
-        ]}
-        badges={
+    <div className="screen">
+      <Back href="/incrementum/contractors" label="Contractor bench" />
+      <Console
+        side={
           <>
-            {(p.worksWithSizes ?? []).length > 0 && (
-              <Chip tone="accent">Works with {BUSINESS_SIZES.filter((z) => p.worksWithSizes!.includes(z)).map((z) => BUSINESS_SIZE_LABELS[z].replace(" business", "").toLowerCase()).join(" · ")}</Chip>
-            )}
-            {roles
-              .filter((r) => (p.roleIds ?? []).includes(r.id))
-              .map((r) => (
-                <Chip key={r.id}>{r.name}</Chip>
-              ))}
-            <Chip tone={stage === "onboarded" ? "accent" : stage === "not_a_fit" ? "danger" : stage === "confirmed" ? "good" : undefined}>{CONTRACTOR_STAGE_LABELS[stage]}</Chip>
-            {stage === "onboarded" && <Chip tone="accent">◆ Gray Horizon Team</Chip>}
+            <IdCard
+              tint={tintFor(id)}
+              art={
+                <Monogram
+                  text={c.name
+                    .split(" ")
+                    .map((w) => w[0])
+                    .join("")
+                    .slice(0, 2)}
+                  big
+                />
+              }
+              strip={c.name}
+              rows={[
+                ["Specialty", c.specialty || "—"],
+                ["Location", p.location || "—"],
+                ["Found via", p.source || "—"],
+                ["GST registered", p.gstRegistered === null ? "Unknown" : p.gstRegistered ? "Yes" : "No"],
+              ]}
+            />
+            <Blocks
+              value={view}
+              items={[
+                { key: "quotes", label: "Quotes & capacity", icon: Tags, count: d.services.length || undefined, href: viewHref("quotes") },
+                { key: "outreach", label: "Reach out", icon: Mail, href: viewHref("outreach") },
+                { key: "timeline", label: "Timeline", icon: History, href: viewHref("timeline") },
+                { key: "profile", label: "Profile & agreements", icon: IdIcon, href: viewHref("profile") },
+                engs.length > 0 && { key: "clients", label: "Clients", icon: Briefcase, count: engs.length, href: viewHref("clients") },
+                { label: "Pause or not a fit", icon: PauseCircle, tone: "danger", dialog: "contractor-move" },
+              ]}
+            />
           </>
         }
-      />
-      <Flash ok={ok} error={error} />
-
-      <section className="inc-panel">
-        <div className="inc-steps" style={{ gridTemplateColumns: `repeat(${CONTRACTOR_STAGES.length}, minmax(0, 1fr))` }}>
-          {CONTRACTOR_STAGES.map((st, i) => (
-            <div key={st} className="inc-step" data-state={st === stage ? "active" : idx > i ? "done" : undefined}>
-              <span className="inc-step-num">{i + 1}</span>
-              <span className="inc-step-name" style={{ fontSize: "var(--gh-text-sm)" }}>
-                {CONTRACTOR_STAGE_LABELS[st]}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="inc-inline">
-          {nextStage && (
-            <form action={setContractorStageAction}>
-              <input type="hidden" name="_back" value={back} />
-              <input type="hidden" name="contractorId" value={id} />
-              <input type="hidden" name="stage" value={nextStage} />
-              <SubmitButton pendingLabel="…">Advance → {CONTRACTOR_STAGE_LABELS[nextStage]}</SubmitButton>
-            </form>
+      >
+        <Csec>
+          <TermStatus label="Contractor status" value={CONTRACTOR_STAGE_LABELS[stage] ?? stage} tone={stage === "not_a_fit" ? "bad" : stage === "paused" ? "warn" : BENCH_STAGES.includes(stage) ? undefined : "warn"}>
+            {stage === "onboarded" ? "◆ Gray Horizon Team" : `since ${longDate(p.stageChangedAt)}`}
+          </TermStatus>
+        </Csec>
+        <Csec className="tight">
+          <Stepper steps={CONTRACTOR_STAGES.map((x) => ({ key: x, label: CONTRACTOR_STAGE_LABELS[x] }))} current={stage} disabled={["onboarded"]} action={setContractorStageAction} hidden={{ _back: back, contractorId: id }} />
+          {p.offRampReason && (
+            <p className="muted small" style={{ marginTop: 8 }}>
+              Reason: {p.offRampReason}
+            </p>
           )}
-          <details className="inc-disclosure">
-            <summary>Move to any stage</summary>
-            <form action={setContractorStageAction} className="inc-inline">
-              <input type="hidden" name="_back" value={back} />
-              <input type="hidden" name="contractorId" value={id} />
-              <select className="gh-input" name="stage" defaultValue={stage} aria-label="Stage">
-                {ALL_CONTRACTOR_STAGES.filter((st) => st !== "onboarded").map((st) => (
-                  <option key={st} value={st}>
-                    {CONTRACTOR_STAGE_LABELS[st]}
+        </Csec>
+        <Csec>
+          <LevelBars
+            rows={[
+              { label: "Recruiting progress", value: idx >= 0 ? (idx + 1) / 6 : 0, right: idx >= 0 ? `${idx + 1}/6` : (CONTRACTOR_STAGE_LABELS[stage] ?? stage), tone: idx === 5 ? "good" : undefined },
+              { label: "Agreements signed", value: agreements / 2, right: `${agreements}/2`, tone: agreements === 2 ? "good" : "warn" },
+              { label: "Capacity used", value: slotsTotal ? activeClients / slotsTotal : 0, right: `${activeClients}/${slotsTotal || "—"} client slots`, tone: "neutral" },
+              { label: "Quality", value: (p.qualityRating ?? 0) / 5, right: p.qualityRating ? `${p.qualityRating}/5` : "Not rated" },
+            ]}
+          />
+        </Csec>
+        <TotalSplit
+          items={[
+            { label: "Active clients", value: activeClients },
+            { label: "Open quotes", value: openQuotes },
+            { label: "Services quoted", value: d.services.length },
+          ]}
+        />
+        <Csec className="inset">
+          {view === "quotes" && (
+            <>
+              <p className="muted small" style={{ marginBottom: 10 }}>
+                Their quote per service. Bench quotes (Confirmed/Onboarded) drive sell prices in Services &amp; Pricing; capacity drives the Capacity forecast.
+              </p>
+              <div className="rowlist bordered">
+                {d.services.map(({ link, serviceName }) => (
+                  <RowFold
+                    key={link.id}
+                    summary={
+                      <>
+                        <span className="rowfold-main">
+                          <span>
+                            <span className="strong" style={{ fontWeight: 500 }}>
+                              {serviceName}
+                            </span>
+                            <small>
+                              {link.capacitySlots ?? "?"} client slots{link.notes ? ` · ${link.notes}` : ""}
+                            </small>
+                          </span>
+                        </span>
+                        <span className="num strong">
+                          <Priv>{`${money(link.rate)}/${link.rateType === "monthly" ? "mo" : link.rateType}`}</Priv>
+                        </span>
+                      </>
+                    }
+                  >
+                    <QuoteForm id={id} back={back} services={activeServices} x={{ serviceId: link.serviceId, rateType: link.rateType, rate: link.rate, capacitySlots: link.capacitySlots, notes: link.notes }} />
+                    <form action={removeContractorServiceAction} className="row">
+                      <BackTo path={back} />
+                      <HiddenFields values={{ id: link.id }} />
+                      <span className="spacer" />
+                      <button type="submit" className="linkbtn danger">
+                        Remove quote
+                      </button>
+                    </form>
+                  </RowFold>
+                ))}
+                <AddRow label="Add a quote">
+                  <QuoteForm id={id} back={back} services={activeServices} />
+                </AddRow>
+              </div>
+            </>
+          )}
+          {view === "outreach" && <Outreach entityType="contractor" entityId={id} back={back} drafts={CONTRACTOR_DRAFTS} name={c.name} email={p.email} meetingTitle={`Gray Horizon × ${c.name}`} today={st.today} />}
+          {view === "timeline" && <Timeline activities={d.activities} stageEvents={d.stageEvents} labels={CONTRACTOR_STAGE_LABELS} />}
+          {view === "profile" && (
+            <>
+              <form className="form-grid" action={updateContractorProfileAction}>
+                <BackTo path={back} />
+                <HiddenFields values={{ contractorId: id }} />
+                {(
+                  [
+                    ["name", "Name", c.name],
+                    ["specialty", "Specialty", c.specialty],
+                    ["businessName", "Business", p.businessName],
+                    ["email", "Email", p.email],
+                    ["phone", "Phone", p.phone],
+                    ["location", "Location", p.location],
+                    ["portfolioUrl", "Portfolio", p.portfolioUrl],
+                    ["source", "Found via", p.source],
+                  ] as const
+                ).map(([k, lbl, v]) => (
+                  <Field key={k} label={lbl}>
+                    <input className="input" name={k} type={k === "email" ? "email" : undefined} defaultValue={v ?? ""} required={k === "name"} />
+                  </Field>
+                ))}
+                <fieldset className="field" data-wide="">
+                  <span>Roles (which contractor types they can fill)</span>
+                  <span className="row">
+                    {roles.map((r) => (
+                      <label key={r.id} className="inline-check">
+                        <input type="checkbox" name="roleIds" value={r.id} defaultChecked={(p.roleIds ?? []).includes(r.id)} /> {r.name}
+                      </label>
+                    ))}
+                  </span>
+                </fieldset>
+                <fieldset className="field" data-wide="">
+                  <span>Works with (business sizes; none ticked = any)</span>
+                  <span className="row">
+                    {BUSINESS_SIZES.map((z) => (
+                      <label key={z} className="inline-check">
+                        <input type="checkbox" name="worksWithSizes" value={z} defaultChecked={(p.worksWithSizes ?? []).includes(z)} /> {BUSINESS_SIZE_LABELS[z]}
+                      </label>
+                    ))}
+                  </span>
+                </fieldset>
+                <Field label="Skills (comma-separated)" wide>
+                  <input className="input" name="skills" defaultValue={(p.skills ?? []).join(", ")} />
+                </Field>
+                <Field label="GST registered">
+                  <select className="select" name="gstRegistered" defaultValue={p.gstRegistered === null ? "" : p.gstRegistered ? "yes" : "no"}>
+                    <option value="">Unknown</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </Field>
+                <Field label="Quality (1–5)">
+                  <select className="select" name="qualityRating" defaultValue={p.qualityRating ?? ""}>
+                    <option value="">—</option>
+                    {[1, 2, 3, 4, 5].map((q) => (
+                      <option key={q} value={q}>
+                        {q}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Payment terms" wide>
+                  <input className="input" name="paymentTerms" defaultValue={p.paymentTerms ?? ""} />
+                </Field>
+                <Field label="Pay-when-paid accepted">
+                  <input className="input" type="date" name="payWhenPaidAcceptedAt" defaultValue={p.payWhenPaidAcceptedAt ?? ""} />
+                </Field>
+                <Field label="Non-solicit signed">
+                  <input className="input" type="date" name="nonSolicitSignedAt" defaultValue={p.nonSolicitSignedAt ?? ""} />
+                </Field>
+                <Field label="Notice (days)">
+                  <input className="input" name="noticePeriodDays" defaultValue={p.noticePeriodDays ?? ""} inputMode="numeric" />
+                </Field>
+                <Field label="Signed agreement link">
+                  <input className="input" name="agreementUrl" defaultValue={p.agreementUrl ?? ""} />
+                </Field>
+                <Field label="Public title (team card)">
+                  <input className="input" name="publicTitle" defaultValue={p.publicTitle ?? ""} />
+                </Field>
+                <Field label="Photo URL (team card)">
+                  <input className="input" name="photoUrl" defaultValue={p.photoUrl ?? ""} />
+                </Field>
+                <Field label="Bio" wide>
+                  <textarea className="textarea" name="bio" defaultValue={p.bio ?? ""} />
+                </Field>
+                <Field label="Notes" wide>
+                  <textarea className="textarea" name="notes" defaultValue={p.notes ?? ""} />
+                </Field>
+                <div className="form-actions">
+                  <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                    Save profile
+                  </SubmitButton>
+                </div>
+              </form>
+              <form action={removeContractorAction} style={{ marginTop: 16 }}>
+                <BackTo path={back} />
+                <HiddenFields values={{ contractorId: id }} />
+                <button type="submit" className="linkbtn danger">
+                  <Trash2 size={12} /> Remove from Incrementum (keeps the GrayPortal record)
+                </button>
+              </form>
+            </>
+          )}
+          {view === "clients" && <Ledger rows={engs.map((e) => [e.clientName ?? e.engagementName, `${e.status} · ${e.link.role}`, e.status === "active" ? undefined : "muted", `/incrementum/clients/${e.link.engagementId}`])} />}
+        </Csec>
+        <BigAction {...action} />
+      </Console>
+
+      <Dialog id="contractor-move" title={`Move ${c.name}`}>
+        <form className="form-grid" action={setContractorStageAction}>
+          <BackTo path={back} />
+          <HiddenFields values={{ contractorId: id }} />
+          <Field label="Stage">
+            <select className="select" name="stage" defaultValue="paused">
+              {ALL_CONTRACTOR_STAGES.filter((x) => x !== "onboarded").map((x) => (
+                <option key={x} value={x}>
+                  {CONTRACTOR_STAGE_LABELS[x]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Note (required for Not a fit)">
+            <input className="input" name="note" />
+          </Field>
+          <div className="form-actions">
+            <SubmitButton className="btn btn-primary" pendingLabel="…">
+              Move
+            </SubmitButton>
+          </div>
+        </form>
+      </Dialog>
+
+      {stage === "confirmed" && !login && (
+        <Dialog id="contractor-onboard" title={`Onboard ${c.name} to GrayPortal`}>
+          <form className="form-grid" action={onboardContractorAction}>
+            <BackTo path={back} />
+            <HiddenFields values={{ contractorId: id }} />
+            <Field label="Login email">
+              <input className="input" type="email" name="email" defaultValue={p.email ?? ""} required />
+            </Field>
+            <Field label="Display name">
+              <input className="input" name="displayName" defaultValue={c.name} />
+            </Field>
+            <div className="form-actions">
+              <SubmitButton className="btn btn-primary" pendingLabel="Sending…">
+                Send invite
+              </SubmitButton>
+            </div>
+          </form>
+          {unlinked.length > 0 && (
+            <form className="row" action={linkContractorLoginAction}>
+              <BackTo path={back} />
+              <HiddenFields values={{ contractorId: id }} />
+              <span className="muted small">Or link a login that already exists:</span>
+              <select className="select" name="userId" aria-label="Existing login" style={{ flex: 1, width: "auto" }}>
+                {unlinked.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.email}
+                    {u.active ? "" : " (never signed in)"}
                   </option>
                 ))}
               </select>
-              <input className="gh-input" name="note" placeholder="Note (required for Not a fit)" />
-              <SubmitButton className="gh-btn-secondary" pendingLabel="…">Move</SubmitButton>
+              <SubmitButton className="btn" pendingLabel="…">
+                <Link2 size={13} /> Link
+              </SubmitButton>
             </form>
-          </details>
-        </div>
-        {p.offRampReason && <p className="inc-small">Reason: {p.offRampReason}</p>}
-      </section>
-
-      <div className="inc-two">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", minWidth: 0 }}>
-          <section className="inc-panel">
-            <h2 className="inc-cell-title">
-              Services &amp; <em>pricing</em>
-            </h2>
-            <p className="inc-small">Their quote per service. Bench quotes (Confirmed/Onboarded) drive sell prices in Services &amp; Pricing; capacity drives the Capacity forecast.</p>
-            <div className="inc-list">
-              {d.services.map(({ link, serviceName }) => (
-                <div className="inc-row" key={link.id}>
-                  <span>
-                    <strong style={{ fontWeight: 500 }}>{serviceName}</strong>
-                    <span className="inc-small">
-                      {" "}
-                      · {money(link.rate)}/{link.rateType === "monthly" ? "mo" : link.rateType} · {link.capacitySlots ?? "?"} client slots
-                    </span>
-                    {link.notes && <span className="inc-small"> · {link.notes}</span>}
-                  </span>
-                  <form action={removeContractorServiceAction}>
-                    <input type="hidden" name="_back" value={back} />
-                    <input type="hidden" name="id" value={link.id} />
-                    <button className="gh-link-btn" type="submit" aria-label="Remove">
-                      ×
-                    </button>
-                  </form>
-                </div>
-              ))}
-            </div>
-            <form action={upsertContractorServiceAction} className="inc-form">
-              <input type="hidden" name="_back" value={back} />
-              <input type="hidden" name="contractorId" value={id} />
-              <label className="inc-field">
-                Service
-                <select className="gh-input" name="serviceId" required>
-                  {activeServices.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="inc-field">
-                Rate type
-                <select className="gh-input" name="rateType" defaultValue="monthly">
-                  {CONTRACTOR_RATE_TYPES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="inc-field">
-                Rate ($)
-                <input className="gh-input" name="rate" inputMode="decimal" required />
-              </label>
-              <label className="inc-field">
-                Capacity (clients)
-                <input className="gh-input" name="capacitySlots" inputMode="decimal" />
-              </label>
-              <label className="inc-field inc-field--wide">
-                Notes
-                <input className="gh-input" name="notes" />
-              </label>
-              <SubmitButton pendingLabel="Saving…">Save quote</SubmitButton>
-            </form>
-          </section>
-
-          <OutreachPanel
-            entityType="contractor"
-            entityId={id}
-            back={back}
-            drafts={CONTRACTOR_DRAFTS}
-            name={c.name}
-            email={p.email}
-            meetingTitle={`Gray Horizon × ${c.name}`}
-          />
-
-          <Timeline activities={d.activities} stageEvents={d.stageEvents} labels={CONTRACTOR_STAGE_LABELS} />
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-6)", minWidth: 0 }}>
-          <section className="inc-panel" style={{ borderColor: canOnboard ? "var(--gh-accent)" : undefined }}>
-            <h2 className="inc-cell-title">
-              Onboard to <em>GrayPortal</em>
-            </h2>
-            {d.portalUsers.length > 0 ? (
-              d.portalUsers.map((u) => (
-                <p key={u.id} className="inc-small">
-                  {u.email} · {u.googleUid ? "Active" : "Invited, awaiting first sign-in"}
-                </p>
-              ))
-            ) : (
-              <>
-                <ul className="inc-small" style={{ paddingLeft: "var(--gh-space-4)", display: "flex", flexDirection: "column", gap: 2 }}>
-                  <li>{stage === "confirmed" ? "✓" : "✗"} Stage is Confirmed</li>
-                  <li>{agreementsDone ? "✓" : "✗"} Pay-when-paid and non-solicit recorded</li>
-                  <li>
-                    {reviewed ? "✓" : "✗"} Contractor lockdown applied (
-                    <Link className="inc-link" href="/incrementum/contractors?view=bench#access">
-                      details
-                    </Link>
-                    )
-                  </li>
-                </ul>
-                {unlinked.length > 0 && (
-                  <form action={linkContractorLoginAction} className="inc-inline">
-                    <input type="hidden" name="_back" value={back} />
-                    <input type="hidden" name="contractorId" value={id} />
-                    <select className="gh-input" name="userId" aria-label="Existing login" style={{ flex: 1 }}>
-                      {unlinked.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.email}
-                          {u.active ? "" : " (never signed in)"}
-                        </option>
-                      ))}
-                    </select>
-                    <SubmitButton className="gh-btn-secondary" disabled={!reviewed} pendingLabel="…">
-                      Link existing login
-                    </SubmitButton>
-                  </form>
-                )}
-                <form action={onboardContractorAction} className="inc-form">
-                  <input type="hidden" name="_back" value={back} />
-                  <input type="hidden" name="contractorId" value={id} />
-                  <label className="inc-field">
-                    Login email
-                    <input className="gh-input" type="email" name="email" defaultValue={p.email ?? ""} required />
-                  </label>
-                  <label className="inc-field">
-                    Display name
-                    <input className="gh-input" name="displayName" defaultValue={c.name} />
-                  </label>
-                  <SubmitButton disabled={!canOnboard} pendingLabel="Onboarding…">
-                    Onboard to GrayPortal
-                  </SubmitButton>
-                </form>
-              </>
-            )}
-          </section>
-
-          <section className="inc-panel">
-            <h2 className="inc-cell-title">Profile</h2>
-            <form action={updateContractorProfileAction} className="inc-form">
-              <input type="hidden" name="_back" value={back} />
-              <input type="hidden" name="contractorId" value={id} />
-              <Field name="name" label="Name" v={c.name} />
-              <Field name="specialty" label="Specialty" v={c.specialty} />
-              <Field name="businessName" label="Business" v={p.businessName} />
-              <Field name="email" label="Email" v={p.email} type="email" />
-              <Field name="phone" label="Phone" v={p.phone} />
-              <Field name="location" label="Location" v={p.location} />
-              <Field name="portfolioUrl" label="Portfolio" v={p.portfolioUrl} />
-              <Field name="source" label="Found via" v={p.source} />
-              <fieldset className="inc-field inc-field--wide inc-roles-pick">
-                <legend>Roles (which contractor types they can fill)</legend>
-                {roles.length === 0 && <span className="inc-small">Add roles in Settings first.</span>}
-                {roles.map((r) => (
-                  <label key={r.id} className="inc-inline" style={{ fontSize: "var(--gh-text-sm)" }}>
-                    <input type="checkbox" name="roleIds" value={r.id} defaultChecked={(p.roleIds ?? []).includes(r.id)} /> {r.name}
-                  </label>
-                ))}
-              </fieldset>
-              <fieldset className="inc-field inc-field--wide inc-roles-pick">
-                <legend>Works with (business sizes they&apos;ll take jobs for; none ticked = any)</legend>
-                {BUSINESS_SIZES.map((z) => (
-                  <label key={z} className="inc-inline" style={{ fontSize: "var(--gh-text-sm)" }}>
-                    <input type="checkbox" name="worksWithSizes" value={z} defaultChecked={(p.worksWithSizes ?? []).includes(z)} /> {BUSINESS_SIZE_LABELS[z]}
-                  </label>
-                ))}
-              </fieldset>
-              <Field name="skills" label="Skills (comma-separated, finer matching)" v={(p.skills ?? []).join(", ")} wide />
-              <label className="inc-field">
-                GST registered
-                <select className="gh-input" name="gstRegistered" defaultValue={p.gstRegistered === null ? "" : p.gstRegistered ? "yes" : "no"}>
-                  <option value="">Unknown</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              <Field name="paymentTerms" label="Payment terms" v={p.paymentTerms} />
-              <label className="inc-field">
-                Quality (1–5)
-                <select className="gh-input" name="qualityRating" defaultValue={p.qualityRating ? String(p.qualityRating) : ""}>
-                  <option value="">—</option>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="gh-eyebrow inc-field--wide" style={{ marginTop: "var(--gh-space-2)" }}>
-                Agreements
-              </p>
-              <Field name="payWhenPaidAcceptedAt" label="Pay-when-paid accepted" v={p.payWhenPaidAcceptedAt} type="date" />
-              <Field name="nonSolicitSignedAt" label="Non-solicit signed" v={p.nonSolicitSignedAt} type="date" />
-              <Field name="noticePeriodDays" label="Notice (days)" v={p.noticePeriodDays} type="number" />
-              <Field name="agreementUrl" label="Signed agreement link" v={p.agreementUrl} />
-              <p className="gh-eyebrow inc-field--wide" style={{ marginTop: "var(--gh-space-2)" }}>
-                Team card (shown once onboarded)
-              </p>
-              <Field name="publicTitle" label="Public title" v={p.publicTitle} />
-              <Field name="photoUrl" label="Photo URL" v={p.photoUrl} />
-              <label className="inc-field inc-field--wide">
-                Bio
-                <textarea className="gh-input" name="bio" defaultValue={p.bio ?? ""} />
-              </label>
-              <label className="inc-field inc-field--wide">
-                Notes
-                <textarea className="gh-input" name="notes" defaultValue={p.notes ?? ""} />
-              </label>
-              <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
-            </form>
-          </section>
-
-          {d.engagements.length > 0 && (
-            <section className="inc-panel">
-              <h2 className="inc-cell-title">Engagements</h2>
-              {d.engagements.map((e) => (
-                <Link className="inc-row" key={e.link.id} href={`/incrementum/engagements/${e.link.engagementId}`}>
-                  <span>{e.clientName ?? e.engagementName}</span>
-                  <span className="inc-small">
-                    {e.link.role} · {money(e.link.monthlyCost)}/mo · {e.status}
-                  </span>
-                </Link>
-              ))}
-            </section>
           )}
-
-          <form action={removeContractorAction}>
-            <input type="hidden" name="_back" value={back} />
-            <input type="hidden" name="contractorId" value={id} />
-            <button className="gh-link-btn gh-link-btn--danger" type="submit">
-              Remove from Incrementum (keeps the GrayPortal record)
-            </button>
-          </form>
-          <p className="inc-small">In Incrementum since {shortDate(p.createdAt, true)}</p>
-        </div>
-      </div>
+        </Dialog>
+      )}
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }
 
-function Field({ name, label, v, type = "text", wide }: { name: string; label: string; v: string | number | null | undefined; type?: string; wide?: boolean }) {
+function QuoteForm({
+  id,
+  back,
+  services,
+  x,
+}: {
+  id: string;
+  back: string;
+  services: { id: string; name: string }[];
+  x?: { serviceId: string; rateType: string; rate: string | null; capacitySlots: string | null; notes: string | null };
+}) {
   return (
-    <label className={wide ? "inc-field inc-field--wide" : "inc-field"}>
-      {label}
-      <input className="gh-input" name={name} type={type} defaultValue={v ?? ""} />
-    </label>
+    <form className="form-grid g3" action={upsertContractorServiceAction}>
+      <BackTo path={back} />
+      <HiddenFields values={{ contractorId: id }} />
+      <Field label="Service">
+        <select className="select" name="serviceId" defaultValue={x?.serviceId}>
+          {services.map((sv) => (
+            <option key={sv.id} value={sv.id}>
+              {sv.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Rate type">
+        <select className="select" name="rateType" defaultValue={x?.rateType ?? "monthly"}>
+          {CONTRACTOR_RATE_TYPES.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Rate ($)">
+        <input className="input" name="rate" defaultValue={x?.rate ?? ""} required inputMode="decimal" />
+      </Field>
+      <Field label="Capacity (clients)">
+        <input className="input" name="capacitySlots" defaultValue={x?.capacitySlots ?? ""} inputMode="decimal" />
+      </Field>
+      <Field label="Notes" wide>
+        <input className="input" name="notes" defaultValue={x?.notes ?? ""} />
+      </Field>
+      <div className="form-actions">
+        <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+          Save quote
+        </SubmitButton>
+      </div>
+    </form>
   );
 }

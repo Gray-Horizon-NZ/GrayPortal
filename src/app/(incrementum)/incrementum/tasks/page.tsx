@@ -1,15 +1,14 @@
 import Link from "next/link";
-import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { shortDate } from "@/lib/incrementum/format";
-import { PageHead, Flash, Chip } from "@/components/incrementum/ui";
+import { Settings2, Plus } from "lucide-react";
+import { getIncrementumSnapshot, type IncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
-import type { IncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
+import { PageHead, Badge, RowFold, Check, Field, Console, Tree, Ledger, Bracket, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
+import { fmtDate, addDays, hrefWith } from "@/components/incrementum/terminal/helpers";
 import {
   createIncTaskAction,
   setIncTaskStatusAction,
-  moveIncTaskAction,
-  updateIncTaskAction,
+  saveIncTaskAction,
   deleteIncTaskAction,
   createTaskListAction,
   renameTaskListAction,
@@ -17,190 +16,229 @@ import {
   deleteTaskListAction,
 } from "../actions";
 
-const BACK = "/incrementum/tasks";
+const BASE = "/incrementum/tasks";
 type Task = IncrementumSnapshot["state"]["tasks"][number];
 type List = IncrementumSnapshot["state"]["taskLists"][number];
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; done?: string }> }) {
-  const { ok, error, done } = await searchParams;
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ list?: string; done?: string; manage?: string; newlist?: string }> }) {
+  const sp = await searchParams;
   const s = await getIncrementumSnapshot();
-  const showDone = done === "1";
-  const lists = s.state.taskLists;
-  const active = lists.filter((l) => !l.archivedAt);
-  const archived = lists.filter((l) => l.archivedAt);
-  const forList = (id: string | null) => s.state.tasks.filter((t) => t.incrementumListId === id && (showDone || t.status !== "done"));
+  const st = s.state;
+  const showDone = sp.done === "1";
+  const active = st.taskLists.filter((l) => !l.archivedAt);
+  const archived = st.taskLists.filter((l) => l.archivedAt);
+  const list = st.taskLists.find((l) => l.id === sp.list) ?? null;
+  const listKey = list ? list.id : "main";
+  const listId = list?.id ?? null;
+  const open = (id: string | null) => st.tasks.filter((t) => (t.incrementumListId ?? null) === id && t.status !== "done");
+  const overdue = (id: string | null) => open(id).filter((t) => t.dueDate && t.dueDate < st.today).length;
+  const tasks = st.tasks.filter((t) => (t.incrementumListId ?? null) === listId && (showDone || t.status !== "done"));
+  const allOpen = st.tasks.filter((t) => t.status !== "done");
+  const here = (extra: Record<string, string | null> = {}) => hrefWith(BASE, { list: listId, done: showDone ? "1" : null, ...extra });
+  const back = here();
+  const hasDone = st.tasks.some((t) => (t.incrementumListId ?? null) === listId && t.status === "done");
+  const listHref = (key: string) => hrefWith(BASE, { list: key === "main" ? null : key, done: showDone ? "1" : null });
 
   return (
-    <>
-      <PageHead
-        eyebrow="Command"
-        title={
-          <>
-            Tasks
-          </>
-        }
-        lede="The main list shows in GrayPortal's Master Task View (gold column) and syncs to Google Tasks. Sub-lists stay inside Incrementum and never sync, but their overdue tasks still reach Home's Due panel."
-        actions={
-          <>
-            <Link className="gh-btn-secondary" href="/tasks">
-              Master Task View ↗
-            </Link>
-            <Link className="gh-btn-secondary" href={showDone ? BACK : `${BACK}?done=1`}>
-              {showDone ? "Hide done" : "Show done"}
-            </Link>
-          </>
-        }
-      />
-      <Flash ok={ok} error={error} />
-
-      <section className="inc-panel" style={{ borderColor: "var(--gh-accent)" }}>
-        <div className="inc-cell-head">
-          <h2 className="inc-cell-title">
-            Main <em>list</em>
-          </h2>
-          <Chip tone="accent">On the master view</Chip>
+    <div className="screen">
+      <PageHead title="Tasks" sub="The main list shows in GrayPortal's Master Task View (gold column) and syncs to Google Tasks. Sub-lists stay inside Incrementum, but their overdue tasks still reach Home.">
+        <Link className="btn btn-sm" href="/tasks">
+          Master Task View ↗
+        </Link>
+        <Link className="btn btn-sm" href={hrefWith(BASE, { list: listId, done: showDone ? null : "1" })} aria-pressed={showDone}>
+          {showDone ? "Hide done" : "Show done"}
+        </Link>
+      </PageHead>
+      <Console>
+        <div className="agency two">
+          <div className="agency-side">
+            <Tree
+              value={listKey}
+              head={
+                sp.newlist ? (
+                  <form className="row" style={{ marginBottom: 10 }} action={createTaskListAction}>
+                    <BackTo path={back} />
+                    <input className="input" name="name" placeholder="e.g. Recruiting" required autoFocus style={{ flex: 1, width: "auto" }} />
+                    <SubmitButton className="btn btn-sm" pendingLabel="…">
+                      Add
+                    </SubmitButton>
+                  </form>
+                ) : (
+                  <Bracket wide href={here({ newlist: "1" })}>
+                    New list
+                  </Bracket>
+                )
+              }
+              groups={[
+                { label: "On the master view", items: [{ key: "main", label: "Main list", count: open(null).length, tone: overdue(null) ? "bad" : undefined, href: listHref("main") }] },
+                { label: "Incrementum only", items: active.map((l) => ({ key: l.id, label: l.name, count: open(l.id).length, tone: overdue(l.id) ? "bad" : undefined, href: listHref(l.id) })) },
+                ...(archived.length ? [{ label: "Archived", items: archived.map((l) => ({ key: l.id, label: l.name, count: open(l.id).length, href: listHref(l.id) })) }] : []),
+              ]}
+              foot={
+                <Ledger
+                  rows={[
+                    ["Open", allOpen.length],
+                    ["Overdue", allOpen.filter((t) => t.dueDate && t.dueDate < st.today).length, allOpen.some((t) => t.dueDate && t.dueDate < st.today) ? "bad" : undefined],
+                    ["High priority", allOpen.filter((t) => t.priority === "high").length],
+                    ["Due this week", allOpen.filter((t) => t.dueDate && t.dueDate >= st.today && t.dueDate <= addDays(st.today, 7)).length],
+                  ]}
+                />
+              }
+            />
+          </div>
+          <div className="agency-list">
+            <div className="agency-list-head">
+              {list ? list.name : "Main list"}
+              {!list && <Badge tone="accent">On the master view</Badge>}
+              {list?.archivedAt && <Badge>Archived</Badge>}
+              <span className="r">{list ? <ManageList l={list} manage={sp.manage === "1"} back={back} manageHref={here({ manage: "1" })} /> : `${tasks.length} shown`}</span>
+            </div>
+            {!list?.archivedAt && <QuickAdd listId={listId} back={back} />}
+            <TaskList tasks={tasks} lists={active} today={st.today} back={back} />
+            {hasDone && !showDone && (
+              <Link className="linkbtn muted" style={{ display: "block", padding: "14px 16px", textAlign: "left" }} href={hrefWith(BASE, { list: listId, done: "1" })}>
+                Show done tasks
+              </Link>
+            )}
+          </div>
         </div>
-        <AddTask listId={null} />
-        <TaskList tasks={forList(null)} lists={active} today={s.state.today} />
-      </section>
-
-      <div className="inc-grid">
-        {active.map((l) => (
-          <section key={l.id} className="inc-cell inc-span-6">
-            <div className="inc-cell-head">
-              <h2 className="inc-cell-title">{l.name}</h2>
-              <details className="inc-disclosure">
-                <summary>Manage</summary>
-                <form action={renameTaskListAction} className="inc-inline">
-                  <input type="hidden" name="_back" value={BACK} />
-                  <input type="hidden" name="id" value={l.id} />
-                  <input className="gh-input" name="name" defaultValue={l.name} aria-label="List name" />
-                  <SubmitButton className="gh-btn-secondary" pendingLabel="…">Rename</SubmitButton>
-                </form>
-                <div className="inc-inline" style={{ marginTop: "var(--gh-space-2)" }}>
-                  <form action={archiveTaskListAction}>
-                    <input type="hidden" name="_back" value={BACK} />
-                    <input type="hidden" name="id" value={l.id} />
-                    <input type="hidden" name="archived" value="on" />
-                    <button className="gh-link-btn" type="submit">
-                      Archive
-                    </button>
-                  </form>
-                  <form action={deleteTaskListAction}>
-                    <input type="hidden" name="_back" value={BACK} />
-                    <input type="hidden" name="id" value={l.id} />
-                    <button className="gh-link-btn gh-link-btn--danger" type="submit">
-                      Delete (tasks move to main)
-                    </button>
-                  </form>
-                </div>
-              </details>
-            </div>
-            <AddTask listId={l.id} />
-            <TaskList tasks={forList(l.id)} lists={active} today={s.state.today} />
-          </section>
-        ))}
-        <section className="inc-cell inc-span-6">
-          <h2 className="inc-cell-title">
-            New <em>sub-list</em>
-          </h2>
-          <form action={createTaskListAction} className="inc-inline">
-            <input type="hidden" name="_back" value={BACK} />
-            <input className="gh-input" name="name" placeholder="e.g. Recruiting" required style={{ flex: 1 }} />
-            <SubmitButton pendingLabel="…">Add</SubmitButton>
-          </form>
-          {archived.length > 0 && (
-            <div className="inc-list">
-              <p className="gh-eyebrow">Archived</p>
-              {archived.map((l: List) => (
-                <form key={l.id} action={archiveTaskListAction} className="inc-row">
-                  <input type="hidden" name="_back" value={BACK} />
-                  <input type="hidden" name="id" value={l.id} />
-                  <span className="inc-muted">{l.name}</span>
-                  <button className="gh-link-btn" type="submit">
-                    Restore
-                  </button>
-                </form>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+      </Console>
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }
 
-function AddTask({ listId }: { listId: string | null }) {
+function ManageList({ l, manage, back, manageHref }: { l: List; manage: boolean; back: string; manageHref: string }) {
+  if (l.archivedAt)
+    return (
+      <form action={archiveTaskListAction}>
+        <BackTo path={back} />
+        <HiddenFields values={{ id: l.id }} />
+        <button type="submit" className="linkbtn">
+          Restore
+        </button>
+      </form>
+    );
+  if (!manage)
+    return (
+      <Link className="linkbtn muted" href={manageHref} aria-label={`Manage ${l.name}`} scroll={false}>
+        <Settings2 size={13} /> Manage
+      </Link>
+    );
   return (
-    <form action={createIncTaskAction} className="inc-inline">
-      <input type="hidden" name="_back" value={BACK} />
-      {listId && <input type="hidden" name="listId" value={listId} />}
-      <input className="gh-input" name="title" placeholder="Add a task" required style={{ flex: 1, minWidth: 160 }} aria-label="New task" />
-      <input className="gh-input" type="date" name="dueDate" aria-label="Due date" />
-      <label className="inc-inline inc-small">
+    <span className="row" style={{ gap: 12 }}>
+      <form className="row" style={{ gap: 6 }} action={renameTaskListAction}>
+        <BackTo path={back} />
+        <HiddenFields values={{ id: l.id }} />
+        <input className="input" name="name" defaultValue={l.name} style={{ height: 28, width: 150 }} aria-label="List name" />
+        <SubmitButton className="btn btn-sm" pendingLabel="…">
+          Rename
+        </SubmitButton>
+      </form>
+      <form action={archiveTaskListAction}>
+        <BackTo path={BASE} />
+        <HiddenFields values={{ id: l.id, archived: "on" }} />
+        <button type="submit" className="linkbtn">
+          Archive
+        </button>
+      </form>
+      <form action={deleteTaskListAction}>
+        <BackTo path={BASE} />
+        <HiddenFields values={{ id: l.id }} />
+        <button type="submit" className="linkbtn danger">
+          Delete
+        </button>
+      </form>
+      <Link className="linkbtn muted" href={back} scroll={false}>
+        Done
+      </Link>
+    </span>
+  );
+}
+
+function QuickAdd({ listId, back }: { listId: string | null; back: string }) {
+  return (
+    <form className="quickadd" action={createIncTaskAction}>
+      <BackTo path={back} />
+      <HiddenFields values={{ listId }} />
+      <input className="input" name="title" placeholder="Add a task" required aria-label="New task" style={{ flex: 1 }} />
+      <input className="input" type="date" name="dueDate" aria-label="Due date" style={{ width: 150 }} />
+      <label className="inline-check small" style={{ minHeight: 0 }}>
         <input type="checkbox" name="high" /> High
       </label>
-      <SubmitButton style={{ padding: "0 var(--gh-space-3)" }}>+</SubmitButton>
+      <SubmitButton className="btn" ariaLabel="Add task" pendingLabel="…">
+        <Plus size={14} />
+      </SubmitButton>
     </form>
   );
 }
 
-function TaskList({ tasks, lists, today }: { tasks: Task[]; lists: List[]; today: string }) {
-  if (tasks.length === 0) return <p className="inc-muted">Nothing outstanding.</p>;
+function TaskList({ tasks, lists, today, back }: { tasks: Task[]; lists: List[]; today: string; back: string }) {
+  if (!tasks.length)
+    return (
+      <p className="muted small" style={{ padding: "16px 14px" }}>
+        Nothing outstanding.
+      </p>
+    );
   return (
-    <div className="inc-list">
+    <div className="rowlist">
       {tasks.map((t) => {
-        const isDone = t.status === "done";
+        const done = t.status === "done";
         return (
-          <div key={t.id} className="inc-row" style={{ flexWrap: "wrap" }}>
-            <form action={setIncTaskStatusAction} className="inc-row-main" style={{ flex: "1 1 220px" }}>
-              <input type="hidden" name="_back" value={BACK} />
-              <input type="hidden" name="id" value={t.id} />
-              <input type="hidden" name="status" value={isDone ? "not_started" : "done"} />
-              <button type="submit" className="inc-check" data-done={isDone || undefined} aria-label={isDone ? "Reopen" : "Complete"}>
-                {isDone ? "✓" : ""}
-              </button>
-              <span style={{ textDecoration: isDone ? "line-through" : undefined, color: isDone ? "var(--gh-text-muted)" : undefined }}>{t.title}</span>
-              {t.priority === "high" && <Chip tone="danger">High</Chip>}
+          <RowFold
+            key={t.id}
+            summary={
+              <>
+                <span className="rowfold-main">
+                  <Check done={done} action={setIncTaskStatusAction} hidden={{ _back: back, id: t.id, status: done ? "not_started" : "done" }} label={done ? "Reopen" : "Complete"} />
+                  <span data-done-text={done || undefined} style={{ textDecoration: done ? "line-through" : undefined }}>
+                    {t.title}
+                  </span>
+                </span>
+                <span className="chiprow">
+                  {t.priority === "high" && <Badge tone="bad">High</Badge>}
+                  {t.dueDate && <Badge tone={!done && t.dueDate < today ? "bad" : undefined}>{fmtDate(t.dueDate)}</Badge>}
+                </span>
+              </>
+            }
+          >
+            <form className="form-grid g3" action={saveIncTaskAction}>
+              <BackTo path={back} />
+              <HiddenFields values={{ id: t.id, currentListId: t.incrementumListId ?? "" }} />
+              <Field label="Title" wide>
+                <input className="input" name="title" defaultValue={t.title} />
+              </Field>
+              <Field label="Due">
+                <input className="input" type="date" name="dueDate" defaultValue={t.dueDate ?? ""} />
+              </Field>
+              <Field label="List">
+                <select className="select" name="listId" defaultValue={t.incrementumListId ?? ""}>
+                  <option value="">Main list (promote)</option>
+                  {lists.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <label className="inline-check">
+                <input type="checkbox" name="high" defaultChecked={t.priority === "high"} /> High priority
+              </label>
+              <div className="form-actions">
+                <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                  Save
+                </SubmitButton>
+              </div>
             </form>
-            <div className="inc-inline">
-              {t.dueDate && <Chip tone={!isDone && t.dueDate < today ? "danger" : undefined}>{shortDate(t.dueDate)}</Chip>}
-              <details className="inc-disclosure">
-                <summary>Edit</summary>
-                <form action={updateIncTaskAction} className="inc-inline">
-                  <input type="hidden" name="_back" value={BACK} />
-                  <input type="hidden" name="id" value={t.id} />
-                  <input className="gh-input" name="title" defaultValue={t.title} aria-label="Title" />
-                  <input className="gh-input" type="date" name="dueDate" defaultValue={t.dueDate ?? ""} aria-label="Due" />
-                  <label className="inc-inline inc-small">
-                    <input type="checkbox" name="high" defaultChecked={t.priority === "high"} /> High
-                  </label>
-                  <SubmitButton pendingLabel="…">Save</SubmitButton>
-                </form>
-                <form action={moveIncTaskAction} className="inc-inline" style={{ marginTop: "var(--gh-space-2)" }}>
-                  <input type="hidden" name="_back" value={BACK} />
-                  <input type="hidden" name="id" value={t.id} />
-                  <select className="gh-input" name="listId" defaultValue={t.incrementumListId ?? ""} aria-label="Move to">
-                    <option value="">Main list (promote)</option>
-                    {lists.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                  <SubmitButton className="gh-btn-secondary" pendingLabel="…">Move</SubmitButton>
-                </form>
-                <form action={deleteIncTaskAction} style={{ marginTop: "var(--gh-space-2)" }}>
-                  <input type="hidden" name="_back" value={BACK} />
-                  <input type="hidden" name="id" value={t.id} />
-                  <button className="gh-link-btn gh-link-btn--danger" type="submit">
-                    Delete task
-                  </button>
-                </form>
-              </details>
-            </div>
-          </div>
+            <form action={deleteIncTaskAction} className="row">
+              <BackTo path={back} />
+              <HiddenFields values={{ id: t.id }} />
+              <span className="spacer" />
+              <button type="submit" className="linkbtn danger">
+                Delete task
+              </button>
+            </form>
+          </RowFold>
         );
       })}
     </div>

@@ -14,6 +14,7 @@ import * as leads from "@/lib/dal/incrementum/leads";
 import * as engagements from "@/lib/dal/incrementum/engagements";
 import * as outreach from "@/lib/dal/incrementum/outreach";
 import * as needs from "@/lib/dal/incrementum/needs";
+import * as grayportal from "@/lib/dal/incrementum/grayportal";
 import { setTaskStatus, deleteTask } from "@/lib/dal/tasks";
 
 function str(fd: FormData, k: string): string {
@@ -52,7 +53,7 @@ function message(err: unknown): string {
 }
 
 /** redirect() throws, so it must stay outside the try. */
-async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string, goTo?: (result: unknown) => string | null) {
+async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string | ((result: unknown) => string), goTo?: (result: unknown) => string | null) {
   const back = backPath(fd);
   let error: string | null = null;
   let result: unknown;
@@ -66,13 +67,30 @@ async function act(fd: FormData, fn: () => Promise<unknown>, ok?: string, goTo?:
   revalidatePath("/");
   if (error) redirect(withParam(back, "error", error));
   const target = goTo?.(result) ?? back;
-  if (ok) redirect(withParam(target, "ok", ok));
+  const okText = typeof ok === "function" ? ok(result) : ok;
+  if (okText) redirect(withParam(target, "ok", okText));
   // No message and the target is the page the form sits on: let the
   // revalidation above re-render it in place. Redirecting to the same URL
   // plus a #hash (e.g. waive / remove on a package line) is a hash-only
   // navigation to the router, which left the old rows on screen.
   if (await isCurrentPage(target)) return;
   redirect(target);
+}
+
+/**
+ * A live client's lines are mirrored on their GrayPortal Services tab, so
+ * every change to the lines (or the client's status) re-syncs them. Runs
+ * after the change itself, inside the same act().
+ */
+async function syncClient(engagementId: string | null) {
+  if (engagementId) await grayportal.syncEngagementServicesToGrayPortal(engagementId);
+}
+
+/** Runs a change to one line, then re-syncs the client it belongs to (if any). */
+async function changeLine(needId: string, fn: () => Promise<unknown>) {
+  const engagementId = await grayportal.engagementOfNeed(needId);
+  await fn();
+  await syncClient(engagementId);
 }
 
 async function isCurrentPage(target: string): Promise<boolean> {
@@ -89,29 +107,26 @@ async function isCurrentPage(target: string): Promise<boolean> {
 
 // --- Settings ---------------------------------------------------------------
 export async function saveSettingsAction(fd: FormData) {
-  await act(
-    fd,
-    () =>
-      planning.updateIncrementumSettings({
-        defaultMarkupPct: nul(fd, "defaultMarkupPct"),
-        freedomTarget: nul(fd, "freedomTarget"),
-        freedomGold: nul(fd, "freedomGold"),
-        freedomDiamond: nul(fd, "freedomDiamond"),
-        adBudgetTotal: nul(fd, "adBudgetTotal"),
-        responseTargetMinutes: Number(str(fd, "responseTargetMinutes") || 60),
-        defaultSlotsPerContractor: nul(fd, "defaultSlotsPerContractor"),
-        defaultRecruitDays: Number(str(fd, "defaultRecruitDays") || 21),
-        launchDate: nul(fd, "launchDate"),
-        homeModeOverride: (nul(fd, "homeModeOverride") as "pre" | "live" | null) ?? null,
-      }),
-    "Settings saved"
-  );
+  // Each Settings view posts only its own fields; absent keys stay as they are.
+  const input: Record<string, unknown> = {};
+  for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor", "launchDate", "homeModeOverride"]) {
+    if (fd.has(k)) input[k] = nul(fd, k);
+  }
+  for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn"]) {
+    if (fd.has(k) && str(fd, k) !== "") input[k] = Number(str(fd, k));
+  }
+  await act(fd, () => planning.updateIncrementumSettings(input as never), "Settings saved");
 }
 
+// Customise Home: the switches post on change, the arrows post `move=<key>:up|down`.
 export async function saveHomeLayoutAction(fd: FormData) {
   const order = str(fd, "order").split(",").filter(Boolean);
+  const [moveKey, dir] = str(fd, "move").split(":");
+  const i = order.indexOf(moveKey);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (i >= 0 && j >= 0 && j < order.length) [order[i], order[j]] = [order[j], order[i]];
   const hidden = order.filter((k) => !bool(fd, `show_${k}`));
-  await act(fd, () => planning.saveHomeLayout({ order, hidden }), "Home layout saved");
+  await act(fd, () => planning.saveHomeLayout({ order, hidden }));
 }
 
 export async function resetHomeLayoutAction(fd: FormData) {
@@ -120,6 +135,25 @@ export async function resetHomeLayoutAction(fd: FormData) {
 
 export async function dismissNextMoveAction(fd: FormData) {
   await act(fd, () => planning.dismissNextMove(str(fd, "moveKey"), nul(fd, "note")));
+}
+
+export async function setLaunchDateAction(fd: FormData) {
+  const date = bool(fd, "clear") ? null : nul(fd, "launchDate");
+  await act(fd, () => planning.setLaunchDate(date), date ? "Ads live date set" : "Ads live date cleared");
+}
+
+export async function saveCapacityThresholdsAction(fd: FormData) {
+  await act(
+    fd,
+    () =>
+      planning.saveCapacityThresholds({
+        defaultSlotsPerContractor: nul(fd, "defaultSlotsPerContractor"),
+        minBench: str(fd, "minBench") || 2,
+        lowSlotsWarn: str(fd, "lowSlotsWarn") || 1,
+        defaultRecruitDays: str(fd, "defaultRecruitDays") || 21,
+      }),
+    "Thresholds saved"
+  );
 }
 
 export async function markAccessReviewedAction(fd: FormData) {
@@ -336,6 +370,20 @@ export async function updateIncTaskAction(fd: FormData) {
   await act(fd, () => itasks.updateIncrementumTask(str(fd, "id"), { title: str(fd, "title") || undefined, dueDate: nul(fd, "dueDate"), priority: bool(fd, "high") ? "high" : "normal" }));
 }
 
+/** The task row's one edit form: title, due, priority, and the list it sits on. */
+export async function saveIncTaskAction(fd: FormData) {
+  const listId = nul(fd, "listId");
+  const moved = listId !== nul(fd, "currentListId");
+  await act(
+    fd,
+    async () => {
+      await itasks.updateIncrementumTask(str(fd, "id"), { title: str(fd, "title") || undefined, dueDate: nul(fd, "dueDate"), priority: bool(fd, "high") ? "high" : "normal" });
+      if (moved) await itasks.moveIncrementumTask(str(fd, "id"), listId);
+    },
+    moved ? "Saved and moved" : undefined
+  );
+}
+
 export async function deleteIncTaskAction(fd: FormData) {
   await act(fd, () => deleteTask(str(fd, "id")));
 }
@@ -507,6 +555,10 @@ export async function upsertContractorServiceAction(fd: FormData) {
   );
 }
 
+export async function setContractorSlotsAction(fd: FormData) {
+  await act(fd, () => contractorsDal.setContractorServiceSlots(str(fd, "id"), nul(fd, "slots")));
+}
+
 export async function removeContractorServiceAction(fd: FormData) {
   await act(fd, () => contractorsDal.removeContractorService(str(fd, "id")));
 }
@@ -613,9 +665,10 @@ export async function onboardLeadAction(fd: FormData) {
         startDate: str(fd, "startDate"),
         monthlyPrice: nul(fd, "monthlyPrice"),
         setupPrice: nul(fd, "setupPrice"),
+        minTermMonths: nul(fd, "minTermMonths") === null ? null : Number(str(fd, "minTermMonths")),
       }),
-    "Client onboarded and engagement started",
-    (r) => `/incrementum/engagements/${(r as { engagementId: string }).engagementId}`
+    "Client onboarded. They're in GrayPortal too.",
+    (r) => `/incrementum/clients/${(r as { engagementId: string }).engagementId}`
   );
 }
 
@@ -633,16 +686,63 @@ export async function createEngagementAction(fd: FormData) {
         startDate: str(fd, "startDate"),
         minTermMonths: Number(str(fd, "minTermMonths") || 3),
       }),
-    "Engagement started",
-    (r) => `/incrementum/engagements/${(r as { id: string }).id}`
+    "Client added",
+    (r) => `/incrementum/clients/${(r as { id: string }).id}`
   );
+}
+
+export async function addClientAction(fd: FormData) {
+  const common = {
+    packageId: nul(fd, "packageId"),
+    monthlyPrice: str(fd, "monthlyPrice") || "0",
+    setupPrice: nul(fd, "setupPrice"),
+    startDate: str(fd, "startDate"),
+    minTermMonths: Number(str(fd, "minTermMonths") || 0),
+  };
+  const mode = str(fd, "mode");
+  await act(
+    fd,
+    () =>
+      mode === "new"
+        ? engagements.addNewIncrementumClient({
+            ...common,
+            businessName: str(fd, "businessName"),
+            contactName: nul(fd, "contactName"),
+            email: str(fd, "email"),
+            phone: nul(fd, "phone"),
+            website: nul(fd, "website"),
+            businessSize: nul(fd, "businessSize") as never,
+          })
+        : engagements.startEngagementForClient({ ...common, clientId: str(fd, "clientId"), name: str(fd, "name") }),
+    mode === "new" ? "Client added. They're in GrayPortal too." : "Client added",
+    (r) => `/incrementum/clients/${(r as { id: string }).id}`
+  );
+}
+
+export async function setSlotWeightAction(fd: FormData) {
+  await act(fd, () => engagements.setEngagementSlotWeight(str(fd, "id"), str(fd, "slotWeight") || "1"));
+}
+
+export async function syncClientServicesAction(fd: FormData) {
+  await act(
+    fd,
+    () => grayportal.syncEngagementServicesToGrayPortal(str(fd, "id")),
+    (r) => {
+      const { written, unlinked } = r as { written: number; unlinked: string[] };
+      return `${written} service${written === 1 ? "" : "s"} on the GrayPortal Services tab${unlinked.length ? `. Not linked to a GrayPortal service yet: ${unlinked.join(", ")}` : ""}`;
+    }
+  );
+}
+
+export async function sendReviewRequestAction(fd: FormData) {
+  await act(fd, () => outreach.sendReviewRequest(str(fd, "id"), { to: str(fd, "to"), subject: str(fd, "subject"), body: str(fd, "body") }), "Review email sent");
 }
 
 export async function updateEngagementAction(fd: FormData) {
   await act(
     fd,
-    () =>
-      engagements.updateEngagement(str(fd, "id"), {
+    async () => {
+      await engagements.updateEngagement(str(fd, "id"), {
         name: str(fd, "name"),
         monthlyPrice: str(fd, "monthlyPrice") || "0",
         setupPrice: nul(fd, "setupPrice"),
@@ -651,10 +751,13 @@ export async function updateEngagementAction(fd: FormData) {
         minTermEnd: nul(fd, "minTermEnd"),
         health: (str(fd, "health") || "good") as never,
         businessSize: nul(fd, "businessSize") as never,
-        status: str(fd, "status") === "paused" ? "paused" : "active",
+        status: fd.has("status") ? (str(fd, "status") === "paused" ? "paused" : "active") : undefined,
         notes: nul(fd, "notes"),
-      }),
-    "Engagement saved"
+      });
+      // Start date and paused/active carry over to the GrayPortal Services tab.
+      await syncClient(str(fd, "id"));
+    },
+    "Client saved"
   );
 }
 
@@ -664,11 +767,25 @@ export async function setEngagementModulesAction(fd: FormData) {
 }
 
 export async function endEngagementAction(fd: FormData) {
-  await act(fd, () => engagements.endEngagement(str(fd, "id"), { endReason: str(fd, "endReason"), lessons: nul(fd, "lessons"), endedAt: str(fd, "endedAt") }), "Engagement ended and archived");
+  await act(
+    fd,
+    async () => {
+      await engagements.endEngagement(str(fd, "id"), { endReason: str(fd, "endReason"), lessons: nul(fd, "lessons"), endedAt: str(fd, "endedAt") });
+      await syncClient(str(fd, "id"));
+    },
+    "Client ended and archived"
+  );
 }
 
 export async function reopenEngagementAction(fd: FormData) {
-  await act(fd, () => engagements.reopenEngagement(str(fd, "id")), "Engagement reopened");
+  await act(
+    fd,
+    async () => {
+      await engagements.reopenEngagement(str(fd, "id"));
+      await syncClient(str(fd, "id"));
+    },
+    "Client reopened"
+  );
 }
 
 export async function addEngagementContractorAction(fd: FormData) {
@@ -694,7 +811,23 @@ export async function stampCycleAction(fd: FormData) {
   await act(fd, () => engagements.stampCycle(str(fd, "id"), str(fd, "field") as never, str(fd, "date")));
 }
 
+/** Payouts' "Mark <month> settled": the optional tick on every invoiced, unticked month in one go. */
+export async function settleMonthAction(fd: FormData) {
+  const ids = str(fd, "ids").split(",").filter(Boolean);
+  const date = str(fd, "date");
+  await act(
+    fd,
+    async () => {
+      for (const id of ids) await engagements.stampCycle(id, "settled", date);
+    },
+    ids.length === 1 ? "Month ticked settled" : `${ids.length} months ticked settled`
+  );
+}
+
 export async function updateCycleAction(fd: FormData) {
+  // Payments aren't tracked: the one optional "Settled" date stamps both
+  // sides, which is what the contractor workspace reads as paid.
+  const settledAt = nul(fd, "settledAt");
   await act(
     fd,
     () =>
@@ -705,11 +838,11 @@ export async function updateCycleAction(fd: FormData) {
         invoicedAt: nul(fd, "invoicedAt"),
         xeroInvoiceNumber: nul(fd, "xeroInvoiceNumber"),
         invoiceAmount: nul(fd, "invoiceAmount"),
-        clientPaidAt: nul(fd, "clientPaidAt"),
+        clientPaidAt: settledAt,
         contractorBillRef: nul(fd, "contractorBillRef"),
         payoutAmount: nul(fd, "payoutAmount"),
-        payoutDueAt: nul(fd, "payoutDueAt"),
-        payoutPaidAt: nul(fd, "payoutPaidAt"),
+        payoutDueAt: nul(fd, "payoutDueAt") ?? settledAt,
+        payoutPaidAt: settledAt,
         notes: nul(fd, "notes"),
       }),
     "Month saved"
@@ -728,8 +861,8 @@ function scopeFromForm(fd: FormData) {
 }
 
 export async function createNeedAction(fd: FormData) {
-  await act(fd, () =>
-    needs.createNeed({
+  await act(fd, async () => {
+    await needs.createNeed({
       ...scopeFromForm(fd),
       serviceId: nul(fd, "serviceId"),
       serviceItemId: nul(fd, "serviceItemId"),
@@ -738,24 +871,34 @@ export async function createNeedAction(fd: FormData) {
       tags: nul(fd, "tags"),
       quantity: nul(fd, "quantity"),
       notes: nul(fd, "notes"),
-    })
-  );
+    });
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 export async function addPackageLinesAction(fd: FormData) {
-  await act(fd, () => needs.addPackageLines(scopeFromForm(fd), str(fd, "packageId")));
+  await act(fd, async () => {
+    await needs.addPackageLines(scopeFromForm(fd), str(fd, "packageId"));
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 export async function setNeedWaivedAction(fd: FormData) {
-  await act(fd, () => needs.setNeedWaived(str(fd, "id"), bool(fd, "waived")));
+  await act(fd, () => changeLine(str(fd, "id"), () => needs.setNeedWaived(str(fd, "id"), bool(fd, "waived"))));
 }
 
 export async function assignRoleAction(fd: FormData) {
-  await act(fd, () => needs.assignRole(scopeFromForm(fd), nul(fd, "roleId"), str(fd, "contractorId")));
+  await act(fd, async () => {
+    await needs.assignRole(scopeFromForm(fd), nul(fd, "roleId"), str(fd, "contractorId"));
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 export async function unassignRoleAction(fd: FormData) {
-  await act(fd, () => needs.unassignRole(scopeFromForm(fd), nul(fd, "roleId")));
+  await act(fd, async () => {
+    await needs.unassignRole(scopeFromForm(fd), nul(fd, "roleId"));
+    await syncClient(nul(fd, "engagementId"));
+  });
 }
 
 // --- Contractor roles (Settings) -------------------------------------------------
@@ -775,19 +918,21 @@ export async function updateNeedAction(fd: FormData) {
   await act(
     fd,
     () =>
-      needs.updateNeed(str(fd, "id"), {
-        title: nul(fd, "title"),
-        tags: nul(fd, "tags"),
-        quantity: nul(fd, "quantity"),
-        contractorRate: nul(fd, "contractorRate"),
-        markupPct: nul(fd, "markupPct"),
-        sellPrice: nul(fd, "sellPrice"),
-        notes: nul(fd, "notes"),
-      }),
+      changeLine(str(fd, "id"), () =>
+        needs.updateNeed(str(fd, "id"), {
+          title: nul(fd, "title"),
+          tags: nul(fd, "tags"),
+          quantity: nul(fd, "quantity"),
+          contractorRate: nul(fd, "contractorRate"),
+          markupPct: nul(fd, "markupPct"),
+          sellPrice: nul(fd, "sellPrice"),
+          notes: nul(fd, "notes"),
+        })
+      ),
     "Quote line saved"
   );
 }
 
 export async function deleteNeedAction(fd: FormData) {
-  await act(fd, () => needs.deleteNeed(str(fd, "id")));
+  await act(fd, () => changeLine(str(fd, "id"), () => needs.deleteNeed(str(fd, "id"))));
 }

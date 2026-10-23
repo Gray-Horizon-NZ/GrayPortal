@@ -30,6 +30,7 @@ import {
   qContacts,
   qDealActivities,
   qDeals,
+  qIncrementumEngagements,
   qInvoices,
   qLatestHealth,
 } from "@/lib/dal/terminal";
@@ -46,7 +47,7 @@ const monthKey = (iso: string) => iso.slice(0, 7);
 
 // ─── Clients ─────────────────────────────────────────────────────────────
 export async function loadClients() {
-  const [rows, people, services, health] = await Promise.all([qClientsWithCompany(), qContacts(), qClientServices(), qLatestHealth()]);
+  const [rows, people, services, health, incrementum] = await Promise.all([qClientsWithCompany(), qContacts(), qClientServices(), qLatestHealth(), qIncrementumEngagements()]);
   const mainContact = new Map<string, (typeof people)[number]>();
   for (const p of people) if (!mainContact.has(p.companyId)) mainContact.set(p.companyId, p);
 
@@ -107,6 +108,12 @@ export async function loadClients() {
         history: health.history.get(c.id) ?? [],
       },
       hiddenFromTaskView: c.hiddenFromTaskView,
+      // Project Incrementum client: the live engagement first, else the latest ended one.
+      incrementum: (() => {
+        const mine = incrementum.filter((e) => e.clientId === c.id);
+        const e = mine.find((x) => x.status !== "ended") ?? mine[0];
+        return e ? { id: e.id, status: e.status } : null;
+      })(),
     };
     // No status column — on a retainer if anything recurring is active.
     client.status = clientMrr(client) > 0 ? "Retainer" : "Onboarded";

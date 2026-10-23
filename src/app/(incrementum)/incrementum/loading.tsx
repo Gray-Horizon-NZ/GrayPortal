@@ -3,13 +3,14 @@
 // "Entering Project Incrementum" overlay sits on top of this anyway.
 export default function IncrementumLoading() {
   return (
-    <div className="inc-grid" aria-busy="true">
-      <div className="inc-cell inc-span-12" style={{ minHeight: 120 }}>
-        <div className="gh-skeleton" style={{ height: 14, width: 180 }} />
-        <div className="gh-skeleton" style={{ height: 28, width: "60%" }} />
+    <div className="screen inc-loading" aria-busy="true">
+      <div className="pagehead">
+        <div>
+          <h1>Loading</h1>
+        </div>
       </div>
-      <div className="inc-cell inc-span-6" style={{ minHeight: 200 }} />
-      <div className="inc-cell inc-span-6" style={{ minHeight: 200 }} />
+      <div style={{ minHeight: 260 }} />
+      <div style={{ minHeight: 180 }} />
     </div>
   );
 }

@@ -1,10 +1,13 @@
+import Link from "next/link";
+import { CalendarClock } from "lucide-react";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
-import { METRICS, METRIC_KEYS } from "@/lib/incrementum/registry";
-import { shortDate, formatTarget } from "@/lib/incrementum/format";
-import { toNum } from "@/lib/incrementum/pricing";
-import { PageHead, Flash, Bar, Chip, PhaseSteps, MetricValue } from "@/components/incrementum/ui";
+import { METRICS, METRIC_KEYS, isMetricKey } from "@/lib/incrementum/registry";
+import { formatMetric, formatTarget } from "@/lib/incrementum/format";
 import IncrementumReadySignal from "@/components/incrementum/IncrementumReadySignal";
 import SubmitButton from "@/components/ui/SubmitButton";
+import { PageHead, Panel, Badge, RowFold, AddRow, Check, Field, DueList, Console, Csec, TermStatus, LevelBars, BigAction, Ledger, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
+import { Dialog } from "@/components/incrementum/terminal/client";
+import { longDate, fmtDate, relativeTo, n0 } from "@/components/incrementum/terminal/helpers";
 import {
   advancePhaseAction,
   updatePhaseAction,
@@ -17,271 +20,294 @@ import {
   deleteMilestoneAction,
 } from "../actions";
 
-const BACK = "/incrementum/roadmap";
+const BASE = "/incrementum/roadmap";
 
-export default async function RoadmapPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const { ok, error } = await searchParams;
+export default async function RoadmapPage({ searchParams }: { searchParams: Promise<{ phase?: string }> }) {
+  const sp = await searchParams;
   const s = await getIncrementumSnapshot();
   const { phases, current, next } = s.phases;
+  const today = s.state.today;
+  const sel = sp.phase !== undefined ? Number(sp.phase) : (current?.number ?? phases[0]?.number ?? 0);
+  const p = phases.find((x) => x.number === sel) ?? phases[0];
+  const launch = s.state.settings.launchDate;
+  if (!p) {
+    return (
+      <div className="screen">
+        <PageHead title="Roadmap & deadlines" sub="No phases yet." />
+      </div>
+    );
+  }
+  const back = `${BASE}?phase=${p.number}`;
+  const isCurrent = current?.id === p.id;
+  const msDone = p.milestones.filter((m) => m.doneAt).length;
+  const clients = s.metrics.active_clients ?? 0;
+  const bench = s.metrics.contractors_confirmed ?? 0;
+  const locked = p.status === "done";
 
   return (
-    <>
+    <div className="screen">
       <PageHead
-        eyebrow="Growth phases"
-        title={
-          <>
-            Roadmap &amp; <em>deadlines</em>
-          </>
-        }
-        lede={`${s.state.settings.launchDate ? `Ads go live ${shortDate(s.state.settings.launchDate, true)}. ` : "Launch date not set yet: dates that count from ads going live show as TBD (set it in Settings). "}Each phase has exit criteria. The next phase only unlocks when every one holds, and advancing is a deliberate step with a retro. Edits to targets are logged, so the bar can't be quietly lowered.`}
+        title="Roadmap & deadlines"
+        sub={`${launch ? `Ads go live ${longDate(launch)}. ` : "Launch date not set: dates that count from ads going live show as TBD. "}A phase only unlocks when every exit criterion holds; advancing is a deliberate step with a retro.`}
       />
-      <Flash ok={ok} error={error} />
-      <PhaseSteps phases={phases} />
+      <div className="hangtabs">
+        {phases.map((x) => (
+          <Link key={x.id} className="hangtab" data-active={x.number === p.number || undefined} data-done={x.status === "done" || undefined} href={`${BASE}?phase=${x.number}`} scroll={false}>
+            Phase {x.number} · {x.name}
+          </Link>
+        ))}
+      </div>
 
-      {phases.map((p) => {
-        const isCurrent = current?.id === p.id;
-        return (
-          <section key={p.id} className="inc-panel" id={`phase-${p.number}`} style={isCurrent ? { borderColor: "var(--gh-accent)" } : undefined}>
-            <div className="inc-cell-head">
-              <div>
-                <p className="gh-eyebrow">
-                  Phase {p.number} {p.status === "done" ? "· done" : isCurrent ? "· active" : "· upcoming"}
+      <Console>
+        <Csec>
+          <TermStatus label={`Phase ${p.number} status`} value={p.status === "done" ? "Done" : isCurrent ? "Active" : "Upcoming"} tone={p.status === "upcoming" && !isCurrent ? "warn" : undefined}>
+            {p.targetDate ? `Target ${longDate(p.targetDate)}` : p.launchOffsetDays !== null ? "Target TBD (launch date not set)" : "No target date"}
+          </TermStatus>
+          {p.purpose && (
+            <p className="csec-desc" style={{ marginTop: 10 }}>
+              {p.purpose}
+            </p>
+          )}
+        </Csec>
+        <Csec>
+          <LevelBars
+            rows={[
+              p.criteria.length > 0 && { label: "Exit criteria met", value: p.metCount / p.criteria.length, right: `${p.metCount}/${p.criteria.length}`, tone: p.allMet ? "good" : undefined },
+              p.milestones.length > 0 && { label: "Milestones done", value: msDone / p.milestones.length, right: `${msDone}/${p.milestones.length}` },
+              { label: "Contractors", value: p.contractorTarget ? bench / p.contractorTarget : 0, right: `${bench}/${p.contractorTarget ?? "—"}` },
+              { label: "Active clients", value: p.clientMax ? clients / p.clientMax : clients >= (p.clientMin ?? 0) ? 1 : 0, right: `${clients} · aim ${p.clientMin ?? 0}–${p.clientMax ?? "+"}` },
+            ]}
+          />
+        </Csec>
+        <div className="console-split">
+          <Csec className="flush">
+            <div className="agency-list-head">Exit criteria</div>
+            <div className="rowlist">
+              {p.criteria.map((c) => {
+                const unit = isMetricKey(c.metricKey) ? METRICS[c.metricKey].unit : null;
+                return (
+                  <RowFold
+                    key={c.id}
+                    summary={
+                      <>
+                        <span className="rowfold-main">
+                          <Check done={c.met} disabled={!!c.metricKey || locked} action={toggleCriterionAction} hidden={{ _back: back, id: c.id, done: c.met ? "" : "on" }} label={c.met ? "Untick" : "Tick"} />
+                          <span>{c.label}</span>
+                        </span>
+                        <span className="muted small num">
+                          {unit ? (
+                            <>
+                              <b className="strong">{formatMetric(c.value, unit)}</b> {formatTarget(c.comparator, n0(c.target), unit)}
+                            </>
+                          ) : (
+                            "by hand"
+                          )}
+                        </span>
+                      </>
+                    }
+                  >
+                    {locked ? (
+                      <p className="muted small">This phase is done; its criteria are locked.</p>
+                    ) : (
+                      <>
+                        <form className="form-grid g3" action={updateCriterionAction}>
+                          <BackTo path={back} />
+                          <HiddenFields values={{ id: c.id }} />
+                          <Field label="Label" wide>
+                            <input className="input" name="label" defaultValue={c.label} />
+                          </Field>
+                          {c.metricKey && (
+                            <Field label="Target">
+                              <input className="input" name="target" defaultValue={c.target ?? ""} />
+                            </Field>
+                          )}
+                          <div className="form-actions">
+                            <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                              Save
+                            </SubmitButton>
+                          </div>
+                        </form>
+                        <form action={deleteCriterionAction} className="row">
+                          <BackTo path={back} />
+                          <HiddenFields values={{ id: c.id }} />
+                          <span className="spacer" />
+                          <button type="submit" className="linkbtn danger">
+                            Remove
+                          </button>
+                        </form>
+                      </>
+                    )}
+                  </RowFold>
+                );
+              })}
+              {p.criteria.length === 0 && (
+                <p className="muted small" style={{ padding: "14px 16px" }}>
+                  No exit criteria: this is the open-ended phase.
                 </p>
-                <h2 className="inc-cell-title" style={{ fontSize: "var(--gh-text-xl)" }}>
-                  <em>{p.name}</em>
-                </h2>
-                <p className="inc-muted">{p.purpose}</p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p className="inc-small">
-                  Ads {p.adBudget ?? "—"} · {p.services ?? "—"} service(s)
-                </p>
-                <p className="inc-small inc-num">
-                  Clients {p.clientMin ?? 0}–{p.clientMax ?? "+"} · Contractors {p.contractorTarget ?? "—"}
-                </p>
-                <p className="inc-small">
-                  Target {p.targetDate ? shortDate(p.targetDate, true) : p.launchOffsetDays !== null ? "TBD (launch date not set)" : "—"}
-                  {p.launchOffsetDays !== null && p.targetDate ? ` · launch + ${p.launchOffsetDays}d` : ""}
-                </p>
-                {p.targetDate && p.status !== "done" && p.targetDate < s.state.today && <Chip tone="danger">Past target date</Chip>}
-              </div>
-            </div>
-
-            {p.criteria.length > 0 && (
-              <>
-                <Bar value={p.criteria.length ? p.metCount / p.criteria.length : 0} tone={p.allMet ? "good" : undefined} />
-                <div className="inc-list">
-                  {p.criteria.map((c) => (
-                    <div className="inc-row" key={c.id} style={{ flexWrap: "wrap" }}>
-                      <div className="inc-row-main" style={{ flex: "1 1 300px" }}>
-                        {c.metricKey ? (
-                          <span className="inc-check" data-done={c.met || undefined}>{c.met ? "✓" : ""}</span>
-                        ) : (
-                          <form action={toggleCriterionAction}>
-                            <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                            <input type="hidden" name="id" value={c.id} />
-                            <input type="hidden" name="done" value={c.met ? "" : "on"} />
-                            <button className="inc-check" data-done={c.met || undefined} type="submit" aria-label={c.met ? "Untick" : "Tick"}>
-                              {c.met ? "✓" : ""}
-                            </button>
-                          </form>
-                        )}
-                        <span>{c.label}</span>
-                      </div>
-                      <div className="inc-inline">
-                        <MetricValue metricKey={c.metricKey} value={c.value} />
-                        {c.metricKey && METRICS[c.metricKey as keyof typeof METRICS] && (
-                          <span className="inc-small">{formatTarget(c.comparator, toNum(c.target), METRICS[c.metricKey as keyof typeof METRICS].unit)}</span>
-                        )}
-                        {p.status !== "done" && (
-                          <details className="inc-disclosure">
-                            <summary>Edit</summary>
-                            <form action={updateCriterionAction} className="inc-inline">
-                              <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                              <input type="hidden" name="id" value={c.id} />
-                              <input className="gh-input" name="label" defaultValue={c.label} aria-label="Label" />
-                              {c.metricKey && <input className="gh-input" name="target" defaultValue={c.target ?? ""} aria-label="Target" style={{ width: 90 }} />}
-                              <SubmitButton pendingLabel="…">Save</SubmitButton>
-                            </form>
-                            <form action={deleteCriterionAction}>
-                              <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                              <input type="hidden" name="id" value={c.id} />
-                              <button className="gh-link-btn gh-link-btn--danger" type="submit">
-                                Remove
-                              </button>
-                            </form>
-                          </details>
-                        )}
-                      </div>
+              )}
+              {!locked && (
+                <AddRow label="Add criterion">
+                  <form className="form-grid g3" action={createCriterionAction}>
+                    <BackTo path={back} />
+                    <HiddenFields values={{ phaseId: p.id }} />
+                    <Field label="New criterion" wide>
+                      <input className="input" name="label" required placeholder="e.g. ≥ 2 paying clients" />
+                    </Field>
+                    <Field label="Tracked metric">
+                      <select className="select" name="metricKey" defaultValue="">
+                        <option value="">Manual (tick by hand)</option>
+                        {METRIC_KEYS.map((k) => (
+                          <option key={k} value={k}>
+                            {METRICS[k].label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Comparator">
+                      <select className="select" name="comparator" defaultValue="gte">
+                        <option value="gte">at least (≥)</option>
+                        <option value="lte">at most (≤)</option>
+                      </select>
+                    </Field>
+                    <Field label="Target">
+                      <input className="input" name="target" />
+                    </Field>
+                    <div className="form-actions">
+                      <SubmitButton className="btn btn-primary" pendingLabel="Adding…">
+                        Add criterion
+                      </SubmitButton>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div>
-              <p className="gh-eyebrow" style={{ marginBottom: "var(--gh-space-2)" }}>
-                Milestones
-              </p>
-              <div className="inc-list">
-                {p.milestones.map((m) => (
-                  <div className="inc-row" key={m.id}>
-                    <form action={toggleMilestoneAction} className="inc-row-main">
-                      <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                      <input type="hidden" name="id" value={m.id} />
-                      <input type="hidden" name="done" value={m.doneAt ? "" : "on"} />
-                      <button className="inc-check" data-done={m.doneAt ? true : undefined} type="submit" aria-label="Toggle milestone">
-                        {m.doneAt ? "✓" : ""}
-                      </button>
-                      <span style={{ textDecoration: m.doneAt ? "line-through" : undefined }}>{m.title}</span>
-                    </form>
-                    <div className="inc-inline">
-                      {m.dueDate && <Chip tone={!m.doneAt && m.dueDate < s.state.today ? "danger" : undefined}>{shortDate(m.dueDate, true)}</Chip>}
-                      {!m.dueDate && m.launchOffsetDays !== null && <Chip>{m.launchOffsetDays === 0 ? "On launch day" : `Launch + ${m.launchOffsetDays}d`} · TBD</Chip>}
-                      <form action={deleteMilestoneAction}>
-                        <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                        <input type="hidden" name="id" value={m.id} />
-                        <button className="gh-link-btn" type="submit" aria-label="Remove milestone">
-                          ×
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <form action={createMilestoneAction} className="inc-inline" style={{ marginTop: "var(--gh-space-2)" }}>
-                <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                <input type="hidden" name="phaseId" value={p.id} />
-                <input className="gh-input" name="title" placeholder="Add a milestone" required style={{ flex: 1 }} />
-                <input className="gh-input" type="date" name="dueDate" aria-label="Due date" />
-                <SubmitButton className="gh-btn-secondary" pendingLabel="…">Add</SubmitButton>
-              </form>
-            </div>
-
-            {isCurrent && next && (
-              <div className="inc-callout" data-tone={p.allMet ? undefined : undefined}>
-                {p.allMet ? (
-                  <form action={advancePhaseAction} style={{ display: "flex", flexDirection: "column", gap: "var(--gh-space-2)" }}>
-                    <input type="hidden" name="_back" value={BACK} />
-                    <input type="hidden" name="phaseId" value={p.id} />
-                    <strong>
-                      Every exit criterion is met. Advance to Phase {next.number} · {next.name}?
-                    </strong>
-                    <textarea className="gh-input" name="retro" required placeholder="Retro: what worked, what didn't, what changes in the next phase" />
-                    <SubmitButton pendingLabel="Advancing…">Advance to Phase {next.number}</SubmitButton>
                   </form>
-                ) : (
-                  <span>
-                    {p.criteria.length - p.metCount} criteria still to meet before Phase {next.number} · {next.name} unlocks.
-                  </span>
-                )}
-              </div>
-            )}
-
-            {p.retro && (
-              <p className="inc-small">
-                <strong>Retro:</strong> {p.retro}
-              </p>
-            )}
-
-            {p.status !== "done" && (
-              <details className="inc-disclosure">
-                <summary>Edit phase · add criterion</summary>
-                <form action={updatePhaseAction} className="inc-form">
-                  <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                  <input type="hidden" name="id" value={p.id} />
-                  <label className="inc-field">
-                    Name
-                    <input className="gh-input" name="name" defaultValue={p.name} />
-                  </label>
-                  <label className="inc-field">
-                    Ad budget
-                    <input className="gh-input" name="adBudget" defaultValue={p.adBudget ?? ""} />
-                  </label>
-                  <label className="inc-field">
-                    Services
-                    <input className="gh-input" name="services" defaultValue={p.services ?? ""} />
-                  </label>
-                  <label className="inc-field">
-                    Clients from
-                    <input className="gh-input" name="clientMin" type="number" defaultValue={p.clientMin ?? ""} />
-                  </label>
-                  <label className="inc-field">
-                    Clients to
-                    <input className="gh-input" name="clientMax" type="number" defaultValue={p.clientMax ?? ""} />
-                  </label>
-                  <label className="inc-field">
-                    Contractors
-                    <input className="gh-input" name="contractorTarget" type="number" defaultValue={p.contractorTarget ?? ""} />
-                  </label>
-                  <label className="inc-field">
-                    Target date
-                    <input className="gh-input" name="targetDate" type="date" defaultValue={p.targetDate ?? ""} />
-                  </label>
-                  <label className="inc-field inc-field--wide">
-                    Purpose
-                    <input className="gh-input" name="purpose" defaultValue={p.purpose ?? ""} />
-                  </label>
-                  <SubmitButton pendingLabel="Saving…">Save phase</SubmitButton>
-                </form>
-                <form action={createCriterionAction} className="inc-form" style={{ marginTop: "var(--gh-space-4)" }}>
-                  <input type="hidden" name="_back" value={`${BACK}#phase-${p.number}`} />
-                  <input type="hidden" name="phaseId" value={p.id} />
-                  <label className="inc-field inc-field--wide">
-                    New criterion
-                    <input className="gh-input" name="label" required placeholder="e.g. ≥ 2 paying clients" />
-                  </label>
-                  <label className="inc-field">
-                    Tracked metric
-                    <select className="gh-input" name="metricKey" defaultValue="">
-                      <option value="">Manual (tick by hand)</option>
-                      {METRIC_KEYS.map((k) => (
-                        <option key={k} value={k}>
-                          {METRICS[k].label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="inc-field">
-                    Comparator
-                    <select className="gh-input" name="comparator" defaultValue="gte">
-                      <option value="gte">at least (≥)</option>
-                      <option value="lte">at most (≤)</option>
-                    </select>
-                  </label>
-                  <label className="inc-field">
-                    Target
-                    <input className="gh-input" name="target" />
-                  </label>
-                  <SubmitButton className="gh-btn-secondary" pendingLabel="…">Add criterion</SubmitButton>
+                </AddRow>
+              )}
+            </div>
+          </Csec>
+          <Csec>
+            <p className="csec-title" style={{ marginBottom: 8 }}>
+              Milestones
+            </p>
+            <div className="checklist">
+              {p.milestones.map((ms) => (
+                <div key={ms.id}>
+                  <Check done={!!ms.doneAt} action={toggleMilestoneAction} hidden={{ _back: back, id: ms.id, done: ms.doneAt ? "" : "on" }} label="Toggle milestone" />
+                  <span style={{ flex: 1, textDecoration: ms.doneAt ? "line-through" : undefined, color: ms.doneAt ? "var(--t-muted)" : undefined }}>{ms.title}</span>
+                  {ms.dueDate ? (
+                    <Badge tone={!ms.doneAt && ms.dueDate < today ? "bad" : undefined}>{fmtDate(ms.dueDate)}</Badge>
+                  ) : ms.launchOffsetDays !== null ? (
+                    <Badge>{ms.launchOffsetDays === 0 ? "Launch day" : `Launch + ${ms.launchOffsetDays}d`}</Badge>
+                  ) : null}
+                  <form action={deleteMilestoneAction} style={{ display: "contents" }}>
+                    <BackTo path={back} />
+                    <HiddenFields values={{ id: ms.id }} />
+                    <button type="submit" className="linkbtn muted" aria-label="Remove milestone">
+                      ×
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+            <form className="row" style={{ marginTop: 10 }} action={createMilestoneAction}>
+              <BackTo path={back} />
+              <HiddenFields values={{ phaseId: p.id }} />
+              <input className="input" name="title" placeholder="Add a milestone" required style={{ flex: 1, width: "auto" }} />
+              <input className="input" type="date" name="dueDate" aria-label="Due date" style={{ width: 150 }} />
+              <SubmitButton className="btn" pendingLabel="…">
+                Add
+              </SubmitButton>
+            </form>
+            <p className="csec-title" style={{ margin: "22px 0 8px" }}>
+              Phase facts
+            </p>
+            <Ledger
+              rows={[
+                ["Ad budget", p.adBudget ?? "—"],
+                ["Services", p.services ?? "—"],
+                ["Clients", `${p.clientMin ?? 0}–${p.clientMax ?? "+"}`],
+                ["Contractors", p.contractorTarget ?? "—"],
+              ]}
+            />
+            {!locked && (
+              <details className="inline-details">
+                <summary>Edit phase</summary>
+                <form className="form-grid" action={updatePhaseAction}>
+                  <BackTo path={back} />
+                  <HiddenFields values={{ id: p.id }} />
+                  <Field label="Name">
+                    <input className="input" name="name" defaultValue={p.name} />
+                  </Field>
+                  <Field label="Ad budget">
+                    <input className="input" name="adBudget" defaultValue={p.adBudget ?? ""} />
+                  </Field>
+                  <Field label="Services">
+                    <input className="input" name="services" defaultValue={p.services ?? ""} />
+                  </Field>
+                  <Field label="Contractors">
+                    <input className="input" name="contractorTarget" defaultValue={p.contractorTarget ?? ""} />
+                  </Field>
+                  <Field label="Clients from">
+                    <input className="input" name="clientMin" defaultValue={p.clientMin ?? ""} />
+                  </Field>
+                  <Field label="Clients to">
+                    <input className="input" name="clientMax" defaultValue={p.clientMax ?? ""} />
+                  </Field>
+                  <Field label="Target date" wide>
+                    <input className="input" type="date" name="targetDate" defaultValue={p.launchOffsetDays === null ? (p.targetDate ?? "") : ""} />
+                  </Field>
+                  <Field label="Purpose" wide>
+                    <input className="input" name="purpose" defaultValue={p.purpose ?? ""} />
+                  </Field>
+                  <div className="form-actions">
+                    <SubmitButton className="btn btn-primary" pendingLabel="Saving…">
+                      Save phase
+                    </SubmitButton>
+                  </div>
                 </form>
               </details>
             )}
-          </section>
-        );
-      })}
-
-      <section className="inc-panel">
-        <h2 className="inc-cell-title">
-          Every <em>deadline</em> (next 14 days)
-        </h2>
-        {s.deadlines.length === 0 ? (
-          <p className="inc-muted">Nothing due.</p>
-        ) : (
-          <div className="inc-list">
-            {s.deadlines.map((d) => (
-              <a className="inc-row" key={d.key} href={d.href}>
-                <span>{d.title}</span>
-                <span className="inc-inline">
-                  <Chip>{d.kind}</Chip>
-                  <Chip tone={d.overdue ? "danger" : undefined}>{shortDate(d.date)}</Chip>
+            {p.retro && (
+              <p className="note" style={{ marginTop: 16 }}>
+                <span>
+                  <b>Retro:</b> {p.retro}
                 </span>
-              </a>
-            ))}
-          </div>
+              </p>
+            )}
+          </Csec>
+        </div>
+        {isCurrent && next && (
+          <BigAction
+            label={`Advance to Phase ${next.number} · ${next.name}`}
+            sub={p.allMet ? "Every exit criterion is met. A retro is required." : `${p.criteria.length - p.metCount} criteria still to meet`}
+            value={p.allMet ? "Advance" : `${p.metCount}/${p.criteria.length}`}
+            disabled={!p.allMet}
+            dialog="phase-advance"
+          />
         )}
-      </section>
+      </Console>
+
+      <Panel title="Every deadline · next 14 days" icon={CalendarClock}>
+        <DueList
+          items={s.deadlines.map((d) => ({ key: d.key, title: d.title, detail: `${d.kind} · ${d.overdue ? "overdue" : relativeTo(d.date, today)}`, tone: d.overdue ? "bad" : undefined, href: d.href }))}
+          empty="Nothing due."
+        />
+      </Panel>
+
+      {isCurrent && next && p.allMet && (
+        <Dialog id="phase-advance" title={`Advance to Phase ${next.number} · ${next.name}`}>
+          <form className="form-grid" action={advancePhaseAction}>
+            <BackTo path={`${BASE}?phase=${next.number}`} />
+            <HiddenFields values={{ phaseId: p.id }} />
+            <Field label="Retro: what worked, what didn't, what changes in the next phase" wide>
+              <textarea className="textarea" name="retro" required rows={5} />
+            </Field>
+            <div className="form-actions">
+              <SubmitButton className="btn btn-primary" pendingLabel="Advancing…">
+                Advance
+              </SubmitButton>
+            </div>
+          </form>
+        </Dialog>
+      )}
       <IncrementumReadySignal />
-    </>
+    </div>
   );
 }

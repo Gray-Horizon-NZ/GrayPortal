@@ -1,1267 +1,1692 @@
-/* Project Incrementum (docs/Project-Incrementum-Plan.md §3) — the light
- * "room behind the door". Every rule is scoped under .gh-incrementum.
- *
- * The scope redefines the app's SEMANTIC tokens (--gh-bg, --gh-surface,
- * --gh-text-*, --gh-accent, …) to the shared light palette (tokens.css's
- * --gh-lt-*), so every existing component class (.gh-card, .gh-table,
- * .gh-input, .gh-btn-*, .gh-badge, .gh-grid-joined, …) renders light here
- * without a parallel set of components. Brand rules unchanged: radius 0, no
- * drop shadows (tonal layering + hairlines), brass only for highlight and
- * action, status colours only for state and always with a label. */
+/* Project Incrementum: Terminal UI.
+ * Ported from OS/incrementum-terminal-concept (src/styles.css, incrementum.css,
+ * terminal.css), every rule scoped under .gh-incrementum: Next keeps layout
+ * CSS loaded after navigating away, so nothing may leak into GrayPortal.
+ * Theme and privacy are attributes on the .gh-incrementum wrapper.
+ * Rules: grayhorizon-docs/Terminal UI/RULES.md. */
+
+/* ── from concept src/styles.css ── */
+/* Gray Portal — business terminal, v2.
+ * Brand values from grayportal/src/app/tokens.css (dark palette + the
+ * client-portal light palette). Everything below reads the --t-* theme
+ * tokens, so light/dark is one attribute flip on <html>. */
+
+.gh-incrementum,
+.gh-incrementum[data-theme="dark"] {
+  --t-bg: #0b0b0c;
+  --t-bg-2: #111113;
+  --t-panel: #151517;
+  --t-panel-2: #1a1a1d;
+  --t-panel-3: #1f1f22;
+  --t-line: #29282a;
+  --t-line-strong: #4a463d;
+  --t-text: #eeece6;
+  --t-strong: #f7f4ee;
+  --t-muted: #8d8a80;
+  --t-faint: #5c5a54;
+  --t-accent: #c2a468;
+  --t-accent-dim: #2a2418;
+  --t-accent-ink: #161310;
+  --t-good: #7fa583;
+  --t-warn: #bd7f45;
+  --t-bad: #c17553;
+  --t-series-2: #d9d4c6;
+  --t-track: #242326;
+  --t-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --t-pattern: 0.05;
+  color-scheme: dark;
+}
+
+.gh-incrementum[data-theme="light"] {
+  --t-bg: #f7f5ef;
+  --t-bg-2: #f1eee3;
+  --t-panel: #ffffff;
+  --t-panel-2: #faf8f2;
+  --t-panel-3: #f1eee3;
+  --t-line: #e0dbca;
+  --t-line-strong: #cbc4ad;
+  --t-text: #1c1c1c;
+  --t-strong: #0b0b0c;
+  --t-muted: #8a8776;
+  --t-faint: #b3ae9b;
+  --t-accent: #9b8353;
+  --t-accent-dim: #efe8d6;
+  --t-accent-ink: #ffffff;
+  --t-good: #668469;
+  --t-warn: #976637;
+  --t-bad: #9a5e42;
+  --t-series-2: #4a463d;
+  --t-track: #ece8dc;
+  --t-shadow: 0 24px 60px rgba(60, 50, 30, 0.18);
+  --t-pattern: 0.06;
+  color-scheme: light;
+}
 
 .gh-incrementum {
-  --gh-black: var(--gh-lt-panel);
-  --gh-white: #111111;
-  --gh-900: var(--gh-lt-panel);
-  --gh-bg: var(--gh-lt-ink);
-  --gh-surface: var(--gh-lt-panel);
-  --gh-surface-hover: var(--gh-lt-panel-2);
-  --gh-surface-raised: var(--gh-lt-panel-2);
-  --gh-surface-popover: var(--gh-lt-panel);
-  --gh-border: var(--gh-lt-line);
-  --gh-border-strong: var(--gh-lt-line-strong);
-  --gh-text-primary: var(--gh-lt-text);
-  --gh-text-emphasis: #111111;
-  --gh-text-muted: var(--gh-lt-text-dim);
-  --gh-text-disabled: #b5b1a0;
-  --gh-accent: var(--gh-lt-brass);
-  --gh-accent-dim: var(--gh-lt-brass-dim);
-  --gh-accent-contrast: #ffffff;
-  --gh-focus-ring: var(--gh-lt-brass);
-  --gh-success: var(--gh-lt-good);
-  --gh-warning: var(--gh-lt-warn);
-  --gh-danger: var(--gh-lt-danger);
-
-  color-scheme: light;
-  background: var(--gh-bg);
-  color: var(--gh-text-primary);
-  /* Full screen (Max, 2026-10-18): its own route group, outside the
-     GrayPortal shell. Sidebar on the left, content on the right. */
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  --f-body: "DM Sans", system-ui, sans-serif;
+  --f-display: "Cormorant", Georgia, serif;
+  --f-mono: "JetBrains Mono", ui-monospace, monospace;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --row-h: 40px;
 }
+.gh-incrementum[data-density="compact"] { --row-h: 32px; }
 
-/* --- Sidebar: brand, phase, tabs, return ------------------------------- */
-.gh-incrementum .inc-side {
-  /* One scroller, like GrayPortal's .gh-shell-sidebar (Max, 2026-10-21):
-     no pinned height or overflow of its own, so the wheel always scrolls
-     the page. min-height keeps "Return to Gray Portal" at the foot of a
-     short screen; align-self stops the grid stretching it, which would
-     cancel the sticky. */
-  position: sticky;
-  top: 0;
-  align-self: start;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--gh-border);
-  background: var(--gh-lt-ink);
+.gh-incrementum * { box-sizing: border-box; margin: 0; padding: 0; }
+.gh-incrementum {
+  font-family: var(--f-body);
+  font-size: 14px;
+  color: var(--t-text);
+  background: var(--t-bg);
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
+.gh-incrementum button, .gh-incrementum input, .gh-incrementum select, .gh-incrementum textarea { font: inherit; color: inherit; }
+.gh-incrementum button { background: none; border: 0; cursor: pointer; }
+.gh-incrementum a { color: inherit; text-decoration: none; }
+.gh-incrementum :focus-visible { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+.gh-incrementum ::selection { background: var(--t-accent); color: var(--t-accent-ink); }
 
-.gh-incrementum .inc-side-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--gh-space-2);
-  padding: var(--gh-space-6);
-  border-bottom: 1px solid var(--gh-border);
+/* ─── Privacy blur ────────────────────────────────────────────────────── */
+.gh-incrementum[data-private="on"] .priv,
+.gh-incrementum[data-private="on"] .priv-svg {
+  filter: blur(7px);
+  user-select: none;
 }
+.gh-incrementum .priv { transition: filter 0.2s var(--ease); }
 
-.gh-incrementum .inc-wordmark {
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-xl);
-  font-weight: 600;
-  color: var(--gh-text-emphasis);
-  line-height: 1.1;
-}
-
-.gh-incrementum .inc-wordmark em {
-  font-style: italic;
-  font-weight: 400;
-}
-
-.gh-incrementum .inc-phase-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gh-space-2);
-  border: 1px solid var(--gh-accent);
-  color: var(--gh-accent);
-  padding: var(--gh-space-1) var(--gh-space-3);
-  font-size: var(--gh-text-xs);
-  letter-spacing: var(--gh-tracking-wide);
-  text-transform: uppercase;
-  margin-top: var(--gh-space-2);
-}
-
-.gh-incrementum .inc-return {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--gh-space-2);
-  padding: var(--gh-space-4) var(--gh-space-6);
-  border-top: 1px solid var(--gh-border);
-  font-size: var(--gh-text-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-primary);
-  background: var(--gh-lt-panel);
-  transition: color var(--gh-transition), background var(--gh-transition);
-}
-
-.gh-incrementum .inc-return:hover {
-  color: var(--gh-accent);
-  background: var(--gh-lt-brass-dim);
-}
-
-.gh-incrementum .inc-rail {
-  padding: var(--gh-space-4) 0;
-}
-
-.gh-incrementum .inc-rail-group {
-  margin-bottom: var(--gh-space-4);
-}
-
-.gh-incrementum .inc-rail-label {
-  font-size: var(--gh-text-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wider);
-  color: var(--gh-text-muted);
-  padding: 0 var(--gh-space-6) var(--gh-space-2);
-}
-
-.gh-incrementum .inc-tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--gh-space-3);
-  padding: var(--gh-space-2) var(--gh-space-6);
-  font-size: var(--gh-text-sm);
-  font-weight: 500;
-  color: var(--gh-text-muted);
-  min-height: 36px;
-  transition: color var(--gh-transition), background var(--gh-transition);
-}
-
-.gh-incrementum .inc-tab:hover {
-  color: var(--gh-text-primary);
-  background: var(--gh-lt-panel-2);
-}
-
-.gh-incrementum .inc-tab[data-active] {
-  color: var(--gh-text-emphasis);
-  background: var(--gh-lt-panel);
-}
-
-.gh-incrementum .inc-tab[data-active]::before {
+/* ─── Backdrop (hangar's repeated-mark wallpaper, toned down) ────────── */
+.gh-incrementum .backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.gh-incrementum .backdrop::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: var(--gh-accent);
+  inset: -50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23c2a468' stroke-width='1.6'%3E%3Cpath d='M44 80a26 26 0 0 1 52 0'/%3E%3Cpath d='M32 84c10-6 20-6 30-1s22 5 32 0 14-4 14-4'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: var(--t-pattern);
+  transform: rotate(-24deg);
 }
 
-.gh-incrementum .inc-tab-count {
-  margin-left: auto;
-  font-size: var(--gh-text-micro);
-  color: var(--gh-accent);
-  font-variant-numeric: tabular-nums;
-}
-
-.gh-incrementum .inc-content {
-  padding: var(--gh-space-8) var(--gh-space-12);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-6);
-  max-width: 1600px;
-}
-
-/* Tablet / phone: the sidebar becomes a top bar — brand + return on one
-   row, tabs scrolling sideways underneath. */
-@media (max-width: 1024px) {
-  .gh-incrementum {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .gh-incrementum .inc-side {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    border-right: none;
-    border-bottom: 1px solid var(--gh-border);
-  }
-
-  .gh-incrementum .inc-side-brand {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: var(--gh-space-3) var(--gh-space-4);
-    border-bottom: none;
-  }
-
-  .gh-incrementum .inc-side-brand .gh-eyebrow {
-    display: none;
-  }
-
-  .gh-incrementum .inc-phase-chip {
-    margin-top: 0;
-  }
-
-  .gh-incrementum .inc-return {
-    margin-top: 0;
-    border-top: none;
-    border-left: 1px solid var(--gh-border);
-    padding: var(--gh-space-3) var(--gh-space-4);
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .gh-incrementum .inc-rail {
-    grid-column: 1 / -1;
-    display: flex;
-    overflow-x: auto;
-    padding: 0;
-    border-top: 1px solid var(--gh-border);
-  }
-
-  .gh-incrementum .inc-rail-group {
-    display: flex;
-    margin: 0;
-  }
-
-  .gh-incrementum .inc-rail-label {
-    display: none;
-  }
-
-  .gh-incrementum .inc-tab {
-    white-space: nowrap;
-    padding: var(--gh-space-3) var(--gh-space-4);
-  }
-
-  .gh-incrementum .inc-tab[data-active]::before {
-    left: var(--gh-space-4);
-    right: var(--gh-space-4);
-    top: auto;
-    bottom: 0;
-    width: auto;
-    height: 2px;
-  }
-
-  .gh-incrementum .inc-content {
-    padding: var(--gh-space-4);
-  }
-}
-
-@media (max-width: 640px) {
-  .gh-incrementum .inc-return {
-    font-size: 0;
-    gap: 0;
-  }
-
-  .gh-incrementum .inc-return span {
-    font-size: var(--gh-text-base);
-  }
-}
-
-/* --- Page head -------------------------------------------------------- */
-.gh-incrementum .inc-page-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--gh-space-4);
-  flex-wrap: wrap;
-}
-
-.gh-incrementum .inc-page-title {
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-2xl);
-  font-weight: 600;
-  color: var(--gh-text-emphasis);
-  line-height: 1.1;
-}
-
-.gh-incrementum .inc-page-title em {
-  font-style: italic;
-  font-weight: 400;
-}
-
-.gh-incrementum .inc-lede {
-  color: var(--gh-text-muted);
-  font-size: var(--gh-text-sm);
-  max-width: 640px;
-  margin-top: var(--gh-space-2);
-}
-
-/* --- Widget grid (12 columns, joined hairlines) ----------------------- */
-.gh-incrementum .inc-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--gh-border);
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-cell {
-  background: var(--gh-lt-panel);
-  padding: var(--gh-space-6);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-4);
-}
-
-.gh-incrementum .inc-span-3 { grid-column: span 3; }
-.gh-incrementum .inc-span-4 { grid-column: span 4; }
-.gh-incrementum .inc-span-6 { grid-column: span 6; }
-.gh-incrementum .inc-span-8 { grid-column: span 8; }
-.gh-incrementum .inc-span-12 { grid-column: span 12; }
-
-@media (max-width: 1024px) {
-  .gh-incrementum .inc-span-3,
-  .gh-incrementum .inc-span-4 { grid-column: span 6; }
-  .gh-incrementum .inc-span-6,
-  .gh-incrementum .inc-span-8 { grid-column: span 12; }
-}
-
-@media (max-width: 640px) {
-  .gh-incrementum .inc-grid > * { grid-column: span 12; }
-}
-
-.gh-incrementum .inc-cell-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--gh-space-3);
-}
-
-.gh-incrementum .inc-cell-title {
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-lg);
-  font-weight: 600;
-  color: var(--gh-text-emphasis);
-}
-
-.gh-incrementum .inc-cell-title em {
-  font-style: italic;
-  font-weight: 400;
-}
-
-.gh-incrementum .inc-link {
-  font-size: var(--gh-text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-accent);
-  white-space: nowrap;
-}
-
-.gh-incrementum .inc-link:hover {
-  text-decoration: underline;
-}
-
-/* --- Numbers ---------------------------------------------------------- */
-.gh-incrementum .inc-big {
-  font-family: var(--gh-font-body);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  font-size: var(--gh-text-2xl);
-  line-height: 1.05;
-  color: var(--gh-text-emphasis);
-}
-
-.gh-incrementum .inc-num {
-  font-variant-numeric: tabular-nums;
-}
-
-.gh-incrementum .inc-muted {
-  color: var(--gh-text-muted);
-  font-size: var(--gh-text-sm);
-}
-
-.gh-incrementum .inc-small {
-  font-size: var(--gh-text-xs);
-  color: var(--gh-text-muted);
-}
-
-.gh-incrementum .inc-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1px;
-  background: var(--gh-border);
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-stat {
-  background: var(--gh-lt-panel);
-  padding: var(--gh-space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-1);
-}
-
-.gh-incrementum .inc-stat-value {
-  font-variant-numeric: tabular-nums;
-  font-size: var(--gh-text-lg);
-  font-weight: 500;
-  color: var(--gh-text-emphasis);
-}
-
-/* --- Progress --------------------------------------------------------- */
-.gh-incrementum .inc-bar {
+/* ─── Shell ───────────────────────────────────────────────────────────── */
+.gh-incrementum .app {
   position: relative;
-  height: 6px;
-  background: var(--gh-lt-panel-2);
-  border: 1px solid var(--gh-border);
-  overflow: hidden;
-}
-
-.gh-incrementum .inc-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--gh-accent);
-  transform-origin: left;
-  animation: inc-bar-grow 0.9s var(--gh-ease) both;
-}
-
-.gh-incrementum .inc-bar[data-tone="good"] .inc-bar-fill { background: var(--gh-success); }
-.gh-incrementum .inc-bar[data-tone="warn"] .inc-bar-fill { background: var(--gh-warning); }
-.gh-incrementum .inc-bar[data-tone="danger"] .inc-bar-fill { background: var(--gh-danger); }
-
-.gh-incrementum .inc-bar-marker {
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  width: 1px;
-  background: var(--gh-text-muted);
-}
-
-@keyframes inc-bar-grow {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-
-.gh-incrementum .inc-ring-fill {
-  transition: stroke-dashoffset 1s var(--gh-ease);
-}
-
-/* --- Lists ------------------------------------------------------------ */
-.gh-incrementum .inc-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.gh-incrementum .inc-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gh-space-3);
-  padding: var(--gh-space-3) 0;
-  border-bottom: 1px solid var(--gh-border);
-  font-size: var(--gh-text-sm);
-  min-width: 0;
-}
-
-.gh-incrementum .inc-row:last-child {
-  border-bottom: none;
-}
-
-.gh-incrementum a.inc-row:hover {
-  color: var(--gh-accent);
-}
-
-.gh-incrementum .inc-row-main {
-  display: flex;
-  align-items: center;
-  gap: var(--gh-space-3);
-  min-width: 0;
-}
-
-.gh-incrementum .inc-row-main > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.gh-incrementum .inc-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--gh-radius-full);
-  background: var(--gh-text-muted);
-  flex-shrink: 0;
-}
-
-.gh-incrementum .inc-dot[data-tone="danger"] { background: var(--gh-danger); }
-.gh-incrementum .inc-dot[data-tone="warning"] { background: var(--gh-warning); }
-.gh-incrementum .inc-dot[data-tone="good"] { background: var(--gh-success); }
-.gh-incrementum .inc-dot[data-tone="accent"] { background: var(--gh-accent); }
-
-.gh-incrementum .inc-check {
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--gh-border-strong);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: #fff;
-}
-
-.gh-incrementum .inc-check[data-done] {
-  background: var(--gh-success);
-  border-color: var(--gh-success);
-}
-
-.gh-incrementum .inc-check[data-na] {
-  background: var(--gh-lt-panel-2);
-  color: var(--gh-text-muted);
-}
-
-/* --- Chips ------------------------------------------------------------ */
-.gh-incrementum .inc-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gh-space-1);
-  border: 1px solid var(--gh-border-strong);
-  padding: 1px var(--gh-space-2);
-  font-size: var(--gh-text-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-muted);
-  white-space: nowrap;
-}
-
-.gh-incrementum .inc-chip[data-tone="accent"] { color: var(--gh-accent); border-color: var(--gh-accent); }
-.gh-incrementum .inc-chip[data-tone="good"] { color: var(--gh-success); border-color: var(--gh-success); }
-.gh-incrementum .inc-chip[data-tone="warning"] { color: var(--gh-warning); border-color: var(--gh-warning); }
-.gh-incrementum .inc-chip[data-tone="danger"] { color: var(--gh-danger); border-color: var(--gh-danger); }
-
-/* --- Phase stepper ---------------------------------------------------- */
-.gh-incrementum .inc-steps {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--gh-border);
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-step {
-  background: var(--gh-lt-panel);
-  padding: var(--gh-space-3) var(--gh-space-4);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.gh-incrementum .inc-step[data-state="done"] {
-  background: var(--gh-lt-panel-2);
-}
-
-.gh-incrementum .inc-step[data-state="active"] {
-  box-shadow: inset 0 -2px 0 var(--gh-accent);
-}
-
-.gh-incrementum .inc-step-num {
-  font-size: var(--gh-text-micro);
-  letter-spacing: var(--gh-tracking-wider);
-  text-transform: uppercase;
-  color: var(--gh-text-muted);
-}
-
-.gh-incrementum .inc-step[data-state="active"] .inc-step-num { color: var(--gh-accent); }
-
-.gh-incrementum .inc-step-name {
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-base);
-  font-weight: 600;
-  color: var(--gh-text-emphasis);
-}
-
-@media (max-width: 640px) {
-  .gh-incrementum .inc-steps { grid-template-columns: repeat(5, minmax(72px, 1fr)); overflow-x: auto; }
-}
-
-/* --- Kanban ----------------------------------------------------------- */
-.gh-incrementum .inc-board {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
-  gap: 1px;
-  background: var(--gh-border);
-  border: 1px solid var(--gh-border);
-  overflow-x: auto;
-}
-
-.gh-incrementum .inc-col {
-  background: var(--gh-lt-ink);
-  display: flex;
-  flex-direction: column;
-  min-height: 240px;
-}
-
-.gh-incrementum .inc-col-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--gh-space-3) var(--gh-space-4);
-  border-bottom: 1px solid var(--gh-border);
-  font-size: var(--gh-text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-muted);
-}
-
-.gh-incrementum .inc-col-body {
-  padding: var(--gh-space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-2);
-}
-
-.gh-incrementum .inc-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-1);
-  background: var(--gh-lt-panel);
-  border: 1px solid var(--gh-border);
-  padding: var(--gh-space-3);
-  font-size: var(--gh-text-sm);
-  transition: border-color var(--gh-transition);
-}
-
-.gh-incrementum a.inc-card:hover {
-  border-color: var(--gh-accent);
-}
-
-.gh-incrementum .inc-card-title {
-  font-weight: 500;
-  color: var(--gh-text-emphasis);
-}
-
-/* --- Team (Gray Horizon Team widget) ---------------------------------- */
-.gh-incrementum .inc-team {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--gh-space-3);
-}
-
-.gh-incrementum .inc-team-card {
-  display: flex;
-  gap: var(--gh-space-3);
-  align-items: flex-start;
-  border: 1px solid var(--gh-border);
-  padding: var(--gh-space-4);
-  background: var(--gh-lt-panel);
-  transition: border-color var(--gh-transition);
-}
-
-.gh-incrementum .inc-team-card:hover {
-  border-color: var(--gh-accent);
-}
-
-.gh-incrementum .inc-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--gh-radius-full);
-  background: var(--gh-lt-panel-2);
-  border: 1px solid var(--gh-accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-base);
-  font-weight: 600;
-  color: var(--gh-accent);
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.gh-incrementum .inc-avatar img {
-  width: 100%;
+  z-index: 1;
   height: 100%;
-  object-fit: cover;
-}
-
-.gh-incrementum .inc-official {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gh-space-1);
-  font-size: var(--gh-text-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wider);
-  color: var(--gh-accent);
-}
-
-/* --- Forms ------------------------------------------------------------ */
-.gh-incrementum .inc-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--gh-space-3);
-  align-items: end;
+  grid-template-rows: auto 1fr;
 }
 
-.gh-incrementum .inc-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-1);
-  font-size: var(--gh-text-xs);
-  color: var(--gh-text-muted);
-  min-width: 0;
-}
-
-.gh-incrementum .inc-field--wide {
-  grid-column: 1 / -1;
-}
-
-.gh-incrementum .inc-field .gh-input,
-.gh-incrementum .inc-field select,
-.gh-incrementum .inc-field textarea {
-  width: 100%;
-}
-
-.gh-incrementum select.gh-input,
-.gh-incrementum textarea.gh-input {
-  font-family: inherit;
-}
-
-.gh-incrementum textarea.gh-input {
-  min-height: 84px;
-  resize: vertical;
-  line-height: 1.5;
-}
-
-.gh-incrementum .inc-inline {
+.gh-incrementum .header {
   display: flex;
   align-items: center;
-  gap: var(--gh-space-2);
-  flex-wrap: wrap;
+  gap: 18px;
+  padding: 10px 18px;
+  background: var(--t-bg-2);
+  border-bottom: 1px solid var(--t-line);
 }
+.gh-incrementum .wordmark { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.gh-incrementum .wordmark img.icon { width: 34px; height: 34px; }
+.gh-incrementum .wordmark img.type { height: 22px; filter: invert(1) sepia(0.12); mix-blend-mode: screen; }
+.gh-incrementum[data-theme="light"] .wordmark img.type { filter: none; mix-blend-mode: multiply; }
+.gh-incrementum .wordmark .sub { font-family: var(--f-display); font-style: italic; font-size: 15px; color: var(--t-accent); border-left: 1px solid var(--t-line-strong); padding-left: 12px; }
 
-.gh-incrementum .inc-disclosure > summary {
-  cursor: pointer;
-  list-style: none;
-  font-size: var(--gh-text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-accent);
-}
-
-.gh-incrementum .inc-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-
-.gh-incrementum .inc-disclosure[open] > summary {
-  margin-bottom: var(--gh-space-3);
-}
-
-/* --- Accordion list: compact rows that click open to edit -------------- */
-.gh-incrementum .inc-acc {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-acc-grid--svc {
-  display: grid;
-  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) repeat(4, minmax(0, 1fr)) 16px;
-  gap: var(--gh-space-4);
-  align-items: center;
-}
-
-.gh-incrementum .inc-acc-grid--pkg {
-  display: grid;
-  grid-template-columns: minmax(0, 2.6fr) minmax(0, 0.8fr) repeat(3, minmax(0, 1fr)) 16px;
-  gap: var(--gh-space-4);
-  align-items: center;
-}
-
-.gh-incrementum .inc-acc-head {
-  padding: var(--gh-space-2) var(--gh-space-4);
-  font-size: var(--gh-text-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wider);
-  color: var(--gh-text-muted);
-  border-bottom: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-acc-item {
-  border-bottom: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-acc-item:last-child {
-  border-bottom: none;
-}
-
-.gh-incrementum .inc-acc-sum {
-  cursor: pointer;
-  list-style: none;
-  padding: var(--gh-space-3) var(--gh-space-4);
-  font-size: var(--gh-text-sm);
-  transition: background var(--gh-transition);
-}
-
-.gh-incrementum .inc-acc-sum::-webkit-details-marker {
-  display: none;
-}
-
-.gh-incrementum .inc-acc-sum:hover,
-.gh-incrementum .inc-acc-item[open] > .inc-acc-sum {
-  background: var(--gh-lt-panel-2);
-}
-
-.gh-incrementum .inc-acc-item--add > .inc-acc-sum {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.gh-incrementum .inc-acc-add {
-  font-size: var(--gh-text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-accent);
-}
-
-.gh-incrementum .inc-acc-name {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  color: var(--gh-text-emphasis);
-}
-
-.gh-incrementum .inc-acc-num {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.gh-incrementum .inc-acc-chev {
-  width: 8px;
-  height: 8px;
-  justify-self: end;
-  border-right: 1.5px solid var(--gh-text-muted);
-  border-bottom: 1.5px solid var(--gh-text-muted);
-  transform: rotate(45deg) translateY(-2px);
-  transition: transform var(--gh-transition);
-}
-
-.gh-incrementum details[open] > summary .inc-acc-chev {
-  transform: rotate(-135deg) translateY(-2px);
-}
-
-.gh-incrementum .inc-acc-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-4);
-  padding: var(--gh-space-4) var(--gh-space-4) var(--gh-space-6);
-  border-top: 1px solid var(--gh-border);
-}
-
-/* A whole panel folded to its title (price history, retired). */
-.gh-incrementum .inc-fold-sum {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: var(--gh-space-3);
-}
-
-.gh-incrementum .inc-fold-sum::-webkit-details-marker {
-  display: none;
-}
-
-.gh-incrementum .inc-fold-sum .inc-acc-chev {
-  margin-left: auto;
-}
-
-@media (max-width: 640px) {
-  .gh-incrementum .inc-acc-grid--svc,
-  .gh-incrementum .inc-acc-grid--pkg {
-    grid-template-columns: minmax(0, 1fr) auto 16px;
-  }
-
-  .gh-incrementum .inc-acc-head,
-  .gh-incrementum .inc-acc-opt {
-    display: none;
-  }
-}
-
-.gh-incrementum .inc-panel {
-  background: var(--gh-lt-panel);
-  border: 1px solid var(--gh-border);
-  padding: var(--gh-space-6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-4);
-  min-width: 0;
-}
-
-.gh-incrementum .inc-callout {
-  border-left: 2px solid var(--gh-accent);
-  background: var(--gh-lt-brass-dim);
-  padding: var(--gh-space-3) var(--gh-space-4);
-  font-size: var(--gh-text-sm);
-}
-
-.gh-incrementum .inc-callout[data-tone="danger"] {
-  border-left-color: var(--gh-danger);
-  background: #f6e9e2;
-}
-
-.gh-incrementum .inc-two {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: var(--gh-space-6);
-  align-items: start;
-}
-
-@media (max-width: 1024px) {
-  .gh-incrementum .inc-two { grid-template-columns: minmax(0, 1fr); }
-}
-
-.gh-incrementum .inc-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-3);
-}
-
-.gh-incrementum .inc-event {
-  border-left: 1px solid var(--gh-border-strong);
-  padding-left: var(--gh-space-3);
-  font-size: var(--gh-text-sm);
-}
-
-.gh-incrementum .inc-event-meta {
-  font-size: var(--gh-text-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-muted);
-}
-
-.gh-incrementum .gh-table-wrap {
-  overflow-x: auto;
-}
-
-.gh-incrementum .inc-flash {
-  border: 1px solid var(--gh-success);
-  color: var(--gh-success);
-  padding: var(--gh-space-2) var(--gh-space-3);
-  font-size: var(--gh-text-sm);
-}
-
-.gh-incrementum .inc-flash[data-tone="danger"] {
-  border-color: var(--gh-danger);
-  color: var(--gh-danger);
-}
-
-/* --- Roadmap strip ---------------------------------------------------- */
-.gh-incrementum .inc-strip {
-  position: relative;
-  display: flex;
-  gap: 1px;
-  background: var(--gh-border);
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-strip-seg {
+.gh-incrementum .search {
   flex: 1;
-  background: var(--gh-lt-panel);
-  padding: var(--gh-space-2) var(--gh-space-3);
-  font-size: var(--gh-text-xs);
-  color: var(--gh-text-muted);
-  min-width: 0;
+  max-width: 460px;
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  color: var(--t-muted);
 }
+.gh-incrementum .search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; color: var(--t-text); }
+.gh-incrementum .search kbd { font-family: var(--f-mono); font-size: 10px; border: 1px solid var(--t-line-strong); padding: 1px 5px; }
 
-.gh-incrementum .inc-strip-seg[data-state="active"] {
-  background: var(--gh-lt-brass-dim);
-  color: var(--gh-text-emphasis);
+.gh-incrementum .hdr-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.gh-incrementum .iconbtn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--t-line);
+  color: var(--t-muted);
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease), background 0.15s var(--ease);
 }
-
-.gh-incrementum .inc-strip-seg[data-state="done"] {
-  background: var(--gh-lt-panel-2);
+.gh-incrementum .iconbtn:hover { color: var(--t-strong); border-color: var(--t-line-strong); }
+.gh-incrementum .iconbtn[data-on] { color: var(--t-accent-ink); background: var(--t-accent); border-color: var(--t-accent); }
+.gh-incrementum .iconbtn .pip {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: grid; place-items: center;
+  background: var(--t-bad); color: #fff; font-size: 10px; font-weight: 700;
 }
+.gh-incrementum .whoami { display: flex; align-items: center; gap: 10px; margin-left: 8px; padding-left: 14px; border-left: 1px solid var(--t-line); }
+.gh-incrementum .whoami .label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); text-align: right; line-height: 1.5; }
+.gh-incrementum .whoami .label b { color: var(--t-accent); }
+.gh-incrementum .avatar { width: 34px; height: 34px; border: 2px solid var(--t-accent); background: var(--t-panel-2) url("/brand-icon.png") center / cover; }
 
-/* --- Charts (MonthBars) ------------------------------------------------ */
-.gh-incrementum .inc-chart {
-  overflow: visible;
-  font-family: var(--gh-font-body);
-  font-variant-numeric: tabular-nums;
+.gh-incrementum .body { min-height: 0; display: grid; grid-template-columns: 236px 1fr; }
+
+/* Rail — the original terminal rail: big boxed block buttons, gold when
+   selected, and folder-style sub-menus for the system pages. */
+.gh-incrementum .rail {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 14px 20px;
+  background: var(--t-bg-2);
+  border-right: 1px solid var(--t-line);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--t-line-strong) transparent;
 }
+.gh-incrementum .rail > * { flex-shrink: 0; }
+.gh-incrementum .rail { overflow-x: hidden; }
+.gh-incrementum .navbtn {
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; height: 42px; padding: 0 14px;
+  background: var(--t-panel-3);
+  border: 1px solid transparent;
+  font-size: 14px; color: var(--t-text);
+  text-align: left;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), transform 0.12s var(--ease);
+}
+.gh-incrementum .navbtn svg { color: var(--t-muted); flex-shrink: 0; }
+.gh-incrementum .navbtn:hover { background: color-mix(in srgb, var(--t-accent) 14%, var(--t-panel-3)); transform: translateX(2px); }
+.gh-incrementum .navbtn[data-active] { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-incrementum .navbtn[data-active] svg { color: var(--t-accent-ink); }
+.gh-incrementum .navbtn[data-accent]:not([data-active]) { background: var(--t-accent-dim); color: var(--t-accent); }
+.gh-incrementum .navbtn[data-accent]:not([data-active]) svg { color: var(--t-accent); }
+.gh-incrementum .navbtn .count { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-incrementum .navbtn[data-active] .count { color: var(--t-accent-ink); }
 
-.gh-incrementum .inc-chart-bar:hover rect:last-of-type {
-  opacity: 0.75;
+.gh-incrementum .navfolder { display: flex; align-items: center; gap: 8px; width: 100%; margin: 12px 0 2px; padding: 4px 0; text-align: left; cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .navfolder svg { color: var(--t-accent); flex-shrink: 0; }
+.gh-incrementum .navfolder:hover { color: var(--t-strong); }
+.gh-incrementum .navfolder .chev { order: 3; color: var(--t-muted); transform: rotate(-90deg); transition: transform 0.15s var(--ease); }
+.gh-incrementum .navfolder .chev[data-open] { transform: none; }
+.gh-incrementum .navfolder::after { content: ""; flex: 1; height: 1px; background: var(--t-line); }
+.gh-incrementum .subtree { display: grid; gap: 2px; margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--t-line-strong); }
+.gh-incrementum .subitem { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted); text-align: left; width: 100%; }
+.gh-incrementum .subitem:hover { color: var(--t-strong); background: var(--t-panel); }
+.gh-incrementum .subitem[data-active] { color: var(--t-accent-ink); background: var(--t-accent); }
+.gh-incrementum .subitem .count { margin-left: auto; letter-spacing: 0; }
+
+.gh-incrementum .content { min-width: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--t-line-strong) transparent; }
+.gh-incrementum .screen { max-width: 1480px; padding: 18px 22px 40px; display: flex; flex-direction: column; gap: 14px; animation: inc-screen-in 0.25s var(--ease); }
+@keyframes inc-screen-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.gh-incrementum .pagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .pagehead h1 { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .pagehead h1::before { content: ""; width: 9px; height: 9px; background: var(--t-accent); }
+.gh-incrementum .pagehead .sub { margin-top: 5px; padding-left: 19px; font-size: 13px; color: var(--t-muted); }
+.gh-incrementum .pagehead-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ─── Layout helpers ──────────────────────────────────────────────────── */
+.gh-incrementum .grid { display: grid; gap: 14px; }
+.gh-incrementum .g-2 { grid-template-columns: 1fr 1fr; }
+.gh-incrementum .g-3 { grid-template-columns: repeat(3, 1fr); }
+.gh-incrementum .g-4 { grid-template-columns: repeat(4, 1fr); }
+.gh-incrementum .g-lead { grid-template-columns: 1.6fr 1fr; }
+.gh-incrementum .g-side { grid-template-columns: 1fr 360px; }
+.gh-incrementum .g-rail { grid-template-columns: 260px 1fr; }
+.gh-incrementum .g-catalog { grid-template-columns: 340px 1fr; }
+.gh-incrementum .health-top { grid-template-columns: 180px 1fr; align-items: center; margin-bottom: 16px; }
+.gh-incrementum .stack { display: flex; flex-direction: column; gap: 14px; }
+.gh-incrementum .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gh-incrementum .spacer { flex: 1; }
+
+/* ─── Panels ──────────────────────────────────────────────────────────── */
+.gh-incrementum .panel { background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
+.gh-incrementum .phead {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 14px;
+  border-bottom: 1px solid var(--t-line);
+  background: var(--t-panel-2);
+}
+.gh-incrementum .phead svg { color: var(--t-accent); }
+.gh-incrementum .ptitle { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .phead .r { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .panel-pad { padding: 16px; min-width: 0; overflow-x: auto; }
+.gh-incrementum .panel-foot { padding: 10px 16px; border-top: 1px solid var(--t-line); font-size: 12px; color: var(--t-muted); }
+
+/* Status line — bunker "BUSINESS STATUS: ACTIVE". */
+.gh-incrementum .status { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .status em { font-style: normal; color: var(--t-good); }
+.gh-incrementum .status em[data-tone="warn"] { color: var(--t-warn); }
+.gh-incrementum .status em[data-tone="bad"] { color: var(--t-bad); }
+.gh-incrementum .statusbar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 12px 16px; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-incrementum .statusbar .meta { font-size: 12px; color: var(--t-muted); }
+
+/* Hero — the highlighted MRR. */
+.gh-incrementum .hero { display: grid; grid-template-columns: auto 1fr; gap: 6px 28px; align-items: end; padding: 18px 20px; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-incrementum .hero-label { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .hero-value { font-family: var(--f-display); font-size: 58px; font-weight: 600; line-height: 1; color: var(--t-accent); font-variant-numeric: lining-nums tabular-nums; }
+.gh-incrementum .hero-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--t-muted); margin-top: 8px; }
+.gh-incrementum .hero-meta b { color: var(--t-text); font-weight: 600; }
+.gh-incrementum .hero .spark { height: 64px; width: 100%; grid-row: 1 / span 3; grid-column: 2; align-self: stretch; }
+
+.gh-incrementum .stat { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
+.gh-incrementum .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .stat-value { font-size: 24px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stat-sub { font-size: 12px; color: var(--t-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gh-incrementum .stat[data-tone="bad"] .stat-value { color: var(--t-bad); }
+.gh-incrementum .stat[data-tone="good"] .stat-value { color: var(--t-good); }
+.gh-incrementum .stat[data-accent] { border-top: 2px solid var(--t-accent); }
+
+.gh-incrementum .bigtotal { padding: 16px; text-align: center; font-size: 26px; font-weight: 500; color: var(--t-strong); }
+.gh-incrementum .bigtotal b { font-family: var(--f-display); font-weight: 600; font-size: 38px; color: var(--t-accent); }
+
+.gh-incrementum .kv { display: grid; }
+.gh-incrementum .kv > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--t-line); font-size: 14px; }
+.gh-incrementum .kv > div:last-child { border-bottom: 0; }
+.gh-incrementum .kv dt { color: var(--t-text); }
+.gh-incrementum .kv dd { color: var(--t-strong); font-variant-numeric: tabular-nums; text-align: right; }
+.gh-incrementum .kv > div[data-tone="bad"] dd { color: var(--t-bad); }
+.gh-incrementum .kv > div[data-tone="warn"] dd { color: var(--t-warn); }
+.gh-incrementum .kv > div[data-tone="good"] dd { color: var(--t-good); }
+.gh-incrementum .kv > div[data-tone="muted"] dd { color: var(--t-muted); }
+
+.gh-incrementum .split { display: grid; grid-template-columns: repeat(var(--n, 2), 1fr); }
+.gh-incrementum .split > div { padding: 18px 12px; text-align: center; }
+.gh-incrementum .split > div + div { border-left: 1px solid var(--t-line); }
+.gh-incrementum .split .k { font-family: var(--f-display); font-size: 24px; font-weight: 600; color: var(--t-accent); }
+.gh-incrementum .split .v { font-size: 30px; font-weight: 600; color: var(--t-strong); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.gh-incrementum .split .h { font-size: 12px; color: var(--t-muted); margin-top: 2px; }
+
+.gh-incrementum .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--t-line-strong); color: var(--t-muted); white-space: nowrap; }
+.gh-incrementum .badge[data-tone="good"] { color: var(--t-good); border-color: color-mix(in srgb, var(--t-good) 50%, transparent); }
+.gh-incrementum .badge[data-tone="warn"] { color: var(--t-warn); border-color: color-mix(in srgb, var(--t-warn) 50%, transparent); }
+.gh-incrementum .badge[data-tone="bad"] { color: var(--t-bad); border-color: color-mix(in srgb, var(--t-bad) 50%, transparent); }
+.gh-incrementum .badge[data-tone="accent"] { color: var(--t-accent); border-color: var(--t-accent); }
+.gh-incrementum .badge[data-tone="solid"] { color: var(--t-accent-ink); background: var(--t-accent); border-color: var(--t-accent); }
+
+.gh-incrementum .muted { color: var(--t-muted); }
+.gh-incrementum .small { font-size: 12px; }
+.gh-incrementum .strong { color: var(--t-strong); font-weight: 600; }
+.gh-incrementum .mono { font-family: var(--f-mono); font-size: 12px; }
+.gh-incrementum .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .desc { font-size: 14px; line-height: 1.55; }
+.gh-incrementum .tone-bad { color: var(--t-bad); }
+.gh-incrementum .tone-warn { color: var(--t-warn); }
+.gh-incrementum .tone-good { color: var(--t-good); }
+
+/* ─── Buttons & forms ─────────────────────────────────────────────────── */
+.gh-incrementum .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 14px;
+  border: 1px solid var(--t-line-strong);
+  font-size: 13px; font-weight: 500; color: var(--t-text);
+  white-space: nowrap;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), color 0.12s var(--ease);
+}
+.gh-incrementum .btn:hover { border-color: var(--t-accent); color: var(--t-strong); }
+.gh-incrementum .btn-primary { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-incrementum .btn-primary:hover { filter: brightness(1.08); color: var(--t-accent-ink); }
+.gh-incrementum .btn-danger { color: var(--t-bad); border-color: color-mix(in srgb, var(--t-bad) 45%, transparent); }
+.gh-incrementum .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.gh-incrementum .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.gh-incrementum .linkbtn { color: var(--t-accent); font-size: 12px; font-weight: 600; }
+.gh-incrementum .linkbtn:hover { text-decoration: underline; }
+
+/* Big priced action — the bunker's "Sell Stock: $X". Only used for real actions. */
+.gh-incrementum .cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 56px; padding: 0 18px;
+  background: var(--t-accent); color: var(--t-accent-ink);
+  font-size: 16px; font-weight: 600; text-align: left;
+}
+.gh-incrementum .cta:hover { filter: brightness(1.08); }
+.gh-incrementum .cta small { font-size: 12px; font-weight: 500; opacity: 0.8; }
+.gh-incrementum .cta[data-variant="ghost"] { background: transparent; color: var(--t-accent); border: 1px solid var(--t-accent); }
+
+.gh-incrementum .input, .gh-incrementum .select, .gh-incrementum .textarea {
+  height: 34px; padding: 0 10px; width: 100%;
+  background: var(--t-panel-2); border: 1px solid var(--t-line-strong);
+  color: var(--t-text);
+}
+.gh-incrementum .textarea { height: auto; min-height: 80px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+.gh-incrementum .input:focus, .gh-incrementum .select:focus, .gh-incrementum .textarea:focus { outline: none; border-color: var(--t-accent); }
+.gh-incrementum .field { display: flex; flex-direction: column; gap: 5px; }
+.gh-incrementum .field > span { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gh-incrementum .colorpick { display: flex; align-items: center; gap: 8px; }
+.gh-incrementum .colorpick input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid var(--t-line-strong); background: none; cursor: pointer; }
+.gh-incrementum .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.gh-incrementum .swatches button { width: 22px; height: 22px; border: 1px solid var(--t-line-strong); }
+.gh-incrementum .swatches button[data-active] { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+
+.gh-incrementum .toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--t-line); cursor: pointer; }
+.gh-incrementum .toggle:last-child { border-bottom: 0; }
+.gh-incrementum .toggle-text { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--t-strong); }
+.gh-incrementum .toggle-text small { font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; background: var(--t-track); border: 1px solid var(--t-line-strong); }
+.gh-incrementum .switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--t-muted); transition: transform 0.18s var(--ease), background 0.18s var(--ease); }
+.gh-incrementum .switch[aria-checked="true"] { background: var(--t-accent-dim); border-color: var(--t-accent); }
+.gh-incrementum .switch[aria-checked="true"] i { transform: translateX(18px); background: var(--t-accent); }
+
+.gh-incrementum .seg { display: inline-flex; border: 1px solid var(--t-line-strong); }
+.gh-incrementum .seg button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; font-size: 13px; color: var(--t-muted); }
+.gh-incrementum .seg button + button { border-left: 1px solid var(--t-line-strong); }
+.gh-incrementum .seg button:hover { color: var(--t-strong); }
+.gh-incrementum .seg button[data-active] { background: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-incrementum .seg[data-small] button { height: 26px; padding: 0 10px; font-size: 12px; }
+.gh-incrementum .seg-count { font-size: 11px; font-weight: 700; opacity: 0.75; font-variant-numeric: tabular-nums; }
+
+/* ─── Tables ──────────────────────────────────────────────────────────── */
+.gh-incrementum .table { width: 100%; border-collapse: collapse; }
+.gh-incrementum .table th { height: 32px; padding: 0 12px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); background: var(--t-panel-2); border-bottom: 1px solid var(--t-line); white-space: nowrap; }
+.gh-incrementum .table td { height: var(--row-h); padding: 6px 12px; border-bottom: 1px solid var(--t-line); font-size: 13px; vertical-align: middle; }
+.gh-incrementum .table tr:last-child td { border-bottom: 0; }
+.gh-incrementum .table tbody tr[data-click] { cursor: pointer; }
+.gh-incrementum .table tbody tr:hover td { background: var(--t-panel-2); }
+.gh-incrementum .table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gh-incrementum .table .nowrap { white-space: nowrap; }
+.gh-incrementum .table tfoot td { font-weight: 600; color: var(--t-strong); background: var(--t-panel-2); }
+.gh-incrementum .table-wrap { overflow-x: auto; }
+
+/* ─── Meters ──────────────────────────────────────────────────────────── */
+.gh-incrementum .meter { width: 100%; background: var(--t-track); overflow: hidden; }
+.gh-incrementum .meter i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-incrementum .meter i[data-tone="good"] { background: var(--t-good); }
+.gh-incrementum .meter i[data-tone="warn"] { background: var(--t-warn); }
+.gh-incrementum .meter i[data-tone="bad"] { background: var(--t-bad); }
+.gh-incrementum .meter i[data-tone="neutral"] { background: var(--t-series-2); }
+.gh-incrementum .trend { font-size: 9px; }
+.gh-incrementum .trend[data-trend="up"] { color: var(--t-good); }
+.gh-incrementum .trend[data-trend="down"] { color: var(--t-bad); }
+.gh-incrementum .trend[data-trend="flat"] { color: var(--t-muted); }
+.gh-incrementum .healthcell { display: grid; grid-template-columns: 26px 1fr 12px; align-items: center; gap: 8px; min-width: 120px; font-variant-numeric: tabular-nums; }
+
+/* ─── Charts ──────────────────────────────────────────────────────────── */
+.gh-incrementum .chart { width: 100%; height: auto; display: block; overflow: visible; }
+.gh-incrementum .chart .grid { stroke: var(--t-line); stroke-width: 1; }
+.gh-incrementum .chart .axis { fill: var(--t-muted); font-size: 11px; font-family: var(--f-body); }
+.gh-incrementum .chart .axis.strong { fill: var(--t-strong); font-weight: 600; }
+.gh-incrementum .chart .area { fill: var(--t-accent); opacity: 0.1; }
+.gh-incrementum .chart .line { fill: none; stroke: var(--t-accent); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.gh-incrementum .chart .dot { fill: var(--t-panel); stroke: var(--t-accent); stroke-width: 1.5; }
+.gh-incrementum .chart .dot-last { fill: var(--t-accent); stroke: var(--t-panel); stroke-width: 2; }
+.gh-incrementum .chart .col.c1 { fill: var(--t-accent); }
+.gh-incrementum .chart .col.c2 { fill: var(--t-series-2); }
+.gh-incrementum .chart .milestone { stroke: var(--t-line-strong); stroke-dasharray: 2 4; }
+.gh-incrementum .chart .milestone.passed { stroke: var(--t-accent); stroke-dasharray: none; opacity: 0.6; }
+.gh-incrementum .chart .milestone-label { font-weight: 700; letter-spacing: 0.1em; }
+.gh-incrementum .chart .milestone-label.passed { fill: var(--t-accent); }
+.gh-incrementum .chart .plan { stroke: var(--t-faint); stroke-dasharray: 6 5; stroke-width: 1.5; }
+.gh-incrementum .chart .projection { stroke: var(--t-accent); stroke-dasharray: 4 4; stroke-width: 1.5; opacity: 0.7; }
+.gh-incrementum .chart .today { stroke: var(--t-strong); stroke-width: 1; opacity: 0.35; }
+.gh-incrementum .spark { display: block; }
+.gh-incrementum .spark-area { fill: var(--t-accent); opacity: 0.12; }
+.gh-incrementum .spark-line { fill: none; stroke: var(--t-accent); stroke-width: 2; }
+.gh-incrementum .spark-dot { fill: var(--t-accent); }
+.gh-incrementum .legend { display: inline-flex; gap: 14px; font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.gh-incrementum .legend i { width: 10px; height: 10px; display: inline-block; }
+.gh-incrementum .legend i.c1 { background: var(--t-accent); }
+.gh-incrementum .legend i.c2 { background: var(--t-series-2); }
+.gh-incrementum .legend i.c3 { border: 1px dashed var(--t-faint); }
+.gh-incrementum .legend i.good { background: var(--t-good); }
+.gh-incrementum .legend i.c4 { background: var(--t-track); border: 1px solid var(--t-line-strong); }
+
+.gh-incrementum .threshold { padding: 4px 0 22px; }
+.gh-incrementum .threshold-track { position: relative; height: 14px; background: var(--t-track); }
+.gh-incrementum .threshold-track > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); transition: width 1s var(--ease); }
+.gh-incrementum .threshold-track > i[data-tone="warn"] { background: var(--t-warn); }
+.gh-incrementum .threshold-track > i[data-tone="bad"] { background: var(--t-bad); }
+.gh-incrementum .threshold-mark { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--t-line-strong); }
+.gh-incrementum .threshold-mark.end { background: var(--t-bad); width: 2px; }
+.gh-incrementum .threshold-mark em { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; color: var(--t-muted); white-space: nowrap; }
+.gh-incrementum .threshold-mark.end em { color: var(--t-bad); font-weight: 700; transform: translateX(-100%); }
+
+.gh-incrementum .bullets { display: grid; gap: 12px; }
+.gh-incrementum .bullet { display: grid; grid-template-columns: 110px 1fr 130px; align-items: center; gap: 12px; font-size: 13px; }
+.gh-incrementum .bullet-track { position: relative; height: 18px; }
+.gh-incrementum .bullet-target { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-track); border: 1px solid var(--t-line-strong); }
+.gh-incrementum .bullet-actual { position: absolute; left: 0; top: 5px; bottom: 5px; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-incrementum .bullet-actual[data-over] { background: var(--t-bad); }
+.gh-incrementum .bullet-tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--t-strong); opacity: 0.6; }
+.gh-incrementum .bullet-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--t-strong); }
+.gh-incrementum .bullet-val small { color: var(--t-muted); }
+.gh-incrementum .bullet-val[data-over] { color: var(--t-bad); }
+
+.gh-incrementum .stagebars { display: grid; gap: 2px; }
+.gh-incrementum .stagebar { display: grid; grid-template-columns: 120px 1fr 28px 64px 64px; align-items: center; gap: 12px; padding: 7px 4px; text-align: left; font-size: 13px; }
+.gh-incrementum .stagebar:hover { background: var(--t-panel-2); }
+.gh-incrementum .stagebar-track { height: 12px; background: var(--t-track); }
+.gh-incrementum .stagebar-track i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-incrementum .stagebar-count { text-align: right; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stagebar-val { text-align: right; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stagebar-w { text-align: right; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stagebars-head { display: grid; grid-template-columns: 120px 1fr 28px 64px 64px; gap: 12px; padding: 0 4px 6px; }
+.gh-incrementum .stagebars-head span { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-faint); text-align: right; }
+.gh-incrementum .stagebars-head span:first-child { text-align: left; }
+
+.gh-incrementum .cells { display: inline-flex; gap: 3px; }
+.gh-incrementum .cells i { position: relative; width: 22px; height: 10px; background: var(--t-track); overflow: hidden; }
+.gh-incrementum .cells b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); }
+
+/* ─── Due / lists ─────────────────────────────────────────────────────── */
+.gh-incrementum .due { display: grid; }
+.gh-incrementum .due a, .gh-incrementum .due button { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--t-line); font-size: 13px; text-align: left; width: 100%; }
+.gh-incrementum .due > :last-child { border-bottom: 0; }
+.gh-incrementum .due a:hover, .gh-incrementum .due button:hover { color: var(--t-accent); }
+.gh-incrementum .due svg { flex-shrink: 0; color: var(--t-bad); }
+.gh-incrementum .due svg[data-tone="warn"] { color: var(--t-warn); }
+.gh-incrementum .due .go { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); }
+
+/* ─── Client tiles (MCT grid) & list ──────────────────────────────────── */
+.gh-incrementum .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.gh-incrementum .tile { display: flex; flex-direction: column; background: var(--t-panel); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum .tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
+.gh-incrementum .tile-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .tile-body { padding: 10px 12px 12px; display: grid; gap: 8px; }
+.gh-incrementum .tile-meter { display: grid; grid-template-columns: 62px 1fr 56px; align-items: center; gap: 8px; font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .tile-meter b { text-align: right; color: var(--t-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gh-incrementum .tile-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .tile-manage { padding: 8px 12px; border-top: 1px solid var(--t-line); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--t-muted); }
+.gh-incrementum .tile:hover .tile-manage { color: var(--t-accent); }
+
+.gh-incrementum .brand-banner {
+  position: relative; display: grid; place-items: center; overflow: visible;
+  background-color: color-mix(in srgb, var(--tint) 16%, var(--t-panel));
+  background-image:
+    radial-gradient(ellipse at 50% 50%, transparent 30%, color-mix(in srgb, var(--t-bg) 55%, transparent) 100%),
+    linear-gradient(color-mix(in srgb, var(--tint) 38%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tint) 38%, transparent) 1px, transparent 1px);
+  background-size: auto, 18px 18px, 18px 18px;
+  background-position: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 45%, var(--t-line));
+}
+.gh-incrementum .brand-banner img { position: relative; max-width: 54%; max-height: 58%; object-fit: contain; }
+.gh-incrementum .brand-mono { position: relative; font-family: var(--f-display); font-size: 46px; font-weight: 600; color: color-mix(in srgb, var(--tint) 70%, var(--t-strong)); text-shadow: 0 2px 18px color-mix(in srgb, var(--t-bg) 70%, transparent); }
+.gh-incrementum .brand-edit { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; display: grid; place-items: center; background: color-mix(in srgb, var(--t-bg) 80%, transparent); border: 1px solid var(--t-line-strong); color: var(--t-strong); }
+.gh-incrementum .brand-edit:hover { border-color: var(--t-accent); color: var(--t-accent); }
+.gh-incrementum .brand-pop { position: absolute; top: 46px; right: 10px; z-index: 5; width: 290px; padding: 12px; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); box-shadow: var(--t-shadow); display: grid; gap: 8px; }
+.gh-incrementum .brand-dot { width: 10px; height: 10px; flex-shrink: 0; border: 1px solid rgba(0, 0, 0, 0.2); }
+
+/* ─── Tasks ───────────────────────────────────────────────────────────── */
+.gh-incrementum .tasklayout { display: grid; grid-template-columns: 250px 1fr; gap: 14px; align-items: start; }
+.gh-incrementum .lists { position: sticky; top: 0; }
+.gh-incrementum .lists .grouplabel { padding: 12px 12px 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t-faint); }
+.gh-incrementum .listbtn { display: flex; align-items: center; gap: 9px; width: 100%; height: 34px; padding: 0 12px; font-size: 13px; text-align: left; border-left: 2px solid transparent; }
+.gh-incrementum .listbtn:hover { background: var(--t-panel-2); }
+.gh-incrementum .listbtn[data-active] { background: var(--t-accent-dim); border-left-color: var(--t-accent); color: var(--t-strong); font-weight: 600; }
+.gh-incrementum .listbtn .count { margin-left: auto; font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-incrementum .listbtn .count[data-tone="bad"] { color: var(--t-bad); font-weight: 700; }
+.gh-incrementum .listbtn svg { color: var(--t-muted); }
+
+.gh-incrementum .taskrow { display: grid; grid-template-columns: auto 1fr auto auto auto auto; align-items: center; gap: 14px; min-height: 48px; padding: 6px 14px; border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .taskrow:hover { background: var(--t-panel-2); }
+.gh-incrementum .taskrow[data-done] .task-title { color: var(--t-faint); text-decoration: line-through; }
+.gh-incrementum .task-title { font-size: 14px; color: var(--t-strong); cursor: pointer; }
+.gh-incrementum .task-sub { font-size: 12px; color: var(--t-muted); margin-top: 2px; }
+.gh-incrementum .task-detail { grid-column: 2 / -1; padding: 4px 0 10px; font-size: 13px; color: var(--t-muted); line-height: 1.5; }
+.gh-incrementum .completebtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--t-line-strong);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted);
+}
+.gh-incrementum .completebtn:hover { border-color: var(--t-good); color: var(--t-good); }
+.gh-incrementum .completebtn[data-done] { background: var(--t-good); border-color: var(--t-good); color: var(--t-accent-ink); }
+.gh-incrementum .prio { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.gh-incrementum .prio[data-p="high"] { background: var(--t-bad); }
+.gh-incrementum .prio[data-p="normal"] { background: var(--t-warn); }
+.gh-incrementum .prio[data-p="low"] { background: var(--t-good); }
+.gh-incrementum .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; background: var(--t-panel-3); font-size: 11px; color: var(--t-text); white-space: nowrap; }
+.gh-incrementum .star { color: var(--t-faint); }
+.gh-incrementum .star[data-on] { color: var(--t-accent); }
+.gh-incrementum .quickadd { display: flex; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--t-line); background: var(--t-panel-2); }
+
+.gh-incrementum .board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.gh-incrementum .bcol { background: var(--t-panel); border: 1px solid var(--t-line); min-height: 200px; }
+.gh-incrementum .bcol-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .bcol-head .count { margin-left: auto; color: var(--t-muted); }
+.gh-incrementum .bcard { margin: 8px; padding: 10px; background: var(--t-panel-2); border: 1px solid var(--t-line); font-size: 13px; }
+.gh-incrementum .bcard:hover { border-color: var(--t-line-strong); }
+.gh-incrementum .bcard .row { margin-top: 8px; font-size: 11px; color: var(--t-muted); }
+
+/* ─── Calendar ────────────────────────────────────────────────────────── */
+.gh-incrementum .cal { display: grid; grid-template-columns: 56px repeat(7, 1fr); }
+.gh-incrementum .cal-head { padding: 10px 8px; border-bottom: 1px solid var(--t-line); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted); text-align: center; }
+.gh-incrementum .cal-head[data-today] { color: var(--t-accent); border-bottom: 2px solid var(--t-accent); }
+.gh-incrementum .cal-hours { display: grid; }
+.gh-incrementum .cal-hour { height: 48px; padding: 2px 8px 0 0; font-size: 10px; color: var(--t-faint); text-align: right; border-top: 1px solid var(--t-line); }
+.gh-incrementum .cal-day { position: relative; border-left: 1px solid var(--t-line); }
+.gh-incrementum .cal-day .slot { height: 48px; border-top: 1px solid var(--t-line); }
+.gh-incrementum .cal-day[data-today] { background: color-mix(in srgb, var(--t-accent) 5%, transparent); }
+.gh-incrementum .cal-ev { position: absolute; left: 3px; right: 3px; padding: 4px 6px; font-size: 11px; line-height: 1.3; overflow: hidden; border-left: 3px solid var(--t-accent); background: var(--t-accent-dim); color: var(--t-strong); }
+.gh-incrementum .cal-ev small { display: block; color: var(--t-muted); }
+.gh-incrementum .cal-ev[data-kind="sales"] { border-left-color: var(--t-good); }
+.gh-incrementum .cal-ev[data-kind="internal"] { border-left-color: var(--t-series-2); background: var(--t-panel-3); }
+.gh-incrementum .cal-ev[data-kind="personal"] { border-left-color: var(--t-faint); background: var(--t-panel-3); }
+
+.gh-incrementum .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--t-line); }
+.gh-incrementum .week > div { background: var(--t-panel); padding: 10px; min-height: 86px; }
+.gh-incrementum .week .d { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); margin-bottom: 6px; }
+.gh-incrementum .week .d[data-today] { color: var(--t-accent); }
+.gh-incrementum .week .e { font-size: 12px; color: var(--t-strong); line-height: 1.3; margin-bottom: 6px; }
+.gh-incrementum .week .e small { display: block; color: var(--t-muted); font-size: 10px; }
+
+/* ─── Triage ──────────────────────────────────────────────────────────── */
+.gh-incrementum .triage { display: grid; grid-template-columns: 200px 380px 1fr; min-height: 560px; }
+.gh-incrementum .triage > * { min-width: 0; }
+.gh-incrementum .triage .col + .col { border-left: 1px solid var(--t-line); }
+.gh-incrementum .mail { display: block; width: 100%; padding: 12px 14px; border-bottom: 1px solid var(--t-line); text-align: left; }
+.gh-incrementum .mail:hover { background: var(--t-panel-2); }
+.gh-incrementum .mail[data-active] { background: var(--t-accent-dim); box-shadow: inset 2px 0 0 var(--t-accent); }
+.gh-incrementum .mail-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--t-strong); }
+.gh-incrementum .mail[data-unread] .mail-top b { font-weight: 700; }
+.gh-incrementum .mail-top b { font-weight: 500; }
+.gh-incrementum .mail-subj { font-size: 13px; margin-top: 2px; }
+.gh-incrementum .mail-snip { font-size: 12px; color: var(--t-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gh-incrementum .reader { padding: 20px 24px; }
+.gh-incrementum .reader h2 { font-size: 18px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .reader .from { margin: 6px 0 18px; font-size: 13px; color: var(--t-muted); }
+.gh-incrementum .reader .body { font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+
+/* ─── Kanban (ideation) & cards ───────────────────────────────────────── */
+.gh-incrementum .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gh-incrementum .card { padding: 14px; background: var(--t-panel); border: 1px solid var(--t-line); display: grid; gap: 8px; align-content: start; }
+.gh-incrementum .card h3 { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .card p { font-size: 13px; color: var(--t-muted); line-height: 1.5; }
+
+/* ─── Portraits (nightclub staff strip) ───────────────────────────────── */
+.gh-incrementum .portraits { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.gh-incrementum .portrait { position: relative; aspect-ratio: 1; overflow: hidden; background: linear-gradient(180deg, var(--t-panel-3), var(--t-panel)); border: 2px solid var(--t-line); text-align: left; }
+.gh-incrementum .portrait svg.bust { position: absolute; left: 12%; bottom: -6%; width: 76%; color: var(--t-line-strong); }
+.gh-incrementum .portrait[data-state="active"] { border-color: var(--t-accent); }
+.gh-incrementum .portrait[data-state="active"] svg.bust { color: var(--t-accent); opacity: 0.75; }
+.gh-incrementum .portrait .who { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; background: color-mix(in srgb, var(--t-bg) 85%, transparent); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .portrait .who small { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--t-muted); }
+.gh-incrementum .portrait .tag { position: absolute; top: 6px; left: 6px; }
+.gh-incrementum .portrait[data-state="open"] { border-style: dashed; display: grid; place-items: center; color: var(--t-muted); font-size: 13px; font-weight: 600; }
+
+/* ─── Timeline / channels ─────────────────────────────────────────────── */
+.gh-incrementum .timeline { display: grid; }
+.gh-incrementum .timeline > div { position: relative; display: grid; grid-template-columns: 110px 1fr; gap: 14px; padding: 9px 0 9px; border-bottom: 1px solid var(--t-line); font-size: 13px; }
+.gh-incrementum .timeline > div:last-child { border-bottom: 0; }
+.gh-incrementum .timeline time { font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-incrementum .channels { display: grid; gap: 1px; }
+.gh-incrementum .channel { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--t-line); font-size: 13px; }
+.gh-incrementum .channel:last-child { border-bottom: 0; }
+.gh-incrementum .channel .label { margin-left: auto; font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--t-good); flex-shrink: 0; }
+.gh-incrementum .sdot[data-s="warn"] { background: var(--t-warn); }
+.gh-incrementum .sdot[data-s="down"] { background: var(--t-bad); }
+
+.gh-incrementum .healthparts { display: grid; gap: 10px; }
+.gh-incrementum .healthpart { display: grid; grid-template-columns: 120px 1fr 34px; align-items: center; gap: 12px; font-size: 13px; }
+.gh-incrementum .healthpart b { text-align: right; font-variant-numeric: tabular-nums; color: var(--t-strong); font-weight: 600; }
+
+/* Client profile header */
+.gh-incrementum .profile-head { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; padding: 16px; border-top: 0; }
+.gh-incrementum .profile-head h2 { font-size: 24px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .profile-facts { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .profile-facts b { color: var(--t-strong); font-weight: 600; }
+.gh-incrementum .tabbar { display: flex; gap: 0; border-bottom: 1px solid var(--t-line); overflow-x: auto; }
+.gh-incrementum .tabbar button { height: 40px; padding: 0 16px; font-size: 13px; color: var(--t-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.gh-incrementum .tabbar button:hover { color: var(--t-strong); }
+.gh-incrementum .tabbar button[data-active] { color: var(--t-strong); border-bottom-color: var(--t-accent); font-weight: 600; }
+
+/* Modal */
+.gh-incrementum .modal-scrim { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); animation: inc-fade 0.15s var(--ease); }
+.gh-incrementum .modal { width: min(560px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); box-shadow: var(--t-shadow); animation: inc-pop 0.18s var(--ease); }
+.gh-incrementum .modal[data-wide] { width: min(820px, 100%); }
+.gh-incrementum .modal-head { display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; min-height: 44px; border-bottom: 1px solid var(--t-line); background: var(--t-panel-2); }
+.gh-incrementum .modal-head .iconbtn { margin-left: auto; border: 0; }
+.gh-incrementum .modal-body { padding: 16px; overflow-y: auto; display: grid; gap: 16px; }
+@keyframes inc-fade { from { opacity: 0; } }
+@keyframes inc-pop { from { opacity: 0; transform: translateY(8px) scale(0.99); } }
+
+.gh-incrementum .stepper { display: flex; gap: 3px; }
+.gh-incrementum .stepper span { flex: 1; height: 26px; display: grid; place-items: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: var(--t-track); color: var(--t-muted); white-space: nowrap; overflow: hidden; padding: 0 4px; }
+.gh-incrementum .stepper span[data-done] { background: var(--t-accent-dim); color: var(--t-accent); }
+.gh-incrementum .stepper span[data-current] { background: var(--t-accent); color: var(--t-accent-ink); }
+
+.gh-incrementum .empty { display: grid; justify-items: center; gap: 6px; padding: 36px 16px; text-align: center; color: var(--t-muted); }
+.gh-incrementum .empty-title { font-size: 14px; font-weight: 600; color: var(--t-strong); }
+
+.gh-incrementum .swatch-lg { height: 86px; display: flex; align-items: flex-end; padding: 8px; font-size: 11px; font-weight: 600; border: 1px solid var(--t-line); }
+
+.gh-incrementum .note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; background: var(--t-accent-dim); border-left: 2px solid var(--t-accent); font-size: 12px; line-height: 1.5; color: var(--t-text); }
+.gh-incrementum .note svg { color: var(--t-accent); flex-shrink: 0; margin-top: 1px; }
+
+/* ─── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+  .gh-incrementum .g-4 { grid-template-columns: repeat(2, 1fr); }
+  .gh-incrementum .g-side { grid-template-columns: 1fr; }
+  .gh-incrementum .triage { grid-template-columns: 180px 1fr; }
+  .gh-incrementum .triage .reader-col { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--t-line); }
+}
+@media (max-width: 1000px) {
+  .gh-incrementum .search { display: none; }
+  .gh-incrementum .g-lead, .gh-incrementum .g-3, .gh-incrementum .g-rail, .gh-incrementum .g-catalog { grid-template-columns: 1fr; }
+  .gh-incrementum .tasklayout { grid-template-columns: 1fr; }
+  .gh-incrementum .lists { position: static; }
+}
+@media (max-width: 860px) {
+  .gh-incrementum .app { height: auto; min-height: 100%; }
+  .gh-incrementum .body { grid-template-columns: 1fr; }
+  .gh-incrementum .rail { flex-direction: row; overflow-x: auto; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--t-line); }
+  .gh-incrementum .rail .idcard, .gh-incrementum .rail .navgroup { display: none; }
+  .gh-incrementum .navbtn { width: auto; white-space: nowrap; }
+  .gh-incrementum .content { overflow: visible; }
+  .gh-incrementum .screen { padding: 14px 16px 32px; }
+  .gh-incrementum .header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  .gh-incrementum .whoami .label, .gh-incrementum .wordmark .sub { display: none; }
+  .gh-incrementum .g-2, .gh-incrementum .g-4, .gh-incrementum .form-grid { grid-template-columns: 1fr; }
+  .gh-incrementum .hero { grid-template-columns: 1fr; }
+  .gh-incrementum .hero .spark { grid-row: auto; grid-column: auto; height: 48px; }
+  .gh-incrementum .hero-value { font-size: 44px; }
+  .gh-incrementum .split { grid-template-columns: 1fr 1fr; }
+  .gh-incrementum .split > div:nth-child(3) { border-left: 0; }
+  .gh-incrementum .taskrow { grid-template-columns: auto 1fr auto; }
+  .gh-incrementum .taskrow .hide-sm { display: none; }
+  .gh-incrementum .triage { grid-template-columns: 1fr; }
+  .gh-incrementum .triage .col + .col { border-left: 0; border-top: 1px solid var(--t-line); }
+  .gh-incrementum .stagebar, .gh-incrementum .stagebars-head { grid-template-columns: 96px 1fr 22px 56px; }
+  .gh-incrementum .stagebar-w, .gh-incrementum .stagebars-head span:last-child { display: none; }
+  .gh-incrementum .bullet { grid-template-columns: 1fr; gap: 4px; }
+  .gh-incrementum .bullet-val { text-align: left; }
+  .gh-incrementum .cal { grid-template-columns: 40px repeat(7, minmax(90px, 1fr)); overflow-x: auto; }
+  .gh-incrementum .week { grid-template-columns: 1fr; }
+  .gh-incrementum .profile-head { grid-template-columns: 1fr; }
+  .gh-incrementum .profile-head .stack { align-items: flex-start !important; }
+  .gh-incrementum .health-top { grid-template-columns: 1fr; }
+  .gh-incrementum .healthpart { grid-template-columns: 100px 1fr 30px; }
+  .gh-incrementum .completebtn { padding: 0 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gh-incrementum .inc-bar-fill { animation: none; }
+  .gh-incrementum *, .gh-incrementum *::before, .gh-incrementum *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* --- Profile header (DM Rider admin's customer layout, 2026-10-21) ---- */
-.gh-incrementum .inc-profile {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-6);
+
+/* ─── Header dropdowns (alerts, inquiries) ────────────────────────────── */
+.gh-incrementum .hdr-drop { position: relative; }
+.gh-incrementum .dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; max-height: 70vh; overflow-y: auto; background: var(--t-panel); border: 1px solid var(--t-line-strong); border-top: 2px solid var(--t-accent); box-shadow: var(--t-shadow); animation: inc-pop 0.15s var(--ease); }
+.gh-incrementum .dropdown-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--t-line); background: var(--t-panel-2); }
+.gh-incrementum .dropdown-item { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: start; width: 100%; padding: 11px 14px; border-bottom: 1px solid var(--t-line); text-align: left; font-size: 13px; }
+.gh-incrementum .dropdown-item:hover { background: var(--t-panel-2); }
+.gh-incrementum .dropdown-item:last-child { border-bottom: 0; }
+.gh-incrementum .dropdown-item small { display: block; color: var(--t-muted); font-size: 12px; margin-top: 2px; }
+.gh-incrementum .dropdown-foot { display: block; width: 100%; padding: 10px 14px; border-top: 1px solid var(--t-line); font-size: 12px; font-weight: 600; color: var(--t-accent); text-align: center; }
+
+.gh-incrementum .inq-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--t-line); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-muted); transition: color 0.15s var(--ease), border-color 0.15s var(--ease); }
+.gh-incrementum .inq-btn:hover { color: var(--t-strong); border-color: var(--t-line-strong); }
+.gh-incrementum .inq-btn .n { min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; background: var(--t-track); color: var(--t-strong); font-size: 10px; letter-spacing: 0; }
+.gh-incrementum .inq-btn[data-new] { color: var(--t-accent-ink); background: var(--t-accent); border-color: var(--t-accent); animation: inc-inq-glow 1.6s ease-in-out infinite; }
+.gh-incrementum .inq-btn[data-new] .n { background: var(--t-accent-ink); color: var(--t-accent); }
+@keyframes inc-inq-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--t-accent) 0%, transparent), 0 0 8px color-mix(in srgb, var(--t-accent) 40%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--t-accent) 22%, transparent), 0 0 22px color-mix(in srgb, var(--t-accent) 65%, transparent); }
 }
 
-.gh-incrementum .inc-profile-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--gh-space-4);
+/* Small clickable metric inside the MRR hero (GST threshold). */
+.gh-incrementum .hero { grid-template-columns: auto 1fr 250px; }
+.gh-incrementum .hero .spark { grid-row: 1; grid-column: 2; }
+.gh-incrementum .mini-metric { grid-row: 1; grid-column: 3; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px 14px; background: var(--t-panel-2); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease); }
+.gh-incrementum .mini-metric:hover { border-color: var(--t-accent); }
+.gh-incrementum .mini-metric .row { justify-content: space-between; }
+.gh-incrementum .mini-metric b { font-size: 15px; color: var(--t-strong); font-weight: 600; }
+
+/* ─── Pipeline stage tiles (hangar layout, no fill rings) ─────────────── */
+.gh-incrementum .stagetiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.gh-incrementum .stagetile { display: flex; flex-direction: column; gap: 6px; padding: 16px 14px; background: var(--t-panel); border: 1px solid var(--t-line); text-align: left; min-height: 150px; transition: border-color 0.15s var(--ease), background 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum .stagetile:hover { border-color: var(--t-line-strong); transform: translateY(-2px); }
+.gh-incrementum .stagetile[data-active] { border-color: var(--t-accent); background: color-mix(in srgb, var(--t-accent) 7%, var(--t-panel)); }
+.gh-incrementum .stagetile .name { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .stagetile .n { font-family: var(--f-display); font-size: 52px; font-weight: 600; line-height: 1; color: var(--t-accent); margin-top: auto; }
+.gh-incrementum .stagetile .v { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .stagetile .w { font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .stagetiles.closed { grid-template-columns: repeat(3, 1fr); }
+.gh-incrementum .stagetiles.closed .stagetile { min-height: 0; flex-direction: row; align-items: center; gap: 14px; padding: 12px 14px; }
+.gh-incrementum .stagetiles.closed .n { font-size: 30px; margin: 0 0 0 auto; color: var(--t-muted); }
+
+/* ─── Calendar month view ─────────────────────────────────────────────── */
+.gh-incrementum .month { display: grid; grid-template-columns: repeat(7, 1fr); }
+.gh-incrementum .month-head { padding: 8px 10px; border-bottom: 1px solid var(--t-line); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .month-day { min-height: 104px; padding: 6px 8px; border-right: 1px solid var(--t-line); border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .month-day:nth-child(7n) { border-right: 0; }
+.gh-incrementum .month-day[data-out] { background: var(--t-bg-2); }
+.gh-incrementum .month-day[data-out] .dn { color: var(--t-faint); }
+.gh-incrementum .month-day .dn { font-size: 12px; font-weight: 600; color: var(--t-text); margin-bottom: 4px; }
+.gh-incrementum .month-day[data-today] .dn { display: inline-grid; place-items: center; min-width: 22px; height: 22px; background: var(--t-accent); color: var(--t-accent-ink); }
+.gh-incrementum .month-ev { display: block; margin-bottom: 3px; padding: 2px 5px; font-size: 11px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 2px solid var(--t-accent); background: var(--t-accent-dim); color: var(--t-strong); }
+.gh-incrementum .month-ev[data-kind="sales"] { border-left-color: var(--t-good); }
+.gh-incrementum .month-ev[data-kind="internal"], .gh-incrementum .month-ev[data-kind="personal"] { border-left-color: var(--t-series-2); background: var(--t-panel-3); }
+
+/* ─── Pricing (module tiles, like the real page) ──────────────────────── */
+.gh-incrementum .modhead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding: 4px 0 10px; border-bottom: 1px solid var(--t-line); margin-bottom: 12px; }
+.gh-incrementum .modcode { font-family: var(--f-display); font-size: 30px; font-weight: 600; color: var(--t-accent); line-height: 1; }
+.gh-incrementum .modname { font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .modfocus { font-size: 13px; color: var(--t-muted); }
+.gh-incrementum .ptiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1px; background: var(--t-line); border: 1px solid var(--t-line); }
+.gh-incrementum .ptile { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--t-panel); }
+.gh-incrementum .ptile:hover { background: var(--t-panel-2); }
+.gh-incrementum .ptile-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.gh-incrementum .ptile-name { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .rate-label { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .rate-val { font-size: 18px; font-weight: 600; color: var(--t-accent); font-variant-numeric: tabular-nums; }
+.gh-incrementum .rate-val.plain { color: var(--t-strong); font-size: 15px; }
+.gh-incrementum .ptile details summary { cursor: pointer; font-size: 12px; color: var(--t-muted); list-style: none; }
+.gh-incrementum .ptile details summary::-webkit-details-marker { display: none; }
+.gh-incrementum .ptile details[open] summary { color: var(--t-accent); margin-bottom: 10px; }
+.gh-incrementum .ptile details .stack { gap: 8px; }
+.gh-incrementum .suggested { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; background: var(--t-accent-dim); border: 1px dashed var(--t-accent); }
+
+/* ─── Client profile: service tiles, feature grid, readiness ──────────── */
+.gh-incrementum .svc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.gh-incrementum .svc-tile { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--t-panel-2); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum .svc-tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
+.gh-incrementum .svc-tile .nm { font-size: 14px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .svc-tile .pr { font-size: 13px; color: var(--t-accent); font-variant-numeric: tabular-nums; }
+.gh-incrementum .svc-tile.add { align-items: center; justify-content: center; border-style: dashed; color: var(--t-muted); min-height: 96px; }
+.gh-incrementum .feature-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+.gh-incrementum .checklist { display: grid; }
+.gh-incrementum .checklist > div { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--t-line); font-size: 13px; }
+.gh-incrementum .checklist > div:last-child { border-bottom: 0; }
+.gh-incrementum .checklist .ok { color: var(--t-good); }
+.gh-incrementum .checklist .miss { color: var(--t-warn); }
+.gh-incrementum .kpis { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--t-line); }
+.gh-incrementum .kpis > div { padding: 14px 16px; }
+.gh-incrementum .kpis > div + div { border-left: 1px solid var(--t-line); }
+.gh-incrementum .kpis .n { font-size: 24px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .kpis .l { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); margin-top: 2px; }
+
+/* ─── Analytics presets (MCT tiles) ───────────────────────────────────── */
+.gh-incrementum .presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.gh-incrementum .preset { display: flex; flex-direction: column; gap: 6px; padding: 14px; min-height: 96px; background: var(--t-panel); border: 1px solid var(--t-line-strong); text-align: left; transition: border-color 0.15s var(--ease), background 0.15s var(--ease); }
+.gh-incrementum .preset:hover { border-color: var(--t-accent); }
+.gh-incrementum .preset svg { color: var(--t-accent); }
+.gh-incrementum .preset b { font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); margin-top: auto; }
+.gh-incrementum .preset small { font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .preset[data-active] { background: var(--t-accent); border-color: var(--t-accent); }
+.gh-incrementum .preset[data-active] svg, .gh-incrementum .preset[data-active] b, .gh-incrementum .preset[data-active] small { color: var(--t-accent-ink); }
+
+.gh-incrementum .hbars { display: grid; gap: 8px; }
+.gh-incrementum .hbar { display: grid; grid-template-columns: 150px 1fr 60px; gap: 12px; align-items: center; font-size: 13px; }
+.gh-incrementum .hbar-track { height: 12px; background: var(--t-track); }
+.gh-incrementum .hbar-track i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-incrementum .hbar b { text-align: right; color: var(--t-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1280px) {
+  .gh-incrementum .stagetiles { grid-template-columns: repeat(3, 1fr); }
+  .gh-incrementum .presets { grid-template-columns: repeat(3, 1fr); }
+  .gh-incrementum .hero { grid-template-columns: auto 1fr; }
+  .gh-incrementum .mini-metric { grid-row: 2; grid-column: 1 / -1; }
+}
+/* ─── Calm layer ──────────────────────────────────────────────────────────
+   Same widgets, less load: one gold focal point per area, no looping
+   motion, more air between blocks, quieter secondary text, and detail
+   numbers folded behind a click instead of all on screen at once. */
+
+/* Air */
+.gh-incrementum .screen { padding: 28px 34px 64px; gap: 24px; }
+.gh-incrementum .grid, .gh-incrementum .stack { gap: 20px; }
+.gh-incrementum .panel-pad { padding: 22px 24px; }
+.gh-incrementum .phead { min-height: 46px; padding: 0 22px; background: transparent; border-bottom-color: color-mix(in srgb, var(--t-line) 70%, transparent); }
+.gh-incrementum .ptitle { color: var(--t-muted); }
+.gh-incrementum .phead svg { opacity: 0.8; }
+.gh-incrementum .hero { padding: 26px 28px; gap: 6px 36px; }
+.gh-incrementum .stat { gap: 6px; padding: 20px 22px; }
+.gh-incrementum .stat[data-accent] { border-top: 1px solid var(--t-line); }
+.gh-incrementum .stat-value { font-weight: 500; }
+.gh-incrementum .stat-sub { color: var(--t-faint); }
+.gh-incrementum .kv > div { padding: 11px 0; font-size: 13px; border-bottom-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .kv dt { color: var(--t-muted); }
+.gh-incrementum .due a, .gh-incrementum .due button { padding: 12px 2px; border-bottom-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .week > div { padding: 14px 14px; min-height: 104px; }
+.gh-incrementum .week .e { margin-bottom: 10px; }
+.gh-incrementum .tiles { gap: 16px; }
+.gh-incrementum .table td { border-bottom-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+
+/* Less texture behind everything */
+.gh-incrementum .backdrop::before { opacity: calc(var(--t-pattern) * 0.45); }
+
+/* Header: quieter controls, and the inquiries button marks new ones
+   without pulsing forever. */
+.gh-incrementum .search { background: transparent; border-color: color-mix(in srgb, var(--t-line) 70%, transparent); }
+.gh-incrementum .iconbtn { border-color: transparent; }
+.gh-incrementum .iconbtn:hover { border-color: var(--t-line); }
+.gh-incrementum .iconbtn .pip { background: var(--t-accent); color: var(--t-accent-ink); }
+.gh-incrementum .inq-btn { border-color: transparent; }
+.gh-incrementum .inq-btn[data-new] { animation: none; background: transparent; color: var(--t-accent); border-color: color-mix(in srgb, var(--t-accent) 55%, transparent); }
+.gh-incrementum .inq-btn[data-new] .n { background: var(--t-accent); color: var(--t-accent-ink); }
+
+/* Rail: one gold block (the page you're on); everything else recedes. */
+.gh-incrementum .rail { gap: 8px; padding: 20px 16px 24px; }
+.gh-incrementum .navbtn { font-size: 13.5px; }
+.gh-incrementum .navbtn[data-accent]:not([data-active]) { background: var(--t-panel-3); color: var(--t-text); }
+.gh-incrementum .navfolder { margin-top: 14px; letter-spacing: 0.18em; color: var(--t-faint); }
+.gh-incrementum .navfolder svg { color: var(--t-faint); }
+.gh-incrementum .subitem { height: 30px; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+/* Fold — click-to-expand detail (grid-rows trick animates to auto height). */
+.gh-incrementum .fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.22s var(--ease), opacity 0.22s var(--ease); }
+.gh-incrementum .fold > * { overflow: hidden; min-height: 0; }
+.gh-incrementum .fold[data-open], .gh-incrementum [data-open] > .fold { grid-template-rows: 1fr; opacity: 1; }
+.gh-incrementum .morebtn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--t-faint); }
+.gh-incrementum .morebtn:hover { color: var(--t-accent); }
+.gh-incrementum .morebtn svg { transition: transform 0.18s var(--ease); }
+.gh-incrementum .morebtn svg[data-open] { transform: rotate(180deg); }
+.gh-incrementum .hero .fold .hero-meta { margin-top: 6px; }
+
+.gh-incrementum .stat-fold { position: relative; width: 100%; text-align: left; transition: border-color 0.15s var(--ease); }
+.gh-incrementum .stat-fold:hover { border-color: var(--t-line-strong); }
+.gh-incrementum .stat-chev { position: absolute; top: 18px; right: 18px; color: var(--t-faint); transition: transform 0.18s var(--ease), color 0.15s var(--ease); }
+.gh-incrementum .stat-fold:hover .stat-chev { color: var(--t-accent); }
+.gh-incrementum .stat-fold[data-open] .stat-chev { transform: rotate(180deg); }
+.gh-incrementum .stat-viz { display: block; margin-top: 4px; }
+.gh-incrementum .stat-fold .stat-sub { padding-top: 6px; }
+
+/* Due: the row is the link, so "Open" only shows where you're pointing. */
+.gh-incrementum .due .go { display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s var(--ease); color: var(--t-accent); }
+.gh-incrementum .due a:hover .go, .gh-incrementum .due a:focus-visible .go { opacity: 1; }
+
+/* Value by stage — first-draft columns. */
+.gh-incrementum .stagecols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; padding-top: 4px; }
+.gh-incrementum .stagecol { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.gh-incrementum .stagecol-val { font-size: 14px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stagecol-track { display: flex; align-items: flex-end; width: 100%; max-width: 110px; height: 170px; background: var(--t-track); }
+.gh-incrementum .stagecol-track i { display: block; width: 100%; background: var(--t-accent); transition: height 0.9s var(--ease), filter 0.15s var(--ease); }
+.gh-incrementum .stagecol:hover .stagecol-track i { filter: brightness(1.12); }
+.gh-incrementum .stagecol-name { font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .stagecol-more { font-size: 11px; color: var(--t-faint); opacity: 0; transition: opacity 0.15s var(--ease); white-space: nowrap; }
+.gh-incrementum .stagecol:hover .stagecol-more, .gh-incrementum .stagecol:focus-visible .stagecol-more { opacity: 1; }
+
+/* Client tiles: the whole tile opens the account, so its label sits back
+   until hover; Home drops the small print. */
+.gh-incrementum .tile-manage { color: var(--t-faint); border-top-color: color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .home .tile-meta { display: none; }
+.gh-incrementum .tile-meter b { font-weight: 500; color: var(--t-text); }
+
+@media (max-width: 860px) {
+  .gh-incrementum .screen { padding: 18px 16px 40px; gap: 18px; }
+  .gh-incrementum .stagecols { gap: 8px; }
+  .gh-incrementum .stagecol-track { height: 120px; }
+  .gh-incrementum .stagecol-more { display: none; }
+  .gh-incrementum .rail { flex-direction: row; overflow-x: auto; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--t-line); }
+  .gh-incrementum .rail .navfolder, .gh-incrementum .rail .subtree { display: none; }
+  .gh-incrementum .navbtn { width: auto; white-space: nowrap; height: 38px; }
+  .gh-incrementum .hero { grid-template-columns: 1fr; }
+  .gh-incrementum .hero .spark, .gh-incrementum .mini-metric { grid-row: auto; grid-column: auto; }
+  .gh-incrementum .stagetiles, .gh-incrementum .stagetiles.closed, .gh-incrementum .presets { grid-template-columns: 1fr 1fr; }
+  .gh-incrementum .kpis { grid-template-columns: 1fr 1fr; }
+  .gh-incrementum .kpis > div:nth-child(3) { border-left: 0; }
+  .gh-incrementum .feature-grid { grid-template-columns: 1fr; }
+  .gh-incrementum .hbar { grid-template-columns: 100px 1fr 44px; }
+  .gh-incrementum .month-day { min-height: 70px; }
+  .gh-incrementum .month-ev { font-size: 9px; }
+  .gh-incrementum .inq-btn span.lbl { display: none; }
 }
 
-.gh-incrementum .inc-profile-id {
-  display: flex;
-  align-items: center;
-  gap: var(--gh-space-4);
-  min-width: 0;
+
+/* ── from concept src/incrementum.css ── */
+/* Project Incrementum on the Terminal UI (grayhorizon-docs/Terminal UI/RULES.md).
+ * styles.css is the shared Terminal kit (copied from the GrayPortal concept);
+ * this file only adds what Incrementum needs. Same rules: square corners,
+ * one gold focal point per area, no looping motion, detail behind a click. */
+
+/* ─── Shell ───────────────────────────────────────────────────────────── */
+.gh-incrementum .phase-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 30px; padding: 0 12px; margin-left: 6px;
+  border: 1px solid var(--t-line);
+  font-size: 12px; color: var(--t-muted);
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.gh-incrementum .phase-chip:hover { border-color: var(--t-line-strong); color: var(--t-strong); }
+.gh-incrementum .phase-chip span { font-variant-numeric: tabular-nums; color: var(--t-faint); }
+
+.gh-incrementum .rail-return {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: auto; padding: 18px 4px 0;
+  font-size: 12px; color: var(--t-muted);
+}
+.gh-incrementum .rail-return:hover { color: var(--t-accent); }
+
+.gh-incrementum .flash {
+  position: fixed; right: 22px; bottom: 22px; z-index: 60;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; max-width: 420px;
+  background: var(--t-panel); border: 1px solid var(--t-line-strong); border-left: 2px solid var(--t-good);
+  box-shadow: var(--t-shadow); font-size: 13px; color: var(--t-strong);
+  animation: inc-pop 0.18s var(--ease);
+}
+.gh-incrementum .flash svg { color: var(--t-good); }
+
+.gh-incrementum .backlink { font-size: 12px; color: var(--t-muted); align-self: flex-start; }
+.gh-incrementum .backlink:hover { color: var(--t-accent); }
+
+/* ─── Bits ────────────────────────────────────────────────────────────── */
+.gh-incrementum .check {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 18px; height: 18px;
+  border: 1px solid var(--t-line-strong);
+  font-size: 11px; font-weight: 700; color: var(--t-accent-ink);
+}
+.gh-incrementum button.check:hover { border-color: var(--t-good); }
+.gh-incrementum .check[data-done] { background: var(--t-good); border-color: var(--t-good); }
+.gh-incrementum .check[data-na] { background: var(--t-track); color: var(--t-muted); }
+
+.gh-incrementum .field[data-wide] { grid-column: 1 / -1; }
+.gh-incrementum .form-grid.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gh-incrementum .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.gh-incrementum .inline-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--t-text); align-self: end; min-height: 34px; }
+.gh-incrementum .inline-check input { accent-color: var(--t-accent); }
+.gh-incrementum .linkbtn.danger { color: var(--t-bad); }
+.gh-incrementum .linkbtn.muted { color: var(--t-muted); }
+.gh-incrementum .btn-add { background: var(--t-good); border-color: var(--t-good); color: #fff; font-weight: 600; }
+.gh-incrementum .btn-add:hover { filter: brightness(1.08); color: #fff; border-color: var(--t-good); }
+.gh-incrementum .btn-add[disabled] { background: transparent; color: var(--t-muted); border-color: var(--t-line-strong); opacity: 1; }
+.gh-incrementum .note-bad { background: color-mix(in srgb, var(--t-bad) 9%, transparent); border-left-color: var(--t-bad); margin-top: 14px; }
+.gh-incrementum .kv dd small { font-size: 11px; }
+.gh-incrementum .mono { letter-spacing: 0.04em; }
+
+.gh-incrementum .minibar { position: relative; display: block; height: 5px; background: var(--t-track); margin-top: 6px; }
+.gh-incrementum .minibar i { display: block; height: 100%; background: var(--t-accent); transition: width 0.9s var(--ease); }
+.gh-incrementum .minibar i[data-tone="good"] { background: var(--t-good); }
+.gh-incrementum .minibar i[data-tone="warn"] { background: var(--t-warn); }
+.gh-incrementum .minibar i[data-tone="bad"] { background: var(--t-bad); }
+.gh-incrementum .minibar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--t-strong); opacity: 0.45; }
+
+.gh-incrementum .avatar-sq {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  background: var(--t-panel-3); border: 1px solid var(--t-line-strong);
+  font-weight: 700; letter-spacing: 0.04em; color: var(--t-muted);
+}
+.gh-incrementum .avatar-sq[data-active] { border-color: var(--t-accent); color: var(--t-accent); }
+
+/* ─── Compact rows that click open (list screens) ─────────────────────── */
+.gh-incrementum .rowlist { display: grid; }
+.gh-incrementum .rowlist-head {
+  display: grid; gap: 14px; align-items: center;
+  padding: 0 14px 8px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-faint);
+}
+.gh-incrementum .rowfold { border-bottom: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .rowfold:last-child { border-bottom: 0; }
+.gh-incrementum .rowfold-sum {
+  display: grid; grid-template-columns: 1fr auto 14px; gap: 14px; align-items: center;
+  min-height: 46px; padding: 8px 14px;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background 0.12s var(--ease);
+}
+.gh-incrementum .rowfold-sum:hover { background: var(--t-panel-2); }
+.gh-incrementum .rowfold[data-open] > .rowfold-sum { background: var(--t-panel-2); }
+.gh-incrementum .rowfold-chev { color: var(--t-faint); transition: transform 0.18s var(--ease); }
+.gh-incrementum .rowfold[data-open] .rowfold-chev { transform: rotate(180deg); color: var(--t-accent); }
+.gh-incrementum .rowfold-body { padding: 16px 14px 20px; background: var(--t-panel-2); border-top: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); display: grid; gap: 14px; }
+.gh-incrementum .rowfold-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gh-incrementum .rowfold-main > span { min-width: 0; }
+.gh-incrementum .rowfold-main small { display: block; font-size: 12px; color: var(--t-muted); margin-top: 2px; }
+.gh-incrementum .rowfold .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.gh-incrementum .rowfold [data-done-text] { color: var(--t-muted); }
+.gh-incrementum .rowfold [data-na-text] { color: var(--t-muted); text-decoration: line-through; }
+
+.gh-incrementum .addrow-sum { grid-template-columns: auto 1fr; justify-content: start; gap: 8px; font-size: 13px; font-weight: 600; color: var(--t-muted); }
+.gh-incrementum .addrow-sum:hover { color: var(--t-accent); }
+.gh-incrementum .addrow[data-open] .addrow-sum { color: var(--t-accent); }
+
+/* Specific row grids */
+.gh-incrementum .g-launch .rowfold-sum { grid-template-columns: 1fr auto 14px; }
+.gh-incrementum .g-svc .rowfold-sum, .gh-incrementum .g-svc.rowlist-head { grid-template-columns: minmax(0, 2.2fr) 0.9fr 0.8fr 0.6fr 0.9fr 0.9fr 14px; }
+.gh-incrementum .g-pkg .rowfold-sum, .gh-incrementum .g-pkg.rowlist-head { grid-template-columns: minmax(0, 2.4fr) 0.7fr 0.9fr 0.9fr 0.8fr 14px; }
+.gh-incrementum .g-eng .rowfold-sum, .gh-incrementum .g-eng.rowlist-head { grid-template-columns: minmax(0, 2fr) 0.8fr 0.8fr 0.8fr 0.8fr 0.6fr 14px; }
+
+/* ─── Stage tiles extras ──────────────────────────────────────────────── */
+.gh-incrementum .stagetile[data-done] .n { color: var(--t-good); }
+.gh-incrementum .stagetiles.compact .stagetile { min-height: 112px; padding: 14px 12px; }
+.gh-incrementum .stagetiles.compact .stagetile .n { font-size: 40px; }
+.gh-incrementum .stagetile .name { line-height: 1.35; }
+
+.gh-incrementum .stepper-lg span, .gh-incrementum .stepper-lg button { height: 34px; font-size: 10px; }
+.gh-incrementum .stepper-lg button { background: var(--t-track); color: var(--t-muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; transition: background 0.12s var(--ease), color 0.12s var(--ease); flex: 1; display: grid; place-items: center; white-space: nowrap; overflow: hidden; padding: 0 4px; }
+.gh-incrementum .stepper-lg button:hover { color: var(--t-strong); background: color-mix(in srgb, var(--t-accent) 18%, var(--t-track)); }
+.gh-incrementum .stepper-lg button[data-done] { background: var(--t-accent-dim); color: var(--t-accent); }
+
+.gh-incrementum .due a { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; }
+.gh-incrementum .due svg[data-tone="muted"] { color: var(--t-faint); }
+.gh-incrementum .due-detail { white-space: nowrap; }
+
+/* ─── Freedom hero ────────────────────────────────────────────────────── */
+.gh-incrementum .freedom { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 8px 36px; align-items: end; padding: 26px 28px 30px; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-incrementum .freedom-main { display: grid; gap: 6px; min-width: 0; }
+.gh-incrementum .freedom .hero-meta { margin-top: 2px; }
+.gh-incrementum .freedom .tierbar { grid-column: 1 / -1; margin-top: 14px; }
+.gh-incrementum .tierbar { padding-bottom: 26px; }
+.gh-incrementum .tierbar-track { position: relative; height: 12px; background: var(--t-track); }
+.gh-incrementum .tierbar-track > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); transition: width 1s var(--ease); }
+.gh-incrementum .tier-mark { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--t-line-strong); }
+.gh-incrementum .tier-mark em { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 11px; color: var(--t-muted); white-space: nowrap; }
+.gh-incrementum .tier-mark[data-end] em { transform: translateX(-100%); }
+
+/* ─── Profile header ──────────────────────────────────────────────────── */
+.gh-incrementum .profile-main { display: flex; align-items: flex-end; gap: 22px; padding: 24px; flex-wrap: wrap; }
+.gh-incrementum .profile-id { display: grid; gap: 6px; min-width: 0; flex: 1; }
+.gh-incrementum .profile-name { font-size: 26px; font-weight: 600; color: var(--t-strong); line-height: 1.15; }
+.gh-incrementum .profile-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--t-muted); }
+.gh-incrementum .profile-badges { margin-top: 4px; }
+.gh-incrementum .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.gh-incrementum .profile .portrait { width: 112px; flex-shrink: 0; }
+.gh-incrementum .kpis .n[data-tone="good"] { color: var(--t-good); }
+.gh-incrementum .kpis .n[data-tone="bad"] { color: var(--t-bad); }
+
+/* ─── Portraits (Gray Horizon Team / bench) ───────────────────────────── */
+.gh-incrementum .portraits { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.gh-incrementum .portrait { display: block; width: 100%; color: var(--t-text); transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum button.portrait:hover { transform: translateY(-2px); border-color: var(--t-line-strong); }
+.gh-incrementum .portrait .mono { position: absolute; inset: 0 0 28% 0; display: grid; place-items: center; font-family: var(--f-display); font-size: 44px; font-weight: 600; color: var(--t-line-strong); }
+.gh-incrementum .portrait[data-state="active"] { border-color: var(--t-accent); background: linear-gradient(180deg, var(--t-accent-dim), var(--t-panel)); }
+.gh-incrementum .portrait[data-state="active"] .mono { color: var(--t-accent); }
+.gh-incrementum .portrait[data-state="open"] { border-style: dashed; color: var(--t-muted); }
+.gh-incrementum .portrait[data-state="open"]:hover { color: var(--t-accent); border-color: var(--t-accent); }
+.gh-incrementum .portrait .hire { display: grid; justify-items: center; gap: 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.gh-incrementum .portrait .hire small { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--t-faint); }
+.gh-incrementum .portrait[data-state="locked"] { display: grid; place-items: center; color: var(--t-faint); border-style: solid; opacity: 0.75; }
+.gh-incrementum .portrait[data-state="locked"] > svg { margin-bottom: 30px; }
+.gh-incrementum .portrait .tag { z-index: 1; }
+
+/* ─── Pay-when-paid month ─────────────────────────────────────────────── */
+.gh-incrementum .cycle .rowfold-sum { grid-template-columns: minmax(150px, 0.9fr) minmax(0, 3fr) 110px 120px 14px; }
+.gh-incrementum .cycle-title { display: grid; gap: 2px; font-size: 13px; }
+.gh-incrementum .cycle-title b { font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .cycle-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+.gh-incrementum .cstep { display: grid; gap: 1px; padding: 6px 6px 5px; background: var(--t-track); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--t-muted); text-align: left; white-space: nowrap; overflow: hidden; }
+.gh-incrementum .cstep small { font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--t-faint); }
+.gh-incrementum .cstep[data-done] { background: var(--t-accent-dim); color: var(--t-accent); }
+.gh-incrementum .cstep[data-done] small { color: var(--t-text); }
+.gh-incrementum button.cstep:hover:not([disabled]) { background: color-mix(in srgb, var(--t-accent) 18%, var(--t-track)); color: var(--t-strong); }
+.gh-incrementum button.cstep:hover:not([disabled]) small { color: var(--t-accent); }
+.gh-incrementum button.cstep[disabled] { opacity: 0.55; cursor: not-allowed; }
+.gh-incrementum .cycle-amt { display: grid; text-align: right; font-size: 14px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .cycle-amt small { font-size: 11px; font-weight: 400; color: var(--t-muted); }
+
+/* ─── Services & team ─────────────────────────────────────────────────── */
+.gh-incrementum .st-totals { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; align-items: center; padding-bottom: 6px; }
+.gh-incrementum .st-hero { display: grid; gap: 4px; }
+.gh-incrementum .st-hero-value { font-family: var(--f-display); font-size: 46px; font-weight: 600; line-height: 1; color: var(--t-accent); font-variant-numeric: lining-nums tabular-nums; }
+.gh-incrementum .roles { display: grid; gap: 18px; margin-top: 22px; }
+.gh-incrementum .role { border: 1px solid var(--t-line); }
+.gh-incrementum .role-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .role-name { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .role-who { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .role-who:hover { color: var(--t-accent); }
+.gh-incrementum .line .rowfold-sum { grid-template-columns: minmax(0, 1fr) auto 120px 52px 14px; }
+.gh-incrementum .line-name { display: grid; gap: 2px; min-width: 0; }
+.gh-incrementum .line-name b { font-weight: 500; color: var(--t-strong); font-size: 14px; }
+.gh-incrementum .line-name b[data-waived] { text-decoration: line-through; color: var(--t-muted); }
+.gh-incrementum .line-name small { font-size: 12px; }
+.gh-incrementum .line-price { display: grid; text-align: right; font-variant-numeric: tabular-nums; }
+.gh-incrementum .line-price b { font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .line-price small { font-size: 11px; }
+
+.gh-incrementum .pick-list { display: grid; max-height: 55vh; overflow-y: auto; border: 1px solid var(--t-line); }
+.gh-incrementum .pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 14px; text-align: left; border-bottom: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .pick:last-child { border-bottom: 0; }
+.gh-incrementum .pick:hover:not([disabled]) { background: var(--t-panel-2); }
+.gh-incrementum .pick[disabled] { opacity: 0.45; cursor: default; }
+.gh-incrementum .pick b { display: block; font-weight: 600; color: var(--t-strong); font-size: 14px; }
+.gh-incrementum .pick small { display: block; font-size: 12px; margin-top: 2px; }
+.gh-incrementum .pick-r { display: grid; text-align: right; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .pick-r small { font-weight: 500; }
+
+.gh-incrementum .cand-list { display: grid; border: 1px solid var(--t-line); }
+.gh-incrementum .cand { display: grid; grid-template-columns: 38px minmax(0, 1fr) 140px 110px 92px; gap: 14px; align-items: center; padding: 12px 14px; border-bottom: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .cand:last-child { border-bottom: 0; }
+.gh-incrementum .cand[data-current] { background: var(--t-accent-dim); }
+.gh-incrementum .cand-who { display: grid; gap: 2px; min-width: 0; }
+.gh-incrementum .cand-who b { color: var(--t-strong); font-weight: 600; }
+.gh-incrementum .cand-who small, .gh-incrementum .cand-num small { font-size: 11px; }
+.gh-incrementum .cand-num { display: grid; gap: 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* ─── Misc screens ────────────────────────────────────────────────────── */
+.gh-incrementum .callout-line { font-size: 13px; color: var(--t-muted); line-height: 1.55; max-width: 860px; }
+.gh-incrementum .callout-line b { color: var(--t-text); font-weight: 600; }
+.gh-incrementum .ledger-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+.gh-incrementum .markdown h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); margin: 18px 0 8px; }
+.gh-incrementum .markdown h2:first-child { margin-top: 0; }
+.gh-incrementum .markdown ul { padding-left: 18px; display: grid; gap: 4px; font-size: 14px; line-height: 1.5; }
+.gh-incrementum .markdown li::marker { color: var(--t-accent); }
+.gh-incrementum .markdown p { font-size: 14px; line-height: 1.55; }
+.gh-incrementum .playbook-editor { font-family: var(--f-mono); font-size: 12.5px; min-height: 520px; }
+.gh-incrementum .chiprow { display: flex; gap: 6px; flex-wrap: wrap; }
+.gh-incrementum .kv-list > div { cursor: pointer; }
+.gh-incrementum .cardgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.gh-incrementum .pbcard { display: grid; gap: 10px; align-content: start; padding: 20px 22px; background: var(--t-panel); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum .pbcard:hover { border-color: var(--t-line-strong); transform: translateY(-2px); }
+.gh-incrementum .pbcard h3 { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .engtiles .tile-name { letter-spacing: 0.14em; }
+.gh-incrementum .engtiles .brand-banner { height: 92px; }
+.gh-incrementum .dot-good { color: var(--t-good); }
+.gh-incrementum .health { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+
+@media (max-width: 1280px) {
+  .gh-incrementum .cycle .rowfold-sum { grid-template-columns: 1fr 110px 14px; }
+  .gh-incrementum .cycle-steps { grid-column: 1 / -1; grid-row: 2; }
+  .gh-incrementum .cycle .rowfold-sum > .badge, .gh-incrementum .cycle .rowfold-sum > span:nth-child(4) { display: none; }
+  .gh-incrementum .st-totals { grid-template-columns: 1fr; gap: 12px; }
+  .gh-incrementum .freedom { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .gh-incrementum .rail-return { display: none; }
+  .gh-incrementum .phase-chip { display: none; }
+  .gh-incrementum .form-grid.g3 { grid-template-columns: 1fr; }
+  .gh-incrementum .g-svc .rowfold-sum, .gh-incrementum .g-pkg .rowfold-sum, .gh-incrementum .g-eng .rowfold-sum { grid-template-columns: 1fr auto 14px; }
+  .gh-incrementum .g-svc .opt, .gh-incrementum .g-pkg .opt, .gh-incrementum .g-eng .opt, .gh-incrementum .rowlist-head { display: none; }
+  .gh-incrementum .line .rowfold-sum { grid-template-columns: 1fr auto 14px; }
+  .gh-incrementum .line .line-chips, .gh-incrementum .line .rowfold-sum > .linkbtn { display: none; }
+  .gh-incrementum .cand { grid-template-columns: 38px 1fr auto; }
+  .gh-incrementum .cand-num { display: none; }
+  .gh-incrementum .ledger-2 { grid-template-columns: 1fr; }
+  .gh-incrementum .cycle-steps { grid-template-columns: repeat(3, 1fr); }
+  .gh-incrementum .profile .portrait { width: 84px; }
+  .gh-incrementum .due a { grid-template-columns: 16px 1fr; }
+  .gh-incrementum .due-detail, .gh-incrementum .due .go { display: none; }
 }
 
-.gh-incrementum .inc-profile-name {
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-2xl);
-  color: var(--gh-text-emphasis);
-  line-height: 1.15;
+/* ─── Screen pieces (Home, Plan, Money) ───────────────────────────────── */
+.gh-incrementum .move { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px 2px; border-bottom: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); }
+.gh-incrementum .move:last-child { border-bottom: 0; }
+.gh-incrementum .due .move a { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 0; border: 0; }
+.gh-incrementum .move a small { font-size: 12px; }
+.gh-incrementum .goal-line { display: grid; gap: 6px; font-size: 13px; }
+.gh-incrementum .capline { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 80px 104px; gap: 14px; align-items: center; font-size: 13px; }
+.gh-incrementum .capline .minibar { margin: 0; }
+.gh-incrementum .capline .num { text-align: right; font-variant-numeric: tabular-nums; }
+.gh-incrementum .capline .badge { justify-self: end; }
+.gh-incrementum .stepper-dates { display: flex; gap: 3px; margin-top: 6px; }
+.gh-incrementum .stepper-dates span { flex: 1; text-align: center; font-size: 11px; color: var(--t-faint); font-variant-numeric: tabular-nums; }
+.gh-incrementum .hbar .minibar { margin: 0; }
+.gh-incrementum button.hbar { width: 100%; padding: 4px 0; }
+.gh-incrementum button.hbar:hover span:first-child { color: var(--t-accent); }
+.gh-incrementum .rowlist.bordered { border: 1px solid var(--t-line); }
+.gh-incrementum .advance { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--t-line); }
+.gh-incrementum .inline-details { margin-top: 14px; }
+.gh-incrementum .inline-details > summary { cursor: pointer; list-style: none; font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .inline-details > summary::-webkit-details-marker { display: none; }
+.gh-incrementum .inline-details > summary::before { content: "+ "; }
+.gh-incrementum .inline-details[open] > summary { color: var(--t-accent); margin-bottom: 14px; }
+.gh-incrementum .inline-details[open] > summary::before { content: "− "; }
+.gh-incrementum .inline-details > summary:hover { color: var(--t-accent); }
+.gh-incrementum fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
+.gh-incrementum .freedom > .kv { align-self: center; }
+.gh-incrementum .hero-value { font-variant-numeric: lining-nums tabular-nums; }
+
+.gh-incrementum .monthbars { display: grid; gap: 10px; }
+.gh-incrementum .monthbars-cols { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; height: 160px; align-items: end; }
+.gh-incrementum .monthbars-col { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 4px; height: 100%; font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .monthbars-col small { font-size: 11px; color: var(--t-text); font-variant-numeric: tabular-nums; }
+.gh-incrementum .monthbars-col i { align-self: end; display: block; width: 100%; max-width: 46px; background: var(--t-accent); transition: height 0.9s var(--ease); }
+.gh-incrementum .monthbars-target { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--t-line-strong); margin-bottom: 19px; pointer-events: none; }
+.gh-incrementum .monthbars-target em { position: absolute; right: 0; top: -15px; font-style: normal; font-size: 10px; color: var(--t-faint); }
+
+@media (max-width: 860px) {
+  .gh-incrementum .capline { grid-template-columns: 1fr auto; }
+  .gh-incrementum .capline .minibar { grid-column: 1 / -1; grid-row: 2; }
+  .gh-incrementum .capline .num { display: none; }
+}
+.gh-incrementum .due .move button { width: auto; padding: 0; border: 0; }
+/* Open steps read as empty slots; stamped ones fill in. */
+.gh-incrementum button.cstep { background: transparent; border: 1px dashed var(--t-line-strong); }
+.gh-incrementum .cstep[data-done] { border: 1px solid transparent; }
+.gh-incrementum .stagetiles[style*="--cols"] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+.gh-incrementum .stagetiles.compact .stagetile { min-height: 104px; padding: 12px 10px; gap: 4px; }
+.gh-incrementum .stagetiles.compact .stagetile .name { font-size: 10px; letter-spacing: 0.1em; }
+.gh-incrementum .stagetiles.compact .stagetile .n { font-size: 28px; }
+.gh-incrementum .stagetiles.compact .stagetile .w { font-size: 11px; }
+@media (max-width: 1280px) {
+  .gh-incrementum .stagetiles.compact[style*="--cols"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (max-width: 1000px) {
+  .gh-incrementum .stagetiles[style*="--cols"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .gh-incrementum .stagetiles[style*="--cols"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Calm: team portraits mark membership with the monogram, not a gold frame. */
+.gh-incrementum .portrait[data-state="active"] { border-color: var(--t-line-strong); background: linear-gradient(180deg, color-mix(in srgb, var(--t-accent-dim) 70%, var(--t-panel)), var(--t-panel)); }
+
+/* Rail identity card (first draft's "Gray Horizon HQ") */
+.gh-incrementum .rail-id { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
+.gh-incrementum .rail-id .idcard { border-color: var(--t-line); transition: border-color 0.15s var(--ease); }
+.gh-incrementum .rail-id:hover .idcard { border-color: var(--t-line-strong); }
+.gh-incrementum .rail-id .idcard-art { height: 92px; }
+.gh-incrementum .rail-id .idcard-art img { max-width: 46px; max-height: 46px; }
+.gh-incrementum .rail-id .idcard-strip { font-size: 13px; padding: 7px 12px; }
+.gh-incrementum .rail-id .idcard-rows { padding: 10px 12px 12px; gap: 8px; }
+.gh-incrementum .rail-id .idcard-rows dd { font-size: 13px; }
+.gh-incrementum .launch-top { display: flex; gap: 36px; align-items: center; flex-wrap: wrap; }
+.gh-incrementum .console-total .bigtotal { padding: 0 0 4px; }
+
+/* Rail card without art; the values are buttons (Phase → roadmap, Ads live → date pop-up). */
+.gh-incrementum .rail-id { margin-bottom: 6px; }
+.gh-incrementum .idcard-link { padding: 0; text-align: left; font: inherit; color: var(--t-strong); border-bottom: 1px dashed var(--t-line-strong); }
+.gh-incrementum .idcard-link:hover { color: var(--t-accent); border-bottom-color: var(--t-accent); }
+
+/* One page scroller (as GrayPortal): the window scrolls; header and rail stay put. */
+.gh-incrementum .app { height: auto; min-height: 100%; }
+.gh-incrementum .header { position: sticky; top: 0; z-index: 30; }
+.gh-incrementum .body { align-items: start; }
+.gh-incrementum .rail { position: sticky; top: 57px; overflow: visible; min-height: calc(100vh - 57px); }
+.gh-incrementum .content { overflow: visible; }
+
+
+/* ── from concept src/terminal.css ── */
+/* Terminal kit (terminal.jsx): the reference compositions in brand colours.
+ * Works in both themes through the --t-* tokens. */
+
+/* ─── Console frame ───────────────────────────────────────────────────── */
+.gh-incrementum .console { display: grid; grid-template-columns: 1fr; background: var(--t-panel); border: 1px solid var(--t-line); min-width: 0; }
+.gh-incrementum .console.has-side { grid-template-columns: var(--side, 268px) minmax(0, 1fr); }
+.gh-incrementum .console-side { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--t-bg-2); border-right: 1px solid var(--t-line); min-width: 0; }
+.gh-incrementum .console-main { display: flex; flex-direction: column; min-width: 0; }
+.gh-incrementum .csec { padding: 22px 26px; border-bottom: 1px solid var(--t-line); min-width: 0; }
+.gh-incrementum .csec:last-child { border-bottom: 0; }
+.gh-incrementum .csec.flush { padding: 0; }
+.gh-incrementum .csec.tight { padding-top: 16px; padding-bottom: 16px; }
+.gh-incrementum .csec-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.gh-incrementum .csec-title { font-size: 15px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .csec-right { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .csec-desc { font-size: 14px; line-height: 1.55; color: var(--t-text); max-width: 760px; }
+
+/* Identity card (bunker "Raton Canyon Bunker", nightclub logo + OWNER/LOCATION) */
+.gh-incrementum .idcard { display: grid; background: var(--t-panel); border: 1px solid var(--t-line); }
+.gh-incrementum .idcard-art { height: 132px; display: grid; place-items: center; border-bottom: 0; }
+.gh-incrementum .idcard-art img { max-width: 64%; max-height: 64%; position: relative; }
+.gh-incrementum .idcard-strip { padding: 8px 14px; background: var(--t-accent); color: var(--t-accent-ink); font-size: 14px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gh-incrementum .idcard-rows { display: grid; gap: 10px; padding: 14px; }
+.gh-incrementum .idcard-rows dt { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-accent); }
+.gh-incrementum .idcard-rows dd { font-size: 14px; color: var(--t-strong); margin-top: 1px; }
+.gh-incrementum .mono-art { position: relative; font-family: var(--f-display); font-size: 54px; font-weight: 600; color: color-mix(in srgb, var(--tint) 72%, var(--t-strong)); line-height: 1; }
+.gh-incrementum .mono-art[data-big] { font-size: 68px; }
+
+/* Block buttons (bunker side) */
+.gh-incrementum .blocks { display: grid; gap: 8px; }
+.gh-incrementum .block {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 46px; padding: 0 14px;
+  background: var(--t-panel-3); border: 1px solid transparent;
+  font-size: 15px; color: var(--t-strong); text-align: left;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), transform 0.12s var(--ease);
+}
+.gh-incrementum .block svg { color: var(--t-muted); flex-shrink: 0; }
+.gh-incrementum .block:hover:not([disabled]) { border-color: var(--t-line-strong); transform: translateX(2px); }
+.gh-incrementum .block[data-active] { background: var(--t-panel); border-color: var(--t-accent); box-shadow: inset 3px 0 0 var(--t-accent); }
+.gh-incrementum .block[data-active] svg { color: var(--t-accent); }
+.gh-incrementum .block[data-tone="primary"] { background: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-incrementum .block[data-tone="primary"] svg { color: var(--t-accent-ink); }
+.gh-incrementum .block[data-tone="danger"] { color: var(--t-bad); }
+.gh-incrementum .block[disabled] { opacity: 0.45; cursor: not-allowed; }
+.gh-incrementum .block-count { margin-left: auto; min-width: 22px; height: 20px; padding: 0 6px; display: grid; place-items: center; background: var(--t-bg-2); font-size: 11px; font-weight: 700; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+
+/* Status line */
+.gh-incrementum .tstatus { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.gh-incrementum .tstatus .status { font-size: 16px; letter-spacing: 0.06em; }
+.gh-incrementum .tstatus .status em { font-weight: 700; }
+.gh-incrementum .tstatus-meta { margin-left: auto; font-size: 12px; color: var(--t-muted); }
+
+/* Level bars (bunker: thick bar, hairline frame, label left) */
+.gh-incrementum .levels { display: grid; gap: 14px; }
+.gh-incrementum .level { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr) minmax(70px, auto); gap: 18px; align-items: center; font-size: 15px; color: var(--t-strong); }
+.gh-incrementum .level-track { position: relative; height: 14px; border: 1px solid var(--t-line-strong); background: var(--t-bg-2); }
+.gh-incrementum .level-track > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--t-accent); transition: width 1s var(--ease); }
+.gh-incrementum .level-track > i[data-tone="good"] { background: var(--t-good); }
+.gh-incrementum .level-track > i[data-tone="warn"] { background: var(--t-warn); }
+.gh-incrementum .level-track > i[data-tone="bad"] { background: var(--t-bad); }
+.gh-incrementum .level-track > i[data-tone="neutral"] { background: var(--t-series-2); }
+.gh-incrementum .level-track > b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--t-strong); opacity: 0.55; }
+.gh-incrementum .level-right { text-align: right; font-size: 13px; color: var(--t-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Totals split (MC business "Total Earnings | Total Sales") */
+.gh-incrementum .tsplit { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); }
+.gh-incrementum .tsplit > div { display: grid; justify-items: center; gap: 4px; padding: 22px 12px; text-align: center; }
+.gh-incrementum .tsplit > div + div { border-left: 1px solid var(--t-line); }
+.gh-incrementum .tsplit-label { font-size: 20px; font-weight: 500; color: var(--t-accent); }
+.gh-incrementum .tsplit-value { font-size: 34px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.gh-incrementum .tsplit > div[data-tone="good"] .tsplit-value { color: var(--t-good); }
+.gh-incrementum .tsplit > div[data-tone="bad"] .tsplit-value { color: var(--t-bad); }
+.gh-incrementum .tsplit-sub { font-size: 12px; color: var(--t-muted); }
+
+/* Big priced action (hangar "Sell All Cargo   $5,100,000", bunker "Sell Stock") */
+.gh-incrementum .bigaction {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  width: 100%; min-height: 64px; padding: 0 24px;
+  background: var(--t-accent); color: var(--t-accent-ink); text-align: left;
+  transition: filter 0.12s var(--ease);
+}
+.gh-incrementum .bigaction:hover:not([disabled]) { filter: brightness(1.07); }
+.gh-incrementum .bigaction-label { display: grid; gap: 2px; font-size: 19px; font-weight: 500; }
+.gh-incrementum .bigaction-label small { font-size: 12px; font-weight: 500; opacity: 0.78; }
+.gh-incrementum .bigaction-value { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gh-incrementum .bigaction[disabled] { background: var(--t-track); color: var(--t-faint); cursor: not-allowed; }
+.gh-incrementum .bigaction[data-variant="ghost"] { background: transparent; color: var(--t-accent); box-shadow: inset 0 0 0 1px var(--t-accent); }
+
+/* Rings (hangar) */
+.gh-incrementum .ring { position: relative; flex-shrink: 0; }
+.gh-incrementum .ring svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.gh-incrementum .ring-track { fill: none; stroke: var(--t-track); }
+.gh-incrementum[data-theme="dark"] .ring-track { stroke: #2c2b2f; }
+.gh-incrementum .ring-arc { fill: none; stroke-linecap: butt; transition: stroke-dashoffset 1.1s var(--ease); }
+.gh-incrementum .ring-stop-a { stop-color: var(--t-accent); }
+.gh-incrementum .ring-stop-b { stop-color: color-mix(in srgb, var(--t-accent) 55%, #f3e6c2); }
+.gh-incrementum[data-theme="light"] .ring-stop-b { stop-color: color-mix(in srgb, var(--t-accent) 70%, #e9d8a6); }
+.gh-incrementum .ring-mark { stroke: var(--t-strong); stroke-width: 2; opacity: 0.6; }
+.gh-incrementum .ring-center { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; line-height: 1.05; }
+.gh-incrementum .ring-value { font-weight: 500; color: var(--t-strong); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.gh-incrementum .ring-value b { font-weight: 500; color: var(--t-accent); }
+.gh-incrementum .ring-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-strong); margin-bottom: 4px; }
+.gh-incrementum .ring-sub { font-size: 11px; color: var(--t-muted); margin-top: 6px; letter-spacing: 0.02em; }
+
+.gh-incrementum .ringgrid { display: grid; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: 12px; }
+.gh-incrementum .ringtile {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 18px 12px 18px; min-width: 0;
+  background: var(--t-bg-2); border: 1px solid transparent; text-align: center;
+  transition: border-color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.gh-incrementum button.ringtile:hover { border-color: var(--t-line-strong); transform: translateY(-2px); }
+.gh-incrementum .ringtile[data-active] { border-color: var(--t-accent); background: color-mix(in srgb, var(--t-accent) 6%, var(--t-bg-2)); }
+.gh-incrementum .ringtile-name { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--t-strong); min-height: 30px; display: grid; place-items: center; line-height: 1.3; }
+.gh-incrementum .ringtile-foot { font-size: 12px; color: var(--t-muted); }
+.gh-incrementum .pill { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 16px; background: var(--t-accent); color: var(--t-accent-ink); font-size: 13px; font-weight: 600; }
+.gh-incrementum .pill[data-variant="ghost"] { background: transparent; color: var(--t-accent); box-shadow: inset 0 0 0 1px var(--t-accent); }
+
+/* Service slots (nightclub "Cargo and Shipments" buttons) */
+.gh-incrementum .slots { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 10px; }
+.gh-incrementum .slot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 58px; padding: 8px 14px; border: 1px solid var(--t-line-strong); text-align: left; font-size: 15px; color: var(--t-strong); transition: border-color 0.12s var(--ease), background 0.12s var(--ease); }
+.gh-incrementum .slot:hover { background: var(--t-panel-2); }
+.gh-incrementum .slot-label { display: grid; gap: 2px; line-height: 1.2; }
+.gh-incrementum .slot-label small { font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .slot svg { flex-shrink: 0; color: var(--t-strong); }
+.gh-incrementum .slot[data-state="open"] { border-color: var(--t-accent); color: var(--t-accent); }
+.gh-incrementum .slot-open { font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-accent); }
+.gh-incrementum .slot[data-state="locked"] { border-color: var(--t-line); color: var(--t-faint); }
+.gh-incrementum .slot[data-state="locked"] svg { color: var(--t-faint); }
+.gh-incrementum .slot[data-active] { background: var(--t-accent-dim); box-shadow: inset 0 0 0 1px var(--t-accent); border-color: var(--t-accent); }
+
+/* Stock columns (nightclub dash) */
+.gh-incrementum .stockcols { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 24px; align-items: center; }
+.gh-incrementum .stockcols-cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(46px, 1fr); gap: 8px; height: 260px; }
+.gh-incrementum .stockcol { position: relative; display: block; height: 100%; background: var(--t-bg-2); border: 1px solid var(--t-line); overflow: hidden; clip-path: polygon(0 12px, 50% 0, 100% 12px, 100% 100%, 0 100%); transition: border-color 0.12s var(--ease); }
+.gh-incrementum .stockcol:hover, .gh-incrementum .stockcol[data-active] { border-color: var(--t-accent); }
+.gh-incrementum .stockcol[data-active] { background: var(--t-accent-dim); }
+.gh-incrementum .stockcol > i { position: absolute; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--t-accent) 55%, transparent); transition: height 1s var(--ease); }
+.gh-incrementum .stockcol > i[data-tone="warn"] { background: color-mix(in srgb, var(--t-warn) 60%, transparent); }
+.gh-incrementum .stockcol > i[data-tone="bad"] { background: color-mix(in srgb, var(--t-bad) 60%, transparent); }
+.gh-incrementum .stockcol-label { position: absolute; left: 50%; bottom: 34px; transform-origin: left bottom; transform: rotate(-90deg) translateY(50%); white-space: nowrap; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .stockcol-val { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 11px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stockcols-total { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.gh-incrementum .stockcols-total span { font-size: 17px; color: var(--t-strong); }
+.gh-incrementum .stockcols-total b { font-size: 32px; font-weight: 600; color: var(--t-strong); font-variant-numeric: tabular-nums; }
+.gh-incrementum .stockcols-total small { font-size: 13px; color: var(--t-accent); }
+
+/* Agency tree */
+.gh-incrementum .tree { display: flex; flex-direction: column; gap: 4px; min-height: 100%; }
+.gh-incrementum .tree-group { display: grid; gap: 1px; margin-bottom: 10px; }
+.gh-incrementum .tree-folder { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .tree-folder svg { color: var(--t-accent); }
+.gh-incrementum .tree-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 10px 0 22px; text-align: left; font-size: 13px; color: var(--t-text); border-left: 2px solid transparent; }
+.gh-incrementum .tree-item svg { color: var(--t-faint); flex-shrink: 0; }
+.gh-incrementum .tree-item:hover { background: var(--t-panel); }
+.gh-incrementum .tree-item[data-active] { background: var(--t-panel); border-left-color: var(--t-accent); color: var(--t-strong); font-weight: 600; }
+.gh-incrementum .tree-item[data-active] svg { color: var(--t-accent); }
+.gh-incrementum .tree-count { margin-left: auto; font-size: 11px; color: var(--t-muted); font-variant-numeric: tabular-nums; }
+.gh-incrementum .tree-count[data-tone="bad"] { color: var(--t-bad); font-weight: 700; }
+.gh-incrementum .tree-count[data-tone="warn"] { color: var(--t-warn); font-weight: 700; }
+.gh-incrementum .tree-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--t-line); }
+
+/* Agency bracket button */
+.gh-incrementum .bracket { position: relative; display: grid; place-items: center; min-height: 52px; padding: 0 22px; border: 1px solid color-mix(in srgb, var(--t-accent) 70%, var(--t-line)); background: color-mix(in srgb, var(--t-accent) 7%, transparent); font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); transition: background 0.12s var(--ease); }
+.gh-incrementum .bracket[data-wide] { width: 100%; }
+.gh-incrementum .bracket::before, .gh-incrementum .bracket::after { content: ""; position: absolute; top: 6px; bottom: 6px; width: 8px; border: 2px solid var(--t-accent); }
+.gh-incrementum .bracket::before { left: 6px; border-right: 0; }
+.gh-incrementum .bracket::after { right: 6px; border-left: 0; }
+.gh-incrementum .bracket:hover:not([disabled]) { background: color-mix(in srgb, var(--t-accent) 16%, transparent); }
+.gh-incrementum .bracket span::before, .gh-incrementum .bracket span::after { content: "·"; color: var(--t-accent); margin: 0 10px; }
+.gh-incrementum .bracket[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* Ledger (reference rows: label left, value right) */
+.gh-incrementum .ledger { display: grid; }
+.gh-incrementum .ledger > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 9px 0; font-size: 15px; color: var(--t-strong); }
+.gh-incrementum .ledger > div[data-click] { grid-template-columns: minmax(0, 1fr) auto 14px; cursor: pointer; }
+.gh-incrementum .ledger > div[data-click]:hover dt { color: var(--t-accent); }
+.gh-incrementum .ledger dd { text-align: right; font-variant-numeric: tabular-nums; }
+.gh-incrementum .ledger > div[data-tone="bad"] dd { color: var(--t-bad); }
+.gh-incrementum .ledger > div[data-tone="warn"] dd { color: var(--t-warn); }
+.gh-incrementum .ledger > div[data-tone="good"] dd { color: var(--t-good); }
+.gh-incrementum .ledger > div[data-tone="muted"] dd { color: var(--t-muted); }
+.gh-incrementum .ledger-go { color: var(--t-faint); align-self: center; }
+.gh-incrementum .ledger.small > div { font-size: 13px; padding: 6px 0; }
+.gh-incrementum .ledger.caps dt { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-muted); }
+
+/* Hangar header tabs (Overview / Source / Sell) */
+.gh-incrementum .hangtabs { display: flex; gap: 10px; flex-wrap: wrap; }
+.gh-incrementum .hangtab { height: 42px; padding: 0 22px; border: 1px solid var(--t-accent); color: var(--t-strong); font-size: 14px; background: transparent; transition: background 0.12s var(--ease); }
+.gh-incrementum .hangtab:hover { background: var(--t-accent-dim); }
+.gh-incrementum .hangtab[data-active] { background: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-incrementum .hangtab[data-done]:not([data-active]) { border-color: var(--t-good); }
+
+/* Business tiles (master control terminal) */
+.gh-incrementum .mct { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.gh-incrementum .mct-tile { display: flex; flex-direction: column; background: var(--t-bg-2); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum .mct-tile:hover { border-color: var(--t-accent); transform: translateY(-2px); }
+.gh-incrementum .mct-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .mct-art { height: 96px; display: grid; place-items: center; }
+.gh-incrementum .mct-art .big { position: relative; font-family: var(--f-display); font-size: 44px; font-weight: 600; color: var(--t-strong); line-height: 1; }
+.gh-incrementum .mct-art .big small { font-family: var(--f-body); font-size: 12px; color: var(--t-muted); margin-left: 4px; }
+.gh-incrementum .mct-foot { display: grid; gap: 8px; padding: 10px 12px 12px; }
+.gh-incrementum .mct-manage { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--t-muted); }
+.gh-incrementum .mct-tile:hover .mct-manage { color: var(--t-accent); }
+.gh-incrementum .mct-tile[data-locked] { opacity: 0.55; border-style: dashed; }
+.gh-incrementum .mct-tile[data-add] { border-style: dashed; align-items: center; justify-content: center; min-height: 200px; color: var(--t-muted); font-weight: 600; gap: 6px; }
+
+/* Three-column agency layout: tree | list | brief */
+.gh-incrementum .agency { display: grid; grid-template-columns: 250px minmax(0, 1fr) minmax(300px, 380px); min-height: 560px; }
+.gh-incrementum .agency > * { min-width: 0; }
+.gh-incrementum .agency > * + * { border-left: 1px solid var(--t-line); }
+.gh-incrementum .agency-side { padding: 16px 12px; background: var(--t-bg-2); }
+.gh-incrementum .agency-list { display: flex; flex-direction: column; }
+.gh-incrementum .agency-list-head { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 16px; border-bottom: 1px solid var(--t-line); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .agency-list-head .r { margin-left: auto; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--t-muted); }
+.gh-incrementum .agency-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; padding: 12px 16px; border-bottom: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); text-align: left; }
+.gh-incrementum .agency-row:hover { background: var(--t-panel-2); }
+.gh-incrementum .agency-row[data-active] { background: var(--t-accent-dim); box-shadow: inset 3px 0 0 var(--t-accent); }
+.gh-incrementum .agency-row b { display: block; font-size: 14px; font-weight: 600; color: var(--t-strong); }
+.gh-incrementum .agency-row small { display: block; font-size: 12px; color: var(--t-muted); margin-top: 2px; }
+.gh-incrementum .agency-row .r { text-align: right; font-size: 12px; color: var(--t-muted); white-space: nowrap; }
+.gh-incrementum .agency-brief { display: flex; flex-direction: column; }
+.gh-incrementum .brief-art { height: 150px; display: grid; place-items: center; border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .brief-block { padding: 16px 18px; border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .brief-block:last-child { border-bottom: 0; }
+.gh-incrementum .brief-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .brief-title svg { color: var(--t-accent); }
+.gh-incrementum .brief-text { font-size: 14px; line-height: 1.55; color: var(--t-text); white-space: pre-wrap; }
+
+/* Filter bar */
+.gh-incrementum .filters { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.gh-incrementum .filter { display: flex; align-items: center; gap: 8px; }
+.gh-incrementum .filter > span { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t-muted); }
+.gh-incrementum .chipbtn { height: 30px; min-width: 34px; padding: 0 12px; border: 1px solid var(--t-line-strong); font-size: 12px; font-weight: 600; color: var(--t-muted); }
+.gh-incrementum .chipbtn:hover { color: var(--t-strong); }
+.gh-incrementum .chipbtn[data-active] { background: var(--t-accent-dim); border-color: var(--t-accent); color: var(--t-strong); }
+.gh-incrementum .range { accent-color: var(--t-accent); width: 150px; }
+
+@media (max-width: 1280px) {
+  .gh-incrementum .agency { grid-template-columns: 220px minmax(0, 1fr); }
+  .gh-incrementum .agency-brief { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--t-line); }
+  .gh-incrementum .ringgrid { --cols: 3 !important; }
+}
+@media (max-width: 1000px) {
+  .gh-incrementum .console.has-side { grid-template-columns: 1fr; }
+  .gh-incrementum .console-side { border-right: 0; border-bottom: 1px solid var(--t-line); }
+  .gh-incrementum .console-side .blocks { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .gh-incrementum .stockcols { grid-template-columns: 1fr; }
+  .gh-incrementum .slots { --cols: 2 !important; }
+}
+@media (max-width: 860px) {
+  .gh-incrementum .csec { padding: 18px 16px; }
+  .gh-incrementum .level { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .gh-incrementum .level-track { grid-column: 1 / -1; grid-row: 2; }
+  .gh-incrementum .tsplit { grid-template-columns: 1fr; }
+  .gh-incrementum .tsplit > div + div { border-left: 0; border-top: 1px solid var(--t-line); }
+  .gh-incrementum .tsplit-value { font-size: 28px; }
+  .gh-incrementum .bigaction-value { font-size: 22px; }
+  .gh-incrementum .ringgrid { --cols: 2 !important; }
+  .gh-incrementum .agency { grid-template-columns: 1fr; }
+  .gh-incrementum .agency > * + * { border-left: 0; border-top: 1px solid var(--t-line); }
+  .gh-incrementum .slots { --cols: 1 !important; }
+  .gh-incrementum .stockcols-cols { overflow-x: auto; }
 }
 
-.gh-incrementum .inc-profile-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gh-space-1) var(--gh-space-4);
-  margin-top: var(--gh-space-1);
-  font-size: var(--gh-text-sm);
-  color: var(--gh-text-muted);
+/* Staff portraits (nightclub warehouse technicians / first-draft bench) */
+.gh-incrementum .staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; }
+.gh-incrementum .staff-tile { --sil: #3a3833; position: relative; aspect-ratio: 1; overflow: hidden; background: linear-gradient(180deg, var(--t-panel-3), var(--t-bg-2)); border: 1px solid var(--t-line); text-align: left; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.gh-incrementum[data-theme="light"] .staff-tile { --sil: #cbc3ad; }
+.gh-incrementum .staff-tile::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: -8%; height: 40%; border-radius: 50% 50% 0 0; background: var(--sil); }
+.gh-incrementum button.staff-tile:hover { border-color: var(--t-line-strong); transform: translateY(-2px); }
+.gh-incrementum .staff-face { position: absolute; z-index: 1; top: 16%; left: 50%; width: 38%; aspect-ratio: 1; transform: translateX(-50%); display: grid; place-items: center; border-radius: 50%; background: var(--sil); font-family: var(--f-display); font-size: 22px; font-weight: 600; color: var(--t-panel); }
+.gh-incrementum .staff-tile[data-state="team"] { background: linear-gradient(180deg, color-mix(in srgb, var(--t-accent) 26%, var(--t-panel)), var(--t-panel)); --sil: color-mix(in srgb, var(--t-accent) 55%, #5a4a2c); }
+.gh-incrementum[data-theme="light"] .staff-tile[data-state="team"] { background: linear-gradient(180deg, #efe3c6, #f8f2e4); --sil: #8a7448; }
+.gh-incrementum .staff-tile[data-state="bench"] { --sil: color-mix(in srgb, var(--t-accent) 30%, #4a463d); }
+.gh-incrementum .staff-tile[data-state="off"] { opacity: 0.55; }
+.gh-incrementum .staff-tile[data-active] { border: 2px solid var(--t-accent); }
+.gh-incrementum .staff-tag { position: absolute; z-index: 2; top: 6px; left: 6px; padding: 2px 6px; background: color-mix(in srgb, var(--t-bg) 80%, transparent); border: 1px solid var(--t-line); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t-strong); }
+.gh-incrementum .staff-mark, .gh-incrementum .staff-lock { position: absolute; z-index: 2; right: 8px; bottom: 44px; }
+.gh-incrementum .staff-mark { color: var(--t-strong); }
+.gh-incrementum .staff-lock { color: var(--t-faint); }
+.gh-incrementum .staff-who { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 6px 8px; background: color-mix(in srgb, var(--t-bg) 84%, transparent); font-size: 12px; font-weight: 600; color: var(--t-strong); line-height: 1.25; }
+.gh-incrementum .staff-who small { display: block; font-size: 11px; font-weight: 500; color: var(--t-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gh-incrementum .staff-tile[data-state="hire"] { border: 1px solid var(--t-accent); }
+.gh-incrementum .staff-hire { position: absolute; z-index: 3; left: 0; right: 0; top: 54%; text-align: center; font-size: 17px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t-strong); text-shadow: 0 1px 8px color-mix(in srgb, var(--t-bg) 70%, transparent); }
+.gh-incrementum .staff-tile[data-state="locked"] { opacity: 0.6; }
+.gh-incrementum .staff-tile[data-state="locked"]::before { content: ""; position: absolute; z-index: 1; top: 16%; left: 50%; width: 38%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: var(--sil); }
+
+/* Splits inside a console */
+.gh-incrementum .console-split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); border-bottom: 1px solid var(--t-line); }
+.gh-incrementum .console-split > .csec { border-bottom: 0; }
+.gh-incrementum .console-split > .csec + .csec { border-left: 1px solid var(--t-line); }
+.gh-incrementum .csec.inset > .panel { border-color: var(--t-line); }
+.gh-incrementum .ringtile-add { justify-content: center; border: 1px dashed var(--t-line-strong) !important; background: transparent; color: var(--t-muted); font-weight: 600; min-height: 200px; }
+.gh-incrementum .ringtile-add:hover { color: var(--t-accent); border-color: var(--t-accent) !important; }
+.gh-incrementum .selected-strip { background: var(--t-bg-2); }
+.gh-incrementum .selected-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 220px; gap: 28px; align-items: start; }
+@media (max-width: 1000px) {
+  .gh-incrementum .console-split { grid-template-columns: 1fr; }
+  .gh-incrementum .console-split > .csec + .csec { border-left: 0; border-top: 1px solid var(--t-line); }
+  .gh-incrementum .selected-grid { grid-template-columns: 1fr; }
+}
+.gh-incrementum .staff-tile::after { bottom: 18%; height: 30%; }
+.gh-incrementum .staff-face, .gh-incrementum .staff-tile[data-state="locked"]::before { top: 11%; }
+.gh-incrementum .staff-tile::before { z-index: 1; }
+/* The level bar for neutral values stays light in light mode. */
+.gh-incrementum[data-theme="light"] .level-track > i[data-tone="neutral"] { background: #b7ad94; }
+.gh-incrementum .mct-bar { display: grid; grid-template-columns: 64px minmax(0, 1fr) 40px; gap: 8px; align-items: center; font-size: 11px; color: var(--t-muted); }
+.gh-incrementum .mct-bar .minibar { margin: 0; }
+.gh-incrementum .mct-bar b { text-align: right; font-weight: 600; color: var(--t-text); font-variant-numeric: tabular-nums; }
+.gh-incrementum .mct-art .mono-art { font-size: 44px; }
+.gh-incrementum .agency.two { grid-template-columns: 260px minmax(0, 1fr); }
+.gh-incrementum .agency-list .quickadd { border-bottom: 1px solid var(--t-line); }
+@media (max-width: 860px) { .gh-incrementum .agency.two { grid-template-columns: 1fr; } }
+/* Inline edit rows (Capacity slots and weights) */
+.gh-incrementum .editrow { display: grid; grid-template-columns: minmax(0, 1fr) auto 90px; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--t-line) 60%, transparent); font-size: 14px; }
+.gh-incrementum .editrow:last-of-type { border-bottom: 0; }
+.gh-incrementum .editrow a:hover { color: var(--t-accent); }
+.gh-incrementum .editrow .input { height: 30px; text-align: right; }
+.gh-incrementum .howto { display: grid; gap: 8px; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--t-text); }
+.gh-incrementum .howto li::marker { color: var(--t-accent); }
+.gh-incrementum .howto b { color: var(--t-strong); font-weight: 600; }
+.gh-incrementum .agency-side .search input { width: 100%; }
+.gh-incrementum .cstep { letter-spacing: 0.02em; text-overflow: ellipsis; }
+.gh-incrementum .cstep[data-optional]:not([data-done]) { border-style: dotted; opacity: 0.75; }
+.gh-incrementum .cycle .rowfold-sum { grid-template-columns: minmax(140px, 0.8fr) minmax(0, 3fr) 110px 100px 14px; }
+
+.gh-incrementum .gpcheck { display: grid; gap: 6px; padding: 14px 16px; background: var(--t-bg-2); border: 1px solid var(--t-line); }
+.gh-incrementum .gpcheck > div { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
+.gh-incrementum .gpcheck svg { color: var(--t-good); flex-shrink: 0; position: relative; top: 2px; }
+.gh-incrementum .gpcheck b { font-weight: 600; color: var(--t-strong); }
+
+
+/* ── Next.js adaptations (not in the concept) ──────────────────────────
+ * The concept is a client-rendered Vite app; the real pages are server
+ * components. These rules swap its JS-driven bits for native equivalents:
+ * fonts from next/font, <dialog> pop-ups, <details> folds, and fill-on-load
+ * bars as CSS keyframes (no useMounted). */
+.gh-incrementum {
+  --f-body: var(--inc-f-body), "DM Sans", system-ui, sans-serif;
+  --f-display: var(--inc-f-display), "Cormorant", Georgia, serif;
+  --f-mono: var(--inc-f-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+  min-height: 100vh;
 }
 
-.gh-incrementum .inc-profile-meta a:hover {
-  color: var(--gh-accent);
-}
+/* Bars, columns and rings fill once on load. */
+@keyframes inc-grow-w { from { width: 0; } }
+@keyframes inc-grow-h { from { height: 0; } }
+@keyframes inc-ring { from { stroke-dashoffset: var(--ring-c); } }
+@keyframes inc-fold-in { from { opacity: 0; transform: translateY(-2px); } }
+.gh-incrementum .level-track > i,
+.gh-incrementum .meter i,
+.gh-incrementum .minibar i,
+.gh-incrementum .tierbar-track i,
+.gh-incrementum .threshold-track > i,
+.gh-incrementum .bullet-actual,
+.gh-incrementum .stagebar-track i,
+.gh-incrementum .hbar-track i,
+.gh-incrementum .cells b { animation: inc-grow-w 0.9s var(--ease) 0.06s backwards; }
+.gh-incrementum .stockcol > i,
+.gh-incrementum .stagecol-track i { animation: inc-grow-h 0.9s var(--ease) 0.06s backwards; }
+.gh-incrementum .ring-arc { animation: inc-ring 1s var(--ease) 0.08s backwards; }
 
-.gh-incrementum .inc-profile-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--gh-space-3);
-}
+/* Native <dialog> pop-ups use the concept's .modal box. */
+.gh-incrementum dialog.modal { margin: auto; padding: 0; color: var(--t-text); overflow: hidden; }
+.gh-incrementum dialog.modal:not([open]) { display: none; }
+.gh-incrementum dialog.modal::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); }
+.gh-incrementum dialog.modal .modal-head .iconbtn { margin-left: auto; border: 0; }
 
-.gh-incrementum .inc-profile-stat {
-  background: var(--gh-lt-panel);
-  border: 1px solid var(--gh-border);
-  border-top: 2px solid var(--gh-accent);
-  padding: var(--gh-space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gh-space-1);
-}
+/* <details> folds use the concept's [data-open] looks. */
+.gh-incrementum summary { list-style: none; }
+.gh-incrementum summary::-webkit-details-marker { display: none; }
+.gh-incrementum details.rowfold[open] > .rowfold-sum { background: var(--t-panel-2); }
+.gh-incrementum details.rowfold[open] > .rowfold-sum .rowfold-chev { transform: rotate(180deg); color: var(--t-accent); }
+.gh-incrementum details.addrow[open] > .addrow-sum { color: var(--t-accent); }
+.gh-incrementum details[open] > .rowfold-body { animation: inc-fold-in 0.22s var(--ease); }
+.gh-incrementum details.stat-fold > summary { display: contents; cursor: pointer; }
+.gh-incrementum details.stat-fold[open] .stat-chev { transform: rotate(180deg); }
+.gh-incrementum details.stat-fold[open] .stat-sub { animation: inc-fold-in 0.22s var(--ease); }
+.gh-incrementum details.hero-fold > summary { cursor: pointer; }
 
-.gh-incrementum .inc-profile-stat-value {
-  font-family: var(--gh-font-display);
-  font-size: var(--gh-text-xl);
-  color: var(--gh-text-emphasis);
-  font-variant-numeric: tabular-nums;
-}
+/* Link versions of the concept's buttons. */
+.gh-incrementum a.navbtn, .gh-incrementum a.subitem, .gh-incrementum a.block, .gh-incrementum a.tree-item,
+.gh-incrementum a.stagetile, .gh-incrementum a.ringtile, .gh-incrementum a.slot, .gh-incrementum a.stockcol,
+.gh-incrementum a.stagecol, .gh-incrementum a.stagebar, .gh-incrementum a.tile, .gh-incrementum a.portrait { cursor: pointer; }
+.gh-incrementum .seg a { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; font-size: 13px; color: var(--t-muted); }
+.gh-incrementum .seg a + a { border-left: 1px solid var(--t-line-strong); }
+.gh-incrementum .seg a:hover { color: var(--t-strong); }
+.gh-incrementum .seg a[data-active] { background: var(--t-accent); color: var(--t-accent-ink); font-weight: 600; }
+.gh-incrementum .seg[data-small] a { height: 26px; padding: 0 10px; font-size: 12px; }
+.gh-incrementum a.bigaction { text-decoration: none; }
+.gh-incrementum form.inline { display: contents; }
+.gh-incrementum [data-click] { cursor: pointer; }
 
-.gh-incrementum .inc-profile-stat-label {
-  font-size: var(--gh-text-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wider);
-  color: var(--gh-text-muted);
-}
+/* Error / loading states. */
+.gh-incrementum .inc-loading { display: grid; gap: 14px; }
+.gh-incrementum .inc-loading > div { background: var(--t-panel); border: 1px solid var(--t-line); }
 
-/* --- Services & team: role groups -------------------------------------- */
-.gh-incrementum .inc-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--gh-space-3);
-  padding: var(--gh-space-6);
-  border: 1px dashed var(--gh-border-strong);
-}
-
-.gh-incrementum .inc-role {
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-role-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gh-space-3);
-  padding: var(--gh-space-3) var(--gh-space-4);
-  background: var(--gh-lt-panel-2);
-  border-bottom: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-role-title {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.gh-incrementum .inc-role-label {
-  font-size: var(--gh-text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-emphasis);
-}
-
-.gh-incrementum .inc-role-who {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gh-space-2);
-}
-
-.gh-incrementum .inc-role > .inc-list {
-  padding: 0 var(--gh-space-4);
-}
-
-.gh-incrementum .inc-roles-pick {
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gh-space-2) var(--gh-space-6);
-}
-
-.gh-incrementum .inc-roles-pick legend {
-  width: 100%;
-  margin-bottom: var(--gh-space-2);
-}
-
-/* --- Pick lists in popups (add contractor / add package or service) ---- */
-.gh-incrementum .inc-tabs {
-  display: flex;
-  gap: var(--gh-space-1);
-  border-bottom: 1px solid var(--gh-border);
-  margin-bottom: var(--gh-space-4);
-}
-
-.gh-incrementum .inc-tabs-btn {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: var(--gh-space-2) var(--gh-space-3);
-  font-size: var(--gh-text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--gh-tracking-wide);
-  color: var(--gh-text-muted);
-  cursor: pointer;
-}
-
-.gh-incrementum .inc-tabs-btn[data-active] {
-  color: var(--gh-text-emphasis);
-  border-bottom-color: var(--gh-accent);
-}
-
-.gh-incrementum .inc-pick {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--gh-space-3) var(--gh-space-4);
-  padding: var(--gh-space-3) 0;
-  border-bottom: 1px solid var(--gh-border);
-  font-size: var(--gh-text-sm);
-}
-
-.gh-incrementum .inc-pick:last-child {
-  border-bottom: none;
-}
-
-.gh-incrementum .inc-pick-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.gh-incrementum .inc-pick-main strong {
-  font-weight: 500;
-  color: var(--gh-text-emphasis);
-}
-
-.gh-incrementum .inc-pick-price,
-.gh-incrementum .inc-pick-jobs {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  min-width: 64px;
-}
-
-/* The one green control in Incrementum (Max, 2026-10-21): ADD in pickers. */
-.gh-incrementum .inc-btn-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 72px;
-  background: #2f7d4a;
-  color: #ffffff;
-  border: none;
-  border-radius: var(--gh-radius);
-  font-size: var(--gh-text-xs);
-  font-weight: 600;
-  letter-spacing: var(--gh-tracking-wide);
-  padding: var(--gh-space-3) var(--gh-space-4);
-  cursor: pointer;
-  transition: background var(--gh-transition);
-}
-
-.gh-incrementum .inc-btn-add:hover {
-  background: #266a3e;
-}
-
-.gh-incrementum .inc-btn-add:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* "If added" preview column in the Add-contractor popup. */
-.gh-incrementum .inc-pick-preview {
-  min-width: 120px;
-  padding-left: var(--gh-space-3);
-  border-left: 1px solid var(--gh-border);
-}
-
-/* Read-only package deliverables (setup / ongoing / not included), as
-   written in "Edit package details". Bullets are plain text, so pre-line. */
-.gh-incrementum .inc-deliv {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1px;
-  background: var(--gh-border);
-  border: 1px solid var(--gh-border);
-}
-
-.gh-incrementum .inc-deliv-col {
-  background: var(--gh-lt-panel);
-  padding: var(--gh-space-4);
-  white-space: pre-line;
-  font-size: var(--gh-text-sm);
-  line-height: 1.55;
-}
-
-.gh-incrementum .inc-deliv-col::first-line {
-  font-size: var(--gh-text-micro);
-  letter-spacing: var(--gh-tracking-wider);
-  color: var(--gh-text-muted);
-}
-
-.gh-incrementum .inc-deliv-note {
-  white-space: pre-line;
-  font-size: var(--gh-text-sm);
-  color: var(--gh-text-primary);
-}
+/* Toggle switch as a real checkbox; error toast. */
+.gh-incrementum .switch-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.gh-incrementum .switch-input:checked + .switch { background: var(--t-accent-dim); border-color: var(--t-accent); }
+.gh-incrementum .switch-input:checked + .switch i { transform: translateX(18px); background: var(--t-accent); }
+.gh-incrementum .switch-input:focus-visible + .switch { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+.gh-incrementum .flash { cursor: pointer; }
+.gh-incrementum .flash[data-tone="bad"] svg { color: var(--t-bad); }
+.gh-incrementum .flash[data-tone="bad"] { border-left-color: var(--t-bad); }
+.gh-incrementum .tree .search { margin: 0 0 12px; max-width: none; }

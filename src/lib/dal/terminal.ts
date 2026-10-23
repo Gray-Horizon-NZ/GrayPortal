@@ -8,6 +8,7 @@ import {
   companies,
   contacts,
   deals,
+  incrementumEngagements,
   serviceItems,
   xeroInvoices,
 } from "@/lib/db/schema";
@@ -47,6 +48,17 @@ export async function qClientServices() {
       .from(clientServices)
       .innerJoin(serviceItems, eq(clientServices.serviceItemId, serviceItems.id))
       .where(isNull(clientServices.deletedAt));
+  });
+}
+
+/** Each client's Project Incrementum engagements (the Incrementum badge on Clients). */
+export async function qIncrementumEngagements() {
+  return withCaller(async (caller, tx) => {
+    assertRole(caller, "admin");
+    return tx
+      .select({ id: incrementumEngagements.id, clientId: incrementumEngagements.clientId, status: incrementumEngagements.status })
+      .from(incrementumEngagements)
+      .where(isNull(incrementumEngagements.deletedAt));
   });
 }
 
