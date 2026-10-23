@@ -816,16 +816,21 @@ textarea {
   margin: var(--gh-space-4) auto 0;
 }
 
+/* Scales rather than animating width: a transform runs on the compositor,
+   so the bar keeps filling while a heavy page (Incrementum) is busy
+   hydrating, instead of freezing part-way. */
 .gh-welcome-bar-fill {
   height: 100%;
-  width: 0%;
+  width: 100%;
   background: var(--gh-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
   animation: gh-welcome-bar-fill 0.8s var(--gh-ease) forwards;
 }
 
 @keyframes gh-welcome-bar-fill {
   to {
-    width: 100%;
+    transform: scaleX(1);
   }
 }
 
