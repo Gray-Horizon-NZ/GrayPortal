@@ -12,7 +12,7 @@ import { createCompanyAction } from "@/app/(app)/companies/actions";
 
 // Master Control Terminal tile. Revenue = this client's share of total MRR;
 // Health = the computed health score (payment, tasks, activity, momentum),
-// shown in one neutral colour — the score itself is being reworked (docs/Terminal-UI-Followups.md).
+// shown in one neutral colour — the score itself is being reworked (docs/Open-Work-Brief.md §20.2).
 export function ClientCard({ client: c, minimal, mrrTotal }) {
   const mrr = clientMrr(c);
   const share = mrrTotal > 0 ? (mrr / mrrTotal) * 100 : 0;

@@ -1759,7 +1759,7 @@ export const incrementumNeeds = pgTable("incrementum_needs", {
 });
 
 // ---------------------------------------------------------------------------
-// Terminal UI finance records (22 Oct 2026, docs/Terminal-UI-Followups.md §4).
+// Terminal UI finance records (22 Oct 2026, docs/Open-Work-Brief.md §20.5).
 // All admin-only (db/sql/033_terminal_finance.sql). Money in NZD.
 // ---------------------------------------------------------------------------
 

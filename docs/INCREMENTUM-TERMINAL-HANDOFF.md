@@ -32,6 +32,13 @@ Run everything from the worktree. `npx tsc --noEmit -p .`, `npx vitest run`, `np
 - **Leads** = the GrayPortal Pipeline layout (from `OS/grayportal-terminal-concept/src/screens/Pipeline.jsx`), already ported in the concept's `Leads.jsx`.
 - **Don't deploy, push or merge without Max.** The DB change must be applied by Max first (paste the APPLY file).
 
+## Status (23 Oct 2026, later): merged with main, tied into GrayPortal
+
+- `origin/main` (PR #49, terminal-exact) merged in; this branch's migration is now **0041** (main took 0040). The SQL is **already applied** in Neon.
+- GrayPortal side: Incrementum badge + "Open in Incrementum" on client tiles, list and profile (`src/terminal/load.ts`, `screens/Clients.jsx`, `screens/ClientProfile.jsx`); Incrementum rows on the Services tab carry the badge and a note to edit them in Incrementum.
+- Services: every line change (add, package, waive, edit, assign, remove) and every client status change re-syncs that client's Incrementum rows on their GrayPortal Services tab (`syncClient()` in actions.ts, `writeEngagementServices` in `dal/incrementum/grayportal.ts`). Removed lines remove their row; rows follow active/paused/ended. Rows GrayPortal owns are never touched. Only Incrementum's hand-picked services go across, never the catalogue. Unlinked services are flagged on Services & Pricing (today only "Website build").
+- Open items now live in `docs/Open-Work-Brief.md` §19.1 (Incrementum) and §20 (Terminal UI follow-ups).
+
 ## Status (23 Oct 2026): port done, not yet checked in a browser
 
 Everything in the old to-do list below is built on branch `incrementum-terminal-ui` (commits up to the "tests" commit; `git log --oneline 0470a68..` lists them). Checks run:
