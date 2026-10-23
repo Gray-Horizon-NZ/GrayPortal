@@ -9,6 +9,7 @@ import {
   incrementumEngagements,
   incrementumPackageServices,
   incrementumContractorRoles,
+  incrementumStageEvents,
   serviceItems,
 } from "@/lib/db/schema";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "../mutate";
@@ -109,6 +110,24 @@ export async function addPackageLines(scopeInput: ScopeInput, packageId: string)
       .from(incrementumPackageServices)
       .where(and(eq(incrementumPackageServices.packageId, id), isNull(incrementumPackageServices.deletedAt)));
     if (!lines.length) throw new Error("That package has no services yet.");
+    // A live client moving onto another package is logged, so Analytics can
+    // count upgrades (Essentials → Partner). The compute layer decides
+    // whether it was a move up by comparing the packages' prices.
+    if (scope.engagementId) {
+      const current = await tx
+        .selectDistinct({ packageId: incrementumNeeds.packageId })
+        .from(incrementumNeeds)
+        .where(and(eq(incrementumNeeds.engagementId, scope.engagementId), isNull(incrementumNeeds.deletedAt)));
+      const others = current.map((c) => c.packageId).filter((x): x is string => !!x && x !== id);
+      if (others.length) {
+        await auditedInsert(
+          tx,
+          incrementumStageEvents,
+          { entityType: "engagement_package", entityId: scope.engagementId, fromStage: others.join(","), toStage: id, note: null, ...actor(caller) },
+          { caller, entityType: "incrementum_stage_event" }
+        );
+      }
+    }
     for (const l of lines) {
       await auditedInsert(
         tx,
@@ -206,6 +225,7 @@ export const NeedUpdate = z.object({
   markupPct: z.string().nullable(),
   sellPrice: z.string().nullable(),
   notes: z.string().nullable(),
+  invoicedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
 /** Every price on a need is adjustable: the contractor's rate, the markup, or the sell price outright. */
@@ -225,6 +245,7 @@ export async function updateNeed(id: string, input: z.input<typeof NeedUpdate>) 
         markupPct: numOrNull(data.markupPct),
         sellPrice: numOrNull(data.sellPrice),
         notes: nullable(data.notes),
+        ...(data.invoicedAt !== undefined ? { invoicedAt: data.invoicedAt } : {}),
         updatedBy: caller.userId,
       },
       { caller, entityType: "incrementum_need" }

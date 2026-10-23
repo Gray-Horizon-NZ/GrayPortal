@@ -15,6 +15,8 @@ import {
   computeCapacity,
   computeNextMoves,
   computeAttention,
+  computePath,
+  clientsForProfit,
   capacityRules,
   matchContractors,
   type IncrementumState,
@@ -73,6 +75,22 @@ function dayOne(): IncrementumState {
       homeModeOverride: null,
       contractorAccessReviewedAt: null,
       seededAt: t0,
+      freedomByDate: "2027-12-31",
+      reinvestRetainerPct: "25",
+      reinvestOneOffPct: "50",
+      maxPaybackMonths: "3",
+      partnerPassLine: "700",
+      partnerKillLine: "400",
+      essentialsPassLine: "450",
+      essentialsKillLine: "300",
+      weeklyOutreachTarget: 20,
+      amHoursTrigger: "25",
+      searchCeiling: null,
+      planProfitPerClient: "850",
+      planStayMonths: "12",
+      planCloseRatePct: "15",
+      planPartnerSharePct: "60",
+      planAddonAttachPct: "50",
     },
     services: [
       {
@@ -92,6 +110,7 @@ function dayOne(): IncrementumState {
         competitorNotes: null,
         notes: null,
         tags: ["google-ads"],
+        isAddon: false,
         roleId: null as string | null,
         status: "active",
         sortOrder: 0,
@@ -144,6 +163,7 @@ function dayOne(): IncrementumState {
       manualDoneAt: null,
       phaseId: null,
       isFreedom: g.isFreedom ?? false,
+      isStretch: g.isStretch ?? false,
       sortOrder: i,
     })),
     experiments: [],
@@ -424,5 +444,102 @@ describe("terminal port rules", () => {
     // 1000 invoiced − 600 payout − 150 ads; nothing marked paid.
     expect(m.cumulative_profit_vs_spend).toBe(250);
     expect("payouts_on_time_pct" in m).toBe(false);
+  });
+});
+
+describe("the $20k stretch (2026-10-24)", () => {
+  function engagement(over: Record<string, unknown> = {}) {
+    return { ...base, id: id(), clientId: id(), packageId: null, leadId: null, name: "Client", clientName: "Client Co", monthlyPrice: "1000", setupPrice: null, slotWeight: "1", startDate: "2026-06-01", minTermEnd: "2026-09-01", status: "active", endedAt: null, endReason: null, lessons: null, health: "good", businessSize: null, modules: null, notes: null, reviewRequestedAt: null, ...over };
+  }
+  function lead(over: Record<string, unknown> = {}) {
+    return { ...base, id: id(), businessName: "Biz", contactName: null, email: null, phone: null, website: null, packageId: null, serviceInterest: null, adBudget: null, businessSize: null, message: null, stage: "contacted", stageChangedAt: t0, source: "outreach", utm: null, gclid: null, receivedAt: t0, firstResponseAt: t0, lostReason: null, notes: null, convertedClientId: null, ...over };
+  }
+  function cost(engagementId: string, monthlyCost: string) {
+    return { ...base, id: id(), engagementId, contractorId: id(), serviceId: null, role: "main", monthlyCost, needId: null };
+  }
+  const metricsOf = (st: ReturnType<typeof dayOne>) => {
+    const services = computeServices(st);
+    return computeMetrics(st, services, computePackages(st, services));
+  };
+
+  it("needs ~13 clients for the base and ~26 for the stretch at $850 each", () => {
+    expect(clientsForProfit(10000, 850)).toBe(13);
+    expect(clientsForProfit(20000, 850)).toBe(26);
+    const st = dayOne();
+    const m = metricsOf(st);
+    const base = computePath(st, m, "base");
+    const stretch = computePath(st, m, "stretch");
+    expect(base.clientsNeeded).toBe(13);
+    expect(stretch.clientsNeeded).toBe(26);
+    expect(stretch.newPerMonth.needed).toBeGreaterThan(base.newPerMonth.needed);
+    // Planning assumptions until live numbers exist; no pace, no lever.
+    expect(base.perClient.live).toBe(false);
+    expect(base.lever).toBeNull();
+    expect(base.eta.base).toBeNull();
+    // Nothing to reinvest before the first client.
+    expect(m.suggested_ad_budget).toBeNull();
+    expect(m.tiers_below_pass_line).toBe(0);
+  });
+
+  it("judges each tier against its own pass line and kill line", () => {
+    const st = dayOne();
+    const ess = engagement({ businessSize: "small", monthlyPrice: "966", startDate: "2026-03-01" });
+    const par = engagement({ businessSize: "medium", monthlyPrice: "1426", startDate: "2026-09-01" });
+    st.engagements = [ess, par] as never;
+    st.engagementContractors = [cost(ess.id, "700"), cost(par.id, "650")] as never;
+    const m = metricsOf(st);
+    expect(m.avg_profit_essentials).toBe(266);
+    expect(m.avg_profit_partner).toBe(776);
+    expect(m.tiers_below_pass_line).toBe(1);
+    expect(m.partner_share_pct).toBe(50);
+    const moves = computeNextMoves(st, m, computePhases(st, m), []);
+    // $266 is under the $300 Essentials kill line; the Partner client clears $400.
+    expect(moves.some((mv) => mv.key === `price-${ess.id}` && mv.title.includes("Essentials"))).toBe(true);
+    expect(moves.some((mv) => mv.key === `price-${par.id}`)).toBe(false);
+    // 7 months into Essentials and healthy: offer Partner. Partner at month 1: too early for an add-on.
+    expect(moves.some((mv) => mv.key === `upgrade-${ess.id}`)).toBe(true);
+    expect(moves.some((mv) => mv.key === `addon-${par.id}`)).toBe(false);
+  });
+
+  it("suggests an ad budget from profit, and holds it while ads don't pay back", () => {
+    const st = dayOne();
+    const adsLead = lead({ source: "google_ads", stage: "won" });
+    st.leads = [adsLead] as never;
+    const a = engagement({ leadId: adsLead.id, monthlyPrice: "1400" });
+    st.engagements = [a] as never;
+    st.engagementContractors = [cost(a.id, "600")] as never;
+    st.adMonths = [{ ...base, id: id(), month: "2026-09-01", spend: "900", clicks: 120, impressions: 1000, notes: null }] as never;
+    let m = metricsOf(st);
+    // 25% of $800 profit = $200; payback 900 / 800 ≈ 1.1 months.
+    expect(m.suggested_ad_budget).toBe(200);
+    expect(m.ads_payback_months).toBeCloseTo(1.125);
+    st.adMonths = [{ ...base, id: id(), month: "2026-09-01", spend: "4000", clicks: 500, impressions: 1000, notes: null }] as never;
+    m = metricsOf(st);
+    expect(m.ads_payback_months).toBe(5);
+    const moves = computeNextMoves(st, m, computePhases(st, m), []);
+    expect(moves.some((mv) => mv.key === "hold-ads")).toBe(true);
+  });
+
+  it("counts outreach this week in NZ time and flags two weeks under target", () => {
+    const st = dayOne(); // Sunday 18 Oct 2026; this week started Mon 12 Oct
+    st.leads = [
+      lead({ receivedAt: new Date("2026-10-11T20:00:00Z") }), // Mon 12 Oct 09:00 NZ
+      lead({ receivedAt: new Date("2026-10-05T01:00:00Z") }),
+      lead({ receivedAt: new Date("2026-09-20T01:00:00Z") }),
+    ] as never;
+    const m = metricsOf(st);
+    expect(m.outreach_week).toBe(1);
+    const moves = computeNextMoves(st, m, computePhases(st, m), []);
+    expect(moves.some((mv) => mv.key.startsWith("outreach-"))).toBe(true);
+  });
+
+  it("never raises a stretch goal as off pace", () => {
+    const st = dayOne();
+    const g = { ...st.goals[0], id: id(), title: "Stretch: 25 active clients", metricKey: "active_clients", target: "25", periodStart: "2026-01-01", periodEnd: "2027-01-01", isFreedom: false, isStretch: true, launchOffsetDays: null };
+    st.goals = [g] as never;
+    const m = metricsOf(st);
+    const goals = computeGoals(st, m);
+    expect(goals[0].status).toBe("at_risk");
+    expect(computeAttention(st, goals).some((a) => a.key === `goal-${g.id}`)).toBe(false);
   });
 });

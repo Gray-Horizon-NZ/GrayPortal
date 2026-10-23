@@ -115,6 +115,7 @@ export async function ensureIncrementumSeeded(tx: Tx, caller: Caller): Promise<v
       periodEnd: g.periodEnd ?? null,
       launchOffsetDays: g.launchOffsetDays ?? null,
       isFreedom: g.isFreedom ?? false,
+      isStretch: g.isStretch ?? false,
       phaseId: g.phaseNumber !== undefined ? (phaseIdByNumber.get(g.phaseNumber) ?? null) : null,
       sortOrder: i,
       ...by,

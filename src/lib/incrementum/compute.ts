@@ -55,7 +55,7 @@ import {
   type GoalStatus,
   type ServiceCapacity,
 } from "./evaluate";
-import { money } from "./format";
+import { money, dateNz } from "./format";
 
 type Row<T extends { $inferSelect: unknown }> = T["$inferSelect"];
 
@@ -90,6 +90,8 @@ export type IncrementumState = {
   /** db/sql/031 applied (contractor_* views exist) — gates contractor onboarding. */
   contractorLockdownApplied?: boolean;
   dismissedMoves: string[];
+  /** Package changes on live clients (stage events, entityType "engagement_package"): from = the package(s) it was on, to = the new one. */
+  packageEvents?: { entityId: string; fromStage: string | null; toStage: string }[];
 };
 
 /**
@@ -118,6 +120,9 @@ export function awaitingLaunch(state: IncrementumState, row: { launchOffsetDays:
 
 const n = (v: string | number | null | undefined) => toNum(v) ?? 0;
 const isBench = (stage: string) => BENCH_STAGES.includes(stage as ContractorStage);
+/** Small business = Essentials; medium, large or not set = Partner (the headline offer). */
+export const isEssentials = (size: string | null | undefined) => size === "small";
+const ADS_SOURCES = ["google_ads", "meta_ads"];
 const monthStartIso = (iso: string) => `${iso.slice(0, 7)}-01`;
 
 function monthEndIso(monthIso: string): string {
@@ -319,6 +324,64 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
   const invoicedIn = invoiced.reduce((a, c) => a + n(c.invoiceAmount), 0);
   const invoicedOut = invoiced.reduce((a, c) => a + n(c.payoutAmount), 0);
 
+  // --- The $20k stretch drivers (Change-Plan-20k-Stretch.md §6.1) ---
+  const costOf = (engagementId: string) =>
+    state.engagementContractors.filter((ec) => !ec.deletedAt && ec.engagementId === engagementId).reduce((a, ec) => a + n(ec.monthlyCost), 0);
+  const profitOf = (e: (typeof active)[number]) => n(e.monthlyPrice) - costOf(e.id);
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const essentials = active.filter((e) => isEssentials(e.businessSize));
+  const partners = active.filter((e) => !isEssentials(e.businessSize));
+  const avgPartner = avg(partners.map(profitOf));
+  const avgEssentials = avg(essentials.map(profitOf));
+  const tiersBelow =
+    (avgPartner !== null && avgPartner < n(state.settings.partnerPassLine ?? 700) ? 1 : 0) +
+    (avgEssentials !== null && avgEssentials < n(state.settings.essentialsPassLine ?? 450) ? 1 : 0);
+
+  const threeMonthsAgo = addDaysIso(today, -91);
+  const sixMonthsAgo = addDaysIso(today, -182);
+  const started = engagements.filter((e) => e.startDate && e.startDate <= today);
+  const sourceOf = (e: (typeof engagements)[number]) => (e.leadId ? (leadById.get(e.leadId)?.source ?? null) : null);
+  const recent6 = started.filter((e) => e.startDate! >= sixMonthsAgo);
+
+  const serviceById = new Map(services.map((s) => [s.id, s]));
+  const clientLines = state.needs.filter((nd) => !nd.deletedAt && nd.engagementId);
+  const isAddonLine = (nd: (typeof clientLines)[number]) =>
+    (nd.serviceId ? Boolean(serviceById.get(nd.serviceId)?.isAddon) : false) || Boolean(nd.serviceItemId?.startsWith("gx-"));
+  const withAddon = new Set(clientLines.filter(isAddonLine).map((nd) => nd.engagementId));
+
+  const oneOffProfit3m =
+    clientLines
+      .filter((nd) => nd.invoicedAt && nd.invoicedAt >= threeMonthsAgo && nd.invoicedAt <= today)
+      .map((nd) => computeNeed(state, services, nd))
+      .filter((v) => v.billing !== "monthly")
+      .reduce((a, v) => a + (v.profit ?? 0), 0) / 3;
+
+  const adsWon = engagements.filter((e) => ADS_SOURCES.includes(sourceOf(e) ?? ""));
+  const costPerAdsClient = adsWon.length && spendTotal > 0 ? spendTotal / adsWon.length : null;
+  const avgProfit = activeClientCount ? grossProfit / activeClientCount : null;
+  const payback = costPerAdsClient !== null && avgProfit && avgProfit > 0 ? costPerAdsClient / avgProfit : null;
+  const latestSpend = adMonths.length ? n([...adMonths].sort((a, b) => b.month.localeCompare(a.month))[0].spend) : null;
+  // Nothing to reinvest before the first client: the $2k runway pays for ads until then.
+  let suggested: number | null = null;
+  if (activeClientCount > 0 || oneOffProfit3m > 0) {
+    const rule = (n(state.settings.reinvestRetainerPct ?? 25) / 100) * Math.max(0, grossProfit) + (n(state.settings.reinvestOneOffPct ?? 50) / 100) * Math.max(0, oneOffProfit3m);
+    const held = payback !== null && payback > n(state.settings.maxPaybackMonths ?? 3) && latestSpend !== null;
+    suggested = Math.round((held ? Math.min(rule, latestSpend!) : rule) / 10) * 10;
+  }
+
+  const upgrades = (state.packageEvents ?? []).filter((ev) => {
+    const to = packages.find((p) => p.id === ev.toStage)?.totals.monthlyPrice ?? 0;
+    const from = (ev.fromStage ?? "").split(",").filter(Boolean).map((id) => packages.find((p) => p.id === id)?.totals.monthlyPrice ?? 0);
+    return from.length > 0 && to > Math.max(...from);
+  }).length;
+
+  const monday = mondayOf(new Date(`${today}T12:00:00Z`));
+  const outreachThisWeek = leads.filter((l) => l.source === "outreach" && dateNz(l.receivedAt) >= monday).length;
+  const fourWeeksAgo = addDaysIso(today, -28);
+  const maxHours4w = state.hours
+    .filter((h) => !h.deletedAt && h.workDate >= fourWeeksAgo && h.userId && adminSet.has(h.userId))
+    .reduce((a, h) => a + n(h.hours), 0);
+
   const m: Metrics = {
     contractors_sourced: profiles.filter((p) => p.stage !== "not_a_fit").length,
     contractors_confirmed: bench.length,
@@ -360,6 +423,24 @@ export function computeMetrics(state: IncrementumState, services: ServiceView[],
     pilot_loop_complete: cycles.filter((c) => c.deliveredAt && c.approvedAt && c.reportSentAt && c.invoicedAt).length,
     tracked_leads: leads.filter((l) => l.gclid || (l.utm && Object.keys(l.utm).length > 0)).length,
     contractor_lockdown_applied: state.contractorLockdownApplied ? 1 : 0,
+    new_clients_month: started.filter((e) => e.startDate!.slice(0, 7) === today.slice(0, 7)).length,
+    new_clients_avg_3m: started.filter((e) => e.startDate! >= threeMonthsAgo).length / 3,
+    referral_share_pct: recent6.length ? (recent6.filter((e) => sourceOf(e) === "referral").length / recent6.length) * 100 : null,
+    partner_share_pct: active.length ? (partners.length / active.length) * 100 : null,
+    addon_attach_pct: active.length ? (active.filter((e) => withAddon.has(e.id)).length / active.length) * 100 : null,
+    upgrades_count: upgrades,
+    one_off_profit_3m: oneOffProfit3m,
+    avg_profit_partner: avgPartner,
+    avg_profit_essentials: avgEssentials,
+    tiers_below_pass_line: tiersBelow,
+    cost_per_ads_client: costPerAdsClient,
+    ads_payback_months: payback,
+    ad_spend_latest_month: latestSpend,
+    suggested_ad_budget: suggested,
+    month2_checkpoint_passed:
+      spendTotal >= 800 ? (leads.length >= 4 && qualified.length >= 2 && clicksTotal > 0 && (adsLeads.length / clicksTotal) * 100 >= 3 ? 1 : 0) : null,
+    outreach_week: outreachThisWeek,
+    max_hours_week: maxHours4w / 4,
   };
   m.launch_readiness_pct = computeLaunch(state, m).readinessPct;
   return m;
@@ -614,7 +695,8 @@ export function computeAttention(state: IncrementumState, goals: GoalView[]): At
     if (new Date(p.stageChangedAt) < weekAgo) out.push({ key: `ctr-${p.id}`, tone: "neutral", title: `Follow up ${p.name}`, detail: "No stage change in 7+ days", href: `/incrementum/contractors/${p.contractorId}` });
   }
   for (const g of goals) {
-    if (g.status === "at_risk") out.push({ key: `goal-${g.id}`, tone: "warning", title: `Goal off pace: ${g.title}`, href: "/incrementum/goals" });
+    // Stretch goals aim effort; results are judged against the base, so they never nag.
+    if (g.status === "at_risk" && !g.isStretch) out.push({ key: `goal-${g.id}`, tone: "warning", title: `Goal off pace: ${g.title}`, href: "/incrementum/goals" });
   }
   const monday = mondayOf(new Date(`${state.today}T12:00:00Z`));
   const reviewed = state.reviews.some((r) => !r.deletedAt && r.weekOf === monday && r.completedAt);
@@ -633,7 +715,8 @@ export function computeNextMoves(
   state: IncrementumState,
   metrics: Metrics,
   phases: ReturnType<typeof computePhases>,
-  capacity: CapacityView[]
+  capacity: CapacityView[],
+  path: PathView | null = null
 ): NextMove[] {
   const out: NextMove[] = [];
   const { current, next } = phases;
@@ -653,21 +736,68 @@ export function computeNextMoves(
       out.push({ key: `full-${c.serviceId}`, title: `${c.serviceName} bench is nearly full.`, detail: `${c.slotsFree} slot${c.slotsFree === 1 ? "" : "s"} free. Start sourcing another contractor${c.recruitBy ? ` by ${c.recruitBy}` : ""}.`, href: "/incrementum/capacity" });
     }
   }
+  const set = state.settings;
+  const servicesById = new Map(state.services.map((sv) => [sv.id, sv]));
   for (const e of state.engagements) {
     if (e.deletedAt || e.status !== "active" || !e.startDate) continue;
     const months = monthsBetween(e.startDate, state.today);
+    const name = e.clientName ?? e.name;
     if (months >= 3 && e.health === "good") {
-      out.push({ key: `referral-${e.id}`, title: `${e.clientName ?? e.name} is ${Math.floor(months)} months in and healthy. Ask for a referral.`, href: `/incrementum/clients/${e.id}` });
+      out.push({ key: `referral-${e.id}`, title: `${name} is ${Math.floor(months)} months in and healthy. Ask for a referral.`, detail: "One month's management fee credit when they sign (Referral-Programme.md).", href: `/incrementum/clients/${e.id}` });
     }
     const cost = state.engagementContractors.filter((ec) => ec.engagementId === e.id && !ec.deletedAt).reduce((a, ec) => a + n(ec.monthlyCost), 0);
     const profit = n(e.monthlyPrice) - cost;
-    if (n(e.monthlyPrice) > 0 && profit < 400) {
-      out.push({ key: `price-${e.id}`, title: `${e.clientName ?? e.name} makes ${money(profit)}/month, under the $400 kill line.`, detail: "Review the price at renewal or move it to a cheaper bench contractor.", href: `/incrementum/clients/${e.id}` });
+    const essentials = isEssentials(e.businessSize);
+    const kill = n(essentials ? (set.essentialsKillLine ?? 300) : (set.partnerKillLine ?? 400));
+    if (n(e.monthlyPrice) > 0 && profit < kill) {
+      out.push({ key: `price-${e.id}`, title: `${name} makes ${money(profit)}/month, under the ${money(kill)} ${essentials ? "Essentials " : ""}kill line.`, detail: "Review the price at renewal or move it to a cheaper bench contractor.", href: `/incrementum/clients/${e.id}` });
+    }
+    if (essentials && months >= 6 && e.health === "good") {
+      out.push({ key: `upgrade-${e.id}`, title: `${name} is ${Math.floor(months)} months into Essentials and healthy. Offer Partner.`, href: `/incrementum/clients/${e.id}` });
+    }
+    if (!essentials && months >= 2) {
+      const lines = state.needs.filter((nd) => !nd.deletedAt && nd.engagementId === e.id);
+      const hasAddon = lines.some((nd) => (nd.serviceId && servicesById.get(nd.serviceId)?.isAddon) || nd.serviceItemId?.startsWith("gx-"));
+      if (!hasAddon) out.push({ key: `addon-${e.id}`, title: `${name} has no add-on yet. Offer GrayScale, email marketing or SEO.`, href: `/incrementum/clients/${e.id}` });
     }
   }
   const freedom = n(state.settings.freedomTarget);
+  const amTrigger = n(set.amHoursTrigger ?? 25);
   if (metrics.monthly_profit !== null && metrics.monthly_profit >= freedom + 5000) {
     out.push({ key: "account-manager", title: "Profit now covers an account manager (~$5k/month) and still clears your freedom number.", detail: "Consider hiring one (Phase 4).", href: "/incrementum/goals" });
+  } else if (metrics.max_hours_week !== null && amTrigger > 0 && metrics.max_hours_week > amTrigger) {
+    out.push({ key: "account-manager-hours", title: `You're averaging ${metrics.max_hours_week.toFixed(0)} hours a week on Incrementum, past the ${amTrigger}-hour trigger.`, detail: "Bring in a part-time, per-client account manager before adding clients.", href: "/incrementum/settings?view=hours" });
+  }
+
+  // The ad budget ladder (Ad-Budget-Ladder.md): raise on the reinvestment rule while ads pay back, hold when they don't.
+  const maxPayback = n(set.maxPaybackMonths ?? 3);
+  const currentSpend = metrics.ad_spend_latest_month;
+  if (metrics.ads_payback_months !== null && metrics.ads_payback_months > maxPayback) {
+    out.push({ key: "hold-ads", title: `Hold the ad budget: ads clients take ${metrics.ads_payback_months.toFixed(1)} months to pay back (limit ${maxPayback}).`, detail: "Fix the landing page or the offer before adding spend.", href: "/incrementum/analytics" });
+  } else if (metrics.suggested_ad_budget !== null && currentSpend !== null && metrics.ads_payback_months !== null && metrics.suggested_ad_budget >= currentSpend + 200) {
+    out.push({ key: `raise-ads-${Math.round(metrics.suggested_ad_budget / 100)}`, title: `Raise the ad budget to about ${money(metrics.suggested_ad_budget)}/month.`, detail: `Reinvestment rule; ads pay back in ${metrics.ads_payback_months.toFixed(1)} months. Currently ${money(currentSpend)}.`, href: "/incrementum/analytics" });
+  }
+  const ceiling = toNum(set.searchCeiling);
+  if (ceiling && currentSpend !== null && currentSpend >= ceiling * 0.85) {
+    out.push({ key: "search-ceiling", title: `Ad spend is near the search-volume ceiling (${money(ceiling)}/month).`, detail: "Next money goes to Meta (retargeting first) or a wider area, not more Google.", href: "/incrementum/analytics" });
+  }
+
+  // Outreach (Outreach-Playbook.md): two complete weeks under target, once it has started.
+  const target = set.weeklyOutreachTarget ?? 20;
+  const outreach = state.leads.filter((l) => !l.deletedAt && l.source === "outreach").map((l) => dateNz(l.receivedAt));
+  const monday = mondayOf(new Date(`${state.today}T12:00:00Z`));
+  const weekStart = (k: number) => addDaysIso(monday, -7 * k);
+  const inWeek = (k: number) => outreach.filter((d) => d >= weekStart(k) && d < weekStart(k - 1)).length;
+  if (target > 0 && outreach.some((d) => d < weekStart(2)) && inWeek(1) < target && inWeek(2) < target) {
+    out.push({ key: `outreach-${monday}`, title: `Outreach is behind: ${inWeek(2)} and ${inWeek(1)} the last two weeks (target ${target}).`, detail: "Block an hour a day for touch 1s and follow-ups.", href: "/incrementum/leads" });
+  }
+
+  if (path?.lever) {
+    const lv = path.lever;
+    out.push({ key: `lever-${lv.key}`, title: `${lv.label} is your biggest gap: ${fmtDriver(lv.now, lv.unit)} vs ${fmtDriver(lv.target, lv.unit)}.`, detail: lv.hint, href: "/incrementum/goals" });
+  }
+  if (metrics.month2_checkpoint_passed === 1) {
+    out.push({ key: "month2-passed", title: "Month-2 checkpoint passed at $800 spent. Keep going at the runway pace.", href: "/incrementum/analytics" });
   }
   if ((metrics.ad_spend_total ?? 0) >= 800) {
     const leadsLow = (metrics.leads_total ?? 0) < 2;
@@ -678,6 +808,150 @@ export function computeNextMoves(
   }
   const dismissed = new Set(state.dismissedMoves);
   return out.filter((m) => !dismissed.has(m.key));
+}
+
+// ---------------------------------------------------------------------------
+// The Path view (Change-Plan-20k-Stretch.md §6.6): monthly profit broken into
+// its drivers, each now → target, for the base or the stretch. Pure
+// arithmetic over the metrics; until live numbers exist each driver runs on
+// the planning assumptions in Settings.
+// ---------------------------------------------------------------------------
+export type PathLine = "base" | "stretch";
+export type PathDriver = { key: string; label: string; unit: "count" | "currency" | "percent" | "months"; now: number | null; target: number; live: boolean; ratio: number | null; hint: string };
+export type PathView = {
+  line: PathLine;
+  target: number;
+  byDate: string | null;
+  monthsLeft: number;
+  profitNow: number;
+  activeNow: number;
+  clientsNeeded: number;
+  perClient: { now: number | null; plan: number; used: number; live: boolean };
+  stay: { now: number | null; plan: number; used: number; live: boolean };
+  newPerMonth: { now: number | null; needed: number };
+  partnerShare: { now: number | null; plan: number };
+  addonAttach: { now: number | null; plan: number };
+  oneOff3m: number;
+  oneOffToAds: number;
+  drivers: PathDriver[];
+  lever: PathDriver | null;
+  contractorsNeeded: number;
+  contractorsNow: number;
+  hoursWeekNow: number | null;
+  hoursWeekAtTarget: number;
+  suggestedAdBudget: number | null;
+  /** Month (ISO, first of month) each line is reached at the current pace; null = no pace yet, or never at this pace. */
+  eta: Record<PathLine, string | null>;
+};
+
+/** Share of profit assumed to go back into ads once at the target ("~10–15% past ~15 clients"). */
+const ADS_SHARE_AT_TARGET = 0.1;
+/** Max's hours per client per month at the pass line (§1.1). */
+const HOURS_PER_CLIENT = 3;
+
+export function fmtDriver(v: number | null, unit: PathDriver["unit"]): string {
+  if (v === null) return "—";
+  if (unit === "currency") return money(v);
+  if (unit === "percent") return `${Math.round(v)}%`;
+  if (unit === "months") return `${v.toFixed(1)} mo`;
+  return v.toFixed(1);
+}
+
+function addMonthsIso(iso: string, months: number): string {
+  const d = new Date(`${iso.slice(0, 7)}-01T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + Math.ceil(months));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Active clients needed for a monthly profit, with ~10% of it going back into ads. */
+export function clientsForProfit(target: number, perClient: number): number {
+  return perClient > 0 ? Math.ceil((target * (1 + ADS_SHARE_AT_TARGET)) / perClient) : 0;
+}
+
+export function computePath(state: IncrementumState, metrics: Metrics, line: PathLine = "base"): PathView {
+  const set = state.settings;
+  const targets: Record<PathLine, number> = { base: n(set.freedomTarget), stretch: n(set.freedomDiamond) };
+  const byDate = set.freedomByDate ?? null;
+  const monthsLeft = byDate ? Math.max(1, monthsBetween(state.today, byDate)) : 12;
+  const activeNow = metrics.active_clients ?? 0;
+  const ended = state.engagements.filter((e) => !e.deletedAt && e.status === "ended").length;
+
+  const planPer = n(set.planProfitPerClient ?? 850);
+  const perLive = activeNow >= 3 && metrics.avg_profit_per_client !== null;
+  const perUsed = perLive ? metrics.avg_profit_per_client! : planPer;
+  const planStay = n(set.planStayMonths ?? 12);
+  // Average stay only means something once someone has left.
+  const stayLive = ended > 0 && metrics.avg_months_retained !== null;
+  const stayUsed = stayLive ? Math.max(1, metrics.avg_months_retained!) : planStay;
+
+  const needed = (t: number) => clientsForProfit(t, perUsed);
+  // New clients a month to get from today's clients to the target by the
+  // date: the gap spread over the months left, plus replacing the clients
+  // who leave on the way (average clients over a straight ramp ÷ stay).
+  const newNeeded = (t: number) => {
+    const c = needed(t);
+    return Math.max(0, (c - activeNow) / monthsLeft) + (activeNow + c) / 2 / stayUsed;
+  };
+  const clientsNeeded = needed(targets[line]);
+  const newNow = metrics.new_clients_avg_3m;
+  const startedAny = state.engagements.some((e) => !e.deletedAt && e.startDate && e.startDate <= state.today);
+
+  const driver = (key: string, label: string, unit: PathDriver["unit"], now: number | null, target: number, live: boolean, hint: string): PathDriver => ({
+    key,
+    label,
+    unit,
+    now,
+    target,
+    live,
+    ratio: live && now !== null && target > 0 ? now / target : null,
+    hint,
+  });
+  const drivers: PathDriver[] = [
+    driver("new_clients", "New clients a month", "count", newNow, newNeeded(targets[line]), startedAny, "More at the top: outreach volume and referral asks first, then ad budget if payback allows."),
+    driver("profit_per_client", "Profit per client", "currency", metrics.avg_profit_per_client, planPer, activeNow > 0, "Lead with Partner, attach add-ons, and check contractor costs at renewal."),
+    driver("stay", "Average stay", "months", metrics.avg_months_retained, planStay, stayLive, "Find out why clients left: early wins, the monthly call, and the 12-month term."),
+    driver("close_rate", "Close rate", "percent", metrics.close_rate, n(set.planCloseRatePct ?? 15), (metrics.qualified_leads ?? 0) >= 5, "Review call notes and the proposal before adding ad spend."),
+    driver("partner_share", "Partner share", "percent", metrics.partner_share_pct, n(set.planPartnerSharePct ?? 60), activeNow > 0, "Aim outreach and ads at Partner-sized businesses."),
+    driver("addon_attach", "Add-on attach rate", "percent", metrics.addon_attach_pct, n(set.planAddonAttachPct ?? 50), activeNow > 0, "Offer GrayScale, email marketing or SEO from month 2."),
+  ];
+  const behind = drivers.filter((d) => d.ratio !== null && d.ratio < 0.9).sort((a, b) => a.ratio! - b.ratio!);
+
+  // Months to a target at today's pace: active clients grow by new − leaving.
+  const eta = (t: number): string | null => {
+    const c = needed(t);
+    if (activeNow >= c && (metrics.monthly_profit ?? 0) >= t) return monthStartIso(state.today);
+    if (!newNow) return null;
+    const net = newNow - activeNow / stayUsed;
+    if (newNow * stayUsed < c || net <= 0) return null;
+    return addMonthsIso(state.today, (c - activeNow) / net);
+  };
+
+  const { slotsPer, minBench } = capacityRules(state);
+  const oneOff = metrics.one_off_profit_3m ?? 0;
+  return {
+    line,
+    target: targets[line],
+    byDate,
+    monthsLeft,
+    profitNow: metrics.monthly_profit ?? 0,
+    activeNow,
+    clientsNeeded,
+    perClient: { now: metrics.avg_profit_per_client, plan: planPer, used: perUsed, live: perLive },
+    stay: { now: metrics.avg_months_retained, plan: planStay, used: stayUsed, live: stayLive },
+    newPerMonth: { now: newNow, needed: newNeeded(targets[line]) },
+    partnerShare: { now: metrics.partner_share_pct, plan: n(set.planPartnerSharePct ?? 60) },
+    addonAttach: { now: metrics.addon_attach_pct, plan: n(set.planAddonAttachPct ?? 50) },
+    oneOff3m: oneOff,
+    oneOffToAds: (n(set.reinvestOneOffPct ?? 50) / 100) * Math.max(0, oneOff),
+    drivers,
+    lever: behind[0] ?? null,
+    contractorsNeeded: contractorsNeeded(clientsNeeded, 1, slotsPer, minBench),
+    contractorsNow: metrics.contractors_confirmed ?? 0,
+    hoursWeekNow: metrics.max_hours_week,
+    hoursWeekAtTarget: (clientsNeeded * HOURS_PER_CLIENT * 12) / 52,
+    suggestedAdBudget: metrics.suggested_ad_budget,
+    eta: { base: eta(targets.base), stretch: eta(targets.stretch) },
+  };
 }
 
 export function metricLabel(key: string | null): string {

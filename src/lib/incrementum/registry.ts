@@ -169,6 +169,24 @@ export const METRICS = {
   pilot_loop_complete: { label: "Full loops completed", unit: "count", description: "Months that went all the way: delivered, approved, report sent, invoiced." },
   tracked_leads: { label: "Leads with ad tracking", unit: "count", description: "Leads that arrived with a gclid or UTM tags." },
   contractor_lockdown_applied: { label: "Contractor lockdown applied", unit: "count", description: "1 once db/sql/031 is in: contractor logins only reach their own workspace." },
+  // The $20k stretch drivers (Change-Plan-20k-Stretch.md §6.1, 2026-10-24).
+  new_clients_month: { label: "New clients this month", unit: "count", description: "Engagements started this calendar month." },
+  new_clients_avg_3m: { label: "New clients / month (3-mo avg)", unit: "count", description: "Engagements started in the last 3 months ÷ 3." },
+  referral_share_pct: { label: "Clients from referrals", unit: "percent", description: "Referral-sourced ÷ all new clients, last 6 months." },
+  partner_share_pct: { label: "Partner share", unit: "percent", description: "Active clients on Partner (medium or large business, or size not set) ÷ active clients." },
+  addon_attach_pct: { label: "Add-on attach rate", unit: "percent", description: "Active clients with an add-on line (a service marked add-on, or a GrayScale item) ÷ active clients." },
+  upgrades_count: { label: "Upgrades", unit: "count", description: "Times a client was moved onto a package priced above the one they were on." },
+  one_off_profit_3m: { label: "One-off profit (3-mo avg)", unit: "currency", description: "One-off lines invoiced in the last 3 months: price − contractor cost, ÷ 3. Not counted toward the freedom number." },
+  avg_profit_partner: { label: "Avg profit per Partner client", unit: "currency", description: "Signed price − contractor costs, averaged over active Partner clients." },
+  avg_profit_essentials: { label: "Avg profit per Essentials client", unit: "currency", description: "Signed price − contractor costs, averaged over active small-business clients." },
+  tiers_below_pass_line: { label: "Tiers below their pass line", unit: "count", description: "Partner and Essentials, each with clients, whose average profit is under its pass line (Settings). 0 = both pass." },
+  cost_per_ads_client: { label: "Cost to win a client (ads)", unit: "currency", description: "Ad spend to date ÷ clients won from ads (active or ended)." },
+  ads_payback_months: { label: "Ads payback", unit: "months", description: "Cost to win a client from ads ÷ average monthly profit per client." },
+  ad_spend_latest_month: { label: "Ad spend (latest month)", unit: "currency", description: "Spend in the most recent month entered in Analytics: the current budget." },
+  suggested_ad_budget: { label: "Suggested ad budget", unit: "currency", description: "Reinvest % × retainer profit + reinvest % × one-off profit (Settings). Held at the current budget while ads payback is over the limit." },
+  month2_checkpoint_passed: { label: "Month-2 checkpoint passed", unit: "count", description: "1 once $800 is spent with ≥ 4 leads, ≥ 2 qualified and landing conversion ≥ 3%." },
+  outreach_week: { label: "Outreach this week", unit: "count", description: "Leads with source Outreach added since Monday." },
+  max_hours_week: { label: "Max's hours / week", unit: "hours", description: "Max's logged hours over the last 4 weeks ÷ 4." },
 } as const satisfies Record<string, MetricDef>;
 export type MetricKey = keyof typeof METRICS;
 export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];

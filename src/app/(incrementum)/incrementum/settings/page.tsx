@@ -38,7 +38,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               strip="System settings"
               rows={[
                 ["Markup", `${n0(set.defaultMarkupPct)}%`],
-                ["Freedom number", money(set.freedomTarget)],
+                ["Base · Stretch", `${money(set.freedomTarget)} · ${money(set.freedomDiamond)}`],
                 ["Ads live", set.launchDate ? longDate(set.launchDate) : "Date not set"],
               ]}
             />
@@ -69,17 +69,74 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 <input className="input" name="defaultMarkupPct" defaultValue={set.defaultMarkupPct} inputMode="decimal" />
               </Field>
               <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
-                Freedom number (monthly Incrementum profit)
+                Freedom number (monthly recurring Incrementum profit): aim effort at the stretch, judge results against the base
               </p>
-              <Field label="Target">
+              <Field label="Base ($/month)">
                 <input className="input" name="freedomTarget" defaultValue={set.freedomTarget} inputMode="decimal" />
               </Field>
-              <Field label="Gold">
-                <input className="input" name="freedomGold" defaultValue={set.freedomGold} inputMode="decimal" />
-              </Field>
-              <Field label="Diamond">
+              <Field label="Stretch ($/month)">
                 <input className="input" name="freedomDiamond" defaultValue={set.freedomDiamond} inputMode="decimal" />
               </Field>
+              <Field label="By">
+                <input className="input" type="date" name="freedomByDate" defaultValue={set.freedomByDate ?? ""} />
+              </Field>
+              <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                Proof lines per client per month (pass / kill)
+              </p>
+              <Field label="Partner pass ($)">
+                <input className="input" name="partnerPassLine" defaultValue={set.partnerPassLine} inputMode="decimal" />
+              </Field>
+              <Field label="Partner kill ($)">
+                <input className="input" name="partnerKillLine" defaultValue={set.partnerKillLine} inputMode="decimal" />
+              </Field>
+              <span />
+              <Field label="Essentials pass ($)">
+                <input className="input" name="essentialsPassLine" defaultValue={set.essentialsPassLine} inputMode="decimal" />
+              </Field>
+              <Field label="Essentials kill ($)">
+                <input className="input" name="essentialsKillLine" defaultValue={set.essentialsKillLine} inputMode="decimal" />
+              </Field>
+              <span />
+              <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                Ad budget ladder (after the runway)
+              </p>
+              <Field label="Reinvest % of retainer profit">
+                <input className="input" name="reinvestRetainerPct" defaultValue={set.reinvestRetainerPct} inputMode="decimal" />
+              </Field>
+              <Field label="Reinvest % of one-off profit">
+                <input className="input" name="reinvestOneOffPct" defaultValue={set.reinvestOneOffPct} inputMode="decimal" />
+              </Field>
+              <Field label="Hold the budget when payback is over (months)">
+                <input className="input" name="maxPaybackMonths" defaultValue={set.maxPaybackMonths} inputMode="decimal" />
+              </Field>
+              <Field label="Search-volume ceiling ($/month, blank = not recorded)">
+                <input className="input" name="searchCeiling" defaultValue={set.searchCeiling ?? ""} inputMode="decimal" />
+              </Field>
+              <Field label="Weekly outreach target (businesses)">
+                <input className="input" name="weeklyOutreachTarget" type="number" min={0} defaultValue={set.weeklyOutreachTarget} />
+              </Field>
+              <Field label="Account-manager trigger (your hours / week)">
+                <input className="input" name="amHoursTrigger" defaultValue={set.amHoursTrigger} inputMode="decimal" />
+              </Field>
+              <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                Planning assumptions (the Path view uses these until live numbers exist)
+              </p>
+              <Field label="Profit per client ($/month)">
+                <input className="input" name="planProfitPerClient" defaultValue={set.planProfitPerClient} inputMode="decimal" />
+              </Field>
+              <Field label="Average stay (months)">
+                <input className="input" name="planStayMonths" defaultValue={set.planStayMonths} inputMode="decimal" />
+              </Field>
+              <Field label="Close rate (%)">
+                <input className="input" name="planCloseRatePct" defaultValue={set.planCloseRatePct} inputMode="decimal" />
+              </Field>
+              <Field label="Partner share (%)">
+                <input className="input" name="planPartnerSharePct" defaultValue={set.planPartnerSharePct} inputMode="decimal" />
+              </Field>
+              <Field label="Add-on attach rate (%)">
+                <input className="input" name="planAddonAttachPct" defaultValue={set.planAddonAttachPct} inputMode="decimal" />
+              </Field>
+              <span />
               <p className="eyebrow" style={{ gridColumn: "1 / -1", marginTop: 8 }}>
                 Ads &amp; leads
               </p>

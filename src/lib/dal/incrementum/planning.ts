@@ -65,6 +65,24 @@ export const SettingsInput = z.object({
   lowSlotsWarn: z.coerce.number().int().min(0).max(50).optional(),
   launchDate: isoDate.optional(),
   homeModeOverride: z.enum(["pre", "live"]).nullable().optional(),
+  // The $20k stretch (2026-10-24).
+  freedomByDate: isoDate.optional(),
+  reinvestRetainerPct: z.string().nullable().optional(),
+  reinvestOneOffPct: z.string().nullable().optional(),
+  maxPaybackMonths: z.string().nullable().optional(),
+  partnerPassLine: z.string().nullable().optional(),
+  partnerKillLine: z.string().nullable().optional(),
+  essentialsPassLine: z.string().nullable().optional(),
+  essentialsKillLine: z.string().nullable().optional(),
+  amHoursTrigger: z.string().nullable().optional(),
+  planProfitPerClient: z.string().nullable().optional(),
+  planStayMonths: z.string().nullable().optional(),
+  planCloseRatePct: z.string().nullable().optional(),
+  planPartnerSharePct: z.string().nullable().optional(),
+  planAddonAttachPct: z.string().nullable().optional(),
+  weeklyOutreachTarget: z.coerce.number().int().min(0).max(1000).optional(),
+  // Blank clears it (not recorded yet).
+  searchCeiling: z.string().nullable().optional(),
 });
 
 export async function updateIncrementumSettings(input: z.input<typeof SettingsInput>) {
@@ -72,13 +90,14 @@ export async function updateIncrementumSettings(input: z.input<typeof SettingsIn
   return withIncrementum(async (caller, tx) => {
     const [row] = await tx.select({ id: incrementumSettings.id }).from(incrementumSettings).where(eq(incrementumSettings.key, "singleton")).limit(1);
     const values: Record<string, unknown> = { updatedBy: caller.userId };
-    for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn", "launchDate", "homeModeOverride"] as const) {
+    for (const k of ["responseTargetMinutes", "defaultRecruitDays", "minBench", "lowSlotsWarn", "launchDate", "homeModeOverride", "freedomByDate", "weeklyOutreachTarget"] as const) {
       if (data[k] !== undefined) values[k] = data[k];
     }
-    for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor"] as const) {
+    for (const k of ["defaultMarkupPct", "freedomTarget", "freedomGold", "freedomDiamond", "adBudgetTotal", "defaultSlotsPerContractor", "reinvestRetainerPct", "reinvestOneOffPct", "maxPaybackMonths", "partnerPassLine", "partnerKillLine", "essentialsPassLine", "essentialsKillLine", "amHoursTrigger", "planProfitPerClient", "planStayMonths", "planCloseRatePct", "planPartnerSharePct", "planAddonAttachPct"] as const) {
       const v = numOrNull(data[k]);
       if (v !== null) values[k] = v;
     }
+    if (data.searchCeiling !== undefined) values.searchCeiling = numOrNull(data.searchCeiling);
     return auditedUpdate(tx, incrementumSettings, eq(incrementumSettings.id, row.id), row.id, values, { caller, entityType: "incrementum_settings" });
   });
 }
@@ -269,6 +288,7 @@ export const GoalInput = z.object({
   periodStart: isoDate,
   periodEnd: isoDate,
   phaseId: z.string().uuid().nullable(),
+  isStretch: z.boolean().optional(),
 });
 
 export async function createGoal(input: z.input<typeof GoalInput>) {

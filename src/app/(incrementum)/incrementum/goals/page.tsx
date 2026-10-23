@@ -8,18 +8,22 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import { PageHead, Field, FreedomBar, Console, Csec, TermStatus, TotalSplit, Ledger, BackTo, HiddenFields } from "@/components/incrementum/terminal/kit";
 import { Dialog, OpenDialog } from "@/components/incrementum/terminal/client";
 import { GoalRingTile } from "@/components/incrementum/terminal/goals";
+import { PathPanel, etaLabel } from "@/components/incrementum/terminal/path";
 import { longDate, goalTone, GOAL_STATUS_LABELS, n0 } from "@/components/incrementum/terminal/helpers";
 import { createGoalAction, updateGoalAction, toggleGoalAction, deleteGoalAction } from "../actions";
 
 const BACK = "/incrementum/goals";
 
-export default async function GoalsPage({ searchParams }: { searchParams: Promise<{ goal?: string }> }) {
+export default async function GoalsPage({ searchParams }: { searchParams: Promise<{ goal?: string; line?: string }> }) {
   const sp = await searchParams;
   const s = await getIncrementumSnapshot();
   const set = s.state.settings;
+  const line = sp.line === "stretch" ? "stretch" : "base";
   const profit = s.metrics.monthly_profit ?? 0;
   const others = s.goals.filter((g) => !g.isFreedom);
-  const count = (st: string) => others.filter((g) => g.status === st).length;
+  // Results are judged against the base: stretch goals don't count as off pace.
+  const judged = others.filter((g) => !g.isStretch);
+  const count = (st: string) => judged.filter((g) => g.status === st).length;
 
   return (
     <div className="screen">
@@ -30,15 +34,19 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
             {count("hit")} hit · {count("at_risk")} at risk · {count("missed")} missed
           </TermStatus>
         </Csec>
+        <PathPanel s={s} line={line} base={BACK} />
         <TotalSplit
           items={[
             { label: "This month's profit", value: money(profit), priv: true },
-            { label: "Freedom number", value: money(set.freedomTarget), priv: true, sub: `Gold ${money(set.freedomGold)} · Diamond ${money(set.freedomDiamond)}` },
+            { label: "Base", value: money(set.freedomTarget), priv: true, sub: `at current pace: ${etaLabel(s.path.base, "base")}` },
+            { label: "Stretch", value: money(set.freedomDiamond), priv: true, sub: `at current pace: ${etaLabel(s.path.stretch, "stretch")}` },
           ]}
         />
         <Csec>
-          <FreedomBar profit={profit} target={n0(set.freedomTarget)} gold={n0(set.freedomGold)} diamond={n0(set.freedomDiamond)} />
-          <p className="muted small">Monthly profit = monthly revenue (every active client&apos;s signed price) − contractor costs − this month&apos;s ad spend. Change the tiers in Settings.</p>
+          <FreedomBar profit={profit} base={n0(set.freedomTarget)} stretch={n0(set.freedomDiamond)} />
+          <p className="muted small">
+            Monthly profit = monthly revenue (every active client&apos;s signed price) − contractor costs − this month&apos;s ad spend. One-off profit isn&apos;t counted. Aim effort at the stretch; results and spending are judged against the base. Change both in Settings.
+          </p>
         </Csec>
         <Csec>
           <div className="ringgrid" style={{ "--cols": 4 } as React.CSSProperties}>
@@ -125,6 +133,9 @@ function GoalDialog({ g, openOnLoad, today, phases }: { g: GoalView | null; open
         <Field label="By">
           <input className="input" type="date" name="periodEnd" defaultValue={g?.periodEnd ?? ""} />
         </Field>
+        <label className="inline-check" style={{ alignSelf: "end" }}>
+          <input type="checkbox" name="isStretch" defaultChecked={g?.isStretch ?? false} /> Stretch goal (never flagged off pace)
+        </label>
         {!g && (
           <Field label="Phase">
             <select className="select" name="phaseId" defaultValue="">
