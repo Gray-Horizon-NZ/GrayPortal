@@ -1039,6 +1039,23 @@ export const onboardingInvites = pgTable("onboarding_invites", {
   createdBy: uuid("created_by").references(() => users.id),
 });
 
+// Long-lived MCP access keys (System → Security → MCP access). Replaces
+// handing an MCP client a 14-day Firebase session cookie, which had no
+// refresh path and had to be re-pasted every fortnight. Same storage rule
+// as onboarding_invites: only the SHA-256 hash is stored, the raw key is
+// shown once. No expiry — a key lives until it's replaced (issuing a new
+// one revokes the caller's previous keys) or "Revoke all sessions" runs.
+export const mcpApiKeys = pgTable("mcp_api_keys", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  keyHash: text("key_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
 // Wizard step 3 — see accessRequestStatusEnum above. Never inserted with a
 // users row alongside it: submitPortalAccessRequest only ever writes this
 // row (src/lib/dal/portalAccessRequests.ts), and the real users row (the

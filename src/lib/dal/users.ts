@@ -3,6 +3,7 @@ import { users, contractors } from "@/lib/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { withCaller, forgetRevocationCheck } from "./auth";
 import { assertRole } from "./session";
+import { revokeMcpKeysFor } from "./mcpKeys";
 import { auditedInsert } from "./mutate";
 import { adminAuth } from "@/lib/firebase/admin";
 import { provisionPasswordAccountAndEmail } from "./passwordAuth";
@@ -133,14 +134,14 @@ export async function listAssignableUsers() {
 }
 
 /**
- * Revokes every Firebase refresh token for the calling user — the way to
- * kill a leaked MCP token (Phase 4 brief §2) or a stolen browser session,
- * since neither has any other revocation path. Also signs out the current
- * browser session; that's the correct trade-off for an emergency revoke,
- * not a bug.
+ * Revokes every Firebase refresh token for the calling user, plus their
+ * MCP access keys — the way to kill a leaked MCP key (Phase 4 brief §2) or
+ * a stolen browser session. Also signs out the current browser session;
+ * that's the correct trade-off for an emergency revoke, not a bug.
  */
 export async function revokeMySessions() {
   return withCaller(async (caller, tx) => {
+    await revokeMcpKeysFor(tx, caller.userId);
     const [row] = await tx
       .select({ googleUid: users.googleUid })
       .from(users)

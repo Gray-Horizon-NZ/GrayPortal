@@ -20,7 +20,7 @@ What's still open — the rest of the "GrayScale" product family (Tempus schedul
 - **Database:** Neon Postgres (Sydney region), Drizzle ORM + drizzle-kit migrations
 - **Auth:** Firebase Auth (Google provider only), session cookies (14-day max, Firebase's hard limit), server-side email allowlist
 - **Isolation:** Postgres Row-Level Security is the actual enforcement; the DAL (`src/lib/dal`) is the ergonomic layer on top
-- **Agent access:** MCP server at `/api/mcp` — authenticates with the same Firebase session mechanism as the browser (a Bearer-token variant of the same session cookie, minted from Settings), goes through the same RLS, same audit log, same DAL as every human request
+- **Agent access:** MCP server at `/api/mcp` — authenticates with a long-lived MCP access key (`Bearer gpk_…`, issued from System → Security, stored hashed in `mcp_api_keys`, no expiry; issuing a new key or "Revoke all sessions" cancels it). The key resolves to the same Firebase UID as the owner's browser session, so it goes through the same allowlist, RLS, audit log and DAL as every human request
 - **External systems:** one adapter module per integration — Google (Calendar/Tasks/Gmail, `src/lib/google/`), Xero (`src/lib/xero/`) — no external API call happens outside its dedicated adapter
 - **Hosting:** Firebase App Hosting (Cloud Run–backed), custom domain `app.grayhorizon.nz`
 - **Styling:** Plain CSS + design tokens (`src/app/tokens.css`), no UI framework

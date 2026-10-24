@@ -6,6 +6,7 @@ import { clients } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebase/admin";
 import { SESSION_COOKIE_NAME, ADMIN_PORTAL_PREVIEW_COOKIE } from "./constants";
 import { withSession, NotOnAllowlistError, type Caller, type Tx } from "./session";
+import { MCP_KEY_PREFIX, resolveMcpKey } from "./mcpKeys";
 
 export { NotOnAllowlistError };
 export type { Caller };
@@ -20,10 +21,10 @@ export type { Caller };
  * Falls back to an `Authorization: Bearer <token>` header when no cookie is
  * present — this is what makes every existing DAL function usable unchanged
  * from the MCP server (Phase 4 brief §2), since they all resolve their
- * caller through this function. It is NOT a separate, lower-privilege
- * credential: the token is the exact same kind of Firebase session cookie,
- * just handed to a non-browser client that can't hold an httpOnly cookie.
- * Same privileges, same 14-day life, same verification path.
+ * caller through this function. The bearer value is either a long-lived
+ * MCP access key (`gpk_…`, src/lib/dal/mcpKeys.ts) or, as before, a raw
+ * Firebase session cookie. Neither is a separate, lower-privilege
+ * credential: both resolve to the same Firebase UID and the same caller.
  */
 export const getVerifiedUid = cache(async (): Promise<string | null> => {
   const cookieStore = await cookies();
@@ -33,7 +34,10 @@ export const getVerifiedUid = cache(async (): Promise<string | null> => {
     const headerStore = await headers();
     const authHeader = headerStore.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.slice("Bearer ".length);
+      token = authHeader.slice("Bearer ".length).trim();
+      if (token.startsWith(MCP_KEY_PREFIX)) {
+        return resolveMcpKey(token).catch(() => null);
+      }
     }
   }
 

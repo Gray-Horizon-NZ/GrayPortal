@@ -346,7 +346,7 @@ export function Settings() {
               </div>
               <div>
                 <p className="eyebrow" style={{ marginBottom: 6 }}>Emergency</p>
-                <p className="muted small" style={{ marginBottom: 8 }}>Revokes this session and every MCP token. You&apos;ll sign in again afterwards.</p>
+                <p className="muted small" style={{ marginBottom: 8 }}>Revokes this session and your MCP access key. You&apos;ll sign in again afterwards.</p>
                 <RevokeAll />
               </div>
             </div>
@@ -437,7 +437,7 @@ function McpToken() {
     return (
       <div className="stack" style={{ gap: 8 }}>
         <textarea className="textarea mono priv" readOnly rows={3} value={token} onFocus={(e) => e.currentTarget.select()} style={{ fontSize: 11 }} />
-        <p className="small tone-bad">Treat this like a password — anyone with it can act as your admin account for up to 14 days. Paste it into your MCP client&apos;s Authorization header only. It won&apos;t be shown again.</p>
+        <p className="small tone-bad">Treat this like a password — anyone with it can act as your admin account until you revoke it. It doesn&apos;t expire. Paste it into your MCP client&apos;s Authorization header only. It won&apos;t be shown again, and getting a new key cancels this one.</p>
       </div>
     );
   }
@@ -454,7 +454,7 @@ function McpToken() {
         } catch {
           setError("Couldn't generate a token. Try signing out and back in.");
         }
-      })}>{pending ? "Generating…" : "Get MCP access token"}</button>
+      })}>{pending ? "Generating…" : "Get MCP access key"}</button>
       {error && <span className="small tone-bad">{error}</span>}
     </div>
   );

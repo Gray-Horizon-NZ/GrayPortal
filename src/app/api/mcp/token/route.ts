@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
-import { SESSION_MAX_AGE_MS } from "@/lib/dal/constants";
-import { withSession, NotOnAllowlistError, assertRole } from "@/lib/dal/session";
+import { withSession, NotOnAllowlistError } from "@/lib/dal/session";
+import { issueMcpKey } from "@/lib/dal/mcpKeys";
 
-// Mints a fresh session cookie value and returns it in the response body
-// instead of setting it as an httpOnly cookie, so it can be copied into an
-// MCP client's Authorization header (Phase 4 brief §2). This deliberately
-// never touches the browser's own live session cookie — a separate token is
-// minted for this one purpose, using the exact same createSessionCookie
-// call /api/auth/session uses. Admin-only: this phase's MCP tools are for
-// Max, not contractor/client roles.
+// Issues a long-lived MCP access key (src/lib/dal/mcpKeys.ts) and returns it
+// in the response body, so it can be copied into an MCP client's
+// Authorization header (Phase 4 brief §2). Until 2026-10-24 this minted a
+// 14-day session cookie, which meant re-pasting a token every fortnight.
+// Still requires a fresh Firebase ID token, not just the browser's session
+// cookie, so a key can only be issued by someone actively signed in.
+// Admin-only: MCP tools are for Max, not contractor/client roles.
 export async function POST(request: NextRequest) {
   const { idToken } = await request.json();
   if (!idToken || typeof idToken !== "string") {
@@ -18,11 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const decoded = await adminAuth.verifyIdToken(idToken);
-    await withSession(decoded.uid, async (_tx, caller) => {
-      assertRole(caller, "admin");
-    });
-
-    const token = await adminAuth.createSessionCookie(idToken, { expiresIn: SESSION_MAX_AGE_MS });
+    const token = await withSession(decoded.uid, (tx, caller) => issueMcpKey(tx, caller));
     return NextResponse.json({ token });
   } catch (err) {
     if (err instanceof NotOnAllowlistError) {
