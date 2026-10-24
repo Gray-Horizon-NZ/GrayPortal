@@ -322,7 +322,7 @@ export function Settings() {
                 {s.budgetCategories.map((k) => (
                   <label key={k} className="field">
                     <span>{k}</span>
-                    <input className="input priv" type="number" min="0" defaultValue={s.budgets[k] ?? ""} placeholder="No budget" onBlur={(e) => {
+                    <input className="input priv" type="number" min="0" step="0.01" defaultValue={s.budgets[k] ?? ""} placeholder="No budget" onBlur={(e) => {
                       const v = Number(e.target.value || 0);
                       if (v !== (s.budgets[k] ?? 0)) tSetExpenseBudget(k, v);
                     }} />
