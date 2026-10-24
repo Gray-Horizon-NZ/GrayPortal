@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { syncLaunchTasks } from "./launchTasks";
 import {
   incrementumSettings,
   incrementumServices,
@@ -60,6 +61,8 @@ import {
  * whole is cheaper and simpler than a query per widget.
  */
 export const getIncrementumSnapshot = cache(async () => {
+  // Launch items in the current gate become tasks before anything is read.
+  await syncLaunchTasks().catch((err) => console.error("Incrementum launch → tasks sync failed", err));
   const state = await withIncrementum(async (_caller, tx) => {
     const notDeleted = isNull;
     const [settings] = await tx.select().from(incrementumSettings).where(eq(incrementumSettings.key, "singleton")).limit(1);

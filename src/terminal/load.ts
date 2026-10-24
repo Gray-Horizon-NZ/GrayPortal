@@ -1,5 +1,6 @@
 import "server-only";
 import { listAllTasks } from "@/lib/dal/tasks";
+import { syncLaunchTasks } from "@/lib/dal/incrementum/launchTasks";
 import { listAccounts } from "@/lib/dal/accounts";
 import { listAssignableUsers } from "@/lib/dal/users";
 import { listRecurringTemplates } from "@/lib/dal/recurringTemplates";
@@ -124,6 +125,9 @@ export type TClient = Awaited<ReturnType<typeof loadClients>>[number];
 
 // ─── Tasks ───────────────────────────────────────────────────────────────
 export async function loadTasks() {
+  // Project Incrementum's current launch gate shows up as tasks in its gold
+  // column (dal/incrementum/launchTasks.ts). Admin-only; never blocks the page.
+  await syncLaunchTasks().catch(() => {});
   const [tasks, users] = await Promise.all([listAllTasks(), listAssignableUsers().catch(() => [])]);
   const name = new Map(users.map((u) => [u.id, (u.displayName ?? u.email).split(" ")[0]]));
   return tasks

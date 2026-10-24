@@ -8,6 +8,8 @@ import { withAdminScope, assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
 import { syncTaskToGoogle, removeTaskFromGoogle, listGoogleTasklists, createGoogleTasklist } from "@/lib/google/adapter";
 import { resolveGoogleTasklistId } from "./googleConnection";
+import { mirrorTaskToLaunchItem } from "./incrementum/launchLink";
+import { INCREMENTUM_LIST_KEY } from "@/lib/incrementum/registry";
 import { z } from "zod";
 
 /**
@@ -351,7 +353,7 @@ export async function getTaskDealContext(dealId: string) {
 export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatus>) {
   const parsed = TaskStatus.parse(status);
   const task = await withCaller(async (caller, tx) => {
-    return auditedUpdate(
+    const updated = await auditedUpdate<typeof tasks.$inferSelect>(
       tx,
       tasks,
       eq(tasks.id, id),
@@ -363,6 +365,12 @@ export async function setTaskStatus(id: string, status: z.infer<typeof TaskStatu
       },
       { caller, entityType: "task" }
     );
+    // A task made from a launch readiness item ticks (or reopens) that item.
+    // Incrementum tables are admin-only under RLS, hence the role check.
+    if (updated.internalList === INCREMENTUM_LIST_KEY && caller.role === "admin") {
+      await mirrorTaskToLaunchItem(tx, caller, id, parsed);
+    }
+    return updated;
   });
 
   // Phase 3: push status (and thus completion) to Google Tasks — never

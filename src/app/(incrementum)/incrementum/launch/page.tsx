@@ -26,7 +26,7 @@ export default async function LaunchPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="screen">
-      <PageHead title="Launch readiness" sub="Ads don't go live until every launch-critical item is done or marked N/A with a reason. Items marked ⚙ tick themselves from live data." />
+      <PageHead title="Launch readiness" sub="Ads don't go live until every launch-critical item is done or marked N/A with a reason. Items marked ⚙ tick themselves from live data. The current gate's items are tasks in GrayPortal's Project Incrementum column; ticking either side ticks both." />
 
       <Console>
         <Csec>

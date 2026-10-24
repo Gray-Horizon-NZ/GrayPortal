@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { and, eq, isNull, asc, desc } from "drizzle-orm";
 import { z } from "zod";
 import type { PgTable } from "drizzle-orm/pg-core";
@@ -16,10 +17,13 @@ import {
   incrementumHomeLayouts,
   incrementumNextMoveDismissals,
   incrementumHours,
+  tasks,
 } from "@/lib/db/schema";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "../mutate";
 import { withIncrementum, actor, nullable, numOrNull } from "./core";
-import { createIncrementumTask } from "./tasks";
+import { createIncrementumTask, syncIncrementumTask } from "./tasks";
+import { launchStatusToTask } from "./launchLink";
+import { deleteTask } from "../tasks";
 import {
   LAUNCH_GATES,
   LAUNCH_ITEM_STATUSES,
@@ -155,12 +159,30 @@ export async function updateLaunchItem(id: string, input: z.input<typeof LaunchI
     // Automatic items tick themselves from live data — they can't be ticked
     // by hand (plan §6.1: "so the checklist can't lie"). N/A is still allowed.
     if (item.metricKey && data.status === "done") throw new Error("This item ticks itself from live data and can't be marked done by hand.");
-    return auditedUpdate(tx, incrementumLaunchItems, eq(incrementumLaunchItems.id, id), id, { ...data, updatedBy: caller.userId }, { caller, entityType: "incrementum_launch_item" });
+    const saved = await auditedUpdate(tx, incrementumLaunchItems, eq(incrementumLaunchItems.id, id), id, { ...data, updatedBy: caller.userId }, { caller, entityType: "incrementum_launch_item" });
+    // Carry status, due date and title to the item's task (launchTasks.ts).
+    const [task] = item.taskId ? await tx.select().from(tasks).where(and(eq(tasks.id, item.taskId), isNull(tasks.deletedAt))).limit(1) : [];
+    if (task) {
+      const values: Record<string, unknown> = {};
+      const status = data.status ? launchStatusToTask(data.status) : null;
+      if (status && status !== task.status) Object.assign(values, { status, completedAt: status === "done" ? new Date() : null });
+      if (data.dueDate !== undefined && data.dueDate !== task.dueDate) values.dueDate = data.dueDate;
+      if (data.title && data.title !== task.title) values.title = data.title;
+      if (Object.keys(values).length) {
+        const updated = await auditedUpdate<typeof tasks.$inferSelect>(tx, tasks, eq(tasks.id, task.id), task.id, { ...values, updatedBy: caller.userId }, { caller, entityType: "task" });
+        after(() => syncIncrementumTask(updated));
+      }
+    }
+    return saved;
   });
 }
 
+/** Removing an item removes the task it made, too. */
 export async function deleteLaunchItem(id: string) {
-  return softDeleteById(incrementumLaunchItems, "incrementum_launch_item", id);
+  const [row] = await withIncrementum(async (_c, tx) => tx.select({ taskId: incrementumLaunchItems.taskId }).from(incrementumLaunchItems).where(eq(incrementumLaunchItems.id, id)).limit(1));
+  const item = await softDeleteById(incrementumLaunchItems, "incrementum_launch_item", id);
+  if (row?.taskId) await deleteTask(row.taskId);
+  return item;
 }
 
 /** "Make task": creates an Incrementum task (in a sub-list if given) linked back to the item. */

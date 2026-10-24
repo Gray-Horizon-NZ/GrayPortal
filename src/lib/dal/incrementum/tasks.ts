@@ -29,7 +29,7 @@ async function ensureIncrementumGoogleList(): Promise<void> {
   }
 }
 
-async function syncIncrementumTask(task: typeof tasks.$inferSelect) {
+export async function syncIncrementumTask(task: typeof tasks.$inferSelect) {
   await ensureIncrementumGoogleList();
   await syncTaskGoogleBookkeeping(task);
 }
