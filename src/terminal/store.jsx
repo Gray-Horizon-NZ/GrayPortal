@@ -1,5 +1,5 @@
 "use client";
-// Drop-in for the terminal concept's store (OS/grayportal-terminal-concept/
+// Drop-in for the terminal concept's store (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/
 // src/store.jsx): screens keep calling useStore() and get the same shape —
 // prefs + setPref, and collections with setX((prev) => next) setters — but
 // the collections are real data seeded by the server, and every setter

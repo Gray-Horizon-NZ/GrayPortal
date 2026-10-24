@@ -1,5 +1,5 @@
 "use client";
-// The terminal concept's shell (OS/grayportal-terminal-concept/src/App.jsx):
+// The terminal concept's shell (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/App.jsx):
 // header with search, website inquiries, theme and privacy toggles, alerts
 // and "logged in as"; the rail of block buttons with folders below. Same
 // markup and classes. Differences: routes come from Next (usePathname), the

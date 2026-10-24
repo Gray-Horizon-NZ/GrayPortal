@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Work screens (OS/grayportal-terminal-
+// Port of the terminal concept's Work screens (OS/GrayPortal/terminal-concepts/grayportal-terminal-
 // concept/src/screens/Work.jsx): Calendar, Ideation, AI Agents, Reminders.
 // Same markup; real data, and every button wired to the real actions (the
 // concept's were placeholders). Ideation uses the real statuses

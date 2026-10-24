@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Tasks (OS/grayportal-terminal-concept/src/
+// Port of the terminal concept's Tasks (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/
 // screens/Tasks.jsx): list picker + task rows, and the Master view board.
 // Real lists (Gray Horizon, Gray Horizon - Focus, Project Incrementum, each
 // client) plus a Prospects group for deal-linked tasks, which the real app

@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's ClientProfile (OS/grayportal-terminal-
+// Port of the terminal concept's ClientProfile (OS/GrayPortal/terminal-concepts/grayportal-terminal-
 // concept/src/screens/ClientProfile.jsx). Same header, KPIs, five tabs and
 // panels, on real data (page.tsx builds `profile`). Every button the
 // concept left as a placeholder is wired to the real action in

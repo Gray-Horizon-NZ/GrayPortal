@@ -1,5 +1,5 @@
 "use client";
-// The terminal concept's chart kit (OS/grayportal-terminal-concept/src/charts.jsx), verbatim.
+// The terminal concept's chart kit (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/charts.jsx), verbatim.
 import { useMounted, Priv } from "./ui";
 import { money, short } from "./format";
 

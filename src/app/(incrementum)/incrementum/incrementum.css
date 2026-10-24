@@ -1,5 +1,5 @@
 /* Project Incrementum: Terminal UI.
- * Ported from OS/incrementum-terminal-concept (src/styles.css, incrementum.css,
+ * Ported from OS/GrayPortal/terminal-concepts/incrementum-terminal-concept (src/styles.css, incrementum.css,
  * terminal.css), every rule scoped under .gh-incrementum: Next keeps layout
  * CSS loaded after navigating away, so nothing may leak into GrayPortal.
  * Theme and privacy are attributes on the .gh-incrementum wrapper.

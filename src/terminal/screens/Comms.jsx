@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Comms screens (OS/grayportal-terminal-
+// Port of the terminal concept's Comms screens (OS/GrayPortal/terminal-concepts/grayportal-terminal-
 // concept/src/screens/Comms.jsx): Triage, Templates, Campaigns, plus a
 // campaign detail page in the same parts. Real data: triage folders are
 // "Needs reply" (client threads whose newest message is inbound), "Clients"

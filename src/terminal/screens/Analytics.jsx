@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Analytics (OS/grayportal-terminal-concept/
+// Port of the terminal concept's Analytics (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/
 // src/screens/Analytics.jsx): five report presets, KPIs on top, then the
 // charts for that report. Every figure is real (the concept's `analytics`
 // mock series come from loadAnalytics in ../load.ts); the concept's fixed

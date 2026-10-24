@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Pipeline (OS/grayportal-terminal-concept/
+// Port of the terminal concept's Pipeline (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/
 // src/screens/Pipeline.jsx). Same stage tiles, stage table, stats and deal
 // pop-up. Advance / Mark lost save through the real stage change (task
 // rules and activity log included); "Open full deal" goes to the deal

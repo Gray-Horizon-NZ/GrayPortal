@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Catalog screens (OS/grayportal-terminal-
+// Port of the terminal concept's Catalog screens (OS/GrayPortal/terminal-concepts/grayportal-terminal-
 // concept/src/screens/Catalog.jsx): Pricing and GrayScale, on the real
 // catalogue. Edit/add/remove run the real actions in pricing/actions.ts and
 // grayscale-products/actions.ts; GrayScale requests come from every client.

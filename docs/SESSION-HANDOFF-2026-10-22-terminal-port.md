@@ -4,7 +4,7 @@ Pick up here. Read this file, then `grayhorizon-docs/Terminal UI/RULES.md`.
 
 ## What Max wants (verbatim intent)
 
-1. **The mockup UI applied exactly, "to the pixel".** It isn't a restyle. The concept at `OS/grayportal-terminal-concept` (Vite, port 5190, mock data) is the spec: copy its code and feed it real data. Max was frustrated that earlier passes "designed something similar" instead of copying. Don't redesign. Where real data or features force a difference, keep it minimal and use the concept's own components (Panel, table, Modal, Seg and so on).
+1. **The mockup UI applied exactly, "to the pixel".** It isn't a restyle. The concept at `OS/GrayPortal/terminal-concepts/grayportal-terminal-concept` (Vite, port 5190, mock data) is the spec: copy its code and feed it real data. Max was frustrated that earlier passes "designed something similar" instead of copying. Don't redesign. Where real data or features force a difference, keep it minimal and use the concept's own components (Panel, table, Modal, Seg and so on).
 2. **Speed.** Pages took 3–5s to change. He wants app-like, instant navigation.
 3. **Header exactly as the concept:** search, website **Inquiries** button with dropdown and pop-up, light/dark toggle, privacy **blur** toggle (⇧P), alerts, and "Logged in as".
 4. **Every admin screen ported, except Project Incrementum** (left alone). Client portal and contractor workspace are untouched unless he asks.
@@ -57,7 +57,7 @@ All committed to `terminal-exact`, in order: Work screens (`41a0564`), client pr
 
 - JSX isn't type-checked, so **every screen still needs to be seen running** — none has been yet. The localhost:3000 dev server (in this folder, serving the checked-out branch) needs Max to **sign in once** in Chrome. Claude can't sign in (credentials).
 - Max's Chrome *is* signed in to production (`app.grayhorizon.nz`). JS evaluation there works, but screenshots often time out. After a merge, check prod with `javascript_tool` (DOM queries, `fetch` timings).
-- Compare each screen against the concept at `localhost:5190/#/<route>` (run `npm run dev` in `OS/grayportal-terminal-concept` if it isn't up).
+- Compare each screen against the concept at `localhost:5190/#/<route>` (run `npm run dev` in `OS/GrayPortal/terminal-concepts/grayportal-terminal-concept` if it isn't up).
 
 ## Gotchas
 

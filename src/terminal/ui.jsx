@@ -1,5 +1,5 @@
 "use client";
-// The terminal concept's UI kit (OS/grayportal-terminal-concept/src/ui.jsx),
+// The terminal concept's UI kit (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/ui.jsx),
 // copied verbatim apart from go(), which navigates with the Next router.
 import { useEffect, useRef, useState } from "react";
 import { X, Upload, Pencil, ChevronDown } from "lucide-react";

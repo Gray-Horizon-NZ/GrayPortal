@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Home (OS/grayportal-terminal-concept/src/
+// Port of the terminal concept's Home (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/
 // screens/Home.jsx). Markup and maths unchanged; real data from the store,
 // real dates instead of the concept's fixed October 2026.
 import { useState } from "react";

@@ -1,5 +1,5 @@
 // Terminal kit for Project Incrementum, ported from the approved concept
-// (OS/incrementum-terminal-concept: src/terminal.jsx, ui.jsx, parts.jsx).
+// (OS/GrayPortal/terminal-concepts/incrementum-terminal-concept: src/terminal.jsx, ui.jsx, parts.jsx).
 // Server components: where the concept kept a view, tab, filter or
 // selection in state, these take an href and the page reads it back from
 // the URL. Folds are <details>; pop-ups are <dialog> (see ./client).

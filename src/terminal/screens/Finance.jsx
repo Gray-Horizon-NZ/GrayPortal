@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Finance screens (OS/grayportal-terminal-
+// Port of the terminal concept's Finance screens (OS/GrayPortal/terminal-concepts/grayportal-terminal-
 // concept/src/screens/Finance.jsx): Finance, Owner's Cut and Expenses.
 // Markup unchanged; real data from the store. Differences:
 // - dates/periods are real (the concept was fixed at October 2026, FY27);

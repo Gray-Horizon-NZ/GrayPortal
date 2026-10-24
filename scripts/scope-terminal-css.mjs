@@ -5,11 +5,11 @@
 // or Project Incrementum. Keyframes get a `t-` prefix for the same reason.
 //
 // Re-run after changing the concept:
-//   node scripts/scope-terminal-css.mjs ../grayportal-terminal-concept/src/styles.css
+//   node scripts/scope-terminal-css.mjs ../terminal-concepts/grayportal-terminal-concept/src/styles.css
 import { readFileSync, writeFileSync } from "node:fs";
 import postcss from "postcss";
 
-const [src = "../grayportal-terminal-concept/src/styles.css", out = "src/app/(app)/terminal.css"] = process.argv.slice(2);
+const [src = "../terminal-concepts/grayportal-terminal-concept/src/styles.css", out = "src/app/(app)/terminal.css"] = process.argv.slice(2);
 const ROOT = ".gh-terminal";
 const KEYFRAMES = ["screen-in", "fade", "pop", "inq-glow"];
 
@@ -36,7 +36,7 @@ root.walkDecls(/^animation(-name)?$/, (decl) => {
 });
 
 const header = `/* GENERATED — do not edit by hand.
- * The terminal concept's stylesheet (OS/grayportal-terminal-concept/src/styles.css),
+ * The terminal concept's stylesheet (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/styles.css),
  * copied verbatim and scoped under ${ROOT} by scripts/scope-terminal-css.mjs.
  * Design rules: grayhorizon-docs/Terminal UI/RULES.md. GrayPortal-only
  * additions live in terminal-adapter.css, never here. */\n\n`;

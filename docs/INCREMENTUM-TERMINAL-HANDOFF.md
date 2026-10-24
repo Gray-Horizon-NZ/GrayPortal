@@ -1,6 +1,6 @@
 # Handoff: Incrementum Terminal UI → real GrayPortal
 
-Started 2026-10-22. **Task (Max):** "make this the new Incrementum UI on the official GrayPortal. Exactly this as is. Port the code and design directly over to make this real." The design source is the concept app `OS/incrementum-terminal-concept`, which Max approved after several rounds of notes.
+Started 2026-10-22. **Task (Max):** "make this the new Incrementum UI on the official GrayPortal. Exactly this as is. Port the code and design directly over to make this real." The design source is the concept app `OS/GrayPortal/terminal-concepts/incrementum-terminal-concept`, which Max approved after several rounds of notes.
 
 Read this first, then `grayhorizon-docs/Terminal UI/RULES.md` §4 (component table, Console onwards) and §8 (Incrementum status, Max's 22 Oct notes, and the real-build gaps).
 
@@ -10,9 +10,9 @@ Read this first, then `grayhorizon-docs/Terminal UI/RULES.md` §4 (component tab
 
 | What | Where |
 |---|---|
-| **This work (git worktree)** | `OS/grayportal-incrementum`, branch `incrementum-terminal-ui`, cut from `origin/main` (0470a68) |
-| Design source (concept, mock data) | `OS/incrementum-terminal-concept`, `npm run dev`, port 5191. Settings → "Concept only" switches pre-launch / live demo data |
-| Main GrayPortal checkout | `OS/grayportal`, on branch **`terminal-exact`**: **another session's WIP** (exact GrayPortal concept port). **Don't touch it.** |
+| **This work (git worktree)** | `OS/grayportal-incrementum` (removed 2026-10-24, merged), branch `incrementum-terminal-ui`, cut from `origin/main` (0470a68) |
+| Design source (concept, mock data) | `OS/GrayPortal/terminal-concepts/incrementum-terminal-concept`, `npm run dev`, port 5191. Settings → "Concept only" switches pre-launch / live demo data |
+| Main GrayPortal checkout | `OS/GrayPortal/grayportal`, on branch **`terminal-exact`**: **another session's WIP** (exact GrayPortal concept port). **Don't touch it.** |
 | Worktree setup | `node_modules` is a junction to `../grayportal/node_modules`; `.env.local` was copied in. Both are gitignored |
 
 Run everything from the worktree. `npx tsc --noEmit -p .`, `npx vitest run`, `npx next build`, `npx next dev`.
@@ -29,7 +29,7 @@ Run everything from the worktree. `npx tsc --noEmit -p .`, `npx vitest run`, `np
 - **Every signed client is a full GrayPortal client**, on any term (0 = month to month).
 - **Review email**: once the minimum term is served, the client page offers "Send review email" (Google review request, placeholder template, sent via Gmail like outreach). Also an attention item, and the tile hint "Ask for a review".
 - **Contractors** (nightclub staff screen): side card with no art, only the "Gray Horizon Team" strip plus ON THE BENCH and RECRUITING rows, and the note "On the bench = Confirmed or Onboarded…". Filters: service, role, works-with size S/M/L, max rate (range), bench only, paused/not a fit. Service slots (assigned / OPEN / locked; clicking one filters).
-- **Leads** = the GrayPortal Pipeline layout (from `OS/grayportal-terminal-concept/src/screens/Pipeline.jsx`), already ported in the concept's `Leads.jsx`.
+- **Leads** = the GrayPortal Pipeline layout (from `OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/screens/Pipeline.jsx`), already ported in the concept's `Leads.jsx`.
 - **Don't deploy, push or merge without Max.** The DB change must be applied by Max first (paste the APPLY file).
 
 ## Status (23 Oct 2026, later): merged with main, tied into GrayPortal

@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's Clients (OS/grayportal-terminal-concept/src/
+// Port of the terminal concept's Clients (OS/GrayPortal/terminal-concepts/grayportal-terminal-concept/src/
 // screens/Clients.jsx). Same tiles, list and filters on real clients. Added
 // beneath: the prospects list and "add prospect" the real page always had,
 // built from the concept's own Panel/table/Modal parts.

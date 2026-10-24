@@ -12,7 +12,7 @@ import { withCaller } from "@/lib/dal/auth";
 // Project Incrementum (docs/Project-Incrementum-Plan.md) — a full-screen
 // space of its own (Max, 2026-10-18): its own route group, not inside the
 // GrayPortal shell. Since 22 Oct it wears the Terminal UI, ported exactly
-// from the approved concept (OS/incrementum-terminal-concept, App.jsx):
+// from the approved concept (OS/GrayPortal/terminal-concepts/incrementum-terminal-concept, App.jsx):
 // light by default, a dark toggle and a privacy blur in the header, the
 // identity card + block buttons + folders in the rail, and one page
 // scroller (the window scrolls; header and rail are sticky).

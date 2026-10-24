@@ -13,9 +13,9 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
 // Resolved relative to this file's directory (scripts/) via import.meta.url
-// below — two levels up gets from grayportal/scripts/ to OS/, then into
+// below — three levels up gets from GrayPortal/grayportal/scripts/ to OS/, then into
 // the sibling ai-agents/Proposer/ folder where the source file lives.
-const SOURCE_PATH = "../../ai-agents/Proposer/gh_pricing_framework_v5.md";
+const SOURCE_PATH = "../../../ai-agents/Proposer/gh_pricing_framework_v5.md";
 
 const P2_MODULE = {
   code: "P2",

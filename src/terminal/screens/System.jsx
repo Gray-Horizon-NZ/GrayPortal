@@ -1,5 +1,5 @@
 "use client";
-// Port of the terminal concept's System screens (OS/grayportal-terminal-
+// Port of the terminal concept's System screens (OS/GrayPortal/terminal-concepts/grayportal-terminal-
 // concept/src/screens/System.jsx): Vault, Brand guidelines, Settings, Alerts
 // and Search, on real data. Reveal goes through the real re-auth (a fresh
 // Google sign-in escalated to the TOTP challenge) before the secret is
