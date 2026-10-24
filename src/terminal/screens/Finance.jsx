@@ -244,20 +244,24 @@ function AdsEditor({ open, onClose, ads }) {
 }
 
 export function OwnersCut() {
-  const { withdrawals, setWithdrawals, owners, prefs, setPref } = useStore();
+  const { withdrawals, setWithdrawals, owners, oneOffs, prefs, setPref } = useStore();
   const [form, setForm] = useState({ date: TODAY, amount: "", note: "Weekly draw" });
   const [single, setSingle] = useState("");
   const o = owners;
+  const month = TODAY.slice(0, 7);
+  // Gross is the retainers plus the one-off payments recorded on client
+  // profiles this month.
+  const monthOneOffs = oneOffs.filter((p) => p.date?.startsWith(month));
+  const gross = o.gross + monthOneOffs.reduce((a, p) => a + p.amount, 0);
   // Live tax: NZ brackets + ACC levy on top of real year-to-date income
   // (the same calculation the previous Owner's Cut page used).
   const deductible = o.writeoffExpenses + o.contractorPayments.reduce((a, c) => a + c.amount, 0);
-  const setAside = estimateMonthlySetAsideFromYtd(Math.max(o.gross - deductible, 0), o.ytdPrior);
+  const setAside = estimateMonthlySetAsideFromYtd(Math.max(gross - deductible, 0), o.ytdPrior);
   const tax = setAside.totalNzd;
-  const taxPct = o.gross > 0 ? Math.round((tax / o.gross) * 1000) / 10 : 0;
+  const taxPct = gross > 0 ? Math.round((tax / gross) * 1000) / 10 : 0;
   const exp = o.expenseItems.reduce((a, e) => a + e.amount, 0);
   const contractors = o.contractorPayments.reduce((a, c) => a + c.amount, 0);
-  const available = o.gross - tax - exp - contractors;
-  const month = TODAY.slice(0, 7);
+  const available = gross - tax - exp - contractors;
   const thisPeriod = withdrawals.filter((w) => w.date.startsWith(month));
   const drawn = thisPeriod.reduce((a, w) => a + w.amount, 0);
   const weeksElapsed = Math.max(1, Math.ceil(Number(TODAY.slice(8, 10)) / 7));
@@ -265,7 +269,7 @@ export function OwnersCut() {
   // A single payment is taxed at the margin, on top of the year so far and
   // this month's retainers.
   const singleAmount = parseFloat(single) || 0;
-  const singleTax = estimateMonthlySetAsideFromYtd(singleAmount, o.ytdPrior + Math.max(o.gross - deductible, 0)).totalNzd;
+  const singleTax = estimateMonthlySetAsideFromYtd(singleAmount, o.ytdPrior + Math.max(gross - deductible, 0)).totalNzd;
   const singlePct = singleAmount > 0 ? Math.round((singleTax / singleAmount) * 1000) / 10 : 0;
 
   return (
@@ -283,7 +287,9 @@ export function OwnersCut() {
         <Panel title="Calculation" icon={PiggyBank} right={o.period}>
           <KV
             rows={[
-              ["Gross income", money(o.gross), null, true],
+              ["Gross income", money(gross, 2), null, true],
+              ...(monthOneOffs.length ? [["Retainers", money(o.gross), "muted", true]] : []),
+              ...monthOneOffs.map((p) => [`One-off · ${p.client}`, money(p.amount, 2), "muted", true]),
               [`Tax set-aside (${taxPct}%)`, `− ${money(tax)}`, null, true],
               ...o.expenseItems.map((e) => [e.label, `− ${money(e.amount)}`, "muted", true]),
               ...o.contractorPayments.map((c) => [`Contractor · ${c.payee}`, `− ${money(c.amount)}`, "muted", true]),
@@ -293,7 +299,7 @@ export function OwnersCut() {
             ]}
           />
           <p className="muted small" style={{ marginTop: 10 }}>
-            Gross is this month&apos;s recurring client revenue. Tax is the marginal NZ amount on top of <Priv>{money(o.ytdPrior)}</Priv> earned earlier this tax year (Xero + Spider-Fawcett).
+            Gross is this month&apos;s retainers plus one-off payments recorded on client profiles. Tax is the marginal NZ amount on top of <Priv>{money(o.ytdPrior)}</Priv> earned earlier this tax year (Xero + Spider-Fawcett).
           </p>
         </Panel>
         <div className="stack">
@@ -335,7 +341,7 @@ export function OwnersCut() {
                 ]}
               />
             )}
-            <p className="muted small" style={{ marginTop: 10 }}>NZ brackets + ACC at your current marginal rate. Not added to the calculation above.</p>
+            <p className="muted small" style={{ marginTop: 10 }}>A quick check at your current marginal rate (NZ brackets + ACC). To count it above, record it on the client&apos;s profile.</p>
           </Panel>
         </div>
       </div>
