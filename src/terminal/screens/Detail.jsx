@@ -257,7 +257,7 @@ export function CompanyDetail() {
           <div className="form-grid">
             <label className="field"><span>Next action</span><input className="input" name="nextAction" required /></label>
             <label className="field"><span>Next action date</span><input className="input" name="nextActionDate" type="date" defaultValue={TODAY} required /></label>
-            <label className="field"><span>Value / mo</span><input className="input" name="valueNzd" type="number" min="0" /></label>
+            <label className="field"><span>Value / mo</span><input className="input" name="valueNzd" type="number" min="0" step="0.01" /></label>
             <label className="field"><span>Package</span><input className="input" name="packageTier" /></label>
           </div>
           <label className="field"><span>Source</span><input className="input" name="source" defaultValue={c.source} /></label>

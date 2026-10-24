@@ -7,9 +7,11 @@
 // - Owner's Cut tax is the live NZ-bracket calculation (lib/nzTax.ts), not a
 //   flat percentage — Max's choice, 22 Oct;
 // - the Ads runway panel gains an Edit pop-up so the budget and spend can
-//   actually be entered (the concept had no way to).
+//   actually be entered (the concept had no way to);
+// - Owner's Cut gains a single-payment tax calculator, since gross only
+//   counts retainers and one-off client payments had no way in.
 import { useState } from "react";
-import { BarChart3, CalendarCheck, Megaphone, Receipt, Info, Plus, Wallet, History, PiggyBank, Coins, Download, ShoppingBag, Pencil, Users } from "lucide-react";
+import { BarChart3, CalendarCheck, Megaphone, Receipt, Info, Plus, Wallet, History, PiggyBank, Coins, Download, ShoppingBag, Pencil, Users, Calculator } from "lucide-react";
 import { useStore } from "../store";
 import { TODAY, money, fmtDate } from "../format";
 import { PageHead, Panel, Priv, KV, Badge, Stat, Seg, Modal, go, downloadCsv } from "../ui";
@@ -137,7 +139,7 @@ export function Finance() {
                   <td className="nowrap">{fmtDate(p.date)}</td>
                   <td className="strong">{p.client}</td>
                   <td>{p.label}</td>
-                  <td className="num"><Priv>{money(p.amount)}</Priv></td>
+                  <td className="num"><Priv>{money(p.amount, 2)}</Priv></td>
                   <td>{xeroBadge(p.status === "paid" ? "PAID" : p.invoice ? "AUTHORISED" : null)}</td>
                 </tr>
               ))}
@@ -211,8 +213,8 @@ function AdsEditor({ open, onClose, ads }) {
       >
         <p className="eyebrow">Budget</p>
         <div className="form-grid">
-          <label className="field"><span>Total budget</span><input className="input" type="number" min="0" value={budget.budget} onChange={(e) => setBudget({ ...budget, budget: e.target.value })} required /></label>
-          <label className="field"><span>Planned monthly spend</span><input className="input" type="number" min="1" value={budget.monthly} onChange={(e) => setBudget({ ...budget, monthly: e.target.value })} required /></label>
+          <label className="field"><span>Total budget</span><input className="input" type="number" min="0" step="0.01" value={budget.budget} onChange={(e) => setBudget({ ...budget, budget: e.target.value })} required /></label>
+          <label className="field"><span>Planned monthly spend</span><input className="input" type="number" min="0.01" step="0.01" value={budget.monthly} onChange={(e) => setBudget({ ...budget, monthly: e.target.value })} required /></label>
           <label className="field"><span>Started on</span><input className="input" type="date" value={budget.startedOn} onChange={(e) => setBudget({ ...budget, startedOn: e.target.value })} required /></label>
         </div>
         <button className="btn btn-primary" disabled={busy} style={{ alignSelf: "flex-start" }}>Save budget</button>
@@ -232,7 +234,7 @@ function AdsEditor({ open, onClose, ads }) {
         <p className="eyebrow">Log spend</p>
         <div className="form-grid">
           <label className="field"><span>Date</span><input className="input" type="date" value={spend.date} onChange={(e) => setSpend({ ...spend, date: e.target.value })} /></label>
-          <label className="field"><span>Amount spent</span><input className="input" type="number" min="0" value={spend.amount} onChange={(e) => setSpend({ ...spend, amount: e.target.value })} placeholder="$" /></label>
+          <label className="field"><span>Amount spent</span><input className="input" type="number" min="0" step="0.01" value={spend.amount} onChange={(e) => setSpend({ ...spend, amount: e.target.value })} placeholder="$" /></label>
         </div>
         <input className="input" value={spend.note} onChange={(e) => setSpend({ ...spend, note: e.target.value })} placeholder="Note (optional)" />
         <button className="btn" disabled={busy || !ads.isSet} style={{ alignSelf: "flex-start" }}><Plus size={14} /> Log spend</button>
@@ -244,6 +246,7 @@ function AdsEditor({ open, onClose, ads }) {
 export function OwnersCut() {
   const { withdrawals, setWithdrawals, owners, prefs, setPref } = useStore();
   const [form, setForm] = useState({ date: TODAY, amount: "", note: "Weekly draw" });
+  const [single, setSingle] = useState("");
   const o = owners;
   // Live tax: NZ brackets + ACC levy on top of real year-to-date income
   // (the same calculation the previous Owner's Cut page used).
@@ -259,6 +262,11 @@ export function OwnersCut() {
   const drawn = thisPeriod.reduce((a, w) => a + w.amount, 0);
   const weeksElapsed = Math.max(1, Math.ceil(Number(TODAY.slice(8, 10)) / 7));
   const targetWeekly = Number(prefs.targetWeekly) || 0;
+  // A single payment is taxed at the margin, on top of the year so far and
+  // this month's retainers.
+  const singleAmount = parseFloat(single) || 0;
+  const singleTax = estimateMonthlySetAsideFromYtd(singleAmount, o.ytdPrior + Math.max(o.gross - deductible, 0)).totalNzd;
+  const singlePct = singleAmount > 0 ? Math.round((singleTax / singleAmount) * 1000) / 10 : 0;
 
   return (
     <div className="screen">
@@ -293,7 +301,7 @@ export function OwnersCut() {
             <Bullet rows={[{ label: `${weeksElapsed} week${weeksElapsed === 1 ? "" : "s"}`, actual: drawn, target: targetWeekly * weeksElapsed }]} />
             <p className="muted small row" style={{ marginTop: 10 }}>
               Target
-              <input className="input" style={{ width: 90, height: 26 }} type="number" min="0" value={prefs.targetWeekly ?? ""} onChange={(e) => setPref("targetWeekly", e.target.value)} placeholder="$" />
+              <input className="input" style={{ width: 90, height: 26 }} type="number" min="0" step="0.01" value={prefs.targetWeekly ?? ""} onChange={(e) => setPref("targetWeekly", e.target.value)} placeholder="$" />
               /week.
             </p>
           </Panel>
@@ -311,11 +319,23 @@ export function OwnersCut() {
             >
               <div className="form-grid">
                 <label className="field"><span>Date</span><input className="input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
-                <label className="field"><span>Amount</span><input className="input" type="number" min="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="$" /></label>
+                <label className="field"><span>Amount</span><input className="input" type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="$" /></label>
               </div>
               <label className="field"><span>Note</span><input className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
               <button className="cta" type="submit">Log withdrawal <small>after you&apos;ve moved the money</small></button>
             </form>
+          </Panel>
+          <Panel title="Tax on a single payment" icon={Calculator}>
+            <label className="field"><span>Payment received</span><input className="input" type="number" min="0" step="0.01" value={single} onChange={(e) => setSingle(e.target.value)} placeholder="$ e.g. a one-off setup fee" /></label>
+            {singleAmount > 0 && (
+              <KV
+                rows={[
+                  [`Move to tax account (${singlePct}%)`, money(singleTax, 2), null, true],
+                  ["Yours to take", money(singleAmount - singleTax, 2), "good", true],
+                ]}
+              />
+            )}
+            <p className="muted small" style={{ marginTop: 10 }}>NZ brackets + ACC at your current marginal rate. Not added to the calculation above.</p>
           </Panel>
         </div>
       </div>
@@ -368,9 +388,13 @@ export function OwnersCut() {
 
 const CATEGORIES = ["Equipment", "Software", "Marketing", "Admin", "Travel", "Other"];
 
+// NZ GST is 15%, and a purchase price is GST-inclusive, so the GST in it is
+// 3/23 of the amount paid.
+const gstOf = (amount) => Math.round((amount * 3 / 23) * 100) / 100;
+
 export function Expenses() {
   const { purchases, setPurchases, expenses, expenseBudgets } = useStore();
-  const [form, setForm] = useState({ date: TODAY, item: "", category: "Equipment", amount: "", gst: "", writeoff: false, notes: "" });
+  const [form, setForm] = useState({ date: TODAY, item: "", category: "Equipment", amount: "", writeoff: false, notes: "" });
   const [exportWhat, setExportWhat] = useState("all");
   const monthly = expenses.reduce((a, e) => a + (e.monthly || 0), 0);
   const yearly = expenses.reduce((a, e) => a + (e.yearly || e.monthly * 12), 0);
@@ -394,7 +418,7 @@ export function Expenses() {
       <div className="grid g-4">
         <Stat label="Recurring · monthly" value={money(monthly)} accent />
         <Stat label="Recurring · yearly" value={money(yearly)} accent />
-        <Stat label="One-off purchases · FY" value={money(purchaseTotal)} sub={`${purchases.length} recorded`} accent />
+        <Stat label="One-off purchases · FY" value={money(purchaseTotal, 2)} sub={`${purchases.length} recorded`} accent />
         <Stat label="GST component" value={money(gst + purchases.reduce((a, p) => a + (p.gst || 0), 0), 2)} sub="claimable once registered" accent />
       </div>
 
@@ -431,8 +455,8 @@ export function Expenses() {
             e.preventDefault();
             const amount = parseFloat(form.amount);
             if (!form.item.trim() || !(amount > 0)) return;
-            setPurchases((ps) => [{ id: Date.now(), ...form, item: form.item.trim(), amount, gst: parseFloat(form.gst) || 0 }, ...ps]);
-            setForm({ ...form, item: "", amount: "", gst: "", notes: "", writeoff: false });
+            setPurchases((ps) => [{ id: Date.now(), ...form, item: form.item.trim(), amount, gst: gstOf(amount) }, ...ps]);
+            setForm({ ...form, item: "", amount: "", notes: "", writeoff: false });
           }}
         >
           <input className="input" style={{ width: 150 }} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -440,8 +464,8 @@ export function Expenses() {
           <select className="select" style={{ width: 130 }} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
             {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
-          <input className="input" style={{ width: 110 }} type="number" min="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="Amount" />
-          <input className="input" style={{ width: 90 }} type="number" min="0" value={form.gst} onChange={(e) => setForm({ ...form, gst: e.target.value })} placeholder="GST" />
+          <input className="input" style={{ width: 110 }} type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="Amount" />
+          <span className="muted small nowrap">GST {parseFloat(form.amount) > 0 ? money(gstOf(parseFloat(form.amount)), 2) : "—"}</span>
           <label className="row small" style={{ gap: 6 }}><input type="checkbox" checked={form.writeoff} onChange={(e) => setForm({ ...form, writeoff: e.target.checked })} /> Write-off</label>
           <input className="input" style={{ flex: 1, minWidth: 160 }} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notes for your accountant" />
           <button className="btn btn-primary"><Plus size={14} /> Add purchase</button>
@@ -454,7 +478,7 @@ export function Expenses() {
                 <td className="nowrap">{fmtDate(p.date)}</td>
                 <td className="strong">{p.item}</td>
                 <td className="muted">{p.category}</td>
-                <td className="num"><Priv>{money(p.amount)}</Priv></td>
+                <td className="num"><Priv>{money(p.amount, 2)}</Priv></td>
                 <td className="num"><Priv>{p.gst ? money(p.gst, 2) : "—"}</Priv></td>
                 <td className="muted small">{p.notes || "—"}</td>
                 <td>{p.writeoff && <Badge tone="accent">Write-off</Badge>}</td>

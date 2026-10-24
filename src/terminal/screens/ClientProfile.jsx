@@ -380,7 +380,7 @@ function CommercialTab({ c, x }) {
             }}
           >
             <input className="input" style={{ flex: 2, minWidth: 160 }} value={pay.label} onChange={(e) => setPay({ ...pay, label: e.target.value })} placeholder="What for (e.g. Landing page build)" />
-            <input className="input" style={{ width: 100 }} type="number" min="0" value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder="Amount" />
+            <input className="input" style={{ width: 100 }} type="number" min="0" step="0.01" value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder="Amount" />
             <input className="input" style={{ width: 110 }} value={pay.invoice} onChange={(e) => setPay({ ...pay, invoice: e.target.value })} placeholder="Xero inv #" />
             <button className="btn btn-primary"><Plus size={13} /> Record</button>
           </form>
@@ -392,7 +392,7 @@ function CommercialTab({ c, x }) {
                     <td className="nowrap">{fmtDate(p.date)}</td>
                     <td>{p.label}</td>
                     <td className="mono">{p.invoice || "—"}</td>
-                    <td className="num"><Priv>{money(p.amount)}</Priv></td>
+                    <td className="num"><Priv>{money(p.amount, 2)}</Priv></td>
                     <td><Badge tone={p.status === "paid" ? "good" : undefined}>{p.status === "paid" ? "Paid" : "Awaiting"}</Badge></td>
                   </tr>
                 ))}
@@ -520,7 +520,7 @@ function CommercialTab({ c, x }) {
           <div className="form-grid">
             <label className="field"><span>Next action</span><input className="input" name="nextAction" required /></label>
             <label className="field"><span>Next action date</span><input className="input" name="nextActionDate" type="date" defaultValue={TODAY} required /></label>
-            <label className="field"><span>Value (NZD)</span><input className="input" name="valueNzd" type="number" min="0" /></label>
+            <label className="field"><span>Value (NZD)</span><input className="input" name="valueNzd" type="number" min="0" step="0.01" /></label>
             <label className="field"><span>Package tier</span><input className="input" name="packageTier" /></label>
           </div>
           <label className="field"><span>Source</span><input className="input" name="source" defaultValue="Upsell" /></label>
