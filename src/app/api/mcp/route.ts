@@ -7,7 +7,8 @@ import { assertRole } from "@/lib/dal/session";
 import { listDeals, getDeal } from "@/lib/dal/deals";
 import { listCompanies, getCompany } from "@/lib/dal/companies";
 import { listClients, getClientByCompanyId, getClient } from "@/lib/dal/clients";
-import { listAllTasks, setTaskStatus, createTask, updateTask, deleteTask, TaskStatus, INTERNAL_LIST_KEYS } from "@/lib/dal/tasks";
+import { listAllTasks, setTaskStatus, createTask, updateTask, deleteTask, TaskStatus, TaskFunnelStage, CreateTaskInput, INTERNAL_LIST_KEYS } from "@/lib/dal/tasks";
+import { listRoadmapItems, createRoadmapItem, updateRoadmapItem, softDeleteRoadmapItem, RoadmapItemInput } from "@/lib/dal/roadmap";
 import { searchAll } from "@/lib/dal/search";
 import { logActivity } from "@/lib/dal/activities";
 import { onboardClient, OnboardClientInput } from "@/lib/dal/onboarding";
@@ -153,15 +154,13 @@ function buildServer() {
       description:
         "Creates a new ad-hoc task, optionally attached to a client or a pipeline deal (prospect). " +
         "Defaults to assigned-to-caller if assignedTo isn't given. Creates a real row every time it's " +
-        "called — never call it speculatively or twice for the same task.",
-      inputSchema: {
-        clientId: z.string().uuid().optional(),
-        dealId: z.string().uuid().optional(),
-        internalList: z.enum(INTERNAL_LIST_KEYS).optional(),
-        title: z.string().min(1),
-        dueDate: z.string().optional(),
-        assignedTo: z.string().uuid().optional(),
-      },
+        "called — never call it speculatively or twice for the same task. " +
+        "phaseId files the task onto one of the client's roadmap phases (from list_roadmap_items) — " +
+        "set it whenever the client has a roadmap, because a task left unfiled counts toward whichever " +
+        "phase is currently active and so skews that phase's completion dial. funnelStage is the " +
+        "client-facing Done/Now/Next column: leave it null for internal execution detail, set it only " +
+        "for work the client should actually see on their roadmap.",
+      inputSchema: CreateTaskInput.shape,
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
     async (args) => jsonResult(await createTask(args))
@@ -170,11 +169,25 @@ function buildServer() {
   server.registerTool(
     "update_task",
     {
-      description: "Rename and/or reschedule an existing task (title, due date). Admin-only.",
-      inputSchema: { id: z.string().uuid(), title: z.string().min(1), dueDate: z.string().optional() },
+      description:
+        "Rename, reschedule, re-list or re-file an existing task. Admin-only. " +
+        "title is always required and dueDate is always rewritten, so a call that omits dueDate CLEARS " +
+        "it — always pass the task's current title and dueDate alongside whatever you're actually " +
+        "changing. funnelStage moves it between the client-facing Done/Now/Next columns; phaseId moves " +
+        "it to a different roadmap phase (null takes it off the roadmap). Passing clientId or " +
+        "internalList re-lists the task and clears the other two, since a task lives in exactly one list.",
+      inputSchema: {
+        id: z.string().uuid(),
+        title: z.string().min(1),
+        dueDate: z.string().optional(),
+        clientId: z.string().uuid().nullable().optional(),
+        internalList: z.enum(INTERNAL_LIST_KEYS).nullable().optional(),
+        funnelStage: TaskFunnelStage.nullable().optional(),
+        phaseId: z.string().uuid().nullable().optional(),
+      },
       annotations: { readOnlyHint: false },
     },
-    async ({ id, title, dueDate }) => jsonResult(await updateTask(id, { title, dueDate }))
+    async ({ id, ...rest }) => jsonResult(await updateTask(id, rest))
   );
 
   server.registerTool(
@@ -185,6 +198,64 @@ function buildServer() {
       annotations: { readOnlyHint: false, idempotentHint: true },
     },
     async ({ id }) => jsonResult(await deleteTask(id))
+  );
+
+  // Roadmap phases — roadmap_items repurposed as phases, exactly as
+  // RoadmapWidget reads them: title = phase name, description = the Focus
+  // Dial's narrative, sortOrder = phase order, status = not-reached /
+  // current / done. Exposed because a roadmap is built per engagement and
+  // was previously admin-UI-only, which made it the one portal feature a
+  // delivery plan couldn't be written into.
+  server.registerTool(
+    "list_roadmap_items",
+    {
+      description:
+        "List a client's roadmap phases in display order. Use this to get the phaseId to file tasks " +
+        "onto with create_task/update_task.",
+      inputSchema: { clientId: z.string().uuid() },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ clientId }) => jsonResult(await listRoadmapItems(clientId))
+  );
+
+  server.registerTool(
+    "create_roadmap_item",
+    {
+      description:
+        "Create one roadmap phase for a client. The client portal shows the phase marked in_progress as " +
+        "the one they're 'currently focused on' (falling back to the one after the last done phase), so " +
+        "keep exactly one in_progress at a time. sortOrder controls phase order — space values out " +
+        "(10, 20, 30…) so a phase can be inserted later without renumbering. Creates a real row every " +
+        "time it's called; never call it twice for the same phase.",
+      inputSchema: RoadmapItemInput.shape,
+      annotations: { readOnlyHint: false, idempotentHint: false },
+    },
+    async (args) => jsonResult(await createRoadmapItem(args))
+  );
+
+  server.registerTool(
+    "update_roadmap_item",
+    {
+      description:
+        "Edit a roadmap phase's name, narrative, target date, status or order. Admin-only. Unlike " +
+        "update_task, omitted fields are left unchanged.",
+      inputSchema: { id: z.string().uuid(), ...RoadmapItemInput.omit({ clientId: true }).partial().shape },
+      annotations: { readOnlyHint: false },
+    },
+    async ({ id, ...rest }) => jsonResult(await updateRoadmapItem(id, rest))
+  );
+
+  server.registerTool(
+    "delete_roadmap_item",
+    {
+      description:
+        "Soft-delete a roadmap phase. Tasks filed onto it are left pointing at the deleted phase, which " +
+        "makes them count toward the active phase's dial again — re-file them with update_task first. " +
+        "Confirm with the caller before using.",
+      inputSchema: { id: z.string().uuid() },
+      annotations: { readOnlyHint: false, idempotentHint: true },
+    },
+    async ({ id }) => jsonResult(await softDeleteRoadmapItem(id))
   );
 
   server.registerTool(

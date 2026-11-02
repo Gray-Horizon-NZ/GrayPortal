@@ -174,6 +174,8 @@ export async function toggleTaskPriority(id: string, priority: "normal" | "high"
   });
 }
 
+export const TaskFunnelStage = z.enum(["next", "doing", "done"]);
+
 export const CreateTaskInput = z.object({
   clientId: z.string().uuid().optional(),
   // A prospect (pipeline deal) task — orthogonal to clientId/internalList.
@@ -185,6 +187,13 @@ export const CreateTaskInput = z.object({
   title: z.string().min(1),
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
+  // Roadmap placement at creation, same omitted/null convention as
+  // UpdateTaskInput's pair below. Without these, filing a task onto a
+  // roadmap took a second updateTask call — and that path rewrites dueDate
+  // unconditionally, so building a roadmap in bulk silently cleared due
+  // dates it had just set.
+  funnelStage: TaskFunnelStage.nullable().optional(),
+  phaseId: z.string().uuid().nullable().optional(),
 });
 export type CreateTaskInputT = z.infer<typeof CreateTaskInput>;
 
@@ -209,6 +218,8 @@ export async function createTask(input: CreateTaskInputT) {
         title: data.title,
         dueDate: data.dueDate ?? null,
         assignedTo: data.assignedTo ?? caller.userId,
+        funnelStage: data.funnelStage ?? null,
+        phaseId: data.phaseId ?? null,
       },
       { caller, entityType: "task" }
     );
@@ -237,8 +248,6 @@ export async function listMyAssignedTasks() {
       .orderBy(desc(tasks.createdAt));
   });
 }
-
-export const TaskFunnelStage = z.enum(["next", "doing", "done"]);
 
 export const UpdateTaskInput = z.object({
   title: z.string().min(1),
