@@ -664,3 +664,18 @@ Built: one-off/setup payments on the client profile (paid status from the matchi
 
 ### 20.6 Pricing
 Keep the module-tile layout; remove the item ID line under each title; show Suggested prices only inside the expanded Edit panel. Check against the live Pricing screen before building: PR #49 may already cover some of it.
+
+## 21. GrayScale products page in client software, with interest alerts (added 2026-11-11, to plan)
+
+Max is redoing the GrayScale products page inside the client software (Osseus: today it's Settings → GrayScale products, an admin on/off list). It becomes a page clients browse to see what else GH offers, and it's **tracked**: Max gets an alert when someone like Brendan (Apex) opens a product, or keeps coming back to the same or similar products. A buying signal to follow up on, not a nag at the client.
+
+### 21.1 To plan out
+- **The page itself:** what each product shows (what it does for them, screenshots or a short demo, price or "from", what it needs from them), and the next step ("Ask Max about this"). Products and families come from GrayScale `CATALOGUE.md`. Already switched-on products show as "You have this".
+- **What counts as interest:** a product opened; time on it; coming back to the same product (e.g. 3 opens in 14 days); opening several in the same family (e.g. Nuntius then Meridian, both marketing). Thresholds to decide.
+- **The alert:** where Max sees it. Options: a GrayPortal notification, a note on the client's GrayPortal deal or activity feed (Apex is a GrayPortal client: `log_deal_activity` / a task through the GrayPortal MCP), an email, or a daily digest instead of one ping per open. Include who, which products, how often, and when.
+- **Where the data lives:** GH platform tables in Osseus (never in the client's own workspace data or exports), forwarded to GrayPortal.
+- **Being upfront about it:** tell clients the page records what they look at so GH can follow up (a line on the page, and in the SOW licence clause). NZ Privacy Act 2020 principle 3: say what's collected and why when collecting it. No hidden tracking.
+- **Who it covers:** every person in a client workspace, or only owners and admins (the decision makers)?
+
+### 21.2 Depends on
+The Apex HQ branch (`apex-hq-foundations` in GrayScale) being merged, and GrayPortal ↔ Osseus talking to each other (no link exists yet).
