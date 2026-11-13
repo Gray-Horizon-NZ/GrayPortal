@@ -2,6 +2,7 @@ import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import { listAllGrayscaleRequests } from "@/lib/dal/grayscaleRequests";
 import { StoreData } from "@/terminal/store";
 import { GrayScale } from "@/terminal/screens/Catalog";
+import { isNewProduct } from "@/lib/grayscaleNew";
 
 const day = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(d);
 
@@ -20,6 +21,7 @@ export default async function GrayscaleProductsPage() {
           desc: p.description ?? "",
           monthly: p.monthlyPriceNzd ? Number(p.monthlyPriceNzd) : null,
           sortOrder: p.sortOrder,
+          isNew: isNewProduct(p.createdAt),
         })),
         grayscaleRequests: requests.map(({ request: r, clientName }) => ({
           id: r.id,

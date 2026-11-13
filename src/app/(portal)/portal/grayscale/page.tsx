@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortalPageContext } from "@/lib/dal/portal";
 import { listGrayscaleProducts } from "@/lib/dal/grayscaleProducts";
 import GrayscaleWidget from "@/components/portal/GrayscaleWidget";
+import { isNewProduct } from "@/lib/grayscaleNew";
 
 export default async function PortalGrayScalePage() {
   const { isAdminPreview, enabledFeatureKeys } = await getPortalPageContext();
@@ -28,7 +29,7 @@ export default async function PortalGrayScalePage() {
           <div className="ghp-gs-grid">
             {products.map((p) => (
               <div key={p.id} className="ghp-gs-tile">
-                <div className="ghp-n">{p.name}</div>
+                <div className="ghp-n">{p.name}{isNewProduct(p.createdAt) && <span className="gh-new">New</span>}</div>
                 {p.category && (
                   <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ghp-brass)", marginTop: 4 }}>
                     {p.category}

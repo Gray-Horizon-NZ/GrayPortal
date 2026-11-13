@@ -2160,3 +2160,12 @@ textarea {
     opacity: 1;
   }
 }
+
+/* "New" next to a GrayScale product's name for its first 60 days (src/lib/grayscaleNew.ts).
+   Neon on near-black so it reads on the Terminal and the portal alike. */
+.gh-new {
+  display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 3px;
+  background: #0a0a0a; border: 1px solid #d4ff00; color: #d4ff00;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  line-height: 1.5; vertical-align: 2px;
+}

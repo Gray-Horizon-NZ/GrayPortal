@@ -196,7 +196,7 @@ export function GrayScale() {
               {grayscaleProducts.filter((x) => x.category === cat).map((x) => (
                 <div key={x.id} className="card" style={{ background: "var(--t-panel-2)" }}>
                   <div className="row">
-                    <h3>{x.name}</h3>
+                    <h3>{x.name}{x.isNew && <span className="gh-new">New</span>}</h3>
                     <span className="spacer" />
                     <b style={{ color: "var(--t-accent)" }}>{x.monthly ? <><Priv>{money(x.monthly)}</Priv><span className="muted small">/mo</span></> : <span className="muted small">No price</span>}</b>
                     <button className="iconbtn" style={{ width: 26, height: 26 }} onClick={() => setEdit(x)} aria-label={`Edit ${x.name}`}><Pencil size={12} /></button>

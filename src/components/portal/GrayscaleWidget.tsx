@@ -1,8 +1,9 @@
 "use client";
 import { useState, useTransition } from "react";
 import { submitGrayscaleRequestAction } from "@/app/(portal)/portal/actions";
+import { isNewProduct } from "@/lib/grayscaleNew";
 
-export type GrayscaleProduct = { name: string; category: string | null; description: string | null };
+export type GrayscaleProduct = { name: string; category: string | null; description: string | null; createdAt?: Date | string | null };
 
 /**
  * Dashboard widget (Open-Work-Brief.md §1.5) — a collapsed promo card that
@@ -128,7 +129,7 @@ export default function GrayscaleWidget({
                       aria-checked={selected.has(p.name)}
                       tabIndex={0}
                     >
-                      <div className="ghp-name">{p.name}</div>
+                      <div className="ghp-name">{p.name}{isNewProduct(p.createdAt) && <span className="gh-new">New</span>}</div>
                       <div className="ghp-tag">{p.category}</div>
                     </div>
                   ))}
