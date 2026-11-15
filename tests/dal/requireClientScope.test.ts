@@ -12,6 +12,7 @@ function caller(overrides: Partial<Caller>): Caller {
     clientId: "client-1",
     email: "client@example.com",
     displayName: null,
+    firebaseUid: "uid-1",
     ...overrides,
   };
 }
