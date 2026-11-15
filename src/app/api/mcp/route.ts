@@ -4,8 +4,9 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { getVerifiedUid, withCaller } from "@/lib/dal/auth";
 import { assertRole } from "@/lib/dal/session";
-import { listDeals, getDeal } from "@/lib/dal/deals";
-import { listCompanies, getCompany } from "@/lib/dal/companies";
+import { listDeals, getDeal, createDeal, changeDealStage, DealInput } from "@/lib/dal/deals";
+import { listCompanies, getCompany, createCompany, CompanyInput } from "@/lib/dal/companies";
+import { STAGES } from "@/config/pipeline";
 import { listClients, getClientByCompanyId, getClient } from "@/lib/dal/clients";
 import { listAllTasks, setTaskStatus, createTask, updateTask, deleteTask, TaskStatus, TaskFunnelStage, CreateTaskInput, INTERNAL_LIST_KEYS } from "@/lib/dal/tasks";
 import { listRoadmapItems, createRoadmapItem, updateRoadmapItem, softDeleteRoadmapItem, RoadmapItemInput } from "@/lib/dal/roadmap";
@@ -120,6 +121,35 @@ function buildServer() {
       annotations: { readOnlyHint: true },
     },
     async ({ query }) => jsonResult(await searchAll(query))
+  );
+
+  server.registerTool(
+    "create_company",
+    {
+      description:
+        "Create a company (a pipeline prospect, not a client — onboard_client makes a client). Check " +
+        "list_companies first so you don't create a duplicate.",
+      inputSchema: CompanyInput.shape,
+      annotations: { readOnlyHint: false },
+    },
+    async (args) => jsonResult(await createCompany(args))
+  );
+
+  server.registerTool(
+    "create_deal",
+    {
+      description:
+        "Create a deal in the pipeline for an existing company. New deals start at Identified; pass " +
+        "`stage` to move it straight to a later stage (recorded as a normal stage change, so that " +
+        "stage's auto-task is created too). Deals have no notes field: put notes in log_deal_activity.",
+      inputSchema: { ...DealInput.shape, stage: z.enum(STAGES).optional() },
+      annotations: { readOnlyHint: false },
+    },
+    async ({ stage, ...input }) => {
+      const deal = await createDeal(input);
+      if (!stage || stage === "Identified") return jsonResult(deal);
+      return jsonResult(await changeDealStage(deal.id, stage));
+    }
   );
 
   server.registerTool(
