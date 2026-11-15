@@ -4,9 +4,10 @@ import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS } from "@/lib/dal/constants";
 import { claimOrVerifyAllowlist } from "@/lib/dal/allowlist";
 import { NotOnAllowlistError } from "@/lib/dal/session";
 import { recordLoginEvent } from "@/lib/dal/security";
+import { clientIpFrom } from "@/lib/clientIp";
 
 function requestIp(request: NextRequest): string | null {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  return clientIpFrom(request.headers.get("x-forwarded-for"));
 }
 
 // Step 2 of sign-in: exchanges a Firebase ID token for a long-lived session

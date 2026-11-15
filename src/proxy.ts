@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
 import { SESSION_COOKIE_NAME, ADMIN_PORTAL_PREVIEW_COOKIE } from "@/lib/dal/constants";
 import { isRateLimited } from "@/lib/rateLimit";
+import { clientIpFrom } from "@/lib/clientIp";
 
 // Deny-by-default route protection (brief §5.2). Every route not listed in
 // PUBLIC_PATHS requires a valid, unexpired Firebase session cookie. A newly
@@ -87,9 +88,9 @@ function isPublic(pathname: string) {
 }
 
 function clientKey(request: NextRequest): string {
-  // Cloud Run/App Hosting sits behind a proxy — the real client IP arrives
-  // via x-forwarded-for, not request.ip (which Next.js no longer exposes).
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  // App Hosting sits behind a proxy: the real client IP is in
+  // x-forwarded-for, 2 entries from the end, never the first (src/lib/clientIp.ts).
+  return clientIpFrom(request.headers.get("x-forwarded-for")) ?? "unknown";
 }
 
 export default async function proxy(request: NextRequest) {
