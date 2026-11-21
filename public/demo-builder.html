@@ -1782,7 +1782,7 @@ details.fold > div { margin-top: 14px; display: grid; gap: 14px; }
       "if(P.expires&&Date.now()>Date.parse(P.expires)){" +
       "var end=el('<div class=\"gs-pub-ended\"><div class=\"card\"><h1>This demo has ended</h1><p style=\"margin:0 0 16px;color:#55534c\">It was made for a set time. Book a walkthrough and '+P.contact+' will show you the latest version.</p><button type=\"button\">Book a walkthrough</button></div></div>');" +
       "document.body.appendChild(end);end.querySelector('button').onclick=function(){form(true);};return;}" +
-      "if(P.ping)send(P.ping,{slug:P.slug});" +
+      "if(P.ping&&!/[?&]preview/.test(location.search))send(P.ping,{slug:P.slug});" +
       "if(P.book){var bar=document.querySelector('.demobar');if(bar){var b=el('<button type=\"button\" class=\"custbtn\"><span class=\"long\">Book a walkthrough</span><span class=\"short\">Book</span></button>');" +
       "var cust=bar.querySelector('[data-gs=customise]');bar.insertBefore(b,cust);b.onclick=function(){form(false);};}}})();";
     return { head: '<meta name="robots" content="noindex,nofollow">', css: css, js: js };
@@ -2216,7 +2216,7 @@ details.fold > div { margin-top: 14px; display: grid; gap: 14px; }
       deals.map(function (d) { return '<option value="' + esc(d.id) + '"' + (d.id === S.dealId ? " selected" : "") + ">" + esc(d.label) + "</option>"; }).join("") +
       '</select><p class="hint">' + (HOST.linked ? "Publishing moves the deal to Demo sent, and every open is logged on it." : "GrayPortal isn't connected yet, so opens are only counted here in Osseus.") + "</p></div>" +
       '<div class="grp"><span class="lbl">Link stays up for</span>' + chev("expiry", [{ v: 14, n: "2 weeks" }, { v: 30, n: "30 days" }, { v: 60, n: "60 days" }], S.expiry || 30) + "</div>";
-    var state = L && L.url ? '<div class="note"><b>Live at</b> <a href="' + esc(L.url) + '" target="_blank" rel="noopener">' + esc(L.url) + "</a><br>" +
+    var state = L && L.url ? '<div class="note"><b>Live at</b> <a href="' + esc(L.url) + '?preview" title="Opens without counting as an open" target="_blank" rel="noopener">' + esc(L.url) + "</a><br>" +
       (L.opens ? "Opened " + L.opens + (L.opens === 1 ? " time" : " times") + (L.lastOpen ? ", last " + esc(L.lastOpen) : "") : "Not opened yet") +
       (L.expires ? " · ends " + esc(L.expires) : "") + (L.stale ? "<br><b>Changed since it was published.</b> Publish again to update the link." : "") + "</div>" : "";
     return '<div class="sub">Link</div>' + dealPick + state +
