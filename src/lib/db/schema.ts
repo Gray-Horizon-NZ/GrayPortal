@@ -96,6 +96,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   // Project Incrementum — a new lead arrived through the public Incrementum
   // intake (src/app/api/incrementum/leads/route.ts).
   "incrementum_lead",
+  // P1 / D2: Osseus says a prospect opened their demo, or asked for a
+  // walkthrough from one (src/lib/dal/osseusLink.ts).
+  "demo_opened",
+  "walkthrough_request",
 ]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "agent", "system"]);
 // "reveal" is a read, not a mutation — Phase 6 (Credential Vault) is the

@@ -6,6 +6,9 @@
 
 -- ═══ PART 1: run this first ═══════════════════════════════════════════════
 CREATE TYPE "public"."pipeline" AS ENUM('services', 'software');
+-- Osseus → GrayPortal link (demos): a prospect opened their demo / asked for a walkthrough
+ALTER TYPE "public"."notification_type" ADD VALUE IF NOT EXISTS 'demo_opened';
+ALTER TYPE "public"."notification_type" ADD VALUE IF NOT EXISTS 'walkthrough_request';
 ALTER TYPE "public"."stage" ADD VALUE IF NOT EXISTS 'Inquired';
 ALTER TYPE "public"."stage" ADD VALUE IF NOT EXISTS 'Discovery call';
 ALTER TYPE "public"."stage" ADD VALUE IF NOT EXISTS 'Demo sent';

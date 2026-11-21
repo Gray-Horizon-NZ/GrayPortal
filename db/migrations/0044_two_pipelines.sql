@@ -1,4 +1,6 @@
 CREATE TYPE "public"."pipeline" AS ENUM('services', 'software');--> statement-breakpoint
+ALTER TYPE "public"."notification_type" ADD VALUE 'demo_opened';--> statement-breakpoint
+ALTER TYPE "public"."notification_type" ADD VALUE 'walkthrough_request';--> statement-breakpoint
 ALTER TYPE "public"."stage" ADD VALUE 'Inquired';--> statement-breakpoint
 ALTER TYPE "public"."stage" ADD VALUE 'Discovery call';--> statement-breakpoint
 ALTER TYPE "public"."stage" ADD VALUE 'Demo sent';--> statement-breakpoint

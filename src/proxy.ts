@@ -75,7 +75,9 @@ const TRULY_PUBLIC_EXACT_PATHS = ["/api/leads", "/api/incrementum/leads"];
 // session at all; the route itself is the boundary (a guessed/garbled
 // recipientId just fails the DB write silently and still returns the
 // pixel, src/app/api/track/open/[recipientId]/route.ts).
-const TRULY_PUBLIC_PREFIX_PATHS = ["/onboard", "/api/track"];
+// Osseus → GrayPortal link (P1): no session, an HMAC signature checked by
+// each route (src/lib/dal/osseusLink.ts).
+const TRULY_PUBLIC_PREFIX_PATHS = ["/onboard", "/api/track", "/api/osseus"];
 
 function isPublic(pathname: string) {
   // ENROLL_MFA_PATH lives under /login/, which PUBLIC_PATHS' "/login" entry
@@ -113,6 +115,11 @@ export default async function proxy(request: NextRequest) {
     // authenticated caller, so it's the most exposed to spam/abuse.
     if (isRateLimited(`leads:${clientKey(request)}`, 5, 10 * 60_000)) {
       return NextResponse.json({ error: "Too many submissions, try again later." }, { status: 429 });
+    }
+  } else if (pathname.startsWith("/api/osseus")) {
+    // One caller (the Osseus server), signed: demo opens and the deal picker
+    if (isRateLimited(`osseus:${clientKey(request)}`, 300, 10 * 60_000)) {
+      return NextResponse.json({ error: "Too many requests." }, { status: 429 });
     }
   } else if (TRULY_PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p))) {
     // Generous relative to /api/leads: a real invitee only ever loads this a

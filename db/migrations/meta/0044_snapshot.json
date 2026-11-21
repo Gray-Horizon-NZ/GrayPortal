@@ -1,5 +1,5 @@
 {
-  "id": "8e2ee59a-4001-4b5d-925d-a45184869dfe",
+  "id": "f5170b19-6e09-4f43-9720-47f3f6873a97",
   "prevId": "4e9a0d33-d4db-4ab1-948d-beca2f64b266",
   "version": "7",
   "dialect": "postgresql",
@@ -9420,7 +9420,9 @@
         "security_alert",
         "reminder_due",
         "grayscale_request",
-        "incrementum_lead"
+        "incrementum_lead",
+        "demo_opened",
+        "walkthrough_request"
       ]
     },
     "public.onboarding_invite_status": {
