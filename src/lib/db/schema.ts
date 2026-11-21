@@ -1,4 +1,4 @@
-import { STAGES } from "@/config/pipeline";
+import { STAGES, PIPELINE_KEYS } from "@/config/pipeline";
 import {
   boolean,
   check,
@@ -28,6 +28,7 @@ const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
 export const roleEnum = pgEnum("role", ["admin", "contractor", "client"]);
 export const stageEnum = pgEnum("stage", STAGES);
+export const pipelineEnum = pgEnum("pipeline", PIPELINE_KEYS);
 export const activityTypeEnum = pgEnum("activity_type", ["call", "email", "meeting", "note"]);
 export const docTypeEnum = pgEnum("doc_type", ["proposal", "contract", "deck", "other"]);
 export const taskStatusEnum = pgEnum("task_status", [
@@ -95,6 +96,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   // Project Incrementum — a new lead arrived through the public Incrementum
   // intake (src/app/api/incrementum/leads/route.ts).
   "incrementum_lead",
+  // P1 / D2: Osseus says a prospect opened their demo, or asked for a
+  // walkthrough from one (src/lib/dal/osseusLink.ts).
+  "demo_opened",
+  "walkthrough_request",
 ]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "agent", "system"]);
 // "reveal" is a read, not a mutation — Phase 6 (Credential Vault) is the
@@ -333,6 +338,8 @@ export const deals = pgTable("deals", {
     .notNull()
     .references(() => companies.id),
   primaryContactId: uuid("primary_contact_id").references(() => contacts.id),
+  // P1: Services or Software. Each has its own stages (config/pipeline.ts).
+  pipeline: pipelineEnum("pipeline").notNull().default("services"),
   stage: stageEnum("stage").notNull().default("Identified"),
   valueNzd: numeric("value_nzd", { precision: 12, scale: 2 }),
   packageTier: text("package_tier"),

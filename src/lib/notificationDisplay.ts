@@ -9,6 +9,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   reminder_due: "Reminder due",
   grayscale_request: "GrayScale request",
   incrementum_lead: "New Incrementum lead",
+  demo_opened: "Demo opened",
+  walkthrough_request: "Walkthrough request from a demo",
 };
 
 export function notificationEntityHref(payload: unknown): string | null {

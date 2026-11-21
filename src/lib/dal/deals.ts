@@ -10,7 +10,7 @@ import { wrapEmailHtml, sanitizeEmailHtml, stripHtmlToText } from "@/lib/email/c
 import { renderTemplate } from "./emails";
 import { z } from "zod";
 import { numericString } from "./validation";
-import { STAGES, STAGE_TASK_RULES, type Stage } from "@/config/pipeline";
+import { STAGES, PIPELINE_KEYS, guessPipeline, mapStage, pipelineOf, stageInPipeline, stageTaskRule, type PipelineKey, type Stage } from "@/config/pipeline";
 import { nzDaysFromToday } from "@/lib/date";
 
 /**
@@ -82,6 +82,8 @@ export const DealInput = z.object({
   nextAction: z.string().min(1, "Next action is required"),
   nextActionDate: z.string().min(1, "Next action date is required"),
   source: z.string().optional(),
+  /** Services or Software (P1). Left out, it's guessed from the package name. */
+  pipeline: z.enum(PIPELINE_KEYS).optional(),
 });
 export type DealInputT = z.infer<typeof DealInput>;
 
@@ -101,6 +103,7 @@ export async function listDealsWithCompany() {
     return tx
       .select({
         id: deals.id,
+        pipeline: deals.pipeline,
         stage: deals.stage,
         valueNzd: deals.valueNzd,
         nextAction: deals.nextAction,
@@ -142,11 +145,12 @@ export async function getDeal(id: string) {
 
 export async function createDeal(input: DealInputT) {
   const data = DealInput.parse(input);
+  const pipeline = data.pipeline ?? guessPipeline(data.packageTier);
   return withCaller(async (caller, tx) => {
     const deal = await auditedInsert(
       tx,
       deals,
-      { ...data, stage: "Identified" as Stage, createdBy: caller.userId, updatedBy: caller.userId },
+      { ...data, pipeline, stage: pipelineOf(pipeline).first, createdBy: caller.userId, updatedBy: caller.userId },
       { caller, entityType: "deal" }
     );
     return applyDealSync(tx, deal as typeof deals.$inferSelect);
@@ -154,7 +158,8 @@ export async function createDeal(input: DealInputT) {
 }
 
 export async function updateDeal(id: string, input: Partial<DealInputT>) {
-  const data = DealInput.partial().parse(input);
+  // Switching pipeline moves the stage too, so it goes through changeDealPipeline.
+  const data = DealInput.omit({ pipeline: true }).partial().parse(input);
   return withCaller(async (caller, tx) => {
     const deal = await auditedUpdate(
       tx,
@@ -192,6 +197,11 @@ export async function changeDealStage(id: string, newStage: Stage, closeReason?:
   }
 
   return withCaller(async (caller, tx) => {
+    const [current] = await tx.select({ pipeline: deals.pipeline }).from(deals).where(eq(deals.id, id)).limit(1);
+    if (!current) throw new Error("Deal not found");
+    if (!stageInPipeline(current.pipeline, newStage)) {
+      throw new Error(`${newStage} isn't a ${pipelineOf(current.pipeline).label} stage`);
+    }
     const updated = await auditedUpdate(
       tx,
       deals,
@@ -212,7 +222,7 @@ export async function changeDealStage(id: string, newStage: Stage, closeReason?:
       actorUserId: caller.userId,
     });
 
-    const rule = STAGE_TASK_RULES[newStage];
+    const rule = stageTaskRule(current.pipeline, newStage);
     if (rule) {
       const [autoTask] = await tx
         .insert(tasks)
@@ -252,10 +262,41 @@ export async function changeDealStage(id: string, newStage: Stage, closeReason?:
         .where(eq(deals.id, id));
     }
 
+    // The welcome email is the services one; software clients get the
+    // Osseus owner invite from the setup wizard instead.
     if (newStage === "Won") {
       await sendDealWonWelcome(tx, updatedDeal);
     }
 
+    return updated;
+  });
+}
+
+/**
+ * Moves a deal to the other pipeline (P1). Its stage moves to the nearest
+ * stage there (config/pipeline.ts mapStage), logged like a stage change but
+ * without the stage's auto-task: the deal hasn't progressed, only been sorted.
+ */
+export async function changeDealPipeline(id: string, pipeline: PipelineKey) {
+  if (!PIPELINE_KEYS.includes(pipeline)) throw new Error(`Invalid pipeline: ${pipeline}`);
+  return withCaller(async (caller, tx) => {
+    const [current] = await tx.select().from(deals).where(eq(deals.id, id)).limit(1);
+    if (!current) throw new Error("Deal not found");
+    if (current.pipeline === pipeline) return current;
+    const stage = mapStage(current.stage, pipeline);
+    const updated = await auditedUpdate(
+      tx,
+      deals,
+      eq(deals.id, id),
+      id,
+      { pipeline, stage, updatedBy: caller.userId },
+      { caller, entityType: "deal" }
+    );
+    // Two rows so "Stage changed to …" stays a clean prefix for stage history (terminal/load.ts).
+    await tx.insert(activities).values({ dealId: id, type: "note", body: `Moved to the ${pipelineOf(pipeline).label} pipeline`, actorUserId: caller.userId });
+    if (stage !== current.stage) {
+      await tx.insert(activities).values({ dealId: id, type: "note", body: `Stage changed to ${stage}`, actorUserId: caller.userId });
+    }
     return updated;
   });
 }
