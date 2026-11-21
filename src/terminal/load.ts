@@ -168,6 +168,7 @@ export async function loadDeals() {
     role: contact?.roleTitle ?? "",
     email: contact?.email ?? "",
     phone: contact?.phone ?? "",
+    pipeline: d.pipeline,
     stage: d.stage,
     value: num(d.valueNzd),
     prob: d.closeProbability != null ? num(d.closeProbability) / 100 : null,
@@ -511,12 +512,12 @@ export async function loadAnalytics() {
   // Won / lost by the month of each deal's latest move into that stage.
   const outcome = new Map<string, { stage: string; at: string }>();
   for (const [dealId, list] of changes) {
-    const last = [...list].reverse().find((c) => c.stage === "Won" || c.stage === "Lost");
+    const last = [...list].reverse().find((c) => c.stage === "Won" || c.stage === "Signed" || c.stage === "Lost");
     if (last) outcome.set(dealId, last);
   }
   const dealsByMonth = months.map((m) => ({
     label: monthLabel(m),
-    won: [...outcome.values()].filter((o) => o.stage === "Won" && monthKey(o.at) === m).length,
+    won: [...outcome.values()].filter((o) => o.stage !== "Lost" && monthKey(o.at) === m).length,
     lost: [...outcome.values()].filter((o) => o.stage === "Lost" && monthKey(o.at) === m).length,
   }));
 

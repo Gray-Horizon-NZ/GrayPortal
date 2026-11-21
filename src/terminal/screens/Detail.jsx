@@ -10,11 +10,11 @@ import {
   Receipt, Wallet, Check, X, CalendarCheck, CalendarX, UserPlus, ToggleLeft,
 } from "lucide-react";
 import { useStore } from "../store";
-import { TODAY, money, fmtDate, STAGES, OPEN_STAGES, PORTAL_FEATURES } from "../format";
-import { PageHead, Panel, KV, Priv, Badge, Toggle, Empty, Modal, Stat, go } from "../ui";
+import { TODAY, money, fmtDate, PIPELINES, WON_STAGES, pipelineOf, stagesOf, PORTAL_FEATURES } from "../format";
+import { PageHead, Panel, KV, Priv, Badge, Toggle, Empty, Modal, Stat, Seg, go } from "../ui";
 import { TaskRow } from "./Tasks";
 import { stripHtmlToText } from "@/lib/email/text";
-import { changeStageAction, deleteDealAction, logDealActivityAction, sendDealEmailAction } from "@/app/(app)/deals/actions";
+import { changePipelineAction, changeStageAction, deleteDealAction, logDealActivityAction, sendDealEmailAction } from "@/app/(app)/deals/actions";
 import { createDealAction } from "@/app/(app)/deals/actions";
 import { createContactAction, deleteCompanyAction } from "@/app/(app)/companies/actions";
 import { logContactActivityAction, sendContactEmailAction } from "@/app/(app)/contacts/actions";
@@ -25,7 +25,7 @@ import {
 } from "@/app/(app)/finance/personal/actions";
 
 const rowStyle = { padding: "8px 0", borderBottom: "1px solid var(--t-line)" };
-const stageTone = (s) => (s === "Won" ? "good" : s === "Lost" ? "bad" : undefined);
+const stageTone = (s) => (WON_STAGES.includes(s) ? "good" : s === "Lost" ? "bad" : undefined);
 
 function Back({ to, label }) {
   return (
@@ -108,13 +108,14 @@ export function DealDetail() {
   const [open, setOpen] = useState(null); // "log" | "email" | "stage"
   const [confirm, setConfirm] = useState(false);
   const [draft, setDraft] = useState("");
-  const idx = OPEN_STAGES.indexOf(d.stage);
-  const isOpen = idx >= 0;
+  const pipe = pipelineOf(d.pipeline);
+  const idx = pipe.flow.indexOf(d.stage);
+  const isOpen = !pipe.closed.includes(d.stage);
   const close = () => setOpen(null);
   return (
     <div className="screen">
-      <Back to="/pipeline?view=list" label="Pipeline" />
-      <PageHead title={d.company} sub={[d.pkg, d.source && `from ${d.source}`].filter(Boolean).join(" · ") || "Deal"}>
+      <Back to={`/pipeline?p=${pipe.key}&view=list`} label="Pipeline" />
+      <PageHead title={d.company} sub={[`${pipe.label} pipeline`, d.pkg, d.source && `from ${d.source}`].filter(Boolean).join(" · ")}>
         <Badge tone={stageTone(d.stage) || "solid"}>{d.stage}</Badge>
         {d.sync === "synced" && <Badge tone="good"><CalendarCheck size={11} /> Synced to Calendar</Badge>}
         {d.sync === "failed" && <Badge tone="bad"><CalendarX size={11} /> Calendar sync failed</Badge>}
@@ -137,10 +138,9 @@ export function DealDetail() {
           <span style={{ fontSize: 26, fontWeight: 600, color: "var(--t-accent)" }}><Priv>{d.value ? money(d.value) : "TBC"}</Priv><span className="muted small"> /mo</span></span>
         </div>
         <div className="stepper">
-          {OPEN_STAGES.map((s, i) => (
-            <span key={s} data-done={i < idx || d.stage === "Won" || undefined} data-current={s === d.stage || undefined}>{s}</span>
+          {pipe.flow.map((s, i) => (
+            <span key={s} data-done={(idx >= 0 && i < idx) || undefined} data-current={s === d.stage || undefined}>{s}</span>
           ))}
-          <span data-current={d.stage === "Won" || undefined}>Won</span>
         </div>
       </section>
 
@@ -181,8 +181,18 @@ export function DealDetail() {
       </div>
 
       <Modal open={open === "stage"} onClose={close} title="Change stage">
+        <div className="field">
+          <span>Pipeline</span>
+          <Seg
+            small
+            value={pipe.key}
+            onChange={async (k) => { if (k !== pipe.key) { await changePipelineAction(d.id, k); close(); } }}
+            options={Object.values(PIPELINES).map((x) => [x.key, x.label])}
+          />
+          <span className="muted small">Switching moves the deal to the nearest stage there.</span>
+        </div>
         <form className="stack" style={{ gap: 10 }} action={async (fd) => { await changeStageAction(d.id, fd); close(); }}>
-          <label className="field"><span>Stage</span><select className="select" name="stage" defaultValue={d.stage}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select></label>
+          <label className="field"><span>Stage</span><select className="select" name="stage" defaultValue={d.stage}>{stagesOf(d.pipeline).map((s) => <option key={s}>{s}</option>)}</select></label>
           <label className="field"><span>Close reason (required if Lost)</span><input className="input" name="closeReason" defaultValue={d.lostReason} /></label>
           <button className="btn btn-primary" type="submit" style={{ alignSelf: "flex-start" }}>Update stage</button>
         </form>

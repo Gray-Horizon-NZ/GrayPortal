@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Coins, Workflow, Users, Megaphone, ListChecks, TrendingUp, BarChart3, Layers, Timer, Share2, HeartPulse, Mail, MessageSquare } from "lucide-react";
 import { useStore } from "../store";
-import { TODAY, OPEN_STAGES, STAGE_PROB, INTERNAL_LISTS, money, clientMrr, daysBetween } from "../format";
+import { TODAY, OPEN_STAGES, STAGE_PROB, WON_STAGES, INTERNAL_LISTS, money, clientMrr, daysBetween } from "../format";
 import { PageHead, Panel, Stat, Priv, Meter, TrendGlyph, KV, Empty } from "../ui";
 import { TrendLine, StackedColumns, Legend, StageBars, RunwayChart, HBars } from "../charts";
 
@@ -91,11 +91,12 @@ function RevenueReport() {
 function SalesReport() {
   const { deals, analytics } = useStore();
   const open = deals.filter((d) => OPEN_STAGES.includes(d.stage));
-  const closed = deals.filter((d) => ["Won", "Lost", "Dormant"].includes(d.stage));
-  const won = deals.filter((d) => d.stage === "Won");
+  // Said yes in either pipeline: Won, or Signed / Setting up / Live (P1).
+  const won = deals.filter((d) => WON_STAGES.includes(d.stage));
+  const closed = deals.filter((d) => WON_STAGES.includes(d.stage) || d.stage === "Lost" || d.stage === "Dormant");
   const total = open.reduce((a, d) => a + d.value, 0);
   const weighted = open.reduce((a, d) => a + d.value * prob(d), 0);
-  const stageRows = OPEN_STAGES.map((s) => {
+  const stageRows = OPEN_STAGES.filter((s) => open.some((d) => d.stage === s)).map((s) => {
     const ds = open.filter((d) => d.stage === s);
     return { stage: s, count: ds.length, value: ds.reduce((a, d) => a + d.value, 0), weighted: ds.reduce((a, d) => a + d.value * prob(d), 0) };
   });
@@ -108,7 +109,7 @@ function SalesReport() {
         <Stat label="Open pipeline" value={money(total)} sub={`${open.length} deals`} accent />
         <Stat label="Weighted" value={money(weighted)} accent />
         <Stat label="Win rate" value={`${pct(won.length, closed.length)}%`} priv={false} sub={`${won.length} of ${closed.length} closed`} accent />
-        <Stat label="Avg sales cycle" value={measured.length ? `${avgCycle} days` : "—"} priv={false} sub={measured.length ? "identified → proposal" : "not enough stage history yet"} accent />
+        <Stat label="Avg sales cycle" value={measured.length ? `${avgCycle} days` : "—"} priv={false} sub={measured.length ? "first stage → proposal" : "not enough stage history yet"} accent />
       </div>
       <div className="grid g-2">
         <Panel title="Pipeline by stage" icon={Layers}>

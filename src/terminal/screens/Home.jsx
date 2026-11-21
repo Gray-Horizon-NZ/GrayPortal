@@ -6,7 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ListChecks, Clock3, CreditCard, Layers, CalendarDays, Gauge, Users, Landmark, ChevronDown, ChevronRight } from "lucide-react";
 import { useStore } from "../store";
-import { TODAY, GST_THRESHOLD, OPEN_STAGES, STAGE_PROB, money, clientMrr } from "../format";
+import { TODAY, GST_THRESHOLD, OPEN_STAGES, STAGE_PROB, PIPELINES, money, clientMrr } from "../format";
 import { Panel, KV, Stat, Priv, go, Meter, Modal, route } from "../ui";
 import { Sparkline, ThresholdBar, StageColumns, Cells } from "../charts";
 import { ClientCard } from "./Clients";
@@ -54,7 +54,10 @@ export default function Home() {
   const open = deals.filter((d) => OPEN_STAGES.includes(d.stage));
   const pipelineValue = open.reduce((a, d) => a + d.value, 0);
   const weighted = open.reduce((a, d) => a + d.value * prob(d), 0);
-  const stageRows = OPEN_STAGES.map((s) => {
+  // Both pipelines (P1) in one glance: only the stages that hold a deal, so
+  // the nine open stages don't crowd the panel. Empty: the Software stages.
+  const usedStages = OPEN_STAGES.filter((s) => open.some((d) => d.stage === s));
+  const stageRows = (usedStages.length ? usedStages : PIPELINES.software.open).map((s) => {
     const ds = open.filter((d) => d.stage === s);
     const value = ds.reduce((a, d) => a + d.value, 0);
     return { stage: s, count: ds.length, value, weighted: ds.reduce((a, d) => a + d.value * prob(d), 0) };

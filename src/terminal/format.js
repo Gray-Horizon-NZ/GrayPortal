@@ -15,11 +15,9 @@ export const clientMrr = (c) => c.services.reduce((a, s) => a + serviceMonthly(s
 export const clientSetupTotal = (c) => c.services.reduce((a, s) => a + (s.setup || 0), 0);
 
 // ─── Pipeline ────────────────────────────────────────────────────────────
-export const STAGES = ["Identified", "Contacted", "Meeting booked", "Pitch delivered", "Proposal out", "Won", "Lost", "Dormant"];
-export const OPEN_STAGES = STAGES.slice(0, 5);
-// Default close probability per stage for the weighted pipeline figure,
-// used when a deal has no close probability of its own set.
-export const STAGE_PROB = { Identified: 0.05, Contacted: 0.1, "Meeting booked": 0.25, "Pitch delivered": 0.4, "Proposal out": 0.6 };
+// Both pipelines (P1) come from src/config/pipeline.ts, the same lists the
+// server checks stage changes against. OPEN_STAGES / STAGE_PROB cover both.
+export { STAGES, OPEN_STAGES, STAGE_PROB, WON_STAGES, CLOSED_STAGES, PIPELINES, PIPELINE_KEYS, pipelineOf, stagesOf, nextStage } from "@/config/pipeline";
 
 // ─── Tasks ───────────────────────────────────────────────────────────────
 // The real internal lists (src/lib/dal/tasks.ts INTERNAL_LIST_LABELS).

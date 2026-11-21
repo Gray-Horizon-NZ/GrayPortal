@@ -1,11 +1,22 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createDeal, changeDealStage, softDeleteDeal, type DealInputT } from "@/lib/dal/deals";
+import { createDeal, changeDealStage, changeDealPipeline, softDeleteDeal, type DealInputT } from "@/lib/dal/deals";
 import { logActivity } from "@/lib/dal/activities";
 import { sendEmail } from "@/lib/dal/emails";
 import { createTask } from "@/lib/dal/tasks";
-import type { Stage } from "@/config/pipeline";
+import type { PipelineKey, Stage } from "@/config/pipeline";
+
+const pipelineField = (formData: FormData): PipelineKey | undefined => {
+  const v = String(formData.get("pipeline") ?? "");
+  return v === "software" || v === "services" ? v : undefined;
+};
+
+export async function changePipelineAction(dealId: string, pipeline: PipelineKey) {
+  await changeDealPipeline(dealId, pipeline);
+  revalidatePath(`/deals/${dealId}`);
+  revalidatePath("/pipeline");
+}
 
 export async function createDealAction(companyId: string, formData: FormData) {
   const input: DealInputT = {
@@ -15,6 +26,7 @@ export async function createDealAction(companyId: string, formData: FormData) {
     valueNzd: String(formData.get("valueNzd") ?? "") || undefined,
     packageTier: String(formData.get("packageTier") ?? "") || undefined,
     source: String(formData.get("source") ?? "") || undefined,
+    pipeline: pipelineField(formData),
   };
   const deal = await createDeal(input);
   revalidatePath(`/companies/${companyId}`);

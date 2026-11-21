@@ -42,6 +42,7 @@ export default async function DealDetailPage({
           role: contact?.roleTitle ?? "",
           email: contact?.email ?? "",
           phone: contact?.phone ?? "",
+          pipeline: deal.pipeline,
           stage: deal.stage,
           value: deal.valueNzd ? Number(deal.valueNzd) : 0,
           pkg: deal.packageTier ?? "",
