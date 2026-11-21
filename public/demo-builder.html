@@ -2018,7 +2018,8 @@ details.fold > div { margin-top: 14px; display: grid; gap: 14px; }
         var cur = s.k === S.step;
         return '<button type="button" class="stp' + (S.seen[s.k] && !cur ? " seen" : "") + '" data-step="' + s.k + '"' + (cur ? ' aria-current="step"' : "") + '><span class="dot"></span><span>' + s.n + '</span><span class="v' + (s.plus ? " plus" : "") + '">' + esc(s.v()) + "</span></button>";
       }).join("") + "</nav>" +
-      '<button type="button" class="buy" data-act="download">Build demo <small>· ' + money(quote().monthly) + "/mo quote</small></button>";
+      (HOST ? '<button type="button" class="buy" data-act="publish"' + (S.pubBusy ? " disabled" : "") + ">" + (S.pubBusy ? "Publishing…" : S.link && S.link.url ? "Publish again" : "Publish link") + " <small>· " + money(quote().monthly) + "/mo quote</small></button>"
+        : '<button type="button" class="buy" data-act="download">Build demo <small>· ' + money(quote().monthly) + "/mo quote</small></button>");
   }
 
   // ─── Controls ───
@@ -2485,11 +2486,11 @@ details.fold > div { margin-top: 14px; display: grid; gap: 14px; }
     }
     else if (a === "publish") {
       if (S.pubBusy) return;
-      S.pubBusy = true; renderStep();
+      S.pubBusy = true; renderCard(); renderStep();
       clearTimeout(remoteT);
       post(HOST.endpoints.publish, { project: S.project, brief: S.brief || "", website: S.website || "", dealId: S.dealId || "", days: S.expiry || 30 })
-        .then(function (j) { S.link = j.link; S.pubBusy = false; setRemote("Saved"); renderStep(); copy(j.link.url, "Published. The link is copied" + (j.dealMoved ? " and the deal is at Demo sent." : ".")); })
-        .catch(function (err) { S.pubBusy = false; renderStep(); toast("Couldn't publish: " + err.message); });
+        .then(function (j) { S.link = j.link; S.pubBusy = false; setRemote("Saved"); renderCard(); renderStep(); copy(j.link.url, "Published. The link is copied" + (j.dealMoved ? " and the deal is at Demo sent." : ".")); })
+        .catch(function (err) { S.pubBusy = false; renderCard(); renderStep(); toast("Couldn't publish: " + err.message); });
     }
     else if (a === "copylink") copy(S.link.url, "Link copied.");
     else if (a === "copyprompt") copy(aiPrompt(S.aiScope).text, "Prompt copied. Paste it into Claude, then paste the reply below.");
