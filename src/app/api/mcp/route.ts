@@ -18,6 +18,7 @@ import { listServiceItems } from "@/lib/dal/pricing";
 import { prioritizeTasks } from "@/lib/dal/taskPlanner";
 import { createCampaignDraft, updateCampaignDraft, listCampaigns, queueCampaignSend, CampaignInput } from "@/lib/dal/campaigns";
 import { getIncrementumSnapshot } from "@/lib/dal/incrementum/snapshot";
+import { coreLineup } from "@/lib/incrementum/core-lineup";
 import { createLead as createIncrementumLead, LeadInput as IncrementumLeadInput } from "@/lib/dal/incrementum/leads";
 import { createIncrementumTask } from "@/lib/dal/incrementum/tasks";
 import { createExperiment, ExperimentInput, logHours } from "@/lib/dal/incrementum/planning";
@@ -335,13 +336,31 @@ function buildServer() {
     "list_service_items",
     {
       description:
-        "List Gray Horizon's structured pricing catalogue (from gh_pricing_framework_v5.md), optionally " +
-        "filtered by module code (GS/GA/AO/SS/RA/GX/P2). Current pricing is the default rate to quote " +
-        "unless explicitly told to use Suggested.",
+        "PRIVATE services: Gray Horizon's original catalogue (from gh_pricing_framework_v5.md), optionally " +
+        "filtered by module code (GS/GA/AO/SS/RA/GX/P2). Since 22 Nov 2026 these are for signed clients and " +
+        "internal use only: never quote them to a new client or lead, or put them on the website, without Max's " +
+        "explicit sign-off. New clients are offered Core services only (list_core_services). For signed clients, " +
+        "Current pricing is the rate unless explicitly told to use Suggested.",
       inputSchema: { moduleCode: z.string().optional() },
       annotations: { readOnlyHint: true },
     },
     async ({ moduleCode }) => jsonResult(await listServiceItems(moduleCode))
+  );
+
+  server.registerTool(
+    "list_core_services",
+    {
+      description:
+        "CORE services: the only marketing services Gray Horizon offers new clients and shows on the website " +
+        "(Max, 22 Nov 2026). Project Incrementum's packages (monthly price, setup price, minimum term, what's in " +
+        "them), add-ons sold on top of a package, and one-offs, with live sell prices from Incrementum › Services. " +
+        "Use this, not list_service_items, when quoting a new client or lead. Prices carry no GST wording.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      const s = await getIncrementumSnapshot();
+      return jsonResult(coreLineup(s.packages, s.services));
+    }
   );
 
   server.registerTool(

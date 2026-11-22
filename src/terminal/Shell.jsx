@@ -30,7 +30,7 @@ const PRIMARY = [
 ];
 const FOLDERS = [
   { label: "Comms", items: [["Email Triage", "/email-triage", "unread"], ["Email Templates", "/email-templates"], ["Email Campaigns", "/email-campaigns"]] },
-  { label: "Finance tools", items: [["Owner's Cut", "/finance/personal"], ["Expenses", "/finance/expenses"], ["Pricing", "/pricing"], ["GrayScale", "/grayscale-products"], ["Deal Closer", "/apexus"], ["Demo Builder", "/demo-builder"]] },
+  { label: "Finance tools", items: [["Owner's Cut", "/finance/personal"], ["Expenses", "/finance/expenses"], ["Services", "/pricing"], ["GrayScale", "/grayscale-products"], ["Deal Closer", "/apexus"], ["Demo Builder", "/demo-builder"]] },
   { label: "Work", items: [["Ideation", "/ideation"], ["AI Agents", "/ai-agents"], ["Reminders", "/reminders"]] },
   { label: "Systems", items: [["Vault", "/vault"], ["Brand Guidelines", "/brand-guidelines"], ["Settings", "/settings"]] },
 ];

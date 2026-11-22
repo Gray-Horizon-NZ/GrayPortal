@@ -1,6 +1,6 @@
 import "server-only";
-import { serviceItems, serviceModules } from "@/lib/db/schema";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { serviceItems, serviceModules, clientServices, clients } from "@/lib/db/schema";
+import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert, auditedUpdate, auditedSoftDelete } from "./mutate";
@@ -47,6 +47,22 @@ export async function listServiceItems(moduleCode?: string) {
       .from(serviceItems)
       .where(and(...conditions))
       .orderBy(asc(serviceItems.id));
+  });
+}
+
+/**
+ * Which signed clients are on each catalogue item (active or paused lines),
+ * for the "Private" side of Services: since 22 Nov the catalogue is kept for
+ * signed clients only, so the page shows who each item is still there for.
+ */
+export async function listServiceUsage() {
+  return withCaller(async (_caller, tx) => {
+    return tx
+      .select({ serviceItemId: clientServices.serviceItemId, clientName: clients.name, status: clientServices.status })
+      .from(clientServices)
+      .innerJoin(clients, eq(clientServices.clientId, clients.id))
+      .where(and(isNull(clientServices.deletedAt), isNull(clients.deletedAt), ne(clientServices.status, "ended")))
+      .orderBy(asc(clients.name));
   });
 }
 

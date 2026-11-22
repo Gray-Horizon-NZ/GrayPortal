@@ -58,10 +58,131 @@ function ItemFields({ it }) {
   );
 }
 
-// Same structure as the real /pricing page: module heading, then a joined
-// grid of deliverable tiles. Current is the quoting rate; Suggested only
-// shows inside the expanded Edit panel.
+// Services (/pricing), in two lists (Max, 22 Nov 2026). Core = what new
+// clients are offered and what goes on the website: Project Incrementum's
+// packages only, read live from Incrementum › Services. Private = the
+// original catalogue, kept for signed clients and internal use.
 export function Pricing() {
+  const { servicesView } = useStore();
+  const [view, setView] = useState(servicesView ?? "core");
+  const pick = (v) => {
+    setView(v);
+    try { window.history.replaceState(null, "", v === "private" ? "?view=private" : "?"); } catch {}
+  };
+  return view === "private" ? <PrivateServices onView={pick} /> : <CoreServices onView={pick} />;
+}
+
+function ViewSwitch({ view, onView }) {
+  const { coreOffers, priceItems } = useStore();
+  return (
+    <Seg value={view} onChange={onView} options={[["core", "Core", coreOffers.length], ["private", "Private", priceItems.length]]} />
+  );
+}
+
+const fmtRange = (r) => {
+  if (r.min != null && r.max != null) return `${money(r.min)} – ${money(r.max)}`;
+  if (r.min != null) return `from ${money(r.min)}`;
+  if (r.max != null) return `up to ${money(r.max)}`;
+  return "Quoted";
+};
+
+function CoreServices({ onView }) {
+  const { coreOffers, coreExtras, coreReady } = useStore();
+  const addons = coreExtras.filter((x) => x.kind === "addon");
+  const oneoffs = coreExtras.filter((x) => x.kind !== "addon");
+  const extraTile = (x) => (
+    <div key={x.id} className="ptile">
+      <div className="ptile-top">
+        <span className="ptile-name">{x.name}</span>
+        <Badge>{x.billing === "monthly" ? "Monthly" : x.billing === "range" ? "Range" : "One-off"}</Badge>
+      </div>
+      {x.ranges.length > 0 ? (
+        x.ranges.map((r) => (
+          <div key={r.label} className="row" style={{ justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--t-line)" }}>
+            <span className="small">{r.label}</span>
+            <span className="small"><Priv>{fmtRange(r)}</Priv></span>
+          </div>
+        ))
+      ) : (
+        <p className="rate-val"><Priv>{x.price != null ? `${money(x.price)}${x.billing === "monthly" ? "/mo" : ""}` : x.text || "Quoted"}</Priv></p>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="screen">
+      <PageHead title="Services" sub="Core: what we offer new clients, and what goes on the website. Project Incrementum packages only.">
+        <a className="btn btn-primary" href="/incrementum/services"><Pencil size={14} /> Edit in Incrementum</a>
+      </PageHead>
+      <div className="row">
+        <ViewSwitch view="core" onView={onView} />
+        <span className="muted small">Prices and contents come from Incrementum › Services. Change them there and this list follows.</span>
+      </div>
+
+      {!coreReady && <Panel><Empty icon={Inbox} title="Couldn't load Incrementum">Open Project Incrementum › Services to check the packages.</Empty></Panel>}
+
+      {coreReady && (
+        <>
+          <section>
+            <div className="modhead">
+              <span className="modcode">PKG</span>
+              <span className="modname">Packages</span>
+              <span className="modfocus">The headline offers. Every new client starts from one.</span>
+            </div>
+            <div className="ptiles">
+              {coreOffers.map((p) => (
+                <div key={p.id} className="ptile">
+                  <div className="ptile-top">
+                    <span className="ptile-name">{p.name}</span>
+                    <Badge tone={p.status === "live" ? "accent" : undefined}>{p.status === "live" ? "Live" : "Draft"}</Badge>
+                  </div>
+                  <div>
+                    <p className="rate-label">Monthly</p>
+                    <p className="rate-val"><Priv>{money(p.monthly)}/mo</Priv>{p.setup > 0 && <span className="muted small"> + <Priv>{money(p.setup)}</Priv> setup</span>}</p>
+                  </div>
+                  {p.description && <p className="muted small" style={{ lineHeight: 1.5 }}>{p.description}</p>}
+                  {p.monthlyLines.length > 0 && <p className="small" style={{ lineHeight: 1.5 }}><span className="muted">Every month: </span>{p.monthlyLines.join(" · ")}</p>}
+                  {p.setupLines.length > 0 && <p className="small" style={{ lineHeight: 1.5 }}><span className="muted">Setup: </span>{p.setupLines.join(" · ")}</p>}
+                  <p className="muted small">{p.minTerm}-month minimum, then {p.noticeDays} days&apos; notice</p>
+                  {p.missingPrices > 0 && <p className="small" style={{ color: "var(--t-warn, #c98a00)" }}>{p.missingPrices} line{p.missingPrices === 1 ? "" : "s"} without a price yet</p>}
+                </div>
+              ))}
+              {coreOffers.length === 0 && <div className="ptile"><span className="muted small">No packages yet. Add one in Incrementum › Services.</span></div>}
+            </div>
+          </section>
+
+          {addons.length > 0 && (
+            <section>
+              <div className="modhead">
+                <span className="modcode">ADD</span>
+                <span className="modname">Add-ons</span>
+                <span className="modfocus">Sold on top of a package, never on their own.</span>
+              </div>
+              <div className="ptiles">{addons.map(extraTile)}</div>
+            </section>
+          )}
+
+          {oneoffs.length > 0 && (
+            <section>
+              <div className="modhead">
+                <span className="modcode">ONE</span>
+                <span className="modname">One-offs</span>
+                <span className="modfocus">Setup lines and ways in. Every one ends with a retainer offer.</span>
+              </div>
+              <div className="ptiles">{oneoffs.map(extraTile)}</div>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// The original catalogue (gh_pricing_framework_v5.md): module heading, then a
+// joined grid of deliverable tiles. Current is the quoting rate; Suggested
+// only shows inside the expanded Edit panel. Each tile names the signed
+// clients still on it.
+function PrivateServices({ onView }) {
   const { pricingModules, priceItems } = useStore();
   const [q, setQ] = useState("");
   const [billing, setBilling] = useState("all");
@@ -77,9 +198,12 @@ export function Pricing() {
 
   return (
     <div className="screen">
-      <PageHead title="Pricing" sub="Service catalogue · Current is the default rate to quote — Suggested isn't active until authorised">
+      <PageHead title="Services" sub="Private: signed clients and internal use only. Not offered to new clients or shown on the website. Current is the rate for these clients; Suggested isn't active until authorised.">
         <button className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={14} /> Add deliverable</button>
       </PageHead>
+      <div className="row">
+        <ViewSwitch view="private" onView={onView} />
+      </div>
       <div className="row">
         <div className="search" style={{ margin: 0, maxWidth: 320, display: "flex" }}>
           <Search size={14} />
@@ -112,6 +236,7 @@ export function Pricing() {
                     <p className="rate-label">Current</p>
                     <p className="rate-val"><Priv>{fmtPrice(it.setup, it.monthly, it.text)}</Priv></p>
                   </div>
+                  <p className="muted small">{it.usedBy?.length ? <>On: <Priv>{it.usedBy.join(", ")}</Priv></> : "No signed client on this"}</p>
                   <details>
                     <summary>Edit</summary>
                     <form className="stack" action={updateServiceItemAction.bind(null, it.id)}>
