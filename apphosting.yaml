@@ -100,12 +100,11 @@ env:
     availability: [RUNTIME]
 
   # P1: the Osseus → GrayPortal link (src/lib/dal/osseusLink.ts), the same
-  # value as Osseus's GRAYPORTAL_LINK_SECRET. Uncomment once the secret is set
-  # (GrayScale products/osseus/DEMO-LINKS.md step 4): a secret line before its
-  # secret exists breaks the rollout. Until then /api/osseus answers 503.
-  # - variable: OSSEUS_LINK_SECRET
-  #   secret: OSSEUS_LINK_SECRET
-  #   availability: [RUNTIME]
+  # value as Osseus's GRAYPORTAL_LINK_SECRET (set 22 Nov, GrayScale
+  # products/osseus/DEMO-LINKS.md step 4).
+  - variable: OSSEUS_LINK_SECRET
+    secret: OSSEUS_LINK_SECRET
+    availability: [RUNTIME]
 
   # Read-only pull from Spider-Fawcett OS's /api/external/ytd-income
   # (separate app/deploy, see src/lib/spiderFawcett.ts) so the personal-tax
