@@ -102,10 +102,6 @@ const BUILDER_MARKUP = `
 
     <section>
       <h2>Gray Scale Products (self-serve)</h2>
-      <div class="toggle-row">
-        <input type="checkbox" id="f_existing_client" onchange="recalc()">
-        <label for="f_existing_client">Existing signed GH retainer client (auto 20% off Gray Scale)</label>
-      </div>
       <table class="admin-table" style="margin-top:8px;">
         <tr><th></th><th>Item</th><th class="num">One-off</th><th class="num">Recurring</th><th class="ctr">Free?</th></tr>
         <tbody id="grp_grayscale_catalogue"></tbody>

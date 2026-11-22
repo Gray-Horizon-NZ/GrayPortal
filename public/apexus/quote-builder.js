@@ -832,8 +832,8 @@
     const warmPct = (parseFloat(document.getElementById("f_warmlead").value) || 0) / 100;
     onetimeTotal = onetimeTotal * (1 - warmPct);
 
-    // Gray Scale (separate bucket, own 20% client discount, not part of bundle tiers)
-    const existingClient = document.getElementById("f_existing_client").checked;
+    // Gray Scale (separate bucket, not part of bundle tiers). List prices only: no client discount here
+    // (GrayScale DECISIONS D25, 22 Nov 2026). A services client's discount lives in their Osseus settings.
     let grayScaleMonthly = 0;
     const grayScaleLines = [];
 
@@ -843,13 +843,13 @@
       const included = isChecked(`chk_${item.id}`);
       const isFree = isChecked(`free_${item.id}`);
       if (!included && !isFree) return;
-      const discPrice = existingClient ? item.monthly * 0.8 : item.monthly;
+      const discPrice = item.monthly;
       if (isFree) {
         totalPerceivedValue += discPrice;
         freebieLines.push({ label: `${item.name} (Gray Scale) (${fmt(discPrice)}/mo value)` });
       } else {
         grayScaleMonthly += discPrice;
-        grayScaleLines.push({ name: item.name, price: `${fmt(discPrice)}/mo${existingClient ? " (20% off)" : ""}` });
+        grayScaleLines.push({ name: item.name, price: `${fmt(discPrice)}/mo` });
       }
     });
 
@@ -860,13 +860,13 @@
       let price = parseFloat(inputs[1].value) || 0;
       const isFree = row.querySelector(".free-chk")?.checked;
       if (name && price > 0) {
-        const discPrice = existingClient ? price * 0.8 : price;
+        const discPrice = price;
         if (isFree) {
           totalPerceivedValue += discPrice;
           freebieLines.push({ label: `${name} (Gray Scale) (${fmt(discPrice)}/mo value)` });
         } else {
           grayScaleMonthly += discPrice;
-          grayScaleLines.push({ name, price: `${fmt(discPrice)}/mo${existingClient ? " (20% off)" : ""}` });
+          grayScaleLines.push({ name, price: `${fmt(discPrice)}/mo` });
         }
       }
     });
@@ -937,12 +937,7 @@
     });
     document.getElementById("p_grayscale_wrap").style.display = grayScaleLines.length ? "block" : "none";
     const gsNote = document.getElementById("p_grayscale_note");
-    if (existingClient && grayScaleLines.length) {
-      gsNote.style.display = "block";
-      gsNote.textContent = `As a signed Gray Horizon retainer client, ${document.getElementById("f_company").value || "you"} receive${document.getElementById("f_company").value ? "s" : ""} 20% off every Gray Scale product.`;
-    } else {
-      gsNote.style.display = "none";
-    }
+    gsNote.style.display = "none";
 
     // Freebies (static + any item marked Free? above)
     const freebieNote = document.getElementById("f_freebie_note").value.trim();
@@ -1080,11 +1075,10 @@
       if (name && price > 0 && !isFree) availSS.push({ name, price });
     });
 
-    const existingClient = document.getElementById("f_existing_client").checked;
     const availGrayScale = [];
     GRAYSCALE_CATALOGUE.forEach((item) => {
       if (isChecked(`chk_${item.id}`) && !isChecked(`free_${item.id}`)) {
-        availGrayScale.push({ name: item.name, price: existingClient ? item.monthly * 0.8 : item.monthly, discounted: existingClient });
+        availGrayScale.push({ name: item.name, price: item.monthly, discounted: false });
       }
     });
     document.querySelectorAll("#grp_grayscale .gs-row").forEach((row) => {
@@ -1093,7 +1087,7 @@
       let price = parseFloat(inputs[1].value) || 0;
       const isFree = row.querySelector(".free-chk")?.checked;
       if (name && price > 0 && !isFree) {
-        availGrayScale.push({ name, price: existingClient ? price * 0.8 : price, discounted: existingClient });
+        availGrayScale.push({ name, price: price, discounted: false });
       }
     });
 
@@ -1139,7 +1133,7 @@
     });
     GRAYSCALE_CATALOGUE.forEach((item) => {
       if (!isChecked(`free_${item.id}`)) return;
-      const discPrice = existingClient ? item.monthly * 0.8 : item.monthly;
+      const discPrice = item.monthly;
       totalPerceivedValue += discPrice;
       freebieLines.push(`${item.name} (Gray Scale) (${fmt(discPrice)}/mo value)`);
     });
@@ -1148,7 +1142,7 @@
       const name = inputs[0].value.trim();
       let price = parseFloat(inputs[1].value) || 0;
       if (name && price > 0 && row.querySelector(".free-chk")?.checked) {
-        const discPrice = existingClient ? price * 0.8 : price;
+        const discPrice = price;
         totalPerceivedValue += discPrice;
         freebieLines.push(`${name} (Gray Scale) (${fmt(discPrice)}/mo value)`);
       }
@@ -1207,7 +1201,7 @@
       billing: document.querySelector('input[name="setupbilling"]:checked').value,
       showAdspend: document.getElementById("f_adspend_toggle").checked,
       adspendText: document.getElementById("f_adspend").value.trim() || "—",
-      gsNoteText: existingClient && availGrayScale.length ? `As a signed Gray Horizon retainer client, ${company} receives 20% off every Gray Scale product.` : "",
+      gsNoteText: "",
     };
 
     const html = buildChildHtml(meta);
@@ -1328,7 +1322,7 @@
           .map(
             (item, i) => `<tr>
           <td><input type="checkbox" id="chk_gs_${i}" checked onchange="recalc()"></td>
-          <td class="name-cell"><label for="chk_gs_${i}">${escapeHtml(item.name)}${item.discounted ? ' <span class="r-tag">(20% off)</span>' : ""}</label></td>
+          <td class="name-cell"><label for="chk_gs_${i}">${escapeHtml(item.name)}</label></td>
           <td class="num price-cell"><span class="dash">—</span></td>
           <td class="num price-cell">${fmt(item.price)}/mo</td>
         </tr>`
@@ -1568,7 +1562,7 @@ function recalc(){
   const grayScaleLines = [];
   AVAIL_GRAYSCALE.forEach((item, i) => {
     if(!isChecked('chk_gs_' + i)) return;
-    grayScaleLines.push({name:item.name, price: \`\${fmt(item.price)}/mo\${item.discounted ? ' (20% off)' : ''}\`});
+    grayScaleLines.push({name:item.name, price: \`\${fmt(item.price)}/mo\`});
   });
 
   const recurringPct = recurringDiscountPct(monthlyCount);

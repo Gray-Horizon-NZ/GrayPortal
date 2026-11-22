@@ -184,7 +184,7 @@ export function GrayScale() {
   const p = edit && edit !== "new" ? edit : null;
   return (
     <div className="screen">
-      <PageHead title="GrayScale" sub="Self-serve products clients can request from their portal · retainer clients get 20% off">
+      <PageHead title="GrayScale" sub="Self-serve products clients can request from their portal · list prices; a client's own discount is set in their Osseus">
         <Seg value={tab} onChange={setTab} options={[["catalogue", "Catalogue"], ["requests", "Client requests", newCount || null]]} />
         <button className="btn btn-primary" onClick={() => setEdit("new")}><Plus size={14} /> Add product</button>
       </PageHead>
