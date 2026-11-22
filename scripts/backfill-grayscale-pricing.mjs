@@ -1,3 +1,5 @@
+// SUPERSEDED 22 Nov 2026: old 2025 names and prices. Don't run. Use scripts/sync-grayscale-catalogue.mjs,
+// which follows Osseus's products.ts (GrayScale DECISIONS D22–D24).
 // One-off backfill for grayscale_products.monthly_price_nzd — sourced
 // verbatim from the live grayhorizon.nz/grayscale marketing page's own
 // JSON-LD product catalogue (OS/website/grayhorizon-website/grayscale/index.html),

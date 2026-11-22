@@ -317,7 +317,7 @@ export default function ApexusBuilder() {
 
   return (
     <div className="screen" style={{ maxWidth: "none" }}>
-      <PageHead title="Apexus · live quote builder" sub="Reads live prices from Pricing and GrayScale, then exports the client-facing quote document">{null}</PageHead>
+      <PageHead title="Deal Closer · live quote builder" sub="Reads live prices from Pricing and GrayScale, then exports the client-facing quote document">{null}</PageHead>
       <nav className="apx-steps" aria-label="Builder steps">
         {STEPS.map((s, i) => (
           <button key={s.id} onClick={() => jump(s.id)}>

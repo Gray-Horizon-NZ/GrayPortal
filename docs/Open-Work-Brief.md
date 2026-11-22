@@ -679,3 +679,12 @@ Max is redoing the GrayScale products page inside the client software (Osseus: t
 
 ### 21.2 Depends on
 The Apex HQ branch (`apex-hq-foundations` in GrayScale) being merged, and GrayPortal ↔ Osseus talking to each other (no link exists yet).
+
+## 22. GrayScale catalogue follows Osseus's price list (2026-11-22, done)
+
+GrayScale DECISIONS D22–D24 (22 Nov) changed module prices and names and removed four products. The source of truth is Osseus's `code/osseus/src/core/products.ts`; GrayPortal's `grayscale_products` table now matches it, applied in production with `scripts/sync-grayscale-catalogue.mjs` (re-runnable; edit its list when products.ts changes). The old `import-grayscale-products.mjs` and `backfill-grayscale-pricing.mjs` are marked superseded.
+
+- **Rows:** Osseus $350 (two modules included), Performance Dashboard $75, Email Performance $75, Trade PartnerHub $100 (new row), Branded Portals $75 (+$10/portal), Vigil $97, Smart Scheduling $100 (up to 3 staff, then $25 each), Deal Closer $75. `category` is now each module's plain secondary name (Reports, Email marketing...), as Osseus's own feed sends it.
+- **Removed (soft-deleted, so old client requests still read):** Aurum, Memoria, Stratum, Fidelis.
+- **Screens:** nav "Apexus" → "Deal Closer" (route stays `/apexus`), Finance tools › GrayScale shows one panel in price-list order with the plain name under each, portal footer "Solus" → "Branded Portals". Demo Builder copy rebuilt from GrayScale (`make.mjs --portal`).
+- **Open:** the table has no `key` column, so the Demo Builder here matches on name only. Old projects saved in a browser before 22 Nov keep their old item names and prices until re-added. The Deal Closer tool still takes 20% off GrayScale lines for existing clients: check that still stands against D21 (attach discount dropped).

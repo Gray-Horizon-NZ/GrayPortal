@@ -180,7 +180,6 @@ export function GrayScale() {
   const { grayscaleProducts, grayscaleRequests } = useStore();
   const [tab, setTab] = useState("catalogue");
   const [edit, setEdit] = useState(null); // "new" | product
-  const cats = [...new Set(grayscaleProducts.map((p) => p.category))];
   const newCount = grayscaleRequests.filter((r) => r.status === "new").length;
   const p = edit && edit !== "new" ? edit : null;
   return (
@@ -190,13 +189,14 @@ export function GrayScale() {
         <button className="btn btn-primary" onClick={() => setEdit("new")}><Plus size={14} /> Add product</button>
       </PageHead>
       {tab === "catalogue" ? (
-        grayscaleProducts.length === 0 ? <Panel><Empty icon={LayoutGrid} title="No GrayScale products yet" /></Panel> : cats.map((cat) => (
-          <Panel key={cat} title={cat} icon={LayoutGrid}>
+        grayscaleProducts.length === 0 ? <Panel><Empty icon={LayoutGrid} title="No GrayScale products yet" /></Panel> : (
+          // One panel in price-list order: each product's category is its plain secondary name (GrayScale D23), not a group
+          <Panel title="Catalogue" icon={LayoutGrid}>
             <div className="cards">
-              {grayscaleProducts.filter((x) => x.category === cat).map((x) => (
+              {grayscaleProducts.map((x) => (
                 <div key={x.id} className="card" style={{ background: "var(--t-panel-2)" }}>
                   <div className="row">
-                    <h3>{x.name}{x.isNew && <span className="gh-new">New</span>}</h3>
+                    <h3>{x.name}{x.isNew && <span className="gh-new">New</span>}{x.category && <span className="muted small" style={{ display: "block", fontWeight: 400 }}>{x.category}</span>}</h3>
                     <span className="spacer" />
                     <b style={{ color: "var(--t-accent)" }}>{x.monthly ? <><Priv>{money(x.monthly)}</Priv><span className="muted small">/mo</span></> : <span className="muted small">No price</span>}</b>
                     <button className="iconbtn" style={{ width: 26, height: 26 }} onClick={() => setEdit(x)} aria-label={`Edit ${x.name}`}><Pencil size={12} /></button>
@@ -206,7 +206,7 @@ export function GrayScale() {
               ))}
             </div>
           </Panel>
-        ))
+        )
       ) : (
         <Panel title="Requests from client portals" icon={Inbox} pad={false}>
           {grayscaleRequests.length === 0 ? <Empty icon={Inbox} title="No requests yet" /> : (
@@ -221,7 +221,7 @@ export function GrayScale() {
                     <td><Badge tone={r.status === "new" ? "accent" : undefined}>{r.status}</Badge></td>
                     <td className="num nowrap">
                       {r.status === "new" && <button className="btn btn-sm" onClick={() => tMarkGrayscaleContacted(r.id)}>Mark contacted</button>}{" "}
-                      <button className="btn btn-sm" onClick={() => go("/apexus")}>Open in Apexus</button>
+                      <button className="btn btn-sm" onClick={() => go("/apexus")}>Open in Deal Closer</button>
                     </td>
                   </tr>
                 ))}

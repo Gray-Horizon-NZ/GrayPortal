@@ -1,3 +1,5 @@
+// SUPERSEDED 22 Nov 2026: old 2025 names and prices. Don't run. Use scripts/sync-grayscale-catalogue.mjs,
+// which follows Osseus's products.ts (GrayScale DECISIONS D22–D24).
 // One-off backfill for the new grayscale_products table — the 9 products
 // that used to live in src/config/grayscale.ts (deleted once this table
 // became the live source of truth), copied here verbatim so nothing is

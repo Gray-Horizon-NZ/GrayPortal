@@ -43,7 +43,7 @@ export default function ServicesTeam({ s, leadId, engagementId, back, readOnly =
           {t.unassigned > 0 && <Badge tone="warn">{t.unassigned} without a contractor</Badge>}
           {views.length > 0 && (
             <a className="btn btn-sm" href={proposal} target="_blank" rel="noreferrer">
-              Apexus proposal ↗
+              Deal Closer proposal ↗
             </a>
           )}
           {!readOnly && views.length > 0 && (

@@ -66,7 +66,7 @@ export default function PortalShell({
           <div className="ghp-page-footer">
             <Image src="/portal/solus-icon.svg" alt="" width={16} height={16} style={{ flexShrink: 0 }} />
             <span>
-              <b>Solus</b> — a Gray Horizon platform
+              <b>Branded Portals</b> — a Gray Horizon platform
             </span>
           </div>
         </main>

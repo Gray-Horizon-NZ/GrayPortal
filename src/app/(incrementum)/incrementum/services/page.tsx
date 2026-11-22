@@ -42,7 +42,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="screen">
-      <PageHead title="Services & Pricing" sub="Sell price = contractor quote × (1 + markup). A layer over the main catalogue: nothing here changes /pricing or Apexus." />
+      <PageHead title="Services & Pricing" sub="Sell price = contractor quote × (1 + markup). A layer over the main catalogue: nothing here changes /pricing or Deal Closer." />
       <Console>
         <Csec>
           <TermStatus label="Price book" value={`${markup}% markup`}>
