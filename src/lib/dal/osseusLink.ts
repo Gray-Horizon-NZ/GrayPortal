@@ -9,7 +9,8 @@ import { sendGmail } from "@/lib/google/gmailAdapter";
 import { wrapEmailHtml } from "@/lib/email/chrome";
 import { z } from "zod";
 
-// GrayPortal's end of the Osseus → GrayPortal link (BUILD-PLAN P1, 21 Nov):
+// GrayPortal's end of the Osseus → GrayPortal link (BUILD-PLAN P1, 21 Nov;
+// O8 e, 23 Nov: the workspace's setup moves the deal through Signed → Live):
 // Osseus tells GrayPortal what happened, keyed on the deal id, and reads the
 // open Software deals. Status only, never a client's records. The one record
 // that comes across is GH's own lead: a "Book a walkthrough" request from a
@@ -53,6 +54,9 @@ const EventInput = z.discriminatedUnion("type", [
     setup: z.number().min(0).max(1_000_000).nullable(), setupHourly: z.boolean(),
     freeMonths: z.number().int().min(0).max(24), commitment: z.number().int().min(0).max(24), created: z.boolean(),
   }),
+  // O8 e: the owner accepted the terms (which documents, when) and Getting started is done. Status only
+  z.object({ type: z.literal("terms.accepted"), dealId: uuid, workspace: z.string().min(1).max(160), documents: z.string().min(1).max(300), acceptedAt: z.string().max(40) }),
+  z.object({ type: z.literal("setup.complete"), dealId: uuid, workspace: z.string().min(1).max(160), steps: z.number().int().min(1).max(50) }),
 ]);
 export type OsseusEvent = z.infer<typeof EventInput>;
 export function parseEvent(v: unknown): OsseusEvent | null {
@@ -92,6 +96,30 @@ const BEFORE_DEMO: Stage[] = ["Inquired", "Contacted", "Discovery call"];
 // The wizard made their workspace: anything before Setting up moves there (building happens only after Signed)
 const BEFORE_SETUP: Stage[] = [...PIPELINES.software.open, "Signed"];
 
+// O8 e (Max, 23 Nov): terms accepted → Signed, Getting started complete → Live.
+// (Workspace created → Setting up is J3's workspace.terms, above.)
+export const MILESTONE_STAGE = { "terms.accepted": "Signed", "setup.complete": "Live" } as const satisfies Record<string, Stage>;
+type Milestone = Extract<OsseusEvent, { type: keyof typeof MILESTONE_STAGE }>;
+const isMilestone = (e: OsseusEvent): e is Milestone => e.type in MILESTONE_STAGE;
+
+/**
+ * Whether a milestone moves the deal: Software deals only, forward only, and
+ * never out of Lost or Dormant (Max closed it by hand). The workspace is made
+ * before its owner can accept the terms, so a deal is usually at Setting up
+ * already and the terms only add a line (Setting up counts as won too).
+ */
+export function milestoneMoves(pipeline: string, from: Stage, to: Stage): boolean {
+  if (pipeline !== "software") return false;
+  const flow = PIPELINES.software.flow;
+  const a = flow.indexOf(from), b = flow.indexOf(to);
+  return a >= 0 && b > a;
+}
+
+export function milestoneLine(e: Milestone): string {
+  if (e.type === "terms.accepted") return `${e.workspace}'s owner accepted the terms in Osseus: ${e.documents}${e.acceptedAt ? ` (${e.acceptedAt.slice(0, 10)})` : ""}.`;
+  return `${e.workspace} finished Getting started in Osseus (all ${e.steps} steps).`;
+}
+
 const nzd = (n: number) => `$${n.toLocaleString("en-NZ", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 /** The deal terms line on the deal: what goes into Xero (O8 d), in words. */
@@ -111,6 +139,14 @@ export async function handleEvent(e: OsseusEvent): Promise<Record<string, unknow
       .from(deals).innerJoin(companies, eq(companies.id, deals.companyId))
       .where(and(eq(deals.id, e.dealId), isNull(deals.deletedAt))).limit(1);
     if (!deal) return { ok: false, reason: "no such deal" };
+
+    if (isMilestone(e)) {
+      await tx.insert(activities).values({ dealId: deal.id, type: "note", body: milestoneLine(e) });
+      const to = MILESTONE_STAGE[e.type];
+      const moved = milestoneMoves(deal.pipeline, deal.stage, to);
+      if (moved) await systemStage(tx, deal, to);
+      return { ok: true, moved, stage: moved ? to : deal.stage };
+    }
 
     if (e.type === "workspace.terms") {
       await tx.insert(activities).values({ dealId: deal.id, type: "note", body: termsLine(e) });

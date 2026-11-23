@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createHmac } from "node:crypto";
-import { verifySignature, parseEvent, firstTime } from "@/lib/dal/osseusLink";
+import { verifySignature, parseEvent, firstTime, milestoneMoves, milestoneLine, MILESTONE_STAGE } from "@/lib/dal/osseusLink";
 
 // The Osseus → GrayPortal link (BUILD-PLAN P1): signed status events.
 const secret = "s".repeat(40);
@@ -31,8 +31,40 @@ describe("Osseus events", () => {
     expect(parseEvent({ type: "contacts.export" })).toBeNull();
     expect(parseEvent({ type: "demo.opened", dealId: "not-a-uuid", title: "X", url: "u", opens: 1, first: true })).toBeNull();
   });
+  it("reads the O8 e milestones", () => {
+    const dealId = "a903d1cd-4714-4870-8bf0-21ab2ec83e71";
+    expect(parseEvent({ type: "terms.accepted", dealId, workspace: "Kim's Gym", documents: "Osseus subscription terms v1", acceptedAt: "2026-11-23T01:00:00Z" })).not.toBeNull();
+    expect(parseEvent({ type: "setup.complete", dealId, workspace: "Kim's Gym", steps: 6 })).not.toBeNull();
+    expect(parseEvent({ type: "setup.complete", dealId: "x", workspace: "Kim's Gym", steps: 6 })).toBeNull();
+    expect(parseEvent({ type: "terms.accepted", dealId, workspace: "", documents: "x", acceptedAt: "" })).toBeNull();
+  });
   it("ignores the same event id twice", () => {
     expect(firstTime("evt-1")).toBe(true);
     expect(firstTime("evt-1")).toBe(false);
+  });
+});
+
+describe("O8 e: milestones move Software deals forward only", () => {
+  it("maps each milestone to Max's stage", () => {
+    expect(MILESTONE_STAGE).toEqual({ "terms.accepted": "Signed", "setup.complete": "Live" });
+  });
+  it("moves forward from any earlier stage", () => {
+    expect(milestoneMoves("software", "Proposal out", "Signed")).toBe(true);
+    expect(milestoneMoves("software", "Walkthrough", "Signed")).toBe(true);
+    expect(milestoneMoves("software", "Setting up", "Live")).toBe(true);
+    expect(milestoneMoves("software", "Signed", "Live")).toBe(true);
+  });
+  it("never moves back, sideways or out of a closed deal", () => {
+    expect(milestoneMoves("software", "Setting up", "Signed")).toBe(false);
+    expect(milestoneMoves("software", "Live", "Live")).toBe(false);
+    expect(milestoneMoves("software", "Lost", "Signed")).toBe(false);
+    expect(milestoneMoves("software", "Dormant", "Live")).toBe(false);
+    expect(milestoneMoves("services", "Proposal out", "Signed")).toBe(false);
+  });
+  it("writes a plain line on the deal", () => {
+    const dealId = "a903d1cd-4714-4870-8bf0-21ab2ec83e71";
+    expect(milestoneLine({ type: "terms.accepted", dealId, workspace: "Kim's Gym", documents: "Osseus subscription terms v1", acceptedAt: "2026-11-23T01:00:00Z" }))
+      .toBe("Kim's Gym's owner accepted the terms in Osseus: Osseus subscription terms v1 (2026-11-23).");
+    expect(milestoneLine({ type: "setup.complete", dealId, workspace: "Kim's Gym", steps: 6 })).toBe("Kim's Gym finished Getting started in Osseus (all 6 steps).");
   });
 });

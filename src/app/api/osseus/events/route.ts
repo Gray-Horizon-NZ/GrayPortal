@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { firstTime, handleEvent, linkSecret, parseEvent, verifySignature } from "@/lib/dal/osseusLink";
 
 // Osseus → GrayPortal events (BUILD-PLAN P1): demo published / opened, and
-// Book a walkthrough. Signed with OSSEUS_LINK_SECRET (src/lib/dal/osseusLink.ts).
+// Book a walkthrough; J3 deal terms; O8 e terms accepted, setup complete. Signed with OSSEUS_LINK_SECRET (src/lib/dal/osseusLink.ts).
 export async function POST(request: NextRequest) {
   const secret = linkSecret();
   if (!secret) return NextResponse.json({ error: "Link not set up" }, { status: 503 });
