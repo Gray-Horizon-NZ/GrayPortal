@@ -40,7 +40,7 @@ import {
   type ContractorStage,
   QUOTE_BASES,
 } from "./registry";
-import { computePackageTotals, computeServicePrice, recurringBundleDiscountPct, setupBundleDiscountPct, toNum, type PackageTotals, type PriceBreakdown } from "./pricing";
+import { computePackageTotals, computeServicePrice, dollars, recurringBundleDiscountPct, setupBundleDiscountPct, toNum, type PackageTotals, type PriceBreakdown } from "./pricing";
 import {
   criterionMet,
   goalStatus,
@@ -214,10 +214,12 @@ export function computePackages(state: IncrementumState, services: ServiceView[]
         });
       const calc = computePackageTotals(lines);
       // Hand-set package prices win over the calculated ones (every price is adjustable).
-      const manualMonthly = toNum(p.manualMonthlyPrice);
-      const manualSetup = toNum(p.manualSetupPrice);
+      const mm = toNum(p.manualMonthlyPrice);
+      const ms = toNum(p.manualSetupPrice);
+      const manualMonthly = mm === null ? null : dollars(mm);
+      const manualSetup = ms === null ? null : dollars(ms);
       const monthlyPrice = manualMonthly ?? calc.monthlyPrice;
-      const monthlyProfit = Math.round((monthlyPrice - calc.monthlyCost) * 100) / 100;
+      const monthlyProfit = dollars(monthlyPrice - calc.monthlyCost);
       const totals: PackageTotals = {
         ...calc,
         monthlyPrice,
@@ -994,17 +996,19 @@ export function computeNeed(state: IncrementumState, services: ServiceView[], ne
   const markup = toNum(need.markupPct) ?? service?.effectiveMarkupPct ?? (toNum(state.settings.defaultMarkupPct) ?? 33);
   const billing: NeedView["billing"] =
     need.kind === "recurring" ? "monthly" : need.kind === "setup" ? "one_off" : service ? (service.billing === "monthly" ? "monthly" : "one_off") : catalogueItem?.isRecurring ? "monthly" : "one_off";
-  const override = toNum(need.sellPrice);
+  const overrideRaw = toNum(need.sellPrice);
+  const override = overrideRaw === null ? null : dollars(overrideRaw);
   let unitPrice: number | null = null;
   let priceSource: NeedView["priceSource"] = "none";
   if (override !== null) {
     unitPrice = override;
     priceSource = "override";
   } else if (!service && catalogueItem) {
-    unitPrice = toNum(billing === "monthly" ? catalogueItem.currentMonthlyPrice : catalogueItem.currentSetupPrice) ?? toNum(catalogueItem.currentMonthlyPrice) ?? toNum(catalogueItem.currentSetupPrice);
+    const cat = toNum(billing === "monthly" ? catalogueItem.currentMonthlyPrice : catalogueItem.currentSetupPrice) ?? toNum(catalogueItem.currentMonthlyPrice) ?? toNum(catalogueItem.currentSetupPrice);
+    unitPrice = cat === null ? null : dollars(cat);
     priceSource = unitPrice !== null ? "catalogue" : "none";
   } else if (rate !== null) {
-    unitPrice = Math.round(rate * (1 + markup / 100) * 100) / 100;
+    unitPrice = dollars(rate * (1 + markup / 100));
     priceSource = "cost_plus";
     const floor = service?.catalogueFloor ? service.price.cataloguePrice : null;
     if (floor !== null && floor !== undefined && floor > unitPrice) {
@@ -1015,10 +1019,10 @@ export function computeNeed(state: IncrementumState, services: ServiceView[], ne
     unitPrice = service.price.sellPrice;
     priceSource = "service";
   }
-  const listPrice = unitPrice !== null ? Math.round(unitPrice * qty * 100) / 100 : null;
+  const listPrice = unitPrice !== null ? dollars(unitPrice * qty) : null;
   const price = need.waived ? 0 : listPrice;
   // A waived line is still delivered, so the contractor is still paid.
-  const cost = rate !== null ? Math.round(rate * qty * 100) / 100 : null;
+  const cost = rate !== null ? dollars(rate * qty) : null;
   const contractorName = need.contractorId ? (state.profiles.find((p) => p.contractorId === need.contractorId)?.name ?? null) : null;
   return {
     ...need,
@@ -1036,7 +1040,7 @@ export function computeNeed(state: IncrementumState, services: ServiceView[], ne
     listPrice,
     price,
     cost,
-    profit: price !== null && cost !== null ? Math.round((price - cost) * 100) / 100 : null,
+    profit: price !== null && cost !== null ? dollars(price - cost) : null,
     priceSource,
   };
 }
@@ -1059,7 +1063,8 @@ export type QuoteTotals = {
   unpriced: number;
 };
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
+// Quote totals are whole dollars (Max, 23 Nov 2026); only the percentages keep decimals.
+const r2 = dollars;
 
 /**
  * Lines copied in from a package keep that package's bundle discount

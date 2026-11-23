@@ -284,7 +284,7 @@ async function syncEngagementTeam(tx: Tx, caller: Caller, need: typeof increment
     if (existing) await auditedSoftDelete(tx, incrementumEngagementContractors, existing.id, { caller, entityType: "incrementum_engagement_contractor" });
     return;
   }
-  const cost = String(Math.round(Number(need.contractorRate ?? 0) * Number(need.quantity ?? 1) * 100) / 100);
+  const cost = String(Math.round(Number(need.contractorRate ?? 0) * Number(need.quantity ?? 1))); // whole dollars (Max, 23 Nov 2026)
   if (existing) {
     await auditedUpdate(
       tx,

@@ -31,9 +31,9 @@ describe("pricing", () => {
 
   it("applies a 33% markup on the quote", () => {
     const p = computeServicePrice({ basis: "highest", benchQuotes: [650], expectedQuote: null, markupPct: 33, catalogueFloor: false, cataloguePrice: 1426, manualPrice: null });
-    expect(p.sellPrice).toBe(864.5);
+    expect(p.sellPrice).toBe(865); // 864.50, rounded to the dollar
     expect(p.priceSource).toBe("cost_plus");
-    expect(p.profit).toBe(214.5);
+    expect(p.profit).toBe(215);
   });
 
   it("raises to the catalogue price when the floor is on", () => {
@@ -67,6 +67,21 @@ describe("pricing", () => {
     expect(t.monthlyProfit).toBe(701);
     expect(t.setupPrice).toBe(500);
     expect(t.waivedValue).toBe(600);
+  });
+
+  it("rounds every price, cost and profit to the dollar (Max, 23 Nov)", () => {
+    // Partner setup today: landing page 450 + 75% = 787.50, tracking 375, Creative Strategy 500, then 5% off
+    const landing = computeServicePrice({ basis: "highest", benchQuotes: [], expectedQuote: 450, markupPct: 75, catalogueFloor: false, cataloguePrice: null, manualPrice: null });
+    expect(landing.sellPrice).toBe(788);
+    expect(computeServicePrice({ basis: "average", benchQuotes: [100, 101], expectedQuote: null, markupPct: 0, catalogueFloor: false, cataloguePrice: null, manualPrice: null }).quote).toBe(101);
+    expect(computeServicePrice({ basis: "manual", benchQuotes: [], expectedQuote: 100, markupPct: 0, catalogueFloor: false, cataloguePrice: null, manualPrice: 499.6 }).sellPrice).toBe(500);
+    const t = computePackageTotals([
+      { kind: "setup", sellPrice: landing.sellPrice, quote: 450, waived: false },
+      { kind: "setup", sellPrice: 375, quote: 250, waived: false },
+      { kind: "setup", sellPrice: 500, quote: 0, waived: false },
+    ]);
+    expect(t.setupPrice).toBe(1580); // was $1,579.38
+    for (const v of [t.setupPrice, t.setupSubtotal, t.setupCost, t.monthlyPrice, t.monthlyProfit]) expect(Number.isInteger(v)).toBe(true);
   });
 
   it("works out clients needed for a target", () => {

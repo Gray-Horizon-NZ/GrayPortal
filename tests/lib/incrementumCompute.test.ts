@@ -330,8 +330,8 @@ describe("quote builder", () => {
     const setup = computeNeed(st, services, { ...need, id: id(), packageId: pkg, kind: "setup", waived: true } as never);
     const t = quoteTotals([a, b, setup]);
     expect(t.monthlySubtotal).toBe(1330);
-    expect(t.monthlyDiscount).toBe(106.4); // 8% for 2 recurring lines
-    expect(t.monthlyPrice).toBe(1223.6);
+    expect(t.monthlyDiscount).toBe(106); // 8% for 2 recurring lines, $106.40 rounded to the dollar
+    expect(t.monthlyPrice).toBe(1224);
     expect(t.oneOffPrice).toBe(0);
     expect(t.oneOffCost).toBe(500);
     expect(t.waivedValue).toBe(665);
