@@ -26,10 +26,10 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
-// Static pages the admin app shows inside its own screens (Brand guidelines,
-// Demo Builder). They may be framed by GrayPortal itself and nothing else.
-// Listed after the catch-all so these two keys override it (Next: last match wins).
-const SELF_FRAMED = ["/brand-guidebook.html", "/demo-builder.html"];
+// Static pages the admin app shows inside its own screens (Brand guidelines).
+// They may be framed by GrayPortal itself and nothing else.
+// Listed after the catch-all so these keys override it (Next: last match wins).
+const SELF_FRAMED = ["/brand-guidebook.html"];
 const selfFramedHeaders = [
   { key: "Content-Security-Policy", value: csp("'self'") },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },

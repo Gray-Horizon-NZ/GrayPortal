@@ -3,7 +3,7 @@
 // link is down; its PRODUCTS list below is the 22 Nov list and may be out of date.
 //
 // Brings grayscale_products (Finance tools › GrayScale, the portal's GrayScale page and
-// request widget, the Demo Builder and Apexus price feeds) in line with Osseus's price list,
+// request widget and the Apexus price feed) in line with Osseus's price list,
 // which is the source of truth: OS/GrayScale/code/osseus/src/core/products.ts
 // (GrayScale DECISIONS D22 prices, D23 names, D24 removals, 22 Nov 2026).
 //
