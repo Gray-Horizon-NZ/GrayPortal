@@ -9,7 +9,6 @@ import { useStore } from "../store";
 import { money, fmtDate } from "../format";
 import { PageHead, Panel, Priv, Badge, Seg, Modal, Toggle, Empty, go } from "../ui";
 import { createServiceItemAction, updateServiceItemAction, softDeleteServiceItemAction } from "@/app/(app)/pricing/actions";
-import { createGrayscaleProductAction, updateGrayscaleProductAction, softDeleteGrayscaleProductAction } from "@/app/(app)/grayscale-products/actions";
 import { tMarkGrayscaleContacted } from "../actions";
 
 const fmtPrice = (setup, monthly, text) => {
@@ -304,14 +303,11 @@ function AddDeliverable({ open, modules, onClose }) {
 export function GrayScale() {
   const { grayscaleProducts, grayscaleRequests } = useStore();
   const [tab, setTab] = useState("catalogue");
-  const [edit, setEdit] = useState(null); // "new" | product
   const newCount = grayscaleRequests.filter((r) => r.status === "new").length;
-  const p = edit && edit !== "new" ? edit : null;
   return (
     <div className="screen">
-      <PageHead title="GrayScale" sub="Self-serve products clients can request from their portal · list prices; a client's own discount is set in their Osseus">
+      <PageHead title="GrayScale" sub="Self-serve products clients can request from their portal · Osseus's price list (products.ts), synced every hour; change prices there. A client's own discount and deal terms are set in their Osseus">
         <Seg value={tab} onChange={setTab} options={[["catalogue", "Catalogue"], ["requests", "Client requests", newCount || null]]} />
-        <button className="btn btn-primary" onClick={() => setEdit("new")}><Plus size={14} /> Add product</button>
       </PageHead>
       {tab === "catalogue" ? (
         grayscaleProducts.length === 0 ? <Panel><Empty icon={LayoutGrid} title="No GrayScale products yet" /></Panel> : (
@@ -324,7 +320,6 @@ export function GrayScale() {
                     <h3>{x.name}{x.isNew && <span className="gh-new">New</span>}{x.category && <span className="muted small" style={{ display: "block", fontWeight: 400 }}>{x.category}</span>}</h3>
                     <span className="spacer" />
                     <b style={{ color: "var(--t-accent)" }}>{x.monthly ? <><Priv>{money(x.monthly)}</Priv><span className="muted small">/mo</span></> : <span className="muted small">No price</span>}</b>
-                    <button className="iconbtn" style={{ width: 26, height: 26 }} onClick={() => setEdit(x)} aria-label={`Edit ${x.name}`}><Pencil size={12} /></button>
                   </div>
                   <p>{x.desc}</p>
                 </div>
@@ -355,26 +350,6 @@ export function GrayScale() {
           )}
         </Panel>
       )}
-
-      <Modal open={!!edit} onClose={() => setEdit(null)} title={p ? `Edit ${p.name}` : "Add product"}>
-        {edit && (
-          <form className="stack" style={{ gap: 10 }} action={async (fd) => { await (p ? updateGrayscaleProductAction(p.id, fd) : createGrayscaleProductAction(fd)); setEdit(null); }}>
-            <label className="field"><span>Name</span><input className="input" name="name" defaultValue={p?.name} required /></label>
-            <div className="form-grid">
-              <label className="field"><span>Category</span><input className="input" name="category" defaultValue={p?.category === "Other" ? "" : p?.category} list="gs-cats" /></label>
-              <label className="field"><span>Monthly price (NZD)</span><input className="input" name="monthlyPriceNzd" type="number" step="0.01" defaultValue={p?.monthly ?? ""} /></label>
-            </div>
-            <datalist id="gs-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>
-            <label className="field"><span>Description</span><textarea className="textarea" name="description" defaultValue={p?.desc} /></label>
-            <label className="field"><span>Sort order</span><input className="input" name="sortOrder" type="number" defaultValue={p?.sortOrder ?? ""} /></label>
-            <div className="row">
-              {p && <button type="button" className="btn btn-danger" onClick={async () => { await softDeleteGrayscaleProductAction(p.id); setEdit(null); }}>Remove</button>}
-              <span className="spacer" />
-              <button className="btn btn-primary" type="submit">{p ? "Save" : "Add product"}</button>
-            </div>
-          </form>
-        )}
-      </Modal>
     </div>
   );
 }

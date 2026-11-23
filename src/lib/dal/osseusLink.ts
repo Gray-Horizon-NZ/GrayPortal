@@ -46,6 +46,13 @@ const EventInput = z.discriminatedUnion("type", [
     name: z.string().min(1).max(120), business: z.string().min(1).max(160), email: z.string().email().max(254),
     phone: z.string().max(40), message: z.string().max(2000), demoTitle: z.string().max(200), demoUrl: z.string().max(500),
   }),
+  // J3: what the client pays under the deal terms on their workspace (GH's own billing figures)
+  z.object({
+    type: z.literal("workspace.terms"), dealId: uuid, workspace: z.string().min(1).max(160),
+    monthly: z.number().min(0).max(1_000_000), billingFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    setup: z.number().min(0).max(1_000_000).nullable(), setupHourly: z.boolean(),
+    freeMonths: z.number().int().min(0).max(24), commitment: z.number().int().min(0).max(24), created: z.boolean(),
+  }),
 ]);
 export type OsseusEvent = z.infer<typeof EventInput>;
 export function parseEvent(v: unknown): OsseusEvent | null {
@@ -82,6 +89,19 @@ const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.grayhorizo
 
 // Before the demo: published moves the deal up to Demo sent, never back
 const BEFORE_DEMO: Stage[] = ["Inquired", "Contacted", "Discovery call"];
+// The wizard made their workspace: anything before Setting up moves there (building happens only after Signed)
+const BEFORE_SETUP: Stage[] = [...PIPELINES.software.open, "Signed"];
+
+const nzd = (n: number) => `$${n.toLocaleString("en-NZ", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+
+/** The deal terms line on the deal: what goes into Xero (O8 d), in words. */
+export function termsLine(e: Extract<OsseusEvent, { type: "workspace.terms" }>): string {
+  const bits = [`${nzd(e.monthly)} a month${e.billingFrom ? ` from ${e.billingFrom}` : ""} (Xero repeating invoice, no GST)`];
+  if (e.freeMonths) bits.push(`${e.freeMonths} free ${e.freeMonths === 1 ? "month" : "months"} first`);
+  bits.push(e.setupHourly ? "setup by the hour at $80" : e.setup ? `setup ${nzd(e.setup)} once` : "setup waived");
+  if (e.commitment) bits.push(`${e.commitment}-month commitment`);
+  return `${e.created ? "Workspace created" : "Deal terms changed"} in Osseus (${e.workspace}): ${bits.join(", ")}.`;
+}
 
 export async function handleEvent(e: OsseusEvent): Promise<Record<string, unknown>> {
   return withAdminScope(`Osseus link: ${e.type}`, async (tx) => {
@@ -91,6 +111,13 @@ export async function handleEvent(e: OsseusEvent): Promise<Record<string, unknow
       .from(deals).innerJoin(companies, eq(companies.id, deals.companyId))
       .where(and(eq(deals.id, e.dealId), isNull(deals.deletedAt))).limit(1);
     if (!deal) return { ok: false, reason: "no such deal" };
+
+    if (e.type === "workspace.terms") {
+      await tx.insert(activities).values({ dealId: deal.id, type: "note", body: termsLine(e) });
+      const moved = e.created && deal.pipeline === "software" && BEFORE_SETUP.includes(deal.stage);
+      if (moved) await systemStage(tx, deal, "Setting up");
+      return { ok: true, moved };
+    }
 
     if (e.type === "demo.published") {
       await tx.insert(activities).values({ dealId: deal.id, type: "note", body: `Demo sent: ${e.url}${e.expires ? ` (link ends ${e.expires.slice(0, 10)})` : ""}` });

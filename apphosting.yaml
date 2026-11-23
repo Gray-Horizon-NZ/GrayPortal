@@ -106,6 +106,12 @@ env:
     secret: OSSEUS_LINK_SECRET
     availability: [RUNTIME]
 
+  # J3: where GrayPortal reads Osseus's price list (src/lib/dal/osseusPrices.ts),
+  # signed with OSSEUS_LINK_SECRET. Osseus production's shared address.
+  - variable: OSSEUS_URL
+    value: https://portal.grayhorizon.nz
+    availability: [RUNTIME]
+
   # Read-only pull from Spider-Fawcett OS's /api/external/ytd-income
   # (separate app/deploy, see src/lib/spiderFawcett.ts) so the personal-tax
   # calculator can fold Max's party-business YTD income into its NZ bracket

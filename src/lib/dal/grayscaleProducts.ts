@@ -5,6 +5,7 @@ import { grayscaleProducts } from "@/lib/db/schema";
 import { withCaller } from "./auth";
 import { assertRole } from "./session";
 import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
+import { syncPricesFromOsseus } from "./osseusPrices";
 
 // Replaces the hardcoded src/config/grayscale.ts array — every caller
 // (admin CRUD page, the portal's GrayscaleWidget, the request-validation
@@ -12,7 +13,10 @@ import { auditedInsert, auditedSoftDelete, auditedUpdate } from "./mutate";
 // single live source of truth for the catalogue instead of a source file
 // that only changes on a code deploy.
 
+// J3 (GrayScale BUILD-PLAN): the rows follow Osseus's price list (products.ts), synced at most
+// hourly by the first read (./osseusPrices.ts). Edits here would be replaced, so the screen is read-only.
 export async function listGrayscaleProducts() {
+  await syncPricesFromOsseus();
   return withCaller(async (_caller, tx) => {
     return tx
       .select()

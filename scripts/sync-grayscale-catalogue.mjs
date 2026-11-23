@@ -1,3 +1,7 @@
+// SUPERSEDED (J3, 23 Nov 2026): GrayPortal now follows Osseus's price list by itself, hourly
+// (src/lib/dal/osseusPrices.ts, reading Osseus /api/link/prices). Kept only as a fallback for when the
+// link is down; its PRODUCTS list below is the 22 Nov list and may be out of date.
+//
 // Brings grayscale_products (Finance tools › GrayScale, the portal's GrayScale page and
 // request widget, the Demo Builder and Apexus price feeds) in line with Osseus's price list,
 // which is the source of truth: OS/GrayScale/code/osseus/src/core/products.ts
