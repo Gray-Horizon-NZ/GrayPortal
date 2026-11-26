@@ -13,6 +13,12 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   walkthrough_request: "Walkthrough request from a demo",
 };
 
+/** A payload's own title wins (the Osseus link names what kind of lead it was). */
+export function notificationLabel(type: string, payload: unknown): string {
+  const title = payload && typeof payload === "object" ? (payload as { title?: unknown }).title : null;
+  return typeof title === "string" && title ? title : (NOTIFICATION_TYPE_LABELS[type] ?? type);
+}
+
 export function notificationEntityHref(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as { entityType?: string; entityId?: string };

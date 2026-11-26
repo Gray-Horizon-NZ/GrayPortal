@@ -6,7 +6,7 @@ import { listClients } from "@/lib/dal/clients";
 import { listAllTasks } from "@/lib/dal/tasks";
 import { listUnmatchedInboundEmails } from "@/lib/dal/emails";
 import { listWebsiteInquiries } from "@/lib/dal/leads";
-import { NOTIFICATION_TYPE_LABELS, notificationEntityHref } from "@/lib/notificationDisplay";
+import { notificationEntityHref, notificationLabel } from "@/lib/notificationDisplay";
 import TerminalShell from "@/terminal/Shell";
 import { PREFS_COOKIE } from "@/terminal/prefs";
 import LogoutButton from "./LogoutButton";
@@ -95,7 +95,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         data={{
           notifications: notifications.map((n) => ({
             id: n.id,
-            body: NOTIFICATION_TYPE_LABELS[n.type] ?? n.type,
+            body: notificationLabel(n.type, n.payload),
             at: at(n.createdAt),
             read: n.read,
             href: notificationEntityHref(n.payload),

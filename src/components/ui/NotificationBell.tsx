@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Check } from "lucide-react";
-import { NOTIFICATION_TYPE_LABELS, notificationEntityHref } from "@/lib/notificationDisplay";
+import { notificationEntityHref, notificationLabel } from "@/lib/notificationDisplay";
 
 type NotificationRow = {
   id: string;
@@ -106,7 +106,7 @@ export default function NotificationBell({
                     onClick={() => !n.read && handleMarkRead(n.id)}
                   >
                     <p style={{ fontSize: "var(--gh-text-sm)" }}>
-                      {NOTIFICATION_TYPE_LABELS[n.type] ?? n.type}
+                      {notificationLabel(n.type, n.payload)}
                     </p>
                     <p style={{ fontSize: "var(--gh-text-xs)", color: "var(--gh-text-muted)", marginTop: 2 }}>
                       {new Date(n.createdAt).toLocaleString("en-NZ")}

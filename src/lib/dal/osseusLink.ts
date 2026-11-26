@@ -1,11 +1,12 @@
 import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq, gt, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { activities, auditLog, companies, contacts, deals, notifications, tasks, users } from "@/lib/db/schema";
 import { withAdminScope, type Tx } from "./session";
 import { PIPELINES, stageTaskRule, type Stage } from "@/config/pipeline";
 import { nzDaysFromToday } from "@/lib/date";
 import { sendGmail } from "@/lib/google/gmailAdapter";
+import { websiteAcknowledgment } from "./leads";
 import { wrapEmailHtml } from "@/lib/email/chrome";
 import { z } from "zod";
 
@@ -46,7 +47,18 @@ const EventInput = z.discriminatedUnion("type", [
     type: z.literal("walkthrough.requested"),
     name: z.string().min(1).max(120), business: z.string().min(1).max(160), email: z.string().email().max(254),
     phone: z.string().max(40), message: z.string().max(2000), demoTitle: z.string().max(200), demoUrl: z.string().max(500),
+    // Osseus's own id for the request, the same on every retry
+    submissionId: uuid.optional(),
   }),
+  // An Osseus enquiry from the website's Book a call form, or a waitlist person Max moved into the pipeline
+  z.object({
+    type: z.literal("website.enquiry"), submissionId: uuid, origin: z.enum(["book-a-call", "waitlist"]), product: z.string().min(1).max(60),
+    name: z.string().min(1).max(120), business: z.string().max(160), email: z.string().email().max(254),
+    phone: z.string().max(40), message: z.string().max(2000), page: z.string().max(200),
+  }),
+  // An alert for Gray Horizon itself, sent on over GrayPortal's Gmail while Osseus has no sender of its own.
+  // It only ever goes to GrayPortal's admins: the event names no recipient
+  z.object({ type: z.literal("gh.alert"), subject: z.string().min(1).max(200), text: z.string().min(1).max(5000) }),
   // J3: what the client pays under the deal terms on their workspace (GH's own billing figures)
   z.object({
     type: z.literal("workspace.terms"), dealId: uuid, workspace: z.string().min(1).max(160),
@@ -79,13 +91,15 @@ async function systemStage(tx: Tx, deal: { id: string; stage: Stage; pipeline: s
 
 async function emailAdmins(tx: Tx, subject: string, text: string, html: string) {
   const admins = await tx.select({ email: users.email }).from(users).where(and(eq(users.role, "admin"), isNull(users.deletedAt)));
+  let sent = 0;
   for (const a of admins) {
     try {
-      await sendGmail({ to: a.email, subject, bodyText: text, bodyHtml: wrapEmailHtml(html) });
+      if (await sendGmail({ to: a.email, subject, bodyText: text, bodyHtml: wrapEmailHtml(html) })) sent++;
     } catch (err) {
       console.error("Osseus link email failed", err);
     }
   }
+  return sent;
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -132,8 +146,18 @@ export function termsLine(e: Extract<OsseusEvent, { type: "workspace.terms" }>):
 }
 
 export async function handleEvent(e: OsseusEvent): Promise<Record<string, unknown>> {
+  if (e.type === "gh.alert") {
+    const sent = await withAdminScope("Osseus link: gh.alert", (tx) => emailAdmins(tx, e.subject, e.text, `<p>${esc(e.text).replace(/\n/g, "<br>")}</p>`));
+    return { ok: sent > 0, sent };
+  }
+  // Leads: the emails go after the commit, so a slow or failing Gmail never undoes the deal
+  if (e.type === "walkthrough.requested" || e.type === "website.enquiry") {
+    const after: (() => Promise<unknown>)[] = [];
+    const result = await withAdminScope(`Osseus link: ${e.type}`, (tx) => intake(tx, leadOf(e), after));
+    for (const send of after) await send().catch((err) => console.error("Osseus link email failed", err));
+    return result;
+  }
   return withAdminScope(`Osseus link: ${e.type}`, async (tx) => {
-    if (e.type === "walkthrough.requested") return walkthrough(tx, e);
     const [deal] = await tx
       .select({ id: deals.id, stage: deals.stage, pipeline: deals.pipeline, companyName: companies.name })
       .from(deals).innerJoin(companies, eq(companies.id, deals.companyId))
@@ -176,33 +200,201 @@ export async function handleEvent(e: OsseusEvent): Promise<Record<string, unknow
   });
 }
 
-/** "Book a walkthrough" from a demo: a new Software deal at Inquired (P1), unless the same person asked in the last day. */
-async function walkthrough(tx: Tx, e: Extract<OsseusEvent, { type: "walkthrough.requested" }>) {
-  const since = new Date(Date.now() - 24 * 3600_000);
-  const [dupe] = await tx
-    .select({ dealId: deals.id })
-    .from(contacts).innerJoin(deals, eq(deals.companyId, contacts.companyId))
-    .where(and(ilike(contacts.email, e.email), gt(deals.createdAt, since), eq(deals.pipeline, "software"), isNull(deals.deletedAt))).limit(1);
-  if (dupe) return { ok: true, dealId: dupe.dealId, duplicate: true };
+// ─── Leads ──────────────────────────────────────────────────────────────────
 
-  const [first, ...rest] = e.name.trim().split(/\s+/);
-  const [company] = await tx.insert(companies).values({ name: e.business, source: "Demo: Book a walkthrough", status: "Identified", notes: e.message || null }).returning();
-  const [contact] = await tx.insert(contacts).values({ companyId: company.id, firstName: first, lastName: rest.join(" ") || "-", email: e.email, phone: e.phone || null }).returning();
-  const [deal] = await tx.insert(deals).values({
-    companyId: company.id, primaryContactId: contact.id, pipeline: "software", stage: PIPELINES.software.first,
-    packageTier: "Osseus", source: "Demo: Book a walkthrough",
-    nextAction: "Reply and book the walkthrough", nextActionDate: nzDaysFromToday(1),
-  }).returning();
-  await systemAudit(tx, "deal", deal.id, "create", { stage: { old: null, new: deal.stage }, source: { old: null, new: deal.source } });
-  await tx.insert(activities).values({ dealId: deal.id, type: "note", body: `Asked for a walkthrough from the ${e.demoTitle || "demo"}${e.demoUrl ? ` (${e.demoUrl})` : ""}.${e.message ? ` They wrote: ${e.message}` : ""}` });
-  const rule = stageTaskRule("software", deal.stage);
-  if (rule) await tx.insert(tasks).values({ dealId: deal.id, title: rule.title, dueDate: nzDaysFromToday(rule.dueInDays), status: "not_started" });
-  await tx.insert(notifications).values({ type: "walkthrough_request", payload: { entityId: deal.id, entityType: "deal", company: e.business } });
-  const link = `${appUrl()}/deals/${deal.id}`;
-  await emailAdmins(tx, `Walkthrough request: ${e.business}`,
-    `${e.name} (${e.business}) asked for a walkthrough from the ${e.demoTitle || "demo"}. Email ${e.email}${e.phone ? `, phone ${e.phone}` : ""}.${e.message ? ` They wrote: ${e.message}` : ""} Deal: ${link}`,
-    `<p><strong>${esc(e.name)}</strong> (${esc(e.business)}) asked for a walkthrough from the ${esc(e.demoTitle || "demo")}.</p><p>Email ${esc(e.email)}${e.phone ? `, phone ${esc(e.phone)}` : ""}</p>${e.message ? `<p>They wrote: ${esc(e.message)}</p>` : ""}<p><a href="${esc(link)}">Open the deal in GrayPortal</a></p>`);
-  return { ok: true, dealId: deal.id };
+type LeadEvent = Extract<OsseusEvent, { type: "walkthrough.requested" | "website.enquiry" }>;
+
+export type Lead = {
+  submissionId: string | null;
+  name: string; business: string; email: string; phone: string; message: string;
+  /** Where the deal came from, and its package */
+  source: string; product: string;
+  /** The first line on the deal */
+  story: string;
+  alertTitle: string;
+  /** The website promises a reply within 48 hours; a demo's walkthrough request gets the stage's own one day */
+  replyInDays: number | null;
+  /** Send the person "we have your enquiry" (Book a call only) */
+  acknowledge: boolean;
+};
+
+export function leadOf(e: LeadEvent): Lead {
+  const base = { name: e.name.trim(), business: e.business.trim(), email: e.email.trim(), phone: e.phone, message: e.message };
+  if (e.type === "walkthrough.requested") {
+    return {
+      ...base, submissionId: e.submissionId ?? null, source: "Demo: Book a walkthrough", product: "Osseus",
+      story: `Asked for a walkthrough from the ${e.demoTitle || "demo"}${e.demoUrl ? ` (${e.demoUrl})` : ""}.`,
+      alertTitle: "Walkthrough request", replyInDays: null, acknowledge: false,
+    };
+  }
+  const waitlist = e.origin === "waitlist";
+  return {
+    ...base, submissionId: e.submissionId, product: e.product,
+    source: waitlist ? `Waitlist: ${e.product}` : "Website: Book a call",
+    story: waitlist
+      ? `Moved into the pipeline from the ${e.product} waitlist.`
+      : `Asked about ${e.product} through the website's Book a call form${e.page ? ` (from ${e.page})` : ""}.`,
+    alertTitle: waitlist ? `${e.product} waitlist` : `${e.product} enquiry`,
+    replyInDays: waitlist ? 1 : 2,
+    acknowledge: !waitlist,
+  };
+}
+
+/**
+ * What a lead does with what's already there. Nothing existing is ever
+ * overwritten: a public form only adds.
+ */
+export function matchLead(openDeal: object | undefined, contact: object | undefined): "add to open deal" | "new deal" | "new company" {
+  return openDeal ? "add to open deal" : contact ? "new deal" : "new company";
+}
+
+/** The acknowledgment greets by first name only, and never repeats something that looks like a link or markup. */
+export function greetingName(name: string): string {
+  const first = name.trim().split(/\s+/)[0].slice(0, 40);
+  return !first || /[/\\:.@<>]/.test(first) ? "there" : first;
+}
+
+// Still being worked: everything in the Software pipeline but Live, Lost and Dormant
+const OPEN_SOFTWARE: Stage[] = PIPELINES.software.flow.filter((s) => !PIPELINES.software.closed.includes(s));
+
+async function intake(tx: Tx, lead: Lead, after: (() => Promise<unknown>)[]): Promise<Record<string, unknown>> {
+  const email = lead.email.toLowerCase();
+  // One at a time per person, so a retry racing the first try can't make two deals
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`osseus-lead:${email}`}))`);
+
+  // Seen this submission before (a retry after a lost reply, however much later): the same deal, nothing new
+  if (lead.submissionId) {
+    const [seenBefore] = await tx.select({ changes: auditLog.fieldChanges }).from(auditLog)
+      .where(and(eq(auditLog.entityType, "osseus_submission"), eq(auditLog.entityId, lead.submissionId))).limit(1);
+    const dealId = (seenBefore?.changes as { dealId?: { new?: string } } | null)?.dealId?.new;
+    if (dealId) return { ok: true, dealId, duplicate: true };
+  }
+
+  // The same email, whatever the capitals; the newest contact first
+  const matches = await tx
+    .select({ contactId: contacts.id, companyId: contacts.companyId, company: companies.name })
+    .from(contacts).innerJoin(companies, eq(companies.id, contacts.companyId))
+    .where(and(sql`lower(${contacts.email}) = ${email}`, isNull(contacts.deletedAt), isNull(companies.deletedAt)))
+    .orderBy(desc(contacts.createdAt));
+  const [open] = matches.length
+    ? await tx.select({ dealId: deals.id, companyId: deals.companyId, createdAt: deals.createdAt }).from(deals)
+      .where(and(inArray(deals.companyId, matches.map((m) => m.companyId)), eq(deals.pipeline, "software"), inArray(deals.stage, OPEN_SOFTWARE), isNull(deals.deletedAt)))
+      .orderBy(desc(deals.createdAt)).limit(1)
+    : [];
+  const contact = matches.find((m) => m.companyId === open?.companyId) ?? matches[0];
+  const what = matchLead(open, contact);
+
+  // An older Osseus sends no submission id: the same person within a day is the same request
+  if (!lead.submissionId && open && Date.now() - open.createdAt.getTime() < 24 * 3600_000) return { ok: true, dealId: open.dealId, duplicate: true };
+
+  const companiesWithEmail = [...new Set(matches.map((m) => m.company))];
+  const story = [
+    lead.story,
+    lead.message ? `They wrote: ${lead.message}` : "",
+    // What they typed this time, in case it differs from what's on file
+    what === "new company" ? "" : `Sent as ${[lead.name, lead.business, lead.phone].filter(Boolean).join(", ")}.`,
+    companiesWithEmail.length > 1 ? `This email is on contacts at more than one company: ${companiesWithEmail.join(", ")}. Check it's on the right one.` : "",
+  ].filter(Boolean).join(" ");
+
+  const companyName = what === "new company" ? lead.business || lead.name : contact!.company;
+  let dealId: string;
+
+  if (what === "add to open deal") {
+    dealId = open!.dealId;
+    await tx.insert(tasks).values({ dealId, title: "Reply to the new message", dueDate: nzDaysFromToday(lead.replyInDays ?? 1), status: "not_started" });
+  } else {
+    let companyId = contact?.companyId;
+    let contactId = contact?.contactId;
+    if (what === "new company") {
+      const [first, ...rest] = lead.name.split(/\s+/);
+      const [company] = await tx.insert(companies).values({ name: companyName, source: lead.source, status: "Identified", notes: lead.message || null }).returning();
+      const [made] = await tx.insert(contacts).values({ companyId: company.id, firstName: first, lastName: rest.join(" ") || "-", email: lead.email, phone: lead.phone || null }).returning();
+      companyId = company.id;
+      contactId = made.id;
+    }
+    const rule = stageTaskRule("software", PIPELINES.software.first);
+    const days = lead.replyInDays ?? rule?.dueInDays ?? 1;
+    const [deal] = await tx.insert(deals).values({
+      companyId: companyId!, primaryContactId: contactId!, pipeline: "software", stage: PIPELINES.software.first,
+      packageTier: lead.product, source: lead.source,
+      nextAction: "Reply and book the walkthrough", nextActionDate: nzDaysFromToday(days),
+    }).returning();
+    dealId = deal.id;
+    await systemAudit(tx, "deal", deal.id, "create", { stage: { old: null, new: deal.stage }, source: { old: null, new: deal.source } });
+    if (rule) await tx.insert(tasks).values({ dealId: deal.id, title: rule.title, dueDate: nzDaysFromToday(days), status: "not_started" });
+  }
+
+  await tx.insert(activities).values({ dealId, type: "note", body: story });
+  if (lead.submissionId) await systemAudit(tx, "osseus_submission", lead.submissionId, "create", { dealId: { old: null, new: dealId } });
+  await tx.insert(notifications).values({ type: "walkthrough_request", payload: { entityId: dealId, entityType: "deal", company: companyName, title: lead.alertTitle } });
+
+  const link = `${appUrl()}/deals/${dealId}`;
+  const who = `${lead.name}${lead.business ? ` (${lead.business})` : ""}`;
+  const added = what === "add to open deal" ? "Added to their open deal." : "";
+  after.push(() => withAdminScope("Osseus link: lead alert", (t) => emailAdmins(t, `${lead.alertTitle}: ${companyName}`,
+    `${who}. ${lead.story} Email ${lead.email}${lead.phone ? `, phone ${lead.phone}` : ""}.${lead.message ? ` They wrote: ${lead.message}` : ""} ${added} Deal: ${link}`,
+    `<p><strong>${esc(who)}</strong>. ${esc(lead.story)}</p><p>Email ${esc(lead.email)}${lead.phone ? `, phone ${esc(lead.phone)}` : ""}</p>${lead.message ? `<p>They wrote: ${esc(lead.message)}</p>` : ""}${added ? `<p>${added}</p>` : ""}<p><a href="${esc(link)}">Open the deal in GrayPortal</a></p>`)));
+
+  if (lead.acknowledge) {
+    // At most one a day per address, so the form can't be used to fill someone's inbox
+    const key = createHash("sha256").update(email).digest("hex");
+    const [acked] = await tx.select({ id: auditLog.id }).from(auditLog)
+      .where(and(eq(auditLog.entityType, "osseus_ack"), eq(auditLog.entityId, key), gt(auditLog.occurredAt, new Date(Date.now() - 24 * 3600_000)))).limit(1);
+    if (!acked) {
+      await systemAudit(tx, "osseus_ack", key, "create", {});
+      after.push(() => withAdminScope("Osseus link: acknowledgment", (t) => websiteAcknowledgment(t, lead.email, greetingName(lead.name))));
+    }
+  }
+  return { ok: true, dealId, matched: what };
+}
+
+// ─── Reads ──────────────────────────────────────────────────────────────────
+
+/** A software deal's row on Osseus's Contacts page. */
+export type PipelineContact = {
+  dealId: string; company: string; name: string; email: string; phone: string;
+  stage: Stage; product: string; source: string; added: string; signedOn: string | null;
+};
+
+// The first of these in a deal's history is the day they said yes
+const SIGNED_LINES = ["Signed", "Setting up", "Live", "Won"].map((s) => `Stage changed to ${s}`);
+
+/**
+ * Every Software deal with its contact, for Osseus's Contacts page: Gray
+ * Horizon's own prospects and customers, never a client's records. Services
+ * deals aren't included. signedOn is the first time the deal reached Signed
+ * or later; empty when its history doesn't say.
+ */
+export async function softwareContacts(): Promise<PipelineContact[]> {
+  return withAdminScope("Osseus link: software contacts", async (tx) => {
+    const rows = await tx
+      .select({
+        dealId: deals.id, stage: deals.stage, pkg: deals.packageTier, source: deals.source, createdAt: deals.createdAt,
+        companyId: deals.companyId, primary: deals.primaryContactId, company: companies.name,
+      })
+      .from(deals).innerJoin(companies, eq(companies.id, deals.companyId))
+      .where(and(isNull(deals.deletedAt), isNull(companies.deletedAt), eq(deals.pipeline, "software")))
+      .orderBy(desc(deals.createdAt));
+    if (!rows.length) return [];
+    const people = await tx
+      .select({ id: contacts.id, companyId: contacts.companyId, first: contacts.firstName, last: contacts.lastName, email: contacts.email, phone: contacts.phone })
+      .from(contacts).where(and(inArray(contacts.companyId, rows.map((r) => r.companyId)), isNull(contacts.deletedAt)))
+      .orderBy(contacts.createdAt);
+    const signed = await tx.select({ dealId: activities.dealId, at: sql<string>`min(${activities.occurredAt})` })
+      .from(activities).where(and(inArray(activities.dealId, rows.map((r) => r.dealId)), inArray(activities.body, SIGNED_LINES)))
+      .groupBy(activities.dealId);
+    const signedOn = new Map(signed.map((x) => [x.dealId, new Date(x.at).toISOString()]));
+    return rows.map((r) => {
+      const p = people.find((x) => x.id === r.primary) ?? people.find((x) => x.companyId === r.companyId);
+      return {
+        dealId: r.dealId, company: r.company,
+        name: p ? [p.first, p.last].filter((x) => x && x !== "-").join(" ") : "",
+        email: p?.email ?? "", phone: p?.phone ?? "",
+        stage: r.stage, product: r.pkg ?? "", source: r.source ?? "",
+        added: r.createdAt.toISOString(), signedOn: signedOn.get(r.dealId) ?? null,
+      };
+    });
+  });
 }
 
 /** Open Software deals before the sale, for Osseus's demo picker. Company names only. */

@@ -63,6 +63,11 @@ export async function createLead(input: LeadInputT) {
   });
 }
 
+/** The same acknowledgment, for an enquiry that came through Osseus (osseusLink.ts). */
+export async function websiteAcknowledgment(tx: Tx, email: string, firstName: string) {
+  return sendInquiryAcknowledgment(tx, email, firstName);
+}
+
 /** Best-effort — a failed/skipped confirmation email must never fail the
  * public form submission itself. `email` is optional on the inquiry form,
  * so this is only ever called once one is actually present. */
